@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # FlutterFlow AI Workspace
 
 This workspace is scaffolded for the FlutterFlow AI DSL.
@@ -123,3 +124,6 @@ Start with a reference app before writing new DSL:
 - `references/styled_profile_dsl.dart`
 - `references/media_browser_dsl.dart`
 - `references/asset_and_reference_surface_dsl.dart`
+=======
+# Ndu_Project
+>>>>>>> d834b634 (Initial commit)
