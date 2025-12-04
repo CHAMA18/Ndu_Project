@@ -578,4 +578,107 @@ class SubscriptionService {
         return 'Portfolio Plan';
     }
   }
+
+  /// Fetch invoice history for a user
+  static Future<List<Invoice>> getInvoiceHistory({String? userId, String? userEmail}) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return [];
+
+      final idToken = await user.getIdToken();
+      final response = await http.post(
+        Uri.parse('$_cloudFunctionsBaseUrl/getUserInvoices'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'userId': userId ?? user.uid,
+          'userEmail': userEmail ?? user.email,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        final invoices = (data['invoices'] as List?)
+            ?.map((i) => Invoice.fromJson(i))
+            .toList() ?? [];
+        return invoices;
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching invoice history: $e');
+      return [];
+    }
+  }
+}
+
+/// Invoice model for payment history
+class Invoice {
+  final String id;
+  final double amount;
+  final String currency;
+  final String status;
+  final String provider;
+  final String description;
+  final DateTime createdAt;
+  final DateTime? paidAt;
+  final String? subscriptionId;
+  final String? externalId;
+  final String? tier;
+  final String? receiptUrl;
+
+  Invoice({
+    required this.id,
+    required this.amount,
+    required this.currency,
+    required this.status,
+    required this.provider,
+    required this.description,
+    required this.createdAt,
+    this.paidAt,
+    this.subscriptionId,
+    this.externalId,
+    this.tier,
+    this.receiptUrl,
+  });
+
+  factory Invoice.fromJson(Map<String, dynamic> json) {
+    return Invoice(
+      id: json['id'] ?? '',
+      amount: (json['amount'] ?? 0).toDouble(),
+      currency: json['currency'] ?? 'USD',
+      status: json['status'] ?? 'unknown',
+      provider: json['provider'] ?? 'unknown',
+      description: json['description'] ?? 'Payment',
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      paidAt: json['paidAt'] != null ? DateTime.parse(json['paidAt']) : null,
+      subscriptionId: json['subscriptionId'],
+      externalId: json['externalId'],
+      tier: json['tier'],
+      receiptUrl: json['receiptUrl'],
+    );
+  }
+
+  bool get isPaid => status == 'paid' || status == 'succeeded' || status == 'success';
+
+  String get formattedAmount {
+    final symbol = currency == 'USD' ? '\$' : currency == 'NGN' ? '₦' : currency;
+    return '$symbol${amount.toStringAsFixed(2)}';
+  }
+
+  String get providerDisplayName {
+    switch (provider.toLowerCase()) {
+      case 'stripe':
+        return 'Stripe';
+      case 'paypal':
+        return 'PayPal';
+      case 'paystack':
+        return 'Paystack';
+      case 'admin_granted':
+        return 'Admin Granted';
+      default:
+        return provider;
+    }
+  }
 }

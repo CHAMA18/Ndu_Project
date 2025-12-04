@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/services/subscription_service.dart';
+import 'package:ndu_project/services/coupon_service.dart';
+import 'package:ndu_project/models/coupon_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const Color _pageBackground = Color(0xFFF5F6F8);
@@ -49,14 +51,79 @@ class _PaymentDialogState extends State<PaymentDialog> {
   String? _errorMessage;
   bool _isEligibleForTrial = false;
   bool _isCheckingEligibility = true;
+  
+  // Coupon state
+  final _couponController = TextEditingController();
+  CouponModel? _appliedCoupon;
+  bool _isValidatingCoupon = false;
+  String? _couponError;
 
   String get _tierName => SubscriptionService.getTierName(widget.tier);
   Map<String, String> get _price => SubscriptionService.getPriceForTier(widget.tier, annual: widget.isAnnual);
+  
+  double get _originalPrice {
+    final priceStr = _price['price']!.replaceAll('\$', '').replaceAll(',', '');
+    return double.tryParse(priceStr) ?? 0;
+  }
+  
+  double get _finalPrice {
+    if (_appliedCoupon == null) return _originalPrice;
+    return CouponService.calculateDiscountedPrice(_originalPrice, _appliedCoupon!);
+  }
 
   @override
   void initState() {
     super.initState();
     _checkTrialEligibility();
+  }
+
+  @override
+  void dispose() {
+    _couponController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _applyCoupon() async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _couponError = 'Please enter a coupon code');
+      return;
+    }
+
+    setState(() {
+      _isValidatingCoupon = true;
+      _couponError = null;
+    });
+
+    try {
+      final coupon = await CouponService.validateCoupon(code, widget.tier.name);
+      
+      if (coupon == null) {
+        setState(() {
+          _isValidatingCoupon = false;
+          _couponError = 'Invalid or expired coupon code';
+        });
+      } else {
+        setState(() {
+          _isValidatingCoupon = false;
+          _appliedCoupon = coupon;
+          _couponError = null;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isValidatingCoupon = false;
+        _couponError = 'Error validating coupon';
+      });
+    }
+  }
+
+  void _removeCoupon() {
+    setState(() {
+      _appliedCoupon = null;
+      _couponController.clear();
+      _couponError = null;
+    });
   }
 
   Future<void> _checkTrialEligibility() async {
@@ -267,48 +334,156 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: _accent.withValues(alpha: 0.3)),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.receipt_long_outlined, color: _primaryText),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.receipt_long_outlined, color: _primaryText),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _tierName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: _primaryText,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                widget.isAnnual ? 'Billed annually' : 'Billed monthly',
+                                style: const TextStyle(color: _secondaryText, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (_appliedCoupon != null) ...[
+                              Text(
+                                _price['price']!,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: _secondaryText,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                              Text(
+                                '\$${_finalPrice.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF16A34A),
+                                ),
+                              ),
+                            ] else
+                              Text(
+                                _price['price']!,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  color: _primaryText,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _tierName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: _primaryText,
-                              fontSize: 16,
+                    if (_appliedCoupon != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.local_offer, color: Color(0xFF16A34A), size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${_appliedCoupon!.code} - ${_appliedCoupon!.discountPercent.toStringAsFixed(0)}% OFF',
+                                style: const TextStyle(
+                                  color: Color(0xFF16A34A),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
-                          ),
-                          Text(
-                            widget.isAnnual ? 'Billed annually' : 'Billed monthly',
-                            style: const TextStyle(color: _secondaryText, fontSize: 13),
-                          ),
-                        ],
+                            InkWell(
+                              onTap: _removeCoupon,
+                              child: const Icon(Icons.close, color: Color(0xFF16A34A), size: 18),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      _price['price']!,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: _primaryText,
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              // Coupon input
+              if (_appliedCoupon == null) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _couponController,
+                        decoration: InputDecoration(
+                          hintText: 'Enter coupon code',
+                          hintStyle: TextStyle(color: _secondaryText.withValues(alpha: 0.6)),
+                          prefixIcon: Icon(Icons.local_offer_outlined, color: _secondaryText.withValues(alpha: 0.6), size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _accent),
+                          ),
+                          errorText: _couponError,
+                          errorStyle: const TextStyle(fontSize: 11),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          isDense: true,
+                        ),
+                        textCapitalization: TextCapitalization.characters,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _isValidatingCoupon ? null : _applyCoupon,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: _isValidatingCoupon
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Apply', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               // Free trial banner for eligible users
               if (_isCheckingEligibility)
                 const Center(

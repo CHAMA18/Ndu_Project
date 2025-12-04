@@ -90,9 +90,12 @@ import 'package:ndu_project/screens/ssher_safety_full_view.dart';
 
 // Admin (used in admin main entry)
 import 'package:ndu_project/screens/admin/admin_home_screen.dart';
+import 'package:ndu_project/screens/admin/admin_auth_wrapper.dart';
 import 'package:ndu_project/screens/admin/admin_dashboard_screen.dart';
 import 'package:ndu_project/screens/admin/admin_projects_screen.dart';
 import 'package:ndu_project/screens/admin/admin_users_screen.dart';
+import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
+import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
 import 'package:ndu_project/services/access_policy.dart';
 
 /// Named route constants for consistency.
@@ -183,6 +186,8 @@ class AppRoutes {
   static const adminDashboard = 'admin-dashboard';
   static const adminProjects = 'admin-projects';
   static const adminUsers = 'admin-users';
+  static const adminCoupons = 'admin-coupons';
+  static const adminSubscriptionLookup = 'admin-subscription-lookup';
 }
 
 /// A common redirect that checks web host policy when necessary.
@@ -376,22 +381,22 @@ class AppRouter {
   // Admin router: used by lib/main_admin.dart
   static final GoRouter admin = GoRouter(
     debugLogDiagnostics: kDebugMode,
-    initialLocation: '/${AppRoutes.adminHome}',
+    initialLocation: '/',
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
       final block = _adminHostGuard(user);
       if (block != null) return block;
-      if (user == null && state.matchedLocation != '/${AppRoutes.signIn}') {
-        return '/${AppRoutes.signIn}';
-      }
       return null;
     },
     routes: [
+      GoRoute(path: '/', builder: (c, s) => const AdminAuthWrapper()),
       GoRoute(name: AppRoutes.signIn, path: '/${AppRoutes.signIn}', builder: (c, s) => const SignInScreen()),
       GoRoute(name: AppRoutes.adminHome, path: '/${AppRoutes.adminHome}', builder: (c, s) => const AdminHomeScreen()),
       GoRoute(name: AppRoutes.adminDashboard, path: '/${AppRoutes.adminDashboard}', builder: (c, s) => const AdminDashboardScreen()),
       GoRoute(name: AppRoutes.adminProjects, path: '/${AppRoutes.adminProjects}', builder: (c, s) => const AdminProjectsScreen()),
       GoRoute(name: AppRoutes.adminUsers, path: '/${AppRoutes.adminUsers}', builder: (c, s) => const AdminUsersScreen()),
+      GoRoute(name: AppRoutes.adminCoupons, path: '/${AppRoutes.adminCoupons}', builder: (c, s) => const AdminCouponsScreen()),
+      GoRoute(name: AppRoutes.adminSubscriptionLookup, path: '/${AppRoutes.adminSubscriptionLookup}', builder: (c, s) => const AdminSubscriptionLookupScreen()),
     ],
     errorBuilder: (context, state) => _RouteNotFound(path: state.uri.toString()),
   );
