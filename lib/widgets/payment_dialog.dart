@@ -1,0 +1,676 @@
+import 'package:flutter/material.dart';
+import 'package:ndu_project/services/subscription_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+const Color _pageBackground = Color(0xFFF5F6F8);
+const Color _primaryText = Color(0xFF0F0F0F);
+const Color _secondaryText = Color(0xFF5A5C60);
+const Color _accent = Color(0xFFFFC940);
+
+/// Dialog for selecting payment method and processing subscription payment
+class PaymentDialog extends StatefulWidget {
+  const PaymentDialog({
+    super.key,
+    required this.tier,
+    required this.isAnnual,
+    required this.onPaymentComplete,
+  });
+
+  final SubscriptionTier tier;
+  final bool isAnnual;
+  final VoidCallback onPaymentComplete;
+
+  /// Show the payment dialog
+  static Future<bool> show({
+    required BuildContext context,
+    required SubscriptionTier tier,
+    required bool isAnnual,
+    required VoidCallback onPaymentComplete,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog(
+        tier: tier,
+        isAnnual: isAnnual,
+        onPaymentComplete: onPaymentComplete,
+      ),
+    );
+    return result ?? false;
+  }
+
+  @override
+  State<PaymentDialog> createState() => _PaymentDialogState();
+}
+
+class _PaymentDialogState extends State<PaymentDialog> {
+  PaymentProvider? _selectedProvider;
+  bool _isProcessing = false;
+  String? _errorMessage;
+  bool _isEligibleForTrial = false;
+  bool _isCheckingEligibility = true;
+
+  String get _tierName => SubscriptionService.getTierName(widget.tier);
+  Map<String, String> get _price => SubscriptionService.getPriceForTier(widget.tier, annual: widget.isAnnual);
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTrialEligibility();
+  }
+
+  Future<void> _checkTrialEligibility() async {
+    final isEligible = await SubscriptionService.isEligibleForFreeTrial();
+    if (mounted) {
+      setState(() {
+        _isEligibleForTrial = isEligible;
+        _isCheckingEligibility = false;
+      });
+    }
+  }
+
+  Future<void> _startFreeTrial() async {
+    setState(() {
+      _isProcessing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await SubscriptionService.startFreeTrial(
+        tier: widget.tier,
+        isAnnual: widget.isAnnual,
+      );
+
+      if (!mounted) return;
+
+      if (result.success) {
+        widget.onPaymentComplete();
+        Navigator.of(context).pop(true);
+      } else {
+        setState(() {
+          _isProcessing = false;
+          _errorMessage = result.message ?? 'Failed to start free trial';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+        _errorMessage = 'An error occurred: $e';
+      });
+    }
+  }
+
+  Future<void> _processPayment() async {
+    if (_selectedProvider == null) {
+      setState(() => _errorMessage = 'Please select a payment method');
+      return;
+    }
+
+    setState(() {
+      _isProcessing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      PaymentResult result;
+      switch (_selectedProvider!) {
+        case PaymentProvider.stripe:
+          result = await SubscriptionService.initiateStripePayment(
+            tier: widget.tier,
+            isAnnual: widget.isAnnual,
+          );
+          break;
+        case PaymentProvider.paypal:
+          result = await SubscriptionService.initiatePayPalPayment(
+            tier: widget.tier,
+            isAnnual: widget.isAnnual,
+          );
+          break;
+        case PaymentProvider.paystack:
+          result = await SubscriptionService.initiatePaystackPayment(
+            tier: widget.tier,
+            isAnnual: widget.isAnnual,
+          );
+          break;
+      }
+
+      if (result.success && result.paymentUrl != null) {
+        // Launch payment URL in browser
+        final uri = Uri.parse(result.paymentUrl!);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          
+          if (!mounted) return;
+          
+          // Show waiting dialog
+          final paymentConfirmed = await _showPaymentConfirmationDialog();
+          
+          if (paymentConfirmed == true) {
+            widget.onPaymentComplete();
+            if (mounted) Navigator.of(context).pop(true);
+          } else {
+            setState(() => _isProcessing = false);
+          }
+        } else {
+          setState(() {
+            _isProcessing = false;
+            _errorMessage = 'Could not open payment page';
+          });
+        }
+      } else {
+        setState(() {
+          _isProcessing = false;
+          _errorMessage = result.message ?? 'Payment initialization failed';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+        _errorMessage = 'An error occurred: $e';
+      });
+    }
+  }
+
+  Future<bool?> _showPaymentConfirmationDialog() async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Payment Confirmation',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.payment_rounded,
+              size: 48,
+              color: _accent,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Have you completed your payment in the browser?',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _secondaryText, height: 1.5),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'If your payment was successful, click "Yes, I paid" to continue.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _secondaryText.withValues(alpha: 0.7), fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: _secondaryText)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Yes, I paid'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 480),
+        padding: const EdgeInsets.all(32),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Complete Your Subscription',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _primaryText,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _isProcessing ? null : () => Navigator.of(context).pop(false),
+                    icon: const Icon(Icons.close),
+                    color: _secondaryText,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Subscribe to $_tierName',
+                style: const TextStyle(color: _secondaryText, fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              // Price summary
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _accent.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.receipt_long_outlined, color: _primaryText),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _tierName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: _primaryText,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            widget.isAnnual ? 'Billed annually' : 'Billed monthly',
+                            style: const TextStyle(color: _secondaryText, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      _price['price']!,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: _primaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Free trial banner for eligible users
+              if (_isCheckingEligibility)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else if (_isEligibleForTrial) ...[                
+                _FreeTrialBanner(
+                  onStartTrial: _isProcessing ? null : _startFreeTrial,
+                  isProcessing: _isProcessing,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.black.withValues(alpha: 0.1))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR PAY NOW',
+                        style: TextStyle(
+                          color: _secondaryText.withValues(alpha: 0.7),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.black.withValues(alpha: 0.1))),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+              const Text(
+                'Select Payment Method',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: _primaryText,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Payment options
+              _PaymentOption(
+                provider: PaymentProvider.stripe,
+                label: 'Credit/Debit Card',
+                subtitle: 'Pay securely with Stripe',
+                icon: Icons.credit_card_rounded,
+                isSelected: _selectedProvider == PaymentProvider.stripe,
+                onTap: _isProcessing ? null : () => setState(() => _selectedProvider = PaymentProvider.stripe),
+              ),
+              const SizedBox(height: 12),
+              _PaymentOption(
+                provider: PaymentProvider.paypal,
+                label: 'PayPal',
+                subtitle: 'Pay with your PayPal account',
+                icon: Icons.account_balance_wallet_rounded,
+                isSelected: _selectedProvider == PaymentProvider.paypal,
+                onTap: _isProcessing ? null : () => setState(() => _selectedProvider = PaymentProvider.paypal),
+              ),
+              const SizedBox(height: 12),
+              _PaymentOption(
+                provider: PaymentProvider.paystack,
+                label: 'Paystack',
+                subtitle: 'Bank transfer, USSD, Mobile Money',
+                icon: Icons.account_balance_rounded,
+                isSelected: _selectedProvider == PaymentProvider.paystack,
+                onTap: _isProcessing ? null : () => setState(() => _selectedProvider = PaymentProvider.paystack),
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isProcessing || _selectedProvider == null ? null : _processPayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Continue to Payment',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock_outline, size: 14, color: _secondaryText.withValues(alpha: 0.7)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Secure payment processing',
+                    style: TextStyle(
+                      color: _secondaryText.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FreeTrialBanner extends StatelessWidget {
+  const _FreeTrialBanner({
+    required this.onStartTrial,
+    required this.isProcessing,
+  });
+
+  final VoidCallback? onStartTrial;
+  final bool isProcessing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF22C55E).withValues(alpha: 0.15),
+            const Color(0xFF22C55E).withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.card_giftcard_rounded,
+                  color: Color(0xFF16A34A),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          '3-Day Free Trial',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF22C55E),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'NEW USER',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Try all features free for 3 days. No payment required.',
+                      style: TextStyle(
+                        color: Color(0xFF166534),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onStartTrial,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF22C55E),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: isProcessing
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Start Free Trial',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentOption extends StatelessWidget {
+  const _PaymentOption({
+    required this.provider,
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final PaymentProvider provider;
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isSelected ? _accent.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? _accent : Colors.black.withValues(alpha: 0.08),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isSelected ? _accent.withValues(alpha: 0.15) : _pageBackground,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? const Color(0xFF8C6800) : _secondaryText,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? _primaryText : _secondaryText,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: _secondaryText.withValues(alpha: 0.8),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? _accent : Colors.transparent,
+                  border: Border.all(
+                    color: isSelected ? _accent : Colors.black.withValues(alpha: 0.2),
+                    width: 2,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
