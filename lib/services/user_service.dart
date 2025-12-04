@@ -86,11 +86,21 @@ class UserService {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return false;
       
+      // First check if email is in the admin list (always grants access)
+      if (isAdminEmail(currentUser.email ?? '')) {
+        // Ensure Firestore record is updated
+        await createOrUpdateUser(currentUser, isAdmin: true);
+        return true;
+      }
+      
+      // Otherwise check Firestore
       final userModel = await getUser(currentUser.uid);
       return userModel?.isAdmin ?? false;
     } catch (e) {
       debugPrint('Error checking admin status: $e');
-      return false;
+      // Fallback: check email directly
+      final currentUser = FirebaseAuth.instance.currentUser;
+      return isAdminEmail(currentUser?.email ?? '');
     }
   }
 
@@ -176,6 +186,44 @@ class UserService {
     } catch (e) {
       debugPrint('Error getting admin user count: $e');
       return 0;
+    }
+  }
+
+  /// Search users by email or display name
+  static Future<List<UserModel>> searchUsers(String query) async {
+    try {
+      final queryLower = query.toLowerCase().trim();
+      
+      // Search by email (exact prefix match)
+      final emailResults = await _usersCollection
+          .where('email', isGreaterThanOrEqualTo: queryLower)
+          .where('email', isLessThan: '${queryLower}z')
+          .limit(10)
+          .get();
+
+      // Get all users and filter by displayName (Firestore doesn't support case-insensitive search)
+      final allUsers = await _usersCollection.limit(100).get();
+      final nameResults = allUsers.docs
+          .map((doc) => UserModel.fromJson(doc.data()))
+          .where((user) => 
+              user.displayName.toLowerCase().contains(queryLower) ||
+              user.email.toLowerCase().contains(queryLower))
+          .toList();
+
+      // Combine and deduplicate results
+      final emailUserIds = emailResults.docs.map((d) => d.id).toSet();
+      final combined = emailResults.docs.map((d) => UserModel.fromJson(d.data())).toList();
+      
+      for (final user in nameResults) {
+        if (!emailUserIds.contains(user.uid)) {
+          combined.add(user);
+        }
+      }
+
+      return combined.take(20).toList();
+    } catch (e) {
+      debugPrint('Error searching users: $e');
+      return [];
     }
   }
 }

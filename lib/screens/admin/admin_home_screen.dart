@@ -8,6 +8,8 @@ import 'package:ndu_project/screens/admin/admin_users_screen.dart';
 import 'package:ndu_project/screens/admin_content_screen.dart';
 import 'package:ndu_project/screens/admin/admin_projects_screen.dart';
 import 'package:ndu_project/screens/admin/admin_dashboard_screen.dart';
+import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
+import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -171,6 +173,22 @@ class AdminHomeScreen extends StatelessWidget {
               icon: Icons.folder_open,
               color: const Color(0xFF9C27B0),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminProjectsScreen())),
+              width: cardWidth,
+            ),
+            _ActionCard(
+              title: 'Coupon Management',
+              description: 'Create and manage discount coupons for Stripe, PayPal, and Paystack',
+              icon: Icons.local_offer,
+              color: const Color(0xFF4CAF50),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCouponsScreen())),
+              width: cardWidth,
+            ),
+            _ActionCard(
+              title: 'Subscription Lookup',
+              description: 'Search users and manage their subscriptions, trials, and access',
+              icon: Icons.search,
+              color: const Color(0xFF00BCD4),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSubscriptionLookupScreen())),
               width: cardWidth,
             ),
           ],

@@ -339,6 +339,9 @@ exports.verifyStripePayment = functions
       
       if (session.payment_status === 'paid') {
         const subscriptionId = session.metadata?.subscription_id;
+        const userId = session.metadata?.user_id;
+        const tier = session.metadata?.tier;
+        
         if (subscriptionId) {
           const now = new Date();
           const endDate = new Date(now);
@@ -349,6 +352,24 @@ exports.verifyStripePayment = functions
             startDate: admin.firestore.Timestamp.fromDate(now),
             endDate: admin.firestore.Timestamp.fromDate(endDate),
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          
+          // Record invoice
+          const invoiceRef = db.collection('invoices').doc();
+          await invoiceRef.set({
+            id: invoiceRef.id,
+            userId: userId || decodedToken.uid,
+            amount: session.amount_total / 100,
+            currency: (session.currency || 'usd').toUpperCase(),
+            status: 'paid',
+            provider: 'stripe',
+            subscriptionId,
+            externalId: session.id,
+            tier,
+            description: `${tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : ''} Plan Subscription`,
+            receiptUrl: session.receipt_url || null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            paidAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         }
         
@@ -557,16 +578,40 @@ exports.verifyPayPalPayment = functions
       
       if (captureData.status === 'COMPLETED') {
         const subscriptionId = captureData.purchase_units?.[0]?.custom_id;
+        const purchaseUnit = captureData.purchase_units?.[0];
+        const capture = purchaseUnit?.payments?.captures?.[0];
+        
         if (subscriptionId) {
           const now = new Date();
           const endDate = new Date(now);
           endDate.setFullYear(endDate.getFullYear() + 1);
+          
+          // Get subscription to get tier and userId
+          const subscriptionDoc = await db.collection('subscriptions').doc(subscriptionId).get();
+          const subscriptionData = subscriptionDoc.data() || {};
           
           await db.collection('subscriptions').doc(subscriptionId).update({
             status: 'active',
             startDate: admin.firestore.Timestamp.fromDate(now),
             endDate: admin.firestore.Timestamp.fromDate(endDate),
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          
+          // Record invoice
+          const invoiceRef = db.collection('invoices').doc();
+          await invoiceRef.set({
+            id: invoiceRef.id,
+            userId: subscriptionData.userId || decodedToken.uid,
+            amount: parseFloat(capture?.amount?.value || purchaseUnit?.amount?.value || 0),
+            currency: (capture?.amount?.currency_code || purchaseUnit?.amount?.currency_code || 'USD'),
+            status: 'paid',
+            provider: 'paypal',
+            subscriptionId,
+            externalId: captureData.id,
+            tier: subscriptionData.tier,
+            description: `${subscriptionData.tier ? subscriptionData.tier.charAt(0).toUpperCase() + subscriptionData.tier.slice(1) : ''} Plan Subscription`,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            paidAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         }
         
@@ -735,16 +780,38 @@ exports.verifyPaystackPayment = functions
       
       if (data.status && data.data.status === 'success') {
         const subscriptionId = data.data.metadata?.subscription_id || reference;
+        const txnData = data.data;
         
         const now = new Date();
         const endDate = new Date(now);
         endDate.setFullYear(endDate.getFullYear() + 1);
+        
+        // Get subscription to get tier and userId
+        const subscriptionDoc = await db.collection('subscriptions').doc(subscriptionId).get();
+        const subscriptionData = subscriptionDoc.data() || {};
         
         await db.collection('subscriptions').doc(subscriptionId).update({
           status: 'active',
           startDate: admin.firestore.Timestamp.fromDate(now),
           endDate: admin.firestore.Timestamp.fromDate(endDate),
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Record invoice
+        const invoiceRef = db.collection('invoices').doc();
+        await invoiceRef.set({
+          id: invoiceRef.id,
+          userId: subscriptionData.userId || decodedToken.uid,
+          amount: (txnData.amount || 0) / 100,
+          currency: txnData.currency || 'NGN',
+          status: 'paid',
+          provider: 'paystack',
+          subscriptionId,
+          externalId: txnData.reference,
+          tier: subscriptionData.tier || txnData.metadata?.tier,
+          description: `${subscriptionData.tier ? subscriptionData.tier.charAt(0).toUpperCase() + subscriptionData.tier.slice(1) : ''} Plan Subscription`,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         
         res.json({ success: true, subscriptionId });
@@ -754,6 +821,478 @@ exports.verifyPaystackPayment = functions
       
     } catch (error) {
       console.error('Paystack verification error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+// ============================================================================
+// COUPON MANAGEMENT
+// ============================================================================
+
+/**
+ * Apply Coupon to Payment
+ * Validates and applies a coupon code during checkout
+ */
+exports.applyCoupon = functions
+  .runWith({
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    
+    try {
+      const decodedToken = await verifyAuthToken(req);
+      if (!decodedToken) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      
+      const { couponCode, tier, originalPrice } = req.body;
+      
+      if (!couponCode || !tier || !originalPrice) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+      }
+      
+      // Find coupon by code
+      const couponSnapshot = await db.collection('coupons')
+        .where('code', '==', couponCode.toUpperCase())
+        .limit(1)
+        .get();
+      
+      if (couponSnapshot.empty) {
+        res.status(404).json({ success: false, error: 'Coupon not found' });
+        return;
+      }
+      
+      const couponDoc = couponSnapshot.docs[0];
+      const coupon = couponDoc.data();
+      
+      // Validate coupon
+      const now = new Date();
+      const validFrom = coupon.validFrom?.toDate() || new Date(0);
+      const validUntil = coupon.validUntil?.toDate() || new Date(0);
+      
+      if (!coupon.isActive) {
+        res.json({ success: false, error: 'Coupon is inactive' });
+        return;
+      }
+      
+      if (now < validFrom || now > validUntil) {
+        res.json({ success: false, error: 'Coupon has expired' });
+        return;
+      }
+      
+      if (coupon.maxUses && coupon.currentUses >= coupon.maxUses) {
+        res.json({ success: false, error: 'Coupon usage limit reached' });
+        return;
+      }
+      
+      // Check tier applicability
+      if (coupon.applicableTiers && coupon.applicableTiers.length > 0) {
+        if (!coupon.applicableTiers.includes(tier)) {
+          res.json({ success: false, error: 'Coupon not valid for this plan' });
+          return;
+        }
+      }
+      
+      // Calculate discount
+      let discountedPrice = originalPrice;
+      if (coupon.discountAmount && coupon.discountAmount > 0) {
+        discountedPrice = Math.max(0, originalPrice - coupon.discountAmount);
+      } else if (coupon.discountPercent && coupon.discountPercent > 0) {
+        discountedPrice = originalPrice * (1 - coupon.discountPercent / 100);
+      }
+      
+      res.json({
+        success: true,
+        couponId: couponDoc.id,
+        originalPrice,
+        discountedPrice: Math.round(discountedPrice * 100) / 100,
+        discountPercent: coupon.discountPercent || 0,
+        discountAmount: coupon.discountAmount || 0,
+        description: coupon.description
+      });
+      
+    } catch (error) {
+      console.error('Apply coupon error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+/**
+ * Use Coupon (increment usage count)
+ * Called after successful payment
+ */
+exports.useCoupon = functions
+  .runWith({
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    
+    try {
+      const decodedToken = await verifyAuthToken(req);
+      if (!decodedToken) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      
+      const { couponId } = req.body;
+      
+      if (!couponId) {
+        res.status(400).json({ error: 'Missing coupon ID' });
+        return;
+      }
+      
+      // Increment usage count
+      await db.collection('coupons').doc(couponId).update({
+        currentUses: admin.firestore.FieldValue.increment(1),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      res.json({ success: true });
+      
+    } catch (error) {
+      console.error('Use coupon error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+// ============================================================================
+// INVOICE HISTORY
+// ============================================================================
+
+/**
+ * Get User Invoice History
+ * Fetches payment history from all providers for a specific user
+ */
+exports.getUserInvoices = functions
+  .runWith({
+    secrets: ['STRIPE_SECRET_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYSTACK_SECRET_KEY'],
+    timeoutSeconds: 60,
+    memory: '256MB'
+  })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    
+    try {
+      const decodedToken = await verifyAuthToken(req);
+      if (!decodedToken) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      
+      const { userId, userEmail } = req.body;
+      const targetUserId = userId || decodedToken.uid;
+      
+      // Check if requesting user is admin or requesting own data
+      const adminEmails = ['chungu424@gmail.com'];
+      const isAdmin = adminEmails.includes(decodedToken.email);
+      if (!isAdmin && targetUserId !== decodedToken.uid) {
+        res.status(403).json({ error: 'Not authorized to view this user\'s invoices' });
+        return;
+      }
+      
+      const invoices = [];
+      
+      // Get subscriptions for the user to find external IDs
+      const subscriptionsSnapshot = await db.collection('subscriptions')
+        .where('userId', '==', targetUserId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      
+      // Also fetch from invoices collection (stored after successful payments)
+      const invoicesSnapshot = await db.collection('invoices')
+        .where('userId', '==', targetUserId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      
+      for (const doc of invoicesSnapshot.docs) {
+        const data = doc.data();
+        invoices.push({
+          id: doc.id,
+          amount: data.amount || 0,
+          currency: data.currency || 'USD',
+          status: data.status || 'paid',
+          provider: data.provider || 'unknown',
+          description: data.description || 'Subscription payment',
+          createdAt: data.createdAt?.toDate()?.toISOString() || new Date().toISOString(),
+          paidAt: data.paidAt?.toDate()?.toISOString(),
+          subscriptionId: data.subscriptionId,
+          externalId: data.externalId,
+          tier: data.tier,
+          receiptUrl: data.receiptUrl,
+        });
+      }
+      
+      // Try to fetch from Stripe if configured
+      const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+      if (stripeSecretKey && userEmail) {
+        try {
+          // First find customer by email
+          const customerResponse = await fetch(
+            `https://api.stripe.com/v1/customers?email=${encodeURIComponent(userEmail)}&limit=1`,
+            {
+              headers: { 'Authorization': `Bearer ${stripeSecretKey}` }
+            }
+          );
+          const customerData = await customerResponse.json();
+          
+          if (customerData.data && customerData.data.length > 0) {
+            const customerId = customerData.data[0].id;
+            
+            // Fetch charges/payments for this customer
+            const chargesResponse = await fetch(
+              `https://api.stripe.com/v1/charges?customer=${customerId}&limit=100`,
+              {
+                headers: { 'Authorization': `Bearer ${stripeSecretKey}` }
+              }
+            );
+            const chargesData = await chargesResponse.json();
+            
+            if (chargesData.data) {
+              for (const charge of chargesData.data) {
+                // Avoid duplicates
+                if (!invoices.find(i => i.externalId === charge.id)) {
+                  invoices.push({
+                    id: `stripe_${charge.id}`,
+                    amount: charge.amount / 100,
+                    currency: charge.currency.toUpperCase(),
+                    status: charge.status === 'succeeded' ? 'paid' : charge.status,
+                    provider: 'stripe',
+                    description: charge.description || 'Stripe payment',
+                    createdAt: new Date(charge.created * 1000).toISOString(),
+                    paidAt: charge.status === 'succeeded' ? new Date(charge.created * 1000).toISOString() : null,
+                    externalId: charge.id,
+                    receiptUrl: charge.receipt_url,
+                    tier: charge.metadata?.tier,
+                  });
+                }
+              }
+            }
+          }
+        } catch (stripeError) {
+          console.error('Error fetching Stripe invoices:', stripeError);
+        }
+      }
+      
+      // Try to fetch from PayPal if configured
+      const paypalClientId = process.env.PAYPAL_CLIENT_ID;
+      const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET;
+      if (paypalClientId && paypalClientSecret && userEmail) {
+        try {
+          // Get PayPal access token
+          const authResponse = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`${paypalClientId}:${paypalClientSecret}`).toString('base64')}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'grant_type=client_credentials'
+          });
+          
+          const authData = await authResponse.json();
+          if (authData.access_token) {
+            // Search for transactions by email (PayPal Reporting API)
+            const startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 2);
+            const endDate = new Date();
+            
+            const transactionsResponse = await fetch(
+              `https://api-m.paypal.com/v1/reporting/transactions?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}&fields=all`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${authData.access_token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+            
+            const transactionsData = await transactionsResponse.json();
+            if (transactionsData.transaction_details) {
+              for (const txn of transactionsData.transaction_details) {
+                const info = txn.transaction_info || {};
+                const payerEmail = txn.payer_info?.email_address;
+                
+                // Only include if payer email matches
+                if (payerEmail && payerEmail.toLowerCase() === userEmail.toLowerCase()) {
+                  if (!invoices.find(i => i.externalId === info.transaction_id)) {
+                    invoices.push({
+                      id: `paypal_${info.transaction_id}`,
+                      amount: parseFloat(info.transaction_amount?.value || 0),
+                      currency: info.transaction_amount?.currency_code || 'USD',
+                      status: info.transaction_status === 'S' ? 'paid' : info.transaction_status,
+                      provider: 'paypal',
+                      description: info.transaction_subject || 'PayPal payment',
+                      createdAt: info.transaction_initiation_date || new Date().toISOString(),
+                      paidAt: info.transaction_updated_date,
+                      externalId: info.transaction_id,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } catch (paypalError) {
+          console.error('Error fetching PayPal invoices:', paypalError);
+        }
+      }
+      
+      // Try to fetch from Paystack if configured
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      if (paystackSecretKey && userEmail) {
+        try {
+          // First find customer by email
+          const customerResponse = await fetch(
+            `https://api.paystack.co/customer/${encodeURIComponent(userEmail)}`,
+            {
+              headers: { 'Authorization': `Bearer ${paystackSecretKey}` }
+            }
+          );
+          const customerData = await customerResponse.json();
+          
+          if (customerData.status && customerData.data) {
+            const customerCode = customerData.data.customer_code;
+            
+            // Fetch transactions for this customer
+            const transactionsResponse = await fetch(
+              `https://api.paystack.co/transaction?customer=${customerCode}&perPage=100`,
+              {
+                headers: { 'Authorization': `Bearer ${paystackSecretKey}` }
+              }
+            );
+            const transactionsData = await transactionsResponse.json();
+            
+            if (transactionsData.status && transactionsData.data) {
+              for (const txn of transactionsData.data) {
+                if (!invoices.find(i => i.externalId === txn.reference)) {
+                  invoices.push({
+                    id: `paystack_${txn.id}`,
+                    amount: txn.amount / 100,
+                    currency: txn.currency || 'NGN',
+                    status: txn.status === 'success' ? 'paid' : txn.status,
+                    provider: 'paystack',
+                    description: txn.metadata?.description || 'Paystack payment',
+                    createdAt: txn.created_at || new Date().toISOString(),
+                    paidAt: txn.paid_at,
+                    externalId: txn.reference,
+                    tier: txn.metadata?.tier,
+                  });
+                }
+              }
+            }
+          }
+        } catch (paystackError) {
+          console.error('Error fetching Paystack invoices:', paystackError);
+        }
+      }
+      
+      // Sort by date descending
+      invoices.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      res.json({ success: true, invoices });
+      
+    } catch (error) {
+      console.error('Get invoices error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+/**
+ * Record Invoice After Payment
+ * Called by webhook or after successful payment verification
+ */
+exports.recordInvoice = functions
+  .runWith({
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    
+    try {
+      const decodedToken = await verifyAuthToken(req);
+      if (!decodedToken) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      
+      const { 
+        userId, 
+        amount, 
+        currency, 
+        provider, 
+        subscriptionId, 
+        externalId, 
+        tier,
+        description,
+        receiptUrl
+      } = req.body;
+      
+      const invoiceRef = db.collection('invoices').doc();
+      await invoiceRef.set({
+        id: invoiceRef.id,
+        userId: userId || decodedToken.uid,
+        amount,
+        currency: currency || 'USD',
+        status: 'paid',
+        provider,
+        subscriptionId,
+        externalId,
+        tier,
+        description: description || `${tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : ''} Plan Subscription`,
+        receiptUrl,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      
+      res.json({ success: true, invoiceId: invoiceRef.id });
+      
+    } catch (error) {
+      console.error('Record invoice error:', error);
       res.status(500).json({ error: error.message });
     }
   });
