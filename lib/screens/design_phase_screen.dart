@@ -361,9 +361,16 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           // DragTarget to add new output docs from the Component Library
           DragTarget<ArchitectureDragPayload>(
             onWillAcceptWithDetails: (_) => true,
-            onAcceptWithDetails: (payload) {
+            onAcceptWithDetails: (details) {
               setState(() {
-                _outputDocs.add(_DocItem(payload.label, icon: payload.icon ?? Icons.insert_drive_file_outlined, color: Colors.blueGrey));
+                final data = details.data;
+                _outputDocs.add(
+                  _DocItem(
+                    data.label,
+                    icon: data.icon ?? Icons.insert_drive_file_outlined,
+                    color: Colors.blueGrey,
+                  ),
+                );
               });
             },
             builder: (context, candidates, rejects) {
@@ -1036,4 +1043,3 @@ class _PaletteItem {
   final String label;
   final IconData icon;
 }
-

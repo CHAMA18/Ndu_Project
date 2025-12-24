@@ -1486,7 +1486,7 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
             )
           else
             StreamBuilder<List<ProjectRecord>>(
-              stream: ProjectService.streamProjects(ownerId: user.uid, limit: 50),
+              stream: ProjectService.streamProjects(ownerId: user.uid, filterByOwner: false, limit: 50),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Container(
@@ -2834,7 +2834,7 @@ class _SummaryStat extends StatelessWidget {
 }
 
 class _TableHeaderLabel extends StatelessWidget {
-  const _TableHeaderLabel(this.label);
+  const _TableHeaderLabel(this.label, {this.alignment = Alignment.centerLeft});
 
   final String label;
   final Alignment alignment;

@@ -166,15 +166,15 @@ class ProjectService {
   }
 
   static Stream<List<ProjectRecord>> streamProjects({
-    required String ownerId,
+    String? ownerId,
     int limit = 25,
+    bool filterByOwner = true,
   }) {
-    return _projectsCol
-        .where('ownerId', isEqualTo: ownerId)
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map(ProjectRecord.fromDoc).toList());
+    Query<Map<String, dynamic>> query = _projectsCol.orderBy('createdAt', descending: true).limit(limit);
+    if (filterByOwner && ownerId != null) {
+      query = query.where('ownerId', isEqualTo: ownerId);
+    }
+    return query.snapshots().map((snapshot) => snapshot.docs.map(ProjectRecord.fromDoc).toList());
   }
 
   /// Stream projects by a list of project IDs (for program dashboard)
