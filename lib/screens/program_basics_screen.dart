@@ -6,7 +6,6 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
-import 'package:ndu_project/widgets/content_text.dart';
 
 const Color _kAccentColor = Color(0xFFFFC812);
 const Color _kTextPrimary = Color(0xFF1A1D1F);

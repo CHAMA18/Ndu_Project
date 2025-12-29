@@ -2907,7 +2907,7 @@ class _SummaryStat extends StatelessWidget {
 }
 
 class _TableHeaderLabel extends StatelessWidget {
-  const _TableHeaderLabel(this.label, {this.alignment = Alignment.center});
+  const _TableHeaderLabel(this.label);
 
   final String label;
   final Alignment alignment;

@@ -37,17 +37,425 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   int _selectedTrackableIndex = 0;
   late final NumberFormat _currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
 
-  // Start empty: no default seeded data for procurement items
-  final List<_ProcurementItem> _items = const [];
+  final List<_ProcurementItem> _items = const [
+    _ProcurementItem(
+      name: 'Network core switches',
+      description: 'Upgrade backbone switches for the new wing.',
+      category: 'IT Equipment',
+      status: _ProcurementItemStatus.rfqReview,
+      priority: _ProcurementPriority.high,
+      budget: 85000,
+      estimatedDelivery: '2024-08-15',
+      progress: 0.35,
+    ),
+    _ProcurementItem(
+      name: 'Office renovation package',
+      description: 'Buildout for the shared collaboration floor.',
+      category: 'Construction Services',
+      status: _ProcurementItemStatus.vendorSelection,
+      priority: _ProcurementPriority.critical,
+      budget: 240000,
+      estimatedDelivery: '2024-09-30',
+      progress: 0.55,
+    ),
+    _ProcurementItem(
+      name: 'Ergonomic workstations',
+      description: 'Sit-stand desks and task chairs for 120 seats.',
+      category: 'Furniture',
+      status: _ProcurementItemStatus.ordered,
+      priority: _ProcurementPriority.medium,
+      budget: 68000,
+      estimatedDelivery: '2024-07-10',
+      progress: 0.8,
+    ),
+    _ProcurementItem(
+      name: 'Wireless access points',
+      description: 'Coverage expansion for floor 3 and floor 4.',
+      category: 'IT Equipment',
+      status: _ProcurementItemStatus.planning,
+      priority: _ProcurementPriority.high,
+      budget: 42000,
+      estimatedDelivery: '2024-10-01',
+      progress: 0.1,
+    ),
+    _ProcurementItem(
+      name: 'Security camera upgrade',
+      description: 'Replace legacy devices with smart analytics units.',
+      category: 'Security',
+      status: _ProcurementItemStatus.delivered,
+      priority: _ProcurementPriority.medium,
+      budget: 52000,
+      estimatedDelivery: '2024-06-12',
+      progress: 1.0,
+    ),
+  ];
 
-  // Start empty: no default seeded trackable items
-  final List<_TrackableItem> _trackableItems = const [];
+  final List<_TrackableItem> _trackableItems = const [
+    _TrackableItem(
+      name: 'Server rack shipment',
+      description: '42U racks for data center row A.',
+      orderStatus: 'PO-1042',
+      currentStatus: _TrackableStatus.inTransit,
+      lastUpdate: '2024-06-18',
+      events: [
+        _TimelineEvent(
+          title: 'Departed factory',
+          description: 'Loaded onto carrier trailer at origin site.',
+          subtext: 'Carrier: UPS Freight',
+          date: '2024-06-12',
+        ),
+        _TimelineEvent(
+          title: 'Arrived at regional hub',
+          description: 'Cross-dock completed and cleared for linehaul.',
+          subtext: 'Tracking: UPA-2291',
+          date: '2024-06-15',
+        ),
+        _TimelineEvent(
+          title: 'Customs cleared',
+          description: 'Documentation verified and released.',
+          subtext: 'Broker: BlueStar Logistics',
+          date: '2024-06-17',
+        ),
+      ],
+    ),
+    _TrackableItem(
+      name: 'Modular workstations',
+      description: 'Set of 80 desks and power rails.',
+      orderStatus: 'PO-1044',
+      currentStatus: _TrackableStatus.delivered,
+      lastUpdate: '2024-06-08',
+      events: [
+        _TimelineEvent(
+          title: 'Delivered to site',
+          description: 'Received at loading dock and inspected.',
+          subtext: 'Signed by: Facilities team',
+          date: '2024-06-08',
+        ),
+        _TimelineEvent(
+          title: 'In transit',
+          description: 'Final mile delivery in progress.',
+          subtext: 'Carrier: Coastal Freight',
+          date: '2024-06-06',
+        ),
+        _TimelineEvent(
+          title: 'Dispatched',
+          description: 'Shipment released from vendor warehouse.',
+          subtext: 'Vendor: GreenLeaf Office',
+          date: '2024-06-04',
+        ),
+      ],
+    ),
+    _TrackableItem(
+      name: 'HVAC air handlers',
+      description: 'Units for expansion zone climate control.',
+      orderStatus: 'PO-1038',
+      currentStatus: _TrackableStatus.notTracked,
+      lastUpdate: null,
+      events: [
+        _TimelineEvent(
+          title: 'Not tracked',
+          description: 'Carrier tracking unavailable.',
+          subtext: 'Awaiting vendor update.',
+          date: '2024-06-20',
+        ),
+      ],
+    ),
+  ];
 
-  // Start empty: no default seeded strategies
-  final List<_ProcurementStrategy> _strategies = const [];
+  final List<_ProcurementStrategy> _strategies = const [
+    _ProcurementStrategy(
+      title: 'IT equipment procurement',
+      status: _StrategyStatus.active,
+      itemCount: 12,
+      description: 'Bundle network, compute, and AV purchases to secure volume discounts and align delivery dates.',
+    ),
+    _ProcurementStrategy(
+      title: 'Facilities renovation services',
+      status: _StrategyStatus.active,
+      itemCount: 6,
+      description: 'Leverage local contractors for phased buildout with strict safety and SLA requirements.',
+    ),
+    _ProcurementStrategy(
+      title: 'Workplace furniture and fixtures',
+      status: _StrategyStatus.draft,
+      itemCount: 9,
+      description: 'Standardize ergonomic configurations to streamline ordering and reduce variability.',
+    ),
+  ];
 
-  // Start empty: no default seeded vendors
-  final List<_VendorRow> _vendors = const [];
+  final List<_VendorRow> _vendors = const [
+    _VendorRow(
+      initials: 'AT',
+      name: 'Atlas Tech Supply',
+      category: 'IT Equipment',
+      rating: 5,
+      approved: true,
+      preferred: true,
+    ),
+    _VendorRow(
+      initials: 'BL',
+      name: 'BrightLine Interiors',
+      category: 'Construction Services',
+      rating: 4,
+      approved: true,
+      preferred: false,
+    ),
+    _VendorRow(
+      initials: 'CW',
+      name: 'Cloudway Systems',
+      category: 'IT Equipment',
+      rating: 4,
+      approved: true,
+      preferred: true,
+    ),
+    _VendorRow(
+      initials: 'SO',
+      name: 'SupplyOne Logistics',
+      category: 'Logistics',
+      rating: 3,
+      approved: false,
+      preferred: false,
+    ),
+    _VendorRow(
+      initials: 'GO',
+      name: 'GreenLeaf Office',
+      category: 'Furniture',
+      rating: 5,
+      approved: true,
+      preferred: true,
+    ),
+    _VendorRow(
+      initials: 'SN',
+      name: 'SecureNet Solutions',
+      category: 'Security',
+      rating: 4,
+      approved: true,
+      preferred: false,
+    ),
+  ];
+
+  final List<_VendorHealthMetric> _vendorHealthMetrics = const [
+    _VendorHealthMetric(category: 'IT Equipment', score: 0.86, change: '+4% QoQ'),
+    _VendorHealthMetric(category: 'Construction Services', score: 0.72, change: '-2% QoQ'),
+    _VendorHealthMetric(category: 'Furniture', score: 0.91, change: '+6% QoQ'),
+    _VendorHealthMetric(category: 'Security', score: 0.78, change: '+1% QoQ'),
+  ];
+
+  final List<_VendorOnboardingTask> _vendorOnboardingTasks = const [
+    _VendorOnboardingTask(
+      title: 'Insurance verification - SupplyOne',
+      owner: 'J. Patel',
+      dueDate: '2024-06-24',
+      status: _VendorTaskStatus.inReview,
+    ),
+    _VendorOnboardingTask(
+      title: 'Security assessment - SecureNet',
+      owner: 'L. Chen',
+      dueDate: '2024-06-28',
+      status: _VendorTaskStatus.pending,
+    ),
+    _VendorOnboardingTask(
+      title: 'Payment terms signed - BrightLine',
+      owner: 'M. Owens',
+      dueDate: '2024-06-18',
+      status: _VendorTaskStatus.complete,
+    ),
+  ];
+
+  final List<_VendorRiskItem> _vendorRiskItems = const [
+    _VendorRiskItem(
+      vendor: 'SupplyOne Logistics',
+      risk: 'Late delivery trend on three orders',
+      severity: _RiskSeverity.high,
+      lastIncident: '2024-06-10',
+    ),
+    _VendorRiskItem(
+      vendor: 'BrightLine Interiors',
+      risk: 'Pending safety documentation update',
+      severity: _RiskSeverity.medium,
+      lastIncident: '2024-06-12',
+    ),
+    _VendorRiskItem(
+      vendor: 'SecureNet Solutions',
+      risk: 'Minor SLA deviation on last install',
+      severity: _RiskSeverity.low,
+      lastIncident: '2024-06-05',
+    ),
+  ];
+
+  final List<_RfqItem> _rfqs = const [
+    _RfqItem(
+      title: 'Network infrastructure upgrade',
+      category: 'IT Equipment',
+      owner: 'J. Patel',
+      dueDate: '2024-07-05',
+      invited: 6,
+      responses: 3,
+      budget: 160000,
+      status: _RfqStatus.inMarket,
+      priority: _ProcurementPriority.high,
+    ),
+    _RfqItem(
+      title: 'Office renovation phase 2',
+      category: 'Construction Services',
+      owner: 'M. Owens',
+      dueDate: '2024-07-18',
+      invited: 4,
+      responses: 2,
+      budget: 320000,
+      status: _RfqStatus.evaluation,
+      priority: _ProcurementPriority.critical,
+    ),
+    _RfqItem(
+      title: 'AV collaboration kits',
+      category: 'Equipment',
+      owner: 'L. Chen',
+      dueDate: '2024-06-28',
+      invited: 5,
+      responses: 5,
+      budget: 98000,
+      status: _RfqStatus.review,
+      priority: _ProcurementPriority.medium,
+    ),
+    _RfqItem(
+      title: 'Security and access control',
+      category: 'Security',
+      owner: 'R. Singh',
+      dueDate: '2024-07-22',
+      invited: 3,
+      responses: 1,
+      budget: 110000,
+      status: _RfqStatus.draft,
+      priority: _ProcurementPriority.high,
+    ),
+  ];
+
+  final List<_RfqCriterion> _rfqCriteria = const [
+    _RfqCriterion(label: 'Price competitiveness', weight: 0.4),
+    _RfqCriterion(label: 'Lead time reliability', weight: 0.25),
+    _RfqCriterion(label: 'Quality compliance', weight: 0.2),
+    _RfqCriterion(label: 'Sustainability alignment', weight: 0.15),
+  ];
+
+  final List<_PurchaseOrder> _purchaseOrders = const [
+    _PurchaseOrder(
+      id: 'PO-1042',
+      vendor: 'Atlas Tech Supply',
+      category: 'IT Equipment',
+      owner: 'J. Patel',
+      orderedDate: '2024-06-10',
+      expectedDate: '2024-07-02',
+      amount: 98500,
+      progress: 0.6,
+      status: _PurchaseOrderStatus.inTransit,
+    ),
+    _PurchaseOrder(
+      id: 'PO-1043',
+      vendor: 'BrightLine Interiors',
+      category: 'Construction Services',
+      owner: 'M. Owens',
+      orderedDate: '2024-06-15',
+      expectedDate: '2024-08-05',
+      amount: 185000,
+      progress: 0.2,
+      status: _PurchaseOrderStatus.awaitingApproval,
+    ),
+    _PurchaseOrder(
+      id: 'PO-1044',
+      vendor: 'GreenLeaf Office',
+      category: 'Furniture',
+      owner: 'L. Chen',
+      orderedDate: '2024-06-02',
+      expectedDate: '2024-06-30',
+      amount: 72000,
+      progress: 0.75,
+      status: _PurchaseOrderStatus.issued,
+    ),
+    _PurchaseOrder(
+      id: 'PO-1045',
+      vendor: 'SupplyOne Logistics',
+      category: 'Logistics',
+      owner: 'R. Singh',
+      orderedDate: '2024-05-28',
+      expectedDate: '2024-06-12',
+      amount: 24000,
+      progress: 1.0,
+      status: _PurchaseOrderStatus.received,
+    ),
+    _PurchaseOrder(
+      id: 'PO-1046',
+      vendor: 'SecureNet Solutions',
+      category: 'Security',
+      owner: 'S. Parker',
+      orderedDate: '2024-06-08',
+      expectedDate: '2024-07-20',
+      amount: 56000,
+      progress: 0.35,
+      status: _PurchaseOrderStatus.issued,
+    ),
+  ];
+
+  final List<_TrackingAlert> _trackingAlerts = const [
+    _TrackingAlert(
+      title: 'Carrier delay risk',
+      description: 'SupplyOne shipment has not moved in 48 hours.',
+      severity: _AlertSeverity.high,
+      date: '2024-06-19',
+    ),
+    _TrackingAlert(
+      title: 'Customs review requested',
+      description: 'Atlas Tech shipment awaiting secondary inspection.',
+      severity: _AlertSeverity.medium,
+      date: '2024-06-18',
+    ),
+    _TrackingAlert(
+      title: 'Delivery window confirmed',
+      description: 'GreenLeaf furniture arrival scheduled for June 30.',
+      severity: _AlertSeverity.low,
+      date: '2024-06-16',
+    ),
+  ];
+
+  final List<_CarrierPerformance> _carrierPerformance = const [
+    _CarrierPerformance(carrier: 'UPS Freight', onTimeRate: 92, avgDays: 4),
+    _CarrierPerformance(carrier: 'Coastal Freight', onTimeRate: 88, avgDays: 5),
+    _CarrierPerformance(carrier: 'BlueStar Logistics', onTimeRate: 95, avgDays: 3),
+  ];
+
+  final List<_ReportKpi> _reportKpis = const [
+    _ReportKpi(label: 'Total Spend YTD', value: '\$1.08M', delta: '+6.4% vs last year', positive: false),
+    _ReportKpi(label: 'Savings Identified', value: '\$214K', delta: '+18.2% vs last quarter', positive: true),
+    _ReportKpi(label: 'Contract Compliance', value: '78%', delta: '+3.1% vs last quarter', positive: true),
+    _ReportKpi(label: 'Avg Lead Time', value: '28 days', delta: '-2.4 days', positive: true),
+  ];
+
+  final List<_SpendBreakdown> _spendBreakdown = const [
+    _SpendBreakdown(label: 'IT Equipment', amount: 420000, percent: 0.4, color: Color(0xFF2563EB)),
+    _SpendBreakdown(label: 'Construction Services', amount: 310000, percent: 0.3, color: Color(0xFF14B8A6)),
+    _SpendBreakdown(label: 'Furniture', amount: 160000, percent: 0.15, color: Color(0xFFF97316)),
+    _SpendBreakdown(label: 'Security', amount: 120000, percent: 0.1, color: Color(0xFF8B5CF6)),
+    _SpendBreakdown(label: 'Logistics', amount: 50000, percent: 0.05, color: Color(0xFF10B981)),
+  ];
+
+  final List<_LeadTimeMetric> _leadTimeMetrics = const [
+    _LeadTimeMetric(label: 'IT Equipment', onTimeRate: 0.82),
+    _LeadTimeMetric(label: 'Construction Services', onTimeRate: 0.74),
+    _LeadTimeMetric(label: 'Furniture', onTimeRate: 0.9),
+    _LeadTimeMetric(label: 'Security', onTimeRate: 0.79),
+  ];
+
+  final List<_SavingsOpportunity> _savingsOpportunities = const [
+    _SavingsOpportunity(title: 'Bundle network hardware', value: '\$48K', owner: 'J. Patel'),
+    _SavingsOpportunity(title: 'Standardize workstation kits', value: '\$36K', owner: 'L. Chen'),
+    _SavingsOpportunity(title: 'Negotiate logistics tiers', value: '\$22K', owner: 'R. Singh'),
+  ];
+
+  final List<_ComplianceMetric> _complianceMetrics = const [
+    _ComplianceMetric(label: 'Preferred vendor usage', value: 0.64),
+    _ComplianceMetric(label: 'PO matched invoices', value: 0.92),
+    _ComplianceMetric(label: 'SLA adherence', value: 0.86),
+    _ComplianceMetric(label: 'Contracted spend', value: 0.78),
+  ];
 
   @override
   void initState() {
@@ -180,14 +588,57 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
           currencyFormat: _currencyFormat,
         );
       case _ProcurementTab.vendorManagement:
-        return _buildDashboardSection(key: const ValueKey('procurement_vendor_management'));
+        return _VendorManagementView(
+          key: const ValueKey('procurement_vendor_management'),
+          vendors: _filteredVendors,
+          allVendors: _vendors,
+          approvedOnly: _approvedOnly,
+          preferredOnly: _preferredOnly,
+          listView: _listView,
+          categoryFilter: _categoryFilter,
+          categoryOptions: _categoryOptions,
+          healthMetrics: _vendorHealthMetrics,
+          onboardingTasks: _vendorOnboardingTasks,
+          riskItems: _vendorRiskItems,
+          onApprovedChanged: (value) => setState(() => _approvedOnly = value),
+          onPreferredChanged: (value) => setState(() => _preferredOnly = value),
+          onCategoryChanged: (value) => setState(() => _categoryFilter = value),
+          onViewModeChanged: (value) => setState(() => _listView = value),
+        );
       case _ProcurementTab.rfqWorkflow:
+        return _RfqWorkflowView(
+          key: const ValueKey('procurement_rfq_workflow'),
+          rfqs: _rfqs,
+          criteria: _rfqCriteria,
+          currencyFormat: _currencyFormat,
+        );
       case _ProcurementTab.purchaseOrders:
+        return _PurchaseOrdersView(
+          key: const ValueKey('procurement_purchase_orders'),
+          orders: _purchaseOrders,
+          currencyFormat: _currencyFormat,
+        );
       case _ProcurementTab.itemTracking:
+        return _ItemTrackingView(
+          key: const ValueKey('procurement_item_tracking'),
+          trackableItems: _trackableItems,
+          selectedIndex: _selectedTrackableIndex,
+          onSelectTrackable: _handleTrackableSelected,
+          selectedItem: (_selectedTrackableIndex >= 0 && _selectedTrackableIndex < _trackableItems.length)
+              ? _trackableItems[_selectedTrackableIndex]
+              : null,
+          alerts: _trackingAlerts,
+          carriers: _carrierPerformance,
+        );
       case _ProcurementTab.reports:
-        return _ComingSoonCard(
-          key: ValueKey('procurement_${_selectedTab.name}_coming_soon'),
-          title: _selectedTab.title,
+        return _ReportsView(
+          key: const ValueKey('procurement_reports'),
+          kpis: _reportKpis,
+          spendBreakdown: _spendBreakdown,
+          leadTimeMetrics: _leadTimeMetrics,
+          savingsOpportunities: _savingsOpportunities,
+          complianceMetrics: _complianceMetrics,
+          currencyFormat: _currencyFormat,
         );
     }
   }
@@ -1981,8 +2432,2047 @@ class _YesNoBadge extends StatelessWidget {
   }
 }
 
+class _VendorManagementView extends StatelessWidget {
+  const _VendorManagementView({
+    super.key,
+    required this.vendors,
+    required this.allVendors,
+    required this.approvedOnly,
+    required this.preferredOnly,
+    required this.listView,
+    required this.categoryFilter,
+    required this.categoryOptions,
+    required this.healthMetrics,
+    required this.onboardingTasks,
+    required this.riskItems,
+    required this.onApprovedChanged,
+    required this.onPreferredChanged,
+    required this.onCategoryChanged,
+    required this.onViewModeChanged,
+  });
+
+  final List<_VendorRow> vendors;
+  final List<_VendorRow> allVendors;
+  final bool approvedOnly;
+  final bool preferredOnly;
+  final bool listView;
+  final String categoryFilter;
+  final List<String> categoryOptions;
+  final List<_VendorHealthMetric> healthMetrics;
+  final List<_VendorOnboardingTask> onboardingTasks;
+  final List<_VendorRiskItem> riskItems;
+  final ValueChanged<bool> onApprovedChanged;
+  final ValueChanged<bool> onPreferredChanged;
+  final ValueChanged<String> onCategoryChanged;
+  final ValueChanged<bool> onViewModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final totalVendors = allVendors.length;
+    final preferredCount = allVendors.where((vendor) => vendor.preferred).length;
+    final avgRating = totalVendors == 0 ? 0 : allVendors.fold<int>(0, (sum, vendor) => sum + vendor.rating) / totalVendors;
+    final preferredRate = totalVendors == 0 ? 0 : (preferredCount / totalVendors * 100).round();
+
+    final metricCards = [
+      _SummaryCard(
+        icon: Icons.inventory_2_outlined,
+        iconBackground: const Color(0xFFEFF6FF),
+        value: '$totalVendors',
+        label: 'Active Vendors',
+      ),
+      _SummaryCard(
+        icon: Icons.star_outline,
+        iconBackground: const Color(0xFFFFF7ED),
+        value: '$preferredRate%',
+        label: 'Preferred Coverage',
+        valueColor: const Color(0xFFF97316),
+      ),
+      _SummaryCard(
+        icon: Icons.thumb_up_alt_outlined,
+        iconBackground: const Color(0xFFF1F5F9),
+        value: avgRating.toStringAsFixed(1),
+        label: 'Avg Rating',
+      ),
+      _SummaryCard(
+        icon: Icons.shield_outlined,
+        iconBackground: const Color(0xFFFFF1F2),
+        value: '${riskItems.length}',
+        label: 'Compliance Actions',
+        valueColor: const Color(0xFFDC2626),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Vendor Management',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.send_outlined, size: 18),
+                  label: const Text('Invite Vendor'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add Vendor'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (isMobile)
+          Column(
+            children: [
+              metricCards[0],
+              const SizedBox(height: 12),
+              metricCards[1],
+              const SizedBox(height: 12),
+              metricCards[2],
+              const SizedBox(height: 12),
+              metricCards[3],
+            ],
+          )
+        else
+          Row(
+            children: [
+              for (var i = 0; i < metricCards.length; i++) ...[
+                Expanded(child: metricCards[i]),
+                if (i != metricCards.length - 1) const SizedBox(width: 16),
+              ],
+            ],
+          ),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: [
+              _VendorHealthCard(metrics: healthMetrics),
+              const SizedBox(height: 16),
+              _VendorOnboardingCard(tasks: onboardingTasks),
+              const SizedBox(height: 16),
+              _VendorRiskCard(riskItems: riskItems),
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _VendorHealthCard(metrics: healthMetrics)),
+              const SizedBox(width: 16),
+              Expanded(child: _VendorOnboardingCard(tasks: onboardingTasks)),
+              const SizedBox(width: 16),
+              Expanded(child: _VendorRiskCard(riskItems: riskItems)),
+            ],
+          ),
+        const SizedBox(height: 24),
+        _VendorsSection(
+          vendors: vendors,
+          allVendorsCount: allVendors.length,
+          approvedOnly: approvedOnly,
+          preferredOnly: preferredOnly,
+          listView: listView,
+          categoryFilter: categoryFilter,
+          categoryOptions: categoryOptions,
+          onApprovedChanged: onApprovedChanged,
+          onPreferredChanged: onPreferredChanged,
+          onCategoryChanged: onCategoryChanged,
+          onViewModeChanged: onViewModeChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _VendorHealthCard extends StatelessWidget {
+  const _VendorHealthCard({required this.metrics});
+
+  final List<_VendorHealthMetric> metrics;
+
+  Color _scoreColor(double score) {
+    if (score >= 0.85) return const Color(0xFF10B981);
+    if (score >= 0.7) return const Color(0xFF2563EB);
+    return const Color(0xFFF97316);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Vendor health by category',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < metrics.length; i++) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    metrics[i].category,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                  ),
+                ),
+                Text(
+                  '${(metrics[i].score * 100).round()}%',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: metrics[i].score,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE2E8F0),
+                valueColor: AlwaysStoppedAnimation<Color>(_scoreColor(metrics[i].score)),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              metrics[i].change,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+            if (i != metrics.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorOnboardingCard extends StatelessWidget {
+  const _VendorOnboardingCard({required this.tasks});
+
+  final List<_VendorOnboardingTask> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Onboarding pipeline',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < tasks.length; i++) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tasks[i].title,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Owner: ${tasks[i].owner} · Due ${DateFormat('M/d').format(DateTime.parse(tasks[i].dueDate))}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _VendorTaskStatusPill(status: tasks[i].status),
+              ],
+            ),
+            if (i != tasks.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorRiskCard extends StatelessWidget {
+  const _VendorRiskCard({required this.riskItems});
+
+  final List<_VendorRiskItem> riskItems;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Risk watchlist',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < riskItems.length; i++) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        riskItems[i].vendor,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        riskItems[i].risk,
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Last incident: ${DateFormat('M/d').format(DateTime.parse(riskItems[i].lastIncident))}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _RiskSeverityPill(severity: riskItems[i].severity),
+              ],
+            ),
+            if (i != riskItems.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorTaskStatusPill extends StatelessWidget {
+  const _VendorTaskStatusPill({required this.status});
+
+  final _VendorTaskStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: status.backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: status.borderColor),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: status.textColor),
+      ),
+    );
+  }
+}
+
+class _RiskSeverityPill extends StatelessWidget {
+  const _RiskSeverityPill({required this.severity});
+
+  final _RiskSeverity severity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: severity.backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: severity.borderColor),
+      ),
+      child: Text(
+        severity.label,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: severity.textColor),
+      ),
+    );
+  }
+}
+
+class _RfqWorkflowView extends StatelessWidget {
+  const _RfqWorkflowView({
+    super.key,
+    required this.rfqs,
+    required this.criteria,
+    required this.currencyFormat,
+  });
+
+  final List<_RfqItem> rfqs;
+  final List<_RfqCriterion> criteria;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final stages = const [
+      _RfqStage(title: 'Draft', subtitle: 'Scope and requirements', status: _WorkflowStageStatus.complete),
+      _RfqStage(title: 'Review', subtitle: 'Stakeholder alignment', status: _WorkflowStageStatus.complete),
+      _RfqStage(title: 'In Market', subtitle: 'Vendor outreach', status: _WorkflowStageStatus.active),
+      _RfqStage(title: 'Evaluation', subtitle: 'Score responses', status: _WorkflowStageStatus.upcoming),
+      _RfqStage(title: 'Award', subtitle: 'Finalize supplier', status: _WorkflowStageStatus.upcoming),
+    ];
+
+    final totalInvited = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.invited);
+    final totalResponses = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.responses);
+    final responseRate = totalInvited == 0 ? 0 : (totalResponses / totalInvited * 100).round();
+    final inEvaluation = rfqs.where((rfq) => rfq.status == _RfqStatus.evaluation).length;
+    final pipelineValue = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.budget);
+
+    final metrics = [
+      _SummaryCard(
+        icon: Icons.assignment_outlined,
+        iconBackground: const Color(0xFFEFF6FF),
+        value: '${rfqs.length}',
+        label: 'Open RFQs',
+      ),
+      _SummaryCard(
+        icon: Icons.checklist_rounded,
+        iconBackground: const Color(0xFFF1F5F9),
+        value: '$inEvaluation',
+        label: 'In Evaluation',
+      ),
+      _SummaryCard(
+        icon: Icons.groups_outlined,
+        iconBackground: const Color(0xFFFFF7ED),
+        value: '$responseRate%',
+        label: 'Response Rate',
+        valueColor: const Color(0xFFF97316),
+      ),
+      _SummaryCard(
+        icon: Icons.account_balance_wallet_outlined,
+        iconBackground: const Color(0xFFECFEFF),
+        value: currencyFormat.format(pipelineValue),
+        label: 'Pipeline Value',
+        valueColor: const Color(0xFF047857),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'RFQ Workflow',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: () {},
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('View Templates'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Create RFQ'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [for (final stage in stages) _RfqStageCard(stage: stage)],
+        ),
+        const SizedBox(height: 20),
+        if (isMobile)
+          Column(
+            children: [
+              metrics[0],
+              const SizedBox(height: 12),
+              metrics[1],
+              const SizedBox(height: 12),
+              metrics[2],
+              const SizedBox(height: 12),
+              metrics[3],
+            ],
+          )
+        else
+          Row(
+            children: [
+              for (var i = 0; i < metrics.length; i++) ...[
+                Expanded(child: metrics[i]),
+                if (i != metrics.length - 1) const SizedBox(width: 16),
+              ],
+            ],
+          ),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: [
+              _RfqListCard(rfqs: rfqs, currencyFormat: currencyFormat),
+              const SizedBox(height: 16),
+              _RfqSidebarCard(rfqs: rfqs, criteria: criteria),
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _RfqListCard(rfqs: rfqs, currencyFormat: currencyFormat)),
+              const SizedBox(width: 24),
+              SizedBox(width: 320, child: _RfqSidebarCard(rfqs: rfqs, criteria: criteria)),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _RfqStageCard extends StatelessWidget {
+  const _RfqStageCard({required this.stage});
+
+  final _RfqStage stage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 210,
+      decoration: BoxDecoration(
+        color: stage.status.backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: stage.status.borderColor),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Icon(stage.status.icon, size: 20, color: stage.status.iconColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  stage.title,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  stage.subtitle,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RfqListCard extends StatelessWidget {
+  const _RfqListCard({required this.rfqs, required this.currencyFormat});
+
+  final List<_RfqItem> rfqs;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Text(
+                'Active RFQs',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Prioritized by due date',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < rfqs.length; i++) ...[
+            _RfqItemCard(rfq: rfqs[i], currencyFormat: currencyFormat),
+            if (i != rfqs.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RfqItemCard extends StatelessWidget {
+  const _RfqItemCard({required this.rfq, required this.currencyFormat});
+
+  final _RfqItem rfq;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final double responseRate = rfq.invited == 0 ? 0.0 : rfq.responses / rfq.invited;
+    final dueLabel = DateFormat('MMM d').format(DateTime.parse(rfq.dueDate));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rfq.title,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${rfq.category} · Owner ${rfq.owner}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _RfqStatusPill(status: rfq.status),
+              const SizedBox(width: 6),
+              _BadgePill(
+                label: rfq.priority.label,
+                background: rfq.priority.backgroundColor,
+                border: rfq.priority.borderColor,
+                foreground: rfq.priority.textColor,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (isMobile)
+            Column(
+              children: [
+                _RfqMeta(label: 'Due', value: dueLabel),
+                const SizedBox(height: 8),
+                _RfqMeta(label: 'Responses', value: '${rfq.responses}/${rfq.invited}'),
+                const SizedBox(height: 8),
+                _RfqMeta(label: 'Budget', value: currencyFormat.format(rfq.budget)),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(child: _RfqMeta(label: 'Due', value: dueLabel)),
+                Expanded(child: _RfqMeta(label: 'Responses', value: '${rfq.responses}/${rfq.invited}')),
+                Expanded(child: _RfqMeta(label: 'Budget', value: currencyFormat.format(rfq.budget))),
+              ],
+            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Vendor response progress',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ),
+              Text(
+                '${(responseRate * 100).round()}%',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1D4ED8)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: responseRate,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFE2E8F0),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RfqMeta extends StatelessWidget {
+  const _RfqMeta({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+      ],
+    );
+  }
+}
+
+class _RfqStatusPill extends StatelessWidget {
+  const _RfqStatusPill({required this.status});
+
+  final _RfqStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: status.backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: status.borderColor),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: status.textColor),
+      ),
+    );
+  }
+}
+
+class _RfqSidebarCard extends StatelessWidget {
+  const _RfqSidebarCard({required this.rfqs, required this.criteria});
+
+  final List<_RfqItem> rfqs;
+  final List<_RfqCriterion> criteria;
+
+  @override
+  Widget build(BuildContext context) {
+    final upcoming = [...rfqs]..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    final topUpcoming = upcoming.take(3).toList();
+
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Evaluation criteria',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 12),
+              for (var i = 0; i < criteria.length; i++) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        criteria[i].label,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      ),
+                    ),
+                    Text(
+                      '${(criteria[i].weight * 100).round()}%',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: criteria[i].weight,
+                    minHeight: 6,
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                  ),
+                ),
+                if (i != criteria.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Upcoming deadlines',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 12),
+              for (var i = 0; i < topUpcoming.length; i++) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        topUpcoming[i].title,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      ),
+                    ),
+                    Text(
+                      DateFormat('MMM d').format(DateTime.parse(topUpcoming[i].dueDate)),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+                if (i != topUpcoming.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PurchaseOrdersView extends StatelessWidget {
+  const _PurchaseOrdersView({
+    super.key,
+    required this.orders,
+    required this.currencyFormat,
+  });
+
+  final List<_PurchaseOrder> orders;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final awaitingApproval = orders.where((order) => order.status == _PurchaseOrderStatus.awaitingApproval).length;
+    final inTransit = orders.where((order) => order.status == _PurchaseOrderStatus.inTransit).length;
+    final openOrders = orders.where((order) => order.status != _PurchaseOrderStatus.received).length;
+    final totalSpend = orders.fold<int>(0, (sum, order) => sum + order.amount);
+
+    final metrics = [
+      _SummaryCard(
+        icon: Icons.receipt_long_outlined,
+        iconBackground: const Color(0xFFEFF6FF),
+        value: '$openOrders',
+        label: 'Open Orders',
+      ),
+      _SummaryCard(
+        icon: Icons.approval_outlined,
+        iconBackground: const Color(0xFFFFF7ED),
+        value: '$awaitingApproval',
+        label: 'Awaiting Approval',
+        valueColor: const Color(0xFFF97316),
+      ),
+      _SummaryCard(
+        icon: Icons.local_shipping_outlined,
+        iconBackground: const Color(0xFFF1F5F9),
+        value: '$inTransit',
+        label: 'In Transit',
+      ),
+      _SummaryCard(
+        icon: Icons.attach_money,
+        iconBackground: const Color(0xFFECFEFF),
+        value: currencyFormat.format(totalSpend),
+        label: 'Total Spend',
+        valueColor: const Color(0xFF047857),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Purchase Orders',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: () {},
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Export'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Create PO'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (isMobile)
+          Column(
+            children: [
+              metrics[0],
+              const SizedBox(height: 12),
+              metrics[1],
+              const SizedBox(height: 12),
+              metrics[2],
+              const SizedBox(height: 12),
+              metrics[3],
+            ],
+          )
+        else
+          Row(
+            children: [
+              for (var i = 0; i < metrics.length; i++) ...[
+                Expanded(child: metrics[i]),
+                if (i != metrics.length - 1) const SizedBox(width: 16),
+              ],
+            ],
+          ),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: [
+              for (var i = 0; i < orders.length; i++) ...[
+                _PurchaseOrderCard(order: orders[i], currencyFormat: currencyFormat),
+                if (i != orders.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          )
+        else
+          _PurchaseOrderTable(orders: orders, currencyFormat: currencyFormat),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: [
+              _ApprovalQueueCard(orders: orders),
+              const SizedBox(height: 16),
+              _InvoiceMatchCard(orders: orders),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(child: _ApprovalQueueCard(orders: orders)),
+              const SizedBox(width: 16),
+              Expanded(child: _InvoiceMatchCard(orders: orders)),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _PurchaseOrderTable extends StatelessWidget {
+  const _PurchaseOrderTable({required this.orders, required this.currencyFormat});
+
+  final List<_PurchaseOrder> orders;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                    child: _PurchaseOrderHeaderRow(),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  for (var i = 0; i < orders.length; i++) ...[
+                    _PurchaseOrderRow(order: orders[i], currencyFormat: currencyFormat),
+                    if (i != orders.length - 1) const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PurchaseOrderHeaderRow extends StatelessWidget {
+  const _PurchaseOrderHeaderRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        _HeaderCell(label: 'PO', flex: 2),
+        _HeaderCell(label: 'Vendor', flex: 3),
+        _HeaderCell(label: 'Category', flex: 2),
+        _HeaderCell(label: 'Status', flex: 2),
+        _HeaderCell(label: 'Amount', flex: 2),
+        _HeaderCell(label: 'Expected', flex: 2),
+        _HeaderCell(label: 'Progress', flex: 2),
+        _HeaderCell(label: 'Actions', flex: 2, alignEnd: true),
+      ],
+    );
+  }
+}
+
+class _PurchaseOrderRow extends StatelessWidget {
+  const _PurchaseOrderRow({required this.order, required this.currencyFormat});
+
+  final _PurchaseOrder order;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final expectedLabel = DateFormat('M/d/yyyy').format(DateTime.parse(order.expectedDate));
+    final progressLabel = '${(order.progress * 100).round()}%';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(order.id, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+          ),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(order.vendor, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+                const SizedBox(height: 4),
+                Text('Owner ${order.owner}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              ],
+            ),
+          ),
+          Expanded(flex: 2, child: Text(order.category, style: const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _PurchaseOrderStatusPill(status: order.status),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(currencyFormat.format(order.amount), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+          ),
+          Expanded(flex: 2, child: Text(expectedLabel, style: const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(progressLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1D4ED8))),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: order.progress,
+                    minHeight: 6,
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: const [
+                _ActionIcon(icon: Icons.visibility_outlined),
+                SizedBox(width: 8),
+                _ActionIcon(icon: Icons.more_horiz_rounded),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PurchaseOrderCard extends StatelessWidget {
+  const _PurchaseOrderCard({required this.order, required this.currencyFormat});
+
+  final _PurchaseOrder order;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final expectedLabel = DateFormat('M/d/yyyy').format(DateTime.parse(order.expectedDate));
+    final progressLabel = '${(order.progress * 100).round()}%';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(order.id, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+              ),
+              _PurchaseOrderStatusPill(status: order.status),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(order.vendor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937))),
+          const SizedBox(height: 4),
+          Text(order.category, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _RfqMeta(label: 'Expected', value: expectedLabel)),
+              Expanded(child: _RfqMeta(label: 'Amount', value: currencyFormat.format(order.amount))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _RfqMeta(label: 'Progress', value: progressLabel)),
+              Expanded(child: _RfqMeta(label: 'Owner', value: order.owner)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: order.progress,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFE2E8F0),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PurchaseOrderStatusPill extends StatelessWidget {
+  const _PurchaseOrderStatusPill({required this.status});
+
+  final _PurchaseOrderStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: status.backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: status.borderColor),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: status.textColor),
+      ),
+    );
+  }
+}
+
+class _ApprovalQueueCard extends StatelessWidget {
+  const _ApprovalQueueCard({required this.orders});
+
+  final List<_PurchaseOrder> orders;
+
+  @override
+  Widget build(BuildContext context) {
+    final approvals = orders.where((order) => order.status == _PurchaseOrderStatus.awaitingApproval).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Approval queue',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          if (approvals.isEmpty)
+            const Text('No approvals pending.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))
+          else
+            for (var i = 0; i < approvals.length; i++) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${approvals[i].id} · ${approvals[i].vendor}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                    ),
+                  ),
+                  Text(
+                    DateFormat('MMM d').format(DateTime.parse(approvals[i].orderedDate)),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+              if (i != approvals.length - 1) const SizedBox(height: 12),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InvoiceMatchCard extends StatelessWidget {
+  const _InvoiceMatchCard({required this.orders});
+
+  final List<_PurchaseOrder> orders;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = orders.where((order) => order.status == _PurchaseOrderStatus.received).toList();
+    final inProgress = orders.where((order) => order.status == _PurchaseOrderStatus.inTransit).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Invoice matching',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Completed matches: ${completed.length}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'In progress: ${inProgress.length}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: () {},
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0F172A),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Open match workspace'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemTrackingView extends StatelessWidget {
+  const _ItemTrackingView({
+    super.key,
+    required this.trackableItems,
+    required this.selectedIndex,
+    required this.onSelectTrackable,
+    required this.selectedItem,
+    required this.alerts,
+    required this.carriers,
+  });
+
+  final List<_TrackableItem> trackableItems;
+  final int selectedIndex;
+  final ValueChanged<int> onSelectTrackable;
+  final _TrackableItem? selectedItem;
+  final List<_TrackingAlert> alerts;
+  final List<_CarrierPerformance> carriers;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final inTransit = trackableItems.where((item) => item.currentStatus == _TrackableStatus.inTransit).length;
+    final delivered = trackableItems.where((item) => item.currentStatus == _TrackableStatus.delivered).length;
+    final highAlerts = alerts.where((alert) => alert.severity == _AlertSeverity.high).length;
+    final onTimeRate = carriers.isEmpty
+        ? 0
+        : (carriers.fold<int>(0, (sum, carrier) => sum + carrier.onTimeRate) / carriers.length).round();
+
+    final metrics = [
+      _SummaryCard(
+        icon: Icons.local_shipping_outlined,
+        iconBackground: const Color(0xFFEFF6FF),
+        value: '$inTransit',
+        label: 'In Transit',
+      ),
+      _SummaryCard(
+        icon: Icons.check_circle_outline,
+        iconBackground: const Color(0xFFE8FFF4),
+        value: '$delivered',
+        label: 'Delivered',
+        valueColor: const Color(0xFF047857),
+      ),
+      _SummaryCard(
+        icon: Icons.warning_amber_rounded,
+        iconBackground: const Color(0xFFFFF1F2),
+        value: '$highAlerts',
+        label: 'High Priority Alerts',
+        valueColor: const Color(0xFFDC2626),
+      ),
+      _SummaryCard(
+        icon: Icons.track_changes_outlined,
+        iconBackground: const Color(0xFFF1F5F9),
+        value: '$onTimeRate%',
+        label: 'On-time Rate',
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Item Tracking',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.sync_rounded, size: 18),
+              label: const Text('Update Status'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (isMobile)
+          Column(
+            children: [
+              metrics[0],
+              const SizedBox(height: 12),
+              metrics[1],
+              const SizedBox(height: 12),
+              metrics[2],
+              const SizedBox(height: 12),
+              metrics[3],
+            ],
+          )
+        else
+          Row(
+            children: [
+              for (var i = 0; i < metrics.length; i++) ...[
+                Expanded(child: metrics[i]),
+                if (i != metrics.length - 1) const SizedBox(width: 16),
+              ],
+            ],
+          ),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: [
+              _TrackableItemsCard(
+                trackableItems: trackableItems,
+                selectedIndex: selectedIndex,
+                onSelectTrackable: onSelectTrackable,
+              ),
+              const SizedBox(height: 16),
+              _TrackingTimelineCard(item: selectedItem),
+              const SizedBox(height: 16),
+              _TrackingAlertsCard(alerts: alerts),
+              const SizedBox(height: 16),
+              _CarrierPerformanceCard(carriers: carriers),
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  children: [
+                    _TrackableItemsCard(
+                      trackableItems: trackableItems,
+                      selectedIndex: selectedIndex,
+                      onSelectTrackable: onSelectTrackable,
+                    ),
+                    const SizedBox(height: 16),
+                    _TrackingAlertsCard(alerts: alerts),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    _TrackingTimelineCard(item: selectedItem),
+                    const SizedBox(height: 16),
+                    _CarrierPerformanceCard(carriers: carriers),
+                  ],
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _TrackingAlertsCard extends StatelessWidget {
+  const _TrackingAlertsCard({required this.alerts});
+
+  final List<_TrackingAlert> alerts;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Logistics alerts',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < alerts.length; i++) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        alerts[i].title,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        alerts[i].description,
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('M/d').format(DateTime.parse(alerts[i].date)),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _AlertSeverityPill(severity: alerts[i].severity),
+              ],
+            ),
+            if (i != alerts.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AlertSeverityPill extends StatelessWidget {
+  const _AlertSeverityPill({required this.severity});
+
+  final _AlertSeverity severity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: severity.backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: severity.borderColor),
+      ),
+      child: Text(
+        severity.label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: severity.textColor),
+      ),
+    );
+  }
+}
+
+class _CarrierPerformanceCard extends StatelessWidget {
+  const _CarrierPerformanceCard({required this.carriers});
+
+  final List<_CarrierPerformance> carriers;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Carrier performance',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < carriers.length; i++) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    carriers[i].carrier,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                  ),
+                ),
+                Text(
+                  '${carriers[i].onTimeRate}%',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '${carriers[i].avgDays}d avg',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: carriers[i].onTimeRate / 100,
+                minHeight: 6,
+                backgroundColor: const Color(0xFFE2E8F0),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+              ),
+            ),
+            if (i != carriers.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportsView extends StatelessWidget {
+  const _ReportsView({
+    super.key,
+    required this.kpis,
+    required this.spendBreakdown,
+    required this.leadTimeMetrics,
+    required this.savingsOpportunities,
+    required this.complianceMetrics,
+    required this.currencyFormat,
+  });
+
+  final List<_ReportKpi> kpis;
+  final List<_SpendBreakdown> spendBreakdown;
+  final List<_LeadTimeMetric> leadTimeMetrics;
+  final List<_SavingsOpportunity> savingsOpportunities;
+  final List<_ComplianceMetric> complianceMetrics;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Procurement Reports',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: () {},
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Share'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.file_download_outlined, size: 18),
+                  label: const Text('Export PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (isMobile)
+          Column(
+            children: [
+              for (var i = 0; i < kpis.length; i++) ...[
+                _ReportKpiCard(kpi: kpis[i]),
+                if (i != kpis.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          )
+        else
+          Row(
+            children: [
+              for (var i = 0; i < kpis.length; i++) ...[
+                Expanded(child: _ReportKpiCard(kpi: kpis[i])),
+                if (i != kpis.length - 1) const SizedBox(width: 16),
+              ],
+            ],
+          ),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: [
+              _SpendBreakdownCard(breakdown: spendBreakdown, currencyFormat: currencyFormat),
+              const SizedBox(height: 16),
+              _LeadTimePerformanceCard(metrics: leadTimeMetrics),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(child: _SpendBreakdownCard(breakdown: spendBreakdown, currencyFormat: currencyFormat)),
+              const SizedBox(width: 16),
+              Expanded(child: _LeadTimePerformanceCard(metrics: leadTimeMetrics)),
+            ],
+          ),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: [
+              _SavingsOpportunitiesCard(items: savingsOpportunities),
+              const SizedBox(height: 16),
+              _ComplianceSnapshotCard(metrics: complianceMetrics),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(child: _SavingsOpportunitiesCard(items: savingsOpportunities)),
+              const SizedBox(width: 16),
+              Expanded(child: _ComplianceSnapshotCard(metrics: complianceMetrics)),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _ReportKpiCard extends StatelessWidget {
+  const _ReportKpiCard({required this.kpi});
+
+  final _ReportKpi kpi;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color deltaColor = kpi.positive ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    final IconData deltaIcon = kpi.positive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(kpi.label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          const SizedBox(height: 8),
+          Text(kpi.value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(deltaIcon, size: 16, color: deltaColor),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  kpi.delta,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: deltaColor),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpendBreakdownCard extends StatelessWidget {
+  const _SpendBreakdownCard({required this.breakdown, required this.currencyFormat});
+
+  final List<_SpendBreakdown> breakdown;
+  final NumberFormat currencyFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Spend by category',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < breakdown.length; i++) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    breakdown[i].label,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                  ),
+                ),
+                Text(
+                  currencyFormat.format(breakdown[i].amount),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
+                  children: [
+                    Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    Container(
+                      height: 8,
+                      width: constraints.maxWidth * breakdown[i].percent,
+                      decoration: BoxDecoration(
+                        color: breakdown[i].color,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            if (i != breakdown.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LeadTimePerformanceCard extends StatelessWidget {
+  const _LeadTimePerformanceCard({required this.metrics});
+
+  final List<_LeadTimeMetric> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Lead time performance',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < metrics.length; i++) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    metrics[i].label,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                  ),
+                ),
+                Text(
+                  '${(metrics[i].onTimeRate * 100).round()}%',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: metrics[i].onTimeRate,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE2E8F0),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+              ),
+            ),
+            if (i != metrics.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SavingsOpportunitiesCard extends StatelessWidget {
+  const _SavingsOpportunitiesCard({required this.items});
+
+  final List<_SavingsOpportunity> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Savings opportunities',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < items.length; i++) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        items[i].title,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Owner ${items[i].owner}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  items[i].value,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                ),
+              ],
+            ),
+            if (i != items.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ComplianceSnapshotCard extends StatelessWidget {
+  const _ComplianceSnapshotCard({required this.metrics});
+
+  final List<_ComplianceMetric> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Compliance snapshot',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < metrics.length; i++) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    metrics[i].label,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                  ),
+                ),
+                Text(
+                  '${(metrics[i].value * 100).round()}%',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: metrics[i].value,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE2E8F0),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+              ),
+            ),
+            if (i != metrics.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ComingSoonCard extends StatelessWidget {
-  const _ComingSoonCard({super.key, required this.title});
+  const _ComingSoonCard({required this.title});
 
   final String title;
 
@@ -2316,4 +4806,482 @@ class _VendorRow {
   final int rating;
   final bool approved;
   final bool preferred;
+}
+
+class _VendorHealthMetric {
+  const _VendorHealthMetric({required this.category, required this.score, required this.change});
+
+  final String category;
+  final double score;
+  final String change;
+}
+
+class _VendorOnboardingTask {
+  const _VendorOnboardingTask({
+    required this.title,
+    required this.owner,
+    required this.dueDate,
+    required this.status,
+  });
+
+  final String title;
+  final String owner;
+  final String dueDate;
+  final _VendorTaskStatus status;
+}
+
+enum _VendorTaskStatus { pending, inReview, complete }
+
+extension _VendorTaskStatusExtension on _VendorTaskStatus {
+  String get label {
+    switch (this) {
+      case _VendorTaskStatus.pending:
+        return 'pending';
+      case _VendorTaskStatus.inReview:
+        return 'in review';
+      case _VendorTaskStatus.complete:
+        return 'complete';
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case _VendorTaskStatus.pending:
+        return const Color(0xFFF1F5F9);
+      case _VendorTaskStatus.inReview:
+        return const Color(0xFFFFF7ED);
+      case _VendorTaskStatus.complete:
+        return const Color(0xFFE8FFF4);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case _VendorTaskStatus.pending:
+        return const Color(0xFF64748B);
+      case _VendorTaskStatus.inReview:
+        return const Color(0xFFF97316);
+      case _VendorTaskStatus.complete:
+        return const Color(0xFF047857);
+    }
+  }
+
+  Color get borderColor {
+    switch (this) {
+      case _VendorTaskStatus.pending:
+        return const Color(0xFFE2E8F0);
+      case _VendorTaskStatus.inReview:
+        return const Color(0xFFFED7AA);
+      case _VendorTaskStatus.complete:
+        return const Color(0xFFBBF7D0);
+    }
+  }
+}
+
+class _VendorRiskItem {
+  const _VendorRiskItem({
+    required this.vendor,
+    required this.risk,
+    required this.severity,
+    required this.lastIncident,
+  });
+
+  final String vendor;
+  final String risk;
+  final _RiskSeverity severity;
+  final String lastIncident;
+}
+
+enum _RiskSeverity { low, medium, high }
+
+extension _RiskSeverityExtension on _RiskSeverity {
+  String get label {
+    switch (this) {
+      case _RiskSeverity.low:
+        return 'low';
+      case _RiskSeverity.medium:
+        return 'medium';
+      case _RiskSeverity.high:
+        return 'high';
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case _RiskSeverity.low:
+        return const Color(0xFFF1F5F9);
+      case _RiskSeverity.medium:
+        return const Color(0xFFFFF7ED);
+      case _RiskSeverity.high:
+        return const Color(0xFFFFF1F2);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case _RiskSeverity.low:
+        return const Color(0xFF64748B);
+      case _RiskSeverity.medium:
+        return const Color(0xFFF97316);
+      case _RiskSeverity.high:
+        return const Color(0xFFDC2626);
+    }
+  }
+
+  Color get borderColor {
+    switch (this) {
+      case _RiskSeverity.low:
+        return const Color(0xFFE2E8F0);
+      case _RiskSeverity.medium:
+        return const Color(0xFFFED7AA);
+      case _RiskSeverity.high:
+        return const Color(0xFFFECACA);
+    }
+  }
+}
+
+class _RfqItem {
+  const _RfqItem({
+    required this.title,
+    required this.category,
+    required this.owner,
+    required this.dueDate,
+    required this.invited,
+    required this.responses,
+    required this.budget,
+    required this.status,
+    required this.priority,
+  });
+
+  final String title;
+  final String category;
+  final String owner;
+  final String dueDate;
+  final int invited;
+  final int responses;
+  final int budget;
+  final _RfqStatus status;
+  final _ProcurementPriority priority;
+}
+
+enum _RfqStatus { draft, review, inMarket, evaluation, awarded }
+
+extension _RfqStatusExtension on _RfqStatus {
+  String get label {
+    switch (this) {
+      case _RfqStatus.draft:
+        return 'draft';
+      case _RfqStatus.review:
+        return 'review';
+      case _RfqStatus.inMarket:
+        return 'in market';
+      case _RfqStatus.evaluation:
+        return 'evaluation';
+      case _RfqStatus.awarded:
+        return 'awarded';
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case _RfqStatus.draft:
+        return const Color(0xFFF1F5F9);
+      case _RfqStatus.review:
+        return const Color(0xFFFFF7ED);
+      case _RfqStatus.inMarket:
+        return const Color(0xFFEFF6FF);
+      case _RfqStatus.evaluation:
+        return const Color(0xFFF5F3FF);
+      case _RfqStatus.awarded:
+        return const Color(0xFFE8FFF4);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case _RfqStatus.draft:
+        return const Color(0xFF64748B);
+      case _RfqStatus.review:
+        return const Color(0xFFF97316);
+      case _RfqStatus.inMarket:
+        return const Color(0xFF2563EB);
+      case _RfqStatus.evaluation:
+        return const Color(0xFF6D28D9);
+      case _RfqStatus.awarded:
+        return const Color(0xFF047857);
+    }
+  }
+
+  Color get borderColor {
+    switch (this) {
+      case _RfqStatus.draft:
+        return const Color(0xFFE2E8F0);
+      case _RfqStatus.review:
+        return const Color(0xFFFED7AA);
+      case _RfqStatus.inMarket:
+        return const Color(0xFFBFDBFE);
+      case _RfqStatus.evaluation:
+        return const Color(0xFFE9D5FF);
+      case _RfqStatus.awarded:
+        return const Color(0xFFBBF7D0);
+    }
+  }
+}
+
+class _RfqStage {
+  const _RfqStage({required this.title, required this.subtitle, required this.status});
+
+  final String title;
+  final String subtitle;
+  final _WorkflowStageStatus status;
+}
+
+enum _WorkflowStageStatus { complete, active, upcoming }
+
+extension _WorkflowStageStatusExtension on _WorkflowStageStatus {
+  Color get backgroundColor {
+    switch (this) {
+      case _WorkflowStageStatus.complete:
+        return const Color(0xFFE8FFF4);
+      case _WorkflowStageStatus.active:
+        return const Color(0xFFEFF6FF);
+      case _WorkflowStageStatus.upcoming:
+        return const Color(0xFFF8FAFC);
+    }
+  }
+
+  Color get borderColor {
+    switch (this) {
+      case _WorkflowStageStatus.complete:
+        return const Color(0xFFBBF7D0);
+      case _WorkflowStageStatus.active:
+        return const Color(0xFFBFDBFE);
+      case _WorkflowStageStatus.upcoming:
+        return const Color(0xFFE2E8F0);
+    }
+  }
+
+  Color get iconColor {
+    switch (this) {
+      case _WorkflowStageStatus.complete:
+        return const Color(0xFF047857);
+      case _WorkflowStageStatus.active:
+        return const Color(0xFF2563EB);
+      case _WorkflowStageStatus.upcoming:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _WorkflowStageStatus.complete:
+        return Icons.check_circle_rounded;
+      case _WorkflowStageStatus.active:
+        return Icons.radio_button_checked_rounded;
+      case _WorkflowStageStatus.upcoming:
+        return Icons.radio_button_unchecked_rounded;
+    }
+  }
+}
+
+class _RfqCriterion {
+  const _RfqCriterion({required this.label, required this.weight});
+
+  final String label;
+  final double weight;
+}
+
+class _PurchaseOrder {
+  const _PurchaseOrder({
+    required this.id,
+    required this.vendor,
+    required this.category,
+    required this.owner,
+    required this.orderedDate,
+    required this.expectedDate,
+    required this.amount,
+    required this.progress,
+    required this.status,
+  });
+
+  final String id;
+  final String vendor;
+  final String category;
+  final String owner;
+  final String orderedDate;
+  final String expectedDate;
+  final int amount;
+  final double progress;
+  final _PurchaseOrderStatus status;
+}
+
+enum _PurchaseOrderStatus { awaitingApproval, issued, inTransit, received }
+
+extension _PurchaseOrderStatusExtension on _PurchaseOrderStatus {
+  String get label {
+    switch (this) {
+      case _PurchaseOrderStatus.awaitingApproval:
+        return 'awaiting approval';
+      case _PurchaseOrderStatus.issued:
+        return 'issued';
+      case _PurchaseOrderStatus.inTransit:
+        return 'in transit';
+      case _PurchaseOrderStatus.received:
+        return 'received';
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case _PurchaseOrderStatus.awaitingApproval:
+        return const Color(0xFFFFF7ED);
+      case _PurchaseOrderStatus.issued:
+        return const Color(0xFFEFF6FF);
+      case _PurchaseOrderStatus.inTransit:
+        return const Color(0xFFF5F3FF);
+      case _PurchaseOrderStatus.received:
+        return const Color(0xFFE8FFF4);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case _PurchaseOrderStatus.awaitingApproval:
+        return const Color(0xFFF97316);
+      case _PurchaseOrderStatus.issued:
+        return const Color(0xFF2563EB);
+      case _PurchaseOrderStatus.inTransit:
+        return const Color(0xFF6D28D9);
+      case _PurchaseOrderStatus.received:
+        return const Color(0xFF047857);
+    }
+  }
+
+  Color get borderColor {
+    switch (this) {
+      case _PurchaseOrderStatus.awaitingApproval:
+        return const Color(0xFFFED7AA);
+      case _PurchaseOrderStatus.issued:
+        return const Color(0xFFBFDBFE);
+      case _PurchaseOrderStatus.inTransit:
+        return const Color(0xFFE9D5FF);
+      case _PurchaseOrderStatus.received:
+        return const Color(0xFFBBF7D0);
+    }
+  }
+}
+
+class _TrackingAlert {
+  const _TrackingAlert({
+    required this.title,
+    required this.description,
+    required this.severity,
+    required this.date,
+  });
+
+  final String title;
+  final String description;
+  final _AlertSeverity severity;
+  final String date;
+}
+
+enum _AlertSeverity { low, medium, high }
+
+extension _AlertSeverityExtension on _AlertSeverity {
+  String get label {
+    switch (this) {
+      case _AlertSeverity.low:
+        return 'low';
+      case _AlertSeverity.medium:
+        return 'medium';
+      case _AlertSeverity.high:
+        return 'high';
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case _AlertSeverity.low:
+        return const Color(0xFFF1F5F9);
+      case _AlertSeverity.medium:
+        return const Color(0xFFFFF7ED);
+      case _AlertSeverity.high:
+        return const Color(0xFFFFF1F2);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case _AlertSeverity.low:
+        return const Color(0xFF64748B);
+      case _AlertSeverity.medium:
+        return const Color(0xFFF97316);
+      case _AlertSeverity.high:
+        return const Color(0xFFDC2626);
+    }
+  }
+
+  Color get borderColor {
+    switch (this) {
+      case _AlertSeverity.low:
+        return const Color(0xFFE2E8F0);
+      case _AlertSeverity.medium:
+        return const Color(0xFFFED7AA);
+      case _AlertSeverity.high:
+        return const Color(0xFFFECACA);
+    }
+  }
+}
+
+class _CarrierPerformance {
+  const _CarrierPerformance({required this.carrier, required this.onTimeRate, required this.avgDays});
+
+  final String carrier;
+  final int onTimeRate;
+  final int avgDays;
+}
+
+class _ReportKpi {
+  const _ReportKpi({required this.label, required this.value, required this.delta, required this.positive});
+
+  final String label;
+  final String value;
+  final String delta;
+  final bool positive;
+}
+
+class _SpendBreakdown {
+  const _SpendBreakdown({
+    required this.label,
+    required this.amount,
+    required this.percent,
+    required this.color,
+  });
+
+  final String label;
+  final int amount;
+  final double percent;
+  final Color color;
+}
+
+class _LeadTimeMetric {
+  const _LeadTimeMetric({required this.label, required this.onTimeRate});
+
+  final String label;
+  final double onTimeRate;
+}
+
+class _SavingsOpportunity {
+  const _SavingsOpportunity({required this.title, required this.value, required this.owner});
+
+  final String title;
+  final String value;
+  final String owner;
+}
+
+class _ComplianceMetric {
+  const _ComplianceMetric({required this.label, required this.value});
+
+  final String label;
+  final double value;
 }
