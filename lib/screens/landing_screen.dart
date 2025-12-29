@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ndu_project/providers/app_content_provider.dart';
 import 'package:ndu_project/screens/create_account_screen.dart';
 import 'package:ndu_project/screens/pricing_screen.dart';
@@ -9,8 +8,6 @@ import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
-import 'package:ndu_project/widgets/app_logo.dart';
-import 'package:ndu_project/widgets/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 

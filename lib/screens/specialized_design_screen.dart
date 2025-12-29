@@ -937,7 +937,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     required Color accent,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       items: _statusOptions
           .map((status) => DropdownMenuItem(value: status, child: Text(status)))
           .toList(),

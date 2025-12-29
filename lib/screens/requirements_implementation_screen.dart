@@ -617,7 +617,7 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<ChecklistStatus>(
-              value: item.status,
+              initialValue: item.status,
               items: ChecklistStatus.values
                   .map(
                     (status) => DropdownMenuItem(
