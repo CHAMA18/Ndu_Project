@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -375,6 +376,7 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                               isLoading: isLoading,
                               error: error,
                               selectedIds: selectedIds,
+                              selectedIdsListenable: _selectedProjectIds,
                               onToggle: _toggleSelection,
                               onClear: _clearSelection,
                             );
@@ -410,6 +412,7 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                                   isLoading: isLoading,
                                   error: error,
                                   selectedIds: selectedIds,
+                                  selectedIdsListenable: _selectedProjectIds,
                                   onToggle: _toggleSelection,
                                   onClear: _clearSelection,
                                 );
@@ -865,11 +868,13 @@ class _SingleProjectsCard extends StatefulWidget {
     required this.projects,
     required this.isLoading,
     this.error,
+    this.expandedView = false,
   });
 
   final List<ProjectRecord> projects;
   final bool isLoading;
   final String? error;
+  final bool expandedView;
 
   @override
   State<_SingleProjectsCard> createState() => _SingleProjectsCardState();
@@ -881,9 +886,29 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
   String _searchQuery = '';
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.expandedView) {
+      _showAll = true;
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _openExpandedView() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _SingleProjectsExpandedScreen(
+          projects: widget.projects,
+          isLoading: widget.isLoading,
+          error: widget.error,
+        ),
+      ),
+    );
   }
 
   @override
@@ -899,6 +924,17 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
           LayoutBuilder(
             builder: (context, constraints) {
               final narrow = constraints.maxWidth < 840;
+              final seeAllButton = widget.expandedView
+                  ? const SizedBox.shrink()
+                  : TextButton(
+                      onPressed: _openExpandedView,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF4D6D),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      child: const Text('See All'),
+                    );
               final tip = Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
@@ -956,7 +992,14 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Flexible(child: tip),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        seeAllButton,
+                        const SizedBox(height: 8),
+                        SizedBox(width: 260, child: tip),
+                      ],
+                    ),
                   ],
                 );
               }
@@ -964,12 +1007,19 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Single Projects',
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 24,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Single Projects',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 24,
+                          ),
+                        ),
+                      ),
+                      seeAllButton,
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -1189,10 +1239,10 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                             child: Row(
                               children: const [
                                 Expanded(child: _TableHeaderLabel('Project')),
-                                Expanded(child: _TableHeaderLabel('Stage')),
-                                Expanded(child: _TableHeaderLabel('Owner')),
-                                Expanded(child: _TableHeaderLabel('Investment')),
-                                Expanded(child: _TableHeaderLabel('Actions')),
+                                Expanded(child: _TableHeaderLabel('Stage', alignment: Alignment.center)),
+                                Expanded(child: _TableHeaderLabel('Owner', alignment: Alignment.center)),
+                                Expanded(child: _TableHeaderLabel('Investment', alignment: Alignment.center)),
+                                Expanded(child: _TableHeaderLabel('Actions', alignment: Alignment.center)),
                               ],
                             ),
                           ),
@@ -1202,7 +1252,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                             if (i < visibleCount - 1)
                               const Divider(height: 1, thickness: 1, color: Color(0xFFE8E9F2)),
                           ],
-                          if (totalCount > 10)
+                          if (totalCount > 10 && !widget.expandedView)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
                               child: Align(
@@ -1229,7 +1279,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 900),
+                          constraints: const BoxConstraints(minWidth: 900, maxWidth: 900),
                           child: table,
                         ),
                       );
@@ -1254,6 +1304,8 @@ class _GroupProjectsCard extends StatefulWidget {
     required this.selectedIds,
     required this.onToggle,
     required this.onClear,
+    this.expandedView = false,
+    this.selectedIdsListenable,
   });
 
   final List<ProjectRecord> projects;
@@ -1262,6 +1314,8 @@ class _GroupProjectsCard extends StatefulWidget {
   final Set<String> selectedIds;
   final ValueChanged<String> onToggle;
   final VoidCallback onClear;
+  final bool expandedView;
+  final ValueListenable<Set<String>>? selectedIdsListenable;
 
   @override
   State<_GroupProjectsCard> createState() => _GroupProjectsCardState();
@@ -1273,9 +1327,33 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
   String _searchQuery = '';
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.expandedView) {
+      _showAll = true;
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _openExpandedView() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _GroupProjectsExpandedScreen(
+          projects: widget.projects,
+          isLoading: widget.isLoading,
+          error: widget.error,
+          selectedIdsListenable: widget.selectedIdsListenable,
+          selectedIds: widget.selectedIds,
+          onToggle: widget.onToggle,
+          onClear: widget.onClear,
+        ),
+      ),
+    );
   }
 
   Future<void> _handleCreateProgram() async {
@@ -1401,6 +1479,17 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
           LayoutBuilder(
             builder: (context, constraints) {
               final isColumn = constraints.maxWidth < 720;
+              final seeAllButton = widget.expandedView
+                  ? const SizedBox.shrink()
+                  : TextButton(
+                      onPressed: _openExpandedView,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF4D6D),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      child: const Text('See All'),
+                    );
 
               final guidance = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1451,11 +1540,16 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                 ),
               );
 
-              if (isColumn) {
+                if (isColumn) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    guidance,
+                    Row(
+                      children: [
+                        Expanded(child: guidance),
+                        seeAllButton,
+                      ],
+                    ),
                     const SizedBox(height: 16),
                     capChip,
                   ],
@@ -1467,7 +1561,14 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                 children: [
                   Expanded(child: guidance),
                   const SizedBox(width: 16),
-                  capChip,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      seeAllButton,
+                      const SizedBox(height: 8),
+                      capChip,
+                    ],
+                  ),
                 ],
               );
             },
@@ -1638,7 +1739,7 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                       ),
                       if (i < visibleCount - 1) const SizedBox(height: 12),
                     ],
-                    if (firebaseProjects.length > 10)
+                    if (firebaseProjects.length > 10 && !widget.expandedView)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
                         child: Align(
@@ -1824,6 +1925,105 @@ class _ProgramsSummaryCard extends StatelessWidget {
           if (i < stats.length - 1) const SizedBox(width: 18),
         ],
       ],
+    );
+  }
+}
+
+class _SingleProjectsExpandedScreen extends StatelessWidget {
+  const _SingleProjectsExpandedScreen({
+    required this.projects,
+    required this.isLoading,
+    this.error,
+  });
+
+  final List<ProjectRecord> projects;
+  final bool isLoading;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Single Projects'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black87,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: _SingleProjectsCard(
+            projects: projects,
+            isLoading: isLoading,
+            error: error,
+            expandedView: true,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupProjectsExpandedScreen extends StatelessWidget {
+  const _GroupProjectsExpandedScreen({
+    required this.projects,
+    required this.isLoading,
+    this.error,
+    required this.selectedIds,
+    required this.onToggle,
+    required this.onClear,
+    this.selectedIdsListenable,
+  });
+
+  final List<ProjectRecord> projects;
+  final bool isLoading;
+  final String? error;
+  final Set<String> selectedIds;
+  final ValueChanged<String> onToggle;
+  final VoidCallback onClear;
+  final ValueListenable<Set<String>>? selectedIdsListenable;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Group Projects Into A Program'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black87,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: selectedIdsListenable == null
+              ? _GroupProjectsCard(
+                  projects: projects,
+                  isLoading: isLoading,
+                  error: error,
+                  selectedIds: selectedIds,
+                  onToggle: onToggle,
+                  onClear: onClear,
+                  expandedView: true,
+                )
+              : ValueListenableBuilder<Set<String>>(
+                  valueListenable: selectedIdsListenable!,
+                  builder: (context, ids, _) {
+                    return _GroupProjectsCard(
+                      projects: projects,
+                      isLoading: isLoading,
+                      error: error,
+                      selectedIds: ids,
+                      onToggle: onToggle,
+                      onClear: onClear,
+                      expandedView: true,
+                      selectedIdsListenable: selectedIdsListenable,
+                    );
+                  },
+                ),
+        ),
+      ),
     );
   }
 }
@@ -2907,7 +3107,7 @@ class _SummaryStat extends StatelessWidget {
 }
 
 class _TableHeaderLabel extends StatelessWidget {
-  const _TableHeaderLabel(this.label);
+  const _TableHeaderLabel(this.label, {this.alignment = Alignment.centerLeft});
 
   final String label;
   final Alignment alignment;

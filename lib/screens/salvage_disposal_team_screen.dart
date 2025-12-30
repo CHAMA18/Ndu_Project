@@ -210,6 +210,8 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
       children: [
         _buildStatsRow(isNarrow, _overviewStats),
         const SizedBox(height: 24),
+        _buildInsightsRow(isNarrow),
+        const SizedBox(height: 24),
         if (isNarrow) ...[
           _buildTeamManagementPanel(),
           const SizedBox(height: 24),
@@ -219,26 +221,14 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
           const SizedBox(height: 24),
           _buildTimelinePanel(),
         ] else ...[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 3, child: _buildTeamManagementPanel()),
-              const SizedBox(width: 24),
-              Expanded(flex: 2, child: _buildCompliancePanel()),
-            ],
-          ),
+          _buildTeamManagementPanel(),
           const SizedBox(height: 24),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 2, child: _buildDisposalQueuePanel()),
-              const SizedBox(width: 24),
-              Expanded(child: _buildTimelinePanel()),
-            ],
-          ),
+          _buildCompliancePanel(),
+          const SizedBox(height: 24),
+          _buildDisposalQueuePanel(),
+          const SizedBox(height: 24),
+          _buildTimelinePanel(),
         ],
-        const SizedBox(height: 24),
-        _buildInsightsRow(isNarrow),
       ],
     );
   }
@@ -335,20 +325,14 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
             ],
           )
         else
-          Row(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 3, child: _buildAllocationTable()),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildCapacityPanel(),
-                    const SizedBox(height: 24),
-                    _buildCoveragePanel(),
-                  ],
-                ),
-              ),
+              _buildAllocationTable(),
+              const SizedBox(height: 24),
+              _buildCapacityPanel(),
+              const SizedBox(height: 24),
+              _buildCoveragePanel(),
             ],
           ),
       ],
@@ -710,6 +694,7 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
 
   Widget _buildAllocationTable() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -735,35 +720,42 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              columns: const [
-                DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Focus Area', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Workload', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600))),
-              ],
-              rows: _allocationItems.map((item) {
-                final statusColor = item.status == 'Active' ? Colors.green : Colors.orange;
-                return DataRow(cells: [
-                  DataCell(Text(item.name, style: const TextStyle(fontSize: 13))),
-                  DataCell(Text(item.role, style: const TextStyle(fontSize: 13))),
-                  DataCell(Text(item.focus, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
-                  DataCell(_buildWorkloadChip(item.workload)),
-                  DataCell(_buildStatusBadge(item.status, statusColor)),
-                  DataCell(Row(
-                    children: [
-                      IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
-                      IconButton(icon: const Icon(Icons.more_horiz, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                    columns: const [
+                      DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Focus Area', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Workload', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600))),
                     ],
-                  )),
-                ]);
-              }).toList(),
-            ),
+                    rows: _allocationItems.map((item) {
+                      final statusColor = item.status == 'Active' ? Colors.green : Colors.orange;
+                      return DataRow(cells: [
+                        DataCell(Text(item.name, style: const TextStyle(fontSize: 13))),
+                        DataCell(Text(item.role, style: const TextStyle(fontSize: 13))),
+                        DataCell(Text(item.focus, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
+                        DataCell(_buildWorkloadChip(item.workload)),
+                        DataCell(_buildStatusBadge(item.status, statusColor)),
+                        DataCell(Row(
+                          children: [
+                            IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
+                            IconButton(icon: const Icon(Icons.more_horiz, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
+                          ],
+                        )),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -788,6 +780,7 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
 
   Widget _buildCapacityPanel() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -812,6 +805,7 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
 
   Widget _buildCoveragePanel() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -904,44 +898,51 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              columns: const [
-                DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Tasks', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600))),
-              ],
-              rows: _teamMembers.map((member) => DataRow(
-                cells: [
-                  DataCell(Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
-                        child: Text(member.name[0], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0EA5E9))),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(member.name, style: const TextStyle(fontSize: 13)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                    columns: const [
+                      DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Tasks', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600))),
                     ],
-                  )),
-                  DataCell(Text(member.role, style: const TextStyle(fontSize: 13))),
-                  DataCell(Text(member.email, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
-                  DataCell(_buildStatusBadge(member.status, member.statusColor)),
-                  DataCell(Text('${member.tasks}', style: const TextStyle(fontSize: 13))),
-                  DataCell(Row(
-                    children: [
-                      IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
-                      IconButton(icon: const Icon(Icons.visibility, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
-                    ],
-                  )),
-                ],
-              )).toList(),
-            ),
+                    rows: _teamMembers.map((member) => DataRow(
+                      cells: [
+                        DataCell(Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                              child: Text(member.name[0], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0EA5E9))),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(member.name, style: const TextStyle(fontSize: 13)),
+                          ],
+                        )),
+                        DataCell(Text(member.role, style: const TextStyle(fontSize: 13))),
+                        DataCell(Text(member.email, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
+                        DataCell(_buildStatusBadge(member.status, member.statusColor)),
+                        DataCell(Text('${member.tasks}', style: const TextStyle(fontSize: 13))),
+                        DataCell(Row(
+                          children: [
+                            IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
+                            IconButton(icon: const Icon(Icons.visibility, size: 16), onPressed: () {}, color: const Color(0xFF64748B)),
+                          ],
+                        )),
+                      ],
+                    )).toList(),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -975,29 +976,36 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              columns: const [
-                DataColumn(label: Text('Asset ID', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Description', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Est. Value', style: TextStyle(fontWeight: FontWeight.w600))),
-                DataColumn(label: Text('Priority', style: TextStyle(fontWeight: FontWeight.w600))),
-              ],
-              rows: _disposalItems.map((item) => DataRow(
-                cells: [
-                  DataCell(Text(item.id, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0EA5E9)))),
-                  DataCell(Text(item.description, style: const TextStyle(fontSize: 13))),
-                  DataCell(_buildCategoryChip(item.category)),
-                  DataCell(_buildStatusPill(item.status)),
-                  DataCell(Text(item.value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-                  DataCell(_buildPriorityBadge(item.priority, item.priorityColor)),
-                ],
-              )).toList(),
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                    columns: const [
+                      DataColumn(label: Text('Asset ID', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Description', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Est. Value', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Priority', style: TextStyle(fontWeight: FontWeight.w600))),
+                    ],
+                    rows: _disposalItems.map((item) => DataRow(
+                      cells: [
+                        DataCell(Text(item.id, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0EA5E9)))),
+                        DataCell(Text(item.description, style: const TextStyle(fontSize: 13))),
+                        DataCell(_buildCategoryChip(item.category)),
+                        DataCell(_buildStatusPill(item.status)),
+                        DataCell(Text(item.value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                        DataCell(_buildPriorityBadge(item.priority, item.priorityColor)),
+                      ],
+                    )).toList(),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

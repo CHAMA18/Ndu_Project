@@ -241,6 +241,7 @@ class AppRoutes {
   static const adminUsers = 'admin-users';
   static const adminCoupons = 'admin-coupons';
   static const adminSubscriptionLookup = 'admin-subscription-lookup';
+  static const adminPortal = 'admin';
 }
 
 /// A common redirect that checks web host policy when necessary.
@@ -277,6 +278,36 @@ class AppRouter {
         name: AppRoutes.landing,
         path: '/',
         builder: (context, state) => const LandingScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.adminPortal,
+        path: '/${AppRoutes.adminPortal}',
+        builder: (context, state) => const AdminAuthWrapper(),
+      ),
+      GoRoute(
+        name: AppRoutes.adminHome,
+        path: '/${AppRoutes.adminHome}',
+        builder: (context, state) => const AdminAuthWrapper(child: AdminHomeScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminProjects,
+        path: '/${AppRoutes.adminProjects}',
+        builder: (context, state) => const AdminAuthWrapper(child: AdminProjectsScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminUsers,
+        path: '/${AppRoutes.adminUsers}',
+        builder: (context, state) => const AdminAuthWrapper(child: AdminUsersScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminCoupons,
+        path: '/${AppRoutes.adminCoupons}',
+        builder: (context, state) => const AdminAuthWrapper(child: AdminCouponsScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminSubscriptionLookup,
+        path: '/${AppRoutes.adminSubscriptionLookup}',
+        builder: (context, state) => const AdminAuthWrapper(child: AdminSubscriptionLookupScreen()),
       ),
       GoRoute(
         name: AppRoutes.signIn,

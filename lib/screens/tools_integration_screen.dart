@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/services/integration_oauth_service.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 
 class ToolsIntegrationScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
   // Mock data for integrations
   final List<_IntegrationItem> _integrations = [
     _IntegrationItem(
+      provider: IntegrationProvider.figma,
       name: 'Figma integration',
       subtitle: 'Design files',
       icon: Icons.design_services,
@@ -32,6 +34,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       lastSync: 'Last token refresh: 1 hr ago',
     ),
     _IntegrationItem(
+      provider: IntegrationProvider.drawio,
       name: 'Draw.io integration',
       subtitle: 'Architecture diagrams',
       icon: Icons.account_tree,
@@ -45,6 +48,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       errorInfo: '2 errors in last hour',
     ),
     _IntegrationItem(
+      provider: IntegrationProvider.miro,
       name: 'Miro integration',
       subtitle: 'Workshops & ideation',
       icon: Icons.dashboard,
@@ -58,6 +62,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       events: 'Events: 34 / min',
     ),
     _IntegrationItem(
+      provider: IntegrationProvider.whiteboard,
       name: 'Whiteboard integration',
       subtitle: 'Live sessions',
       icon: Icons.sticky_note_2,
@@ -71,6 +76,12 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       sessions: 'Sessions today: 3',
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshIntegrationStatuses();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +110,37 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _refreshIntegrationStatuses() async {
+    final service = IntegrationOAuthService.instance;
+    for (var i = 0; i < _integrations.length; i++) {
+      final state = await service.loadState(_integrations[i].provider);
+      _integrations[i] = _applyAuthState(_integrations[i], state);
+    }
+    if (mounted) setState(() {});
+  }
+
+  _IntegrationItem _applyAuthState(_IntegrationItem item, IntegrationAuthState state) {
+    final status = state.connected
+        ? 'Connected'
+        : state.hasToken
+            ? 'Expired'
+            : 'Not connected';
+    final statusColor = state.connected
+        ? Colors.green
+        : state.hasToken
+            ? Colors.orange
+            : Colors.grey;
+    final lastSync = state.updatedAt == null
+        ? item.lastSync
+        : 'Token refresh: ${_formatRelativeTime(state.updatedAt!)}';
+
+    return item.copyWith(
+      status: status,
+      statusColor: statusColor,
+      lastSync: lastSync,
     );
   }
 
@@ -358,7 +400,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          ..._integrations.map((integration) => _buildIntegrationCard(integration, isNarrow)),
+          ..._integrations.asMap().entries.map((entry) => _buildIntegrationCard(entry.value, isNarrow, entry.key)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -382,7 +424,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
-  Widget _buildIntegrationCard(_IntegrationItem item, bool isNarrow) {
+  Widget _buildIntegrationCard(_IntegrationItem item, bool isNarrow, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -391,11 +433,11 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: isNarrow ? _buildNarrowCard(item) : _buildWideCard(item),
+      child: isNarrow ? _buildNarrowCard(item, index) : _buildWideCard(item, index),
     );
   }
 
-  Widget _buildWideCard(_IntegrationItem item) {
+  Widget _buildWideCard(_IntegrationItem item, int index) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -461,7 +503,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
         ),
         // Configure button
         OutlinedButton(
-          onPressed: () {},
+          onPressed: () => _openIntegrationConfig(item, index),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF64748B),
             side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -473,7 +515,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
-  Widget _buildNarrowCard(_IntegrationItem item) {
+  Widget _buildNarrowCard(_IntegrationItem item, int index) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -511,7 +553,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton(
-            onPressed: () {},
+            onPressed: () => _openIntegrationConfig(item, index),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF64748B),
               side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -521,6 +563,289 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _openIntegrationConfig(_IntegrationItem item, int index) async {
+    final service = IntegrationOAuthService.instance;
+    final clientConfig = await service.loadClientConfig(item.provider);
+    final authState = await service.loadState(item.provider);
+    final config = service.configFor(item.provider);
+
+    final scopesController = TextEditingController(text: item.scopes);
+    final mapsToController = TextEditingController(text: item.mapsTo);
+    final clientIdController = TextEditingController(text: clientConfig.clientId ?? '');
+    final clientSecretController = TextEditingController(text: clientConfig.clientSecret ?? '');
+    String? syncMode = item.syncMode;
+    bool autoHandoff = (item.autoHandoff ?? '').toLowerCase() == 'on';
+    bool autoSummary = (item.autoSummary ?? '').toLowerCase() == 'on';
+    bool autoTranscribe = (item.autoTranscribe ?? '').toLowerCase() == 'on';
+    bool isConnecting = false;
+    String? authError;
+
+    _IntegrationItem? updated;
+    try {
+      updated = await showDialog<_IntegrationItem>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              final statusLabel = authState.connected
+                  ? 'Connected'
+                  : authState.hasToken
+                      ? 'Expired'
+                      : 'Not connected';
+              final statusColor = authState.connected
+                  ? Colors.green
+                  : authState.hasToken
+                      ? Colors.orange
+                      : Colors.grey;
+
+              return AlertDialog(
+                title: Text('${item.name} configuration'),
+                content: SizedBox(
+                  width: 560,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text('Status: $statusLabel', style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w600)),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Redirect URI: ${config.redirectUri}',
+                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: clientIdController,
+                          decoration: const InputDecoration(
+                            labelText: 'Client ID',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: clientSecretController,
+                          decoration: const InputDecoration(
+                            labelText: 'Client Secret (optional)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: scopesController,
+                          decoration: const InputDecoration(
+                            labelText: 'Scopes',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: mapsToController,
+                          decoration: const InputDecoration(
+                            labelText: 'Maps to',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        if (item.syncMode != null) ...[
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: syncMode,
+                            decoration: const InputDecoration(
+                              labelText: 'Sync mode',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'scheduled', child: Text('Scheduled')),
+                              DropdownMenuItem(value: 'manual', child: Text('Manual')),
+                              DropdownMenuItem(value: 'continuous', child: Text('Continuous')),
+                            ],
+                            onChanged: (value) => setDialogState(() => syncMode = value),
+                          ),
+                        ],
+                        if (item.autoHandoff != null) ...[
+                          const SizedBox(height: 8),
+                          SwitchListTile.adaptive(
+                            value: autoHandoff,
+                            onChanged: (value) => setDialogState(() => autoHandoff = value),
+                            title: const Text('Auto-handoff'),
+                          ),
+                        ],
+                        if (item.autoSummary != null) ...[
+                          const SizedBox(height: 8),
+                          SwitchListTile.adaptive(
+                            value: autoSummary,
+                            onChanged: (value) => setDialogState(() => autoSummary = value),
+                            title: const Text('Auto-summary'),
+                          ),
+                        ],
+                        if (item.autoTranscribe != null) ...[
+                          const SizedBox(height: 8),
+                          SwitchListTile.adaptive(
+                            value: autoTranscribe,
+                            onChanged: (value) => setDialogState(() => autoTranscribe = value),
+                            title: const Text('Auto-transcribe'),
+                          ),
+                        ],
+                        if ((authError ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(authError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  if (authState.connected)
+                    TextButton(
+                      onPressed: () async {
+                        await service.disconnect(item.provider);
+                        final updatedItem = item.copyWith(
+                          status: 'Not connected',
+                          statusColor: Colors.grey,
+                          lastSync: null,
+                          scopes: scopesController.text.trim().isEmpty ? item.scopes : scopesController.text.trim(),
+                          mapsTo: mapsToController.text.trim().isEmpty ? item.mapsTo : mapsToController.text.trim(),
+                          syncMode: item.syncMode != null ? (syncMode ?? item.syncMode) : null,
+                          autoHandoff: item.autoHandoff != null ? (autoHandoff ? 'ON' : 'OFF') : null,
+                          autoSummary: item.autoSummary != null ? (autoSummary ? 'ON' : 'OFF') : null,
+                          autoTranscribe: item.autoTranscribe != null ? (autoTranscribe ? 'ON' : 'OFF') : null,
+                        );
+                        if (!dialogContext.mounted) return;
+                        Navigator.of(dialogContext).pop(updatedItem);
+                      },
+                      child: const Text('Disconnect'),
+                    )
+                  else
+                    FilledButton(
+                      onPressed: isConnecting
+                          ? null
+                          : () async {
+                              final clientId = clientIdController.text.trim();
+                              if (clientId.isEmpty) {
+                                setDialogState(() => authError = 'Client ID is required.');
+                                return;
+                              }
+                              setDialogState(() {
+                                authError = null;
+                                isConnecting = true;
+                              });
+                              try {
+                                await service.saveClientConfig(
+                                  provider: item.provider,
+                                  clientId: clientId,
+                                  clientSecret: clientSecretController.text.trim(),
+                                );
+                                final scopes = _parseScopes(scopesController.text);
+                                final state = await service.connect(
+                                  provider: item.provider,
+                                  clientId: clientId,
+                                  clientSecret: clientSecretController.text.trim(),
+                                  scopesOverride: scopes,
+                                );
+                                final updatedItem = item.copyWith(
+                                  status: state.connected ? 'Connected' : 'Not connected',
+                                  statusColor: state.connected ? Colors.green : Colors.grey,
+                                  lastSync: state.updatedAt == null ? item.lastSync : 'Token refresh: ${_formatRelativeTime(state.updatedAt!)}',
+                                  scopes: scopesController.text.trim().isEmpty ? item.scopes : scopesController.text.trim(),
+                                  mapsTo: mapsToController.text.trim().isEmpty ? item.mapsTo : mapsToController.text.trim(),
+                                  syncMode: item.syncMode != null ? (syncMode ?? item.syncMode) : null,
+                                  autoHandoff: item.autoHandoff != null ? (autoHandoff ? 'ON' : 'OFF') : null,
+                                  autoSummary: item.autoSummary != null ? (autoSummary ? 'ON' : 'OFF') : null,
+                                  autoTranscribe: item.autoTranscribe != null ? (autoTranscribe ? 'ON' : 'OFF') : null,
+                                );
+                                if (!dialogContext.mounted) return;
+                                Navigator.of(dialogContext).pop(updatedItem);
+                              } catch (e) {
+                                setDialogState(() => authError = e.toString());
+                              } finally {
+                                if (dialogContext.mounted) {
+                                  setDialogState(() => isConnecting = false);
+                                }
+                              }
+                            },
+                      child: isConnecting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Connect'),
+                    ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final updatedItem = item.copyWith(
+                        scopes: scopesController.text.trim().isEmpty ? item.scopes : scopesController.text.trim(),
+                        mapsTo: mapsToController.text.trim().isEmpty ? item.mapsTo : mapsToController.text.trim(),
+                        syncMode: item.syncMode != null ? (syncMode ?? item.syncMode) : null,
+                        autoHandoff: item.autoHandoff != null ? (autoHandoff ? 'ON' : 'OFF') : null,
+                        autoSummary: item.autoSummary != null ? (autoSummary ? 'ON' : 'OFF') : null,
+                        autoTranscribe: item.autoTranscribe != null ? (autoTranscribe ? 'ON' : 'OFF') : null,
+                      );
+                      Navigator.of(dialogContext).pop(updatedItem);
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      scopesController.dispose();
+      mapsToController.dispose();
+      clientIdController.dispose();
+      clientSecretController.dispose();
+    }
+
+    final saved = updated;
+    if (!mounted || saved == null) return;
+    setState(() => _integrations[index] = saved);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${saved.name} settings updated'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Color _statusColorFor(String status) {
+    final normalized = status.toLowerCase();
+    if (normalized.contains('connected')) return Colors.green;
+    if (normalized.contains('degraded') || normalized.contains('retry')) return Colors.orange;
+    if (normalized.contains('paused') || normalized.contains('disconnected')) return Colors.grey;
+    return const Color(0xFF64748B);
+  }
+
+  String _formatRelativeTime(DateTime timestamp) {
+    final diff = DateTime.now().difference(timestamp);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  List<String> _parseScopes(String value) {
+    return value
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   Widget _buildStatusBadge(String status, Color color) {
@@ -572,6 +897,9 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
 }
 
 class _IntegrationItem {
+  static const Object _unset = Object();
+
+  final IntegrationProvider provider;
   final String name;
   final String subtitle;
   final IconData icon;
@@ -591,6 +919,7 @@ class _IntegrationItem {
   final String? sessions;
 
   const _IntegrationItem({
+    required this.provider,
     required this.name,
     required this.subtitle,
     required this.icon,
@@ -609,6 +938,40 @@ class _IntegrationItem {
     this.events,
     this.sessions,
   });
+
+  _IntegrationItem copyWith({
+    String? status,
+    Color? statusColor,
+    String? scopes,
+    String? mapsTo,
+    String? autoHandoff,
+    String? syncMode,
+    String? autoSummary,
+    String? autoTranscribe,
+    Object? lastSync = _unset,
+  }) {
+    final resolvedLastSync = identical(lastSync, _unset) ? this.lastSync : lastSync as String?;
+    return _IntegrationItem(
+      provider: provider,
+      name: name,
+      subtitle: subtitle,
+      icon: icon,
+      iconColor: iconColor,
+      scopes: scopes ?? this.scopes,
+      features: features,
+      status: status ?? this.status,
+      statusColor: statusColor ?? this.statusColor,
+      mapsTo: mapsTo ?? this.mapsTo,
+      autoHandoff: autoHandoff ?? this.autoHandoff,
+      syncMode: syncMode ?? this.syncMode,
+      autoSummary: autoSummary ?? this.autoSummary,
+      autoTranscribe: autoTranscribe ?? this.autoTranscribe,
+      lastSync: resolvedLastSync,
+      errorInfo: errorInfo,
+      events: events,
+      sessions: sessions,
+    );
+  }
 }
 
 class _StatItem {

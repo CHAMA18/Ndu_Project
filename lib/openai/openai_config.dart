@@ -124,7 +124,7 @@ class OpenAiAutocompleteService {
           'role': 'system',
           'content': [
             {
-              'type': 'text',
+              'type': 'input_text',
               'text':
                   'You help business analysts finish their writing. Provide up to $maxSuggestions polished continuation suggestions that extend the user\'s draft. Do not repeat the existing text, do not number or bullet responses, and avoid placeholders.'
             }
@@ -134,7 +134,7 @@ class OpenAiAutocompleteService {
           'role': 'user',
           'content': [
             {
-              'type': 'text',
+              'type': 'input_text',
               'text':
                   'Field: $fieldName\nCurrent draft: """${_escape(currentText)}"""\nAdditional context: """${_escape(context)}"""\nReturn up to $maxSuggestions unique continuations, each on its own line.'
             }
@@ -472,4 +472,3 @@ Generate a diagram that demonstrates STRATEGIC REASONING for executing this plan
     );
   }
 }
-

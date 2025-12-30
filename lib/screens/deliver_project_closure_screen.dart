@@ -58,7 +58,7 @@ class _DeliverProjectClosureScreenState extends State<DeliverProjectClosureScree
                           onRemove: (index) => setState(() => _summary.removeAt(index)),
                         ),
                         LaunchEditableSection(
-                          title: 'Scope outcomes & acceptance',
+                          title: 'Scope closure & acceptance',
                           description: 'Record acceptance notes, outcomes, or pending items.',
                           entries: _scopeOutcomes,
                           onAdd: () => _addEntry(_scopeOutcomes, titleLabel: 'Outcome', includeStatus: true),

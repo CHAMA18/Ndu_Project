@@ -155,11 +155,16 @@ class _AiDiagramPanelState extends State<AiDiagramPanel> {
 
   Future<void> _generate() async {
     final text = widget.currentTextProvider().trim();
-    final projectContext = ProjectDataHelper.buildFepContext(
-      ProjectDataHelper.getData(context),
-      sectionLabel: widget.sectionLabel,
-    );
-    if (text.isEmpty && projectContext.isEmpty) {
+    final data = ProjectDataHelper.getData(context);
+    final sectionLower = widget.sectionLabel.toLowerCase();
+    final useExecutiveContext = sectionLower.contains('executive plan') || sectionLower.contains('executive');
+    final executiveContext = useExecutiveContext
+        ? ProjectDataHelper.buildExecutivePlanContext(data, sectionLabel: widget.sectionLabel)
+        : '';
+    final projectContext = executiveContext.isNotEmpty
+        ? executiveContext
+        : ProjectDataHelper.buildFepContext(data, sectionLabel: widget.sectionLabel);
+    if (text.isEmpty && projectContext.trim().isEmpty) {
       setState(() => _error = 'Add some notes first to generate a diagram.');
       return;
     }

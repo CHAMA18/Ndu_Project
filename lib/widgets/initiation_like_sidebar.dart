@@ -19,7 +19,6 @@ import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_security.dart';
 import 'package:ndu_project/screens/front_end_planning_allowance.dart';
 import 'package:ndu_project/screens/front_end_planning_summary.dart';
-import 'package:ndu_project/screens/front_end_planning_screen.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
@@ -255,11 +254,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openDesign() {
-    _navigateWithCheckpoint('design', const FrontEndPlanningScreen());
+    _navigateWithCheckpoint('design', const DesignPhaseScreen(activeItemLabel: 'Design'));
   }
 
   void _openDesignManagement() {
-    _navigateWithCheckpoint('design_management', const DesignPhaseScreen());
+    _navigateWithCheckpoint('design_management', const DesignPhaseScreen(activeItemLabel: 'Design Management'));
   }
 
   void _openExecutionPlan() {

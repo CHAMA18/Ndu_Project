@@ -10,7 +10,9 @@ import 'package:ndu_project/services/architecture_service.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 
 class DesignPhaseScreen extends StatefulWidget {
-  const DesignPhaseScreen({super.key});
+  const DesignPhaseScreen({super.key, this.activeItemLabel = 'Design Management'});
+
+  final String activeItemLabel;
 
   @override
   State<DesignPhaseScreen> createState() => _DesignPhaseScreenState();
@@ -214,7 +216,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     final padding = isMobile ? 16.0 : 24.0;
 
     return ResponsiveScaffold(
-      activeItemLabel: 'Design Management',
+      activeItemLabel: widget.activeItemLabel,
       body: Column(
         children: [
           const PlanningPhaseHeader(title: 'Design'),
