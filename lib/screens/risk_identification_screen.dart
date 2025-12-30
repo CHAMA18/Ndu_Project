@@ -808,9 +808,10 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         const SizedBox(height: 24),
         
         // Navigation Buttons
-        const BusinessCaseNavigationButtons(
+        BusinessCaseNavigationButtons(
           currentScreen: 'Risk Identification',
-          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+          onNext: _handleNextPressed,
         ),
       ]),
     );

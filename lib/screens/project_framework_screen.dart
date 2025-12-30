@@ -83,6 +83,25 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     });
   }
 
+  Future<void> _handleNextPressed() async {
+    final projectGoals = _goals.map((g) => ProjectGoal(
+      name: g.name,
+      description: g.controller.text.trim(),
+      framework: g.framework,
+    )).toList();
+
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'project_framework',
+      nextScreenBuilder: () => const ProjectFrameworkNextScreen(),
+      dataUpdater: (data) => data.copyWith(
+        notes: _notes.text.trim(),
+        overallFramework: _selectedOverallFramework,
+        projectGoals: projectGoals,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,9 +144,10 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                                 onDeleteGoal: _deleteGoal,
                               ),
                               const SizedBox(height: 24),
-                              const BusinessCaseNavigationButtons(
+                              BusinessCaseNavigationButtons(
                                 currentScreen: 'Project Management Framework',
-                                padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                                onNext: _handleNextPressed,
                               ),
                               const SizedBox(height: 40),
                             ],
@@ -421,22 +441,7 @@ class _BottomOverlay extends StatelessWidget {
       child: ElevatedButton(
         onPressed: () async {
           if (state != null) {
-            final projectGoals = state._goals.map((g) => ProjectGoal(
-              name: g.name,
-              description: g.controller.text.trim(),
-              framework: g.framework,
-            )).toList();
-            
-            await ProjectDataHelper.saveAndNavigate(
-              context: context,
-              checkpoint: 'project_framework',
-              nextScreenBuilder: () => const ProjectFrameworkNextScreen(),
-              dataUpdater: (data) => data.copyWith(
-                notes: state._notes.text.trim(),
-                overallFramework: state._selectedOverallFramework,
-                projectGoals: projectGoals,
-              ),
-            );
+            await state._handleNextPressed();
           } else {
             ProjectFrameworkNextScreen.open(context);
           }

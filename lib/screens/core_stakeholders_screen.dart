@@ -577,57 +577,58 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         const SizedBox(height: 24),
         
         // Navigation Buttons
-        const BusinessCaseNavigationButtons(
+        BusinessCaseNavigationButtons(
           currentScreen: 'Core Stakeholders',
-          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+          onNext: _handleNextPressed,
         ),
       ]),
     );
   }
 
+  Future<void> _handleNextPressed() async {
+    await _saveCoreStakeholdersData();
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Processing core stakeholders data...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await Future.delayed(const Duration(seconds: 3));
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CostAnalysisScreen(
+          notes: _notesController.text,
+          solutions: widget.solutions,
+        ),
+      ),
+    );
+  }
+
   Widget _nextButton({required bool expand}) {
     final button = ElevatedButton(
-      onPressed: () async {
-        // Save core stakeholders data
-        await _saveCoreStakeholdersData();
-        
-        // Show 3-second loading dialog
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: Card(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Processing core stakeholders data...'),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-        
-        await Future.delayed(const Duration(seconds: 3));
-        
-        if (!mounted) return;
-        Navigator.of(context).pop(); // Close loading dialog
-        
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CostAnalysisScreen(
-              notes: _notesController.text,
-              solutions: widget.solutions,
-            ),
-          ),
-        );
-      },
+      onPressed: _handleNextPressed,
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFFD700),
         foregroundColor: Colors.black,

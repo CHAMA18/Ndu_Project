@@ -512,31 +512,32 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
     );
   }
 
+  Future<void> _handleNextPressed() async {
+    final goalWorkItems = _goalItems.map((items) => 
+      items.map((item) => WorkItem(
+        title: item.title,
+        description: item.description,
+        status: item.status.name,
+      )).toList()
+    ).toList();
+
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'wbs',
+      nextScreenBuilder: () => const ProjectFrameworkScreen(),
+      dataUpdater: (data) => data.copyWith(
+        wbsCriteriaA: _selectedCriteriaA,
+        wbsCriteriaB: _selectedCriteriaB,
+        goalWorkItems: goalWorkItems,
+      ),
+    );
+  }
+
   Widget _buildNextButton() {
     return Align(
       alignment: Alignment.centerRight,
       child: GestureDetector(
-        onTap: () async {
-          // Convert goal items to WorkItem model
-          final goalWorkItems = _goalItems.map((items) => 
-            items.map((item) => WorkItem(
-              title: item.title,
-              description: item.description,
-              status: item.status.name,
-            )).toList()
-          ).toList();
-          
-          await ProjectDataHelper.saveAndNavigate(
-            context: context,
-            checkpoint: 'wbs',
-            nextScreenBuilder: () => const ProjectFrameworkScreen(),
-            dataUpdater: (data) => data.copyWith(
-              wbsCriteriaA: _selectedCriteriaA,
-              wbsCriteriaB: _selectedCriteriaB,
-              goalWorkItems: goalWorkItems,
-            ),
-          );
-        },
+        onTap: _handleNextPressed,
         child: Container(
           width: 102,
           height: 46,
@@ -640,9 +641,10 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const BusinessCaseNavigationButtons(
+                  BusinessCaseNavigationButtons(
                     currentScreen: 'Work Breakdown Structure',
-                    padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                    onNext: _handleNextPressed,
                   ),
                 ],
               ),

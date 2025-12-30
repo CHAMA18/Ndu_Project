@@ -60,38 +60,18 @@ class _StakeholderAlignmentScreenState extends State<StakeholderAlignmentScreen>
                 const SizedBox(height: 20),
                 _buildPulseRow(isNarrow),
                 const SizedBox(height: 24),
-                if (isNarrow)
-                  Column(
-                    children: [
-                      _buildStakeholderRegister(),
-                      const SizedBox(height: 20),
-                      _buildSignalsPanel(),
-                      const SizedBox(height: 20),
-                      _buildDecisionPanel(),
-                      const SizedBox(height: 20),
-                      _buildCadencePanel(),
-                    ],
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _buildStakeholderRegister()),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            _buildSignalsPanel(),
-                            const SizedBox(height: 20),
-                            _buildDecisionPanel(),
-                            const SizedBox(height: 20),
-                            _buildCadencePanel(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildStakeholderRegister(),
+                    const SizedBox(height: 20),
+                    _buildSignalsPanel(),
+                    const SizedBox(height: 20),
+                    _buildDecisionPanel(),
+                    const SizedBox(height: 20),
+                    _buildCadencePanel(),
+                  ],
+                ),
               ],
             ),
           ),

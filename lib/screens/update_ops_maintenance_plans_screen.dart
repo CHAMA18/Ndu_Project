@@ -61,38 +61,18 @@ class _UpdateOpsMaintenancePlansScreenState extends State<UpdateOpsMaintenancePl
                 const SizedBox(height: 20),
                 _buildStatsRow(isNarrow),
                 const SizedBox(height: 24),
-                if (isNarrow)
-                  Column(
-                    children: [
-                      _buildPlanRegister(),
-                      const SizedBox(height: 20),
-                      _buildCoveragePanel(),
-                      const SizedBox(height: 20),
-                      _buildSignalsPanel(),
-                      const SizedBox(height: 20),
-                      _buildMaintenancePanel(),
-                    ],
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _buildPlanRegister()),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            _buildCoveragePanel(),
-                            const SizedBox(height: 20),
-                            _buildSignalsPanel(),
-                            const SizedBox(height: 20),
-                            _buildMaintenancePanel(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildPlanRegister(),
+                    const SizedBox(height: 20),
+                    _buildCoveragePanel(),
+                    const SizedBox(height: 20),
+                    _buildSignalsPanel(),
+                    const SizedBox(height: 20),
+                    _buildMaintenancePanel(),
+                  ],
+                ),
               ],
             ),
           ),
@@ -277,29 +257,36 @@ class _UpdateOpsMaintenancePlansScreenState extends State<UpdateOpsMaintenancePl
       title: 'Ops plan register',
       subtitle: 'Maintenance and runbook updates',
       trailing: _actionButton(Icons.filter_list, 'Filter'),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          columns: const [
-            DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Plan item', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Team', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Due', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
-          ],
-          rows: _plans.map((plan) {
-            return DataRow(cells: [
-              DataCell(Text(plan.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
-              DataCell(Text(plan.title, style: const TextStyle(fontSize: 13))),
-              DataCell(Text(plan.team, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
-              DataCell(_statusChip(plan.status)),
-              DataCell(Text(plan.dueDate, style: const TextStyle(fontSize: 12))),
-              DataCell(Text(plan.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
-            ]);
-          }).toList(),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                columns: const [
+                  DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Plan item', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Team', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Due', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: _plans.map((plan) {
+                  return DataRow(cells: [
+                    DataCell(Text(plan.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
+                    DataCell(Text(plan.title, style: const TextStyle(fontSize: 13))),
+                    DataCell(Text(plan.team, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                    DataCell(_statusChip(plan.status)),
+                    DataCell(Text(plan.dueDate, style: const TextStyle(fontSize: 12))),
+                    DataCell(Text(plan.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

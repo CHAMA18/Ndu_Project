@@ -22,7 +22,6 @@ import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
 import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
-import 'package:ndu_project/widgets/api_key_input_dialog.dart';
 import 'package:ndu_project/widgets/expanding_text_field.dart';
 import 'package:ndu_project/screens/initiation_phase_screen.dart';
 import 'package:ndu_project/screens/potential_solutions_screen.dart';
@@ -931,9 +930,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                     padding: contentPadding,
                   ),
                   _buildStepNavigationControls(),
-                  const BusinessCaseNavigationButtons(
+                  BusinessCaseNavigationButtons(
                     currentScreen: 'Cost Benefit Analysis & Financial Metrics',
-                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                    onNext: _openPreferredSolution,
                   ),
                 ],
               ),
