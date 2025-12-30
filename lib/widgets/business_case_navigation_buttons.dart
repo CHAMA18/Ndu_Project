@@ -5,17 +5,27 @@ import 'package:ndu_project/utils/business_case_navigation.dart';
 class BusinessCaseNavigationButtons extends StatelessWidget {
   final String currentScreen;
   final EdgeInsets? padding;
+  final Future<void> Function()? onNext;
+  final Future<void> Function()? onBack;
 
   const BusinessCaseNavigationButtons({
     super.key,
     required this.currentScreen,
     this.padding,
+    this.onNext,
+    this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasPrevious = BusinessCaseNavigation.hasPrevious(currentScreen);
     final hasNext = BusinessCaseNavigation.hasNext(currentScreen);
+    final handleBack = onBack == null
+        ? () => BusinessCaseNavigation.navigateBack(context, currentScreen)
+        : () async => await onBack!();
+    final handleNext = onNext == null
+        ? () => BusinessCaseNavigation.navigateForward(context, currentScreen)
+        : () async => await onNext!();
 
     return Container(
       width: double.infinity,
@@ -28,7 +38,7 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
             _NavigationButton(
               icon: Icons.arrow_back_ios_new,
               label: 'Back',
-              onPressed: () => BusinessCaseNavigation.navigateBack(context, currentScreen),
+              onPressed: handleBack,
               isForward: false,
             )
           else
@@ -39,7 +49,7 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
             _NavigationButton(
               icon: Icons.arrow_forward_ios,
               label: 'Next',
-              onPressed: () => BusinessCaseNavigation.navigateForward(context, currentScreen),
+              onPressed: handleNext,
               isForward: true,
             )
           else

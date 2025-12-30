@@ -704,9 +704,10 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         if (!_isLoading) ...[
           _buildComparativeView(),
           const SizedBox(height: 24),
-          const BusinessCaseNavigationButtons(
+          BusinessCaseNavigationButtons(
             currentScreen: 'Preferred Solution Analysis',
-            padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            onNext: _handleNextStep,
           ),
           const SizedBox(height: 24),
         ],

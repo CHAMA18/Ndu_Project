@@ -900,9 +900,10 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
                 _buildSolutionsSection(),
                 const SizedBox(height: 20),
                 // Navigation Buttons
-                const BusinessCaseNavigationButtons(
+                BusinessCaseNavigationButtons(
                   currentScreen: 'Potential Solutions',
-                  padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                  onNext: _handleNextPressed,
                 ),
               ],
             ),

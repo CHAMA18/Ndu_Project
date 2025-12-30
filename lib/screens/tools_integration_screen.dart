@@ -660,7 +660,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                         if (item.syncMode != null) ...[
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            value: syncMode,
+                            initialValue: syncMode,
                             decoration: const InputDecoration(
                               labelText: 'Sync mode',
                               border: OutlineInputBorder(),

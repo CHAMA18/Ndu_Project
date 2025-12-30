@@ -687,9 +687,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         const SizedBox(height: 24),
         
         // Navigation Buttons
-        const BusinessCaseNavigationButtons(
+        BusinessCaseNavigationButtons(
           currentScreen: 'IT Considerations',
-          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+          onNext: _openInfrastructureConsiderations,
         ),
       ]),
     );

@@ -1048,9 +1048,10 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
           ),
           SizedBox(height: AppBreakpoints.sectionGap(context)),
           // Navigation Buttons
-          const BusinessCaseNavigationButtons(
+          BusinessCaseNavigationButtons(
             currentScreen: 'Business Case',
-            padding: EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            onNext: _handleNextPressed,
           ),
         ],
       ),

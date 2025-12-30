@@ -61,38 +61,18 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
                 const SizedBox(height: 20),
                 _buildStatsRow(isNarrow),
                 const SizedBox(height: 24),
-                if (isNarrow)
-                  Column(
-                    children: [
-                      _buildDebtRegister(),
-                      const SizedBox(height: 20),
-                      _buildRemediationPanel(),
-                      const SizedBox(height: 20),
-                      _buildRootCausePanel(),
-                      const SizedBox(height: 20),
-                      _buildOwnershipPanel(),
-                    ],
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _buildDebtRegister()),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            _buildRemediationPanel(),
-                            const SizedBox(height: 20),
-                            _buildRootCausePanel(),
-                            const SizedBox(height: 20),
-                            _buildOwnershipPanel(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildDebtRegister(),
+                    const SizedBox(height: 20),
+                    _buildRemediationPanel(),
+                    const SizedBox(height: 20),
+                    _buildRootCausePanel(),
+                    const SizedBox(height: 20),
+                    _buildOwnershipPanel(),
+                  ],
+                ),
               ],
             ),
           ),

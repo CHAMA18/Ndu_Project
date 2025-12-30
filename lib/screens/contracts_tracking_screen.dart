@@ -267,31 +267,38 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
       title: 'Contract register',
       subtitle: 'Track scope, owners, and renewal milestones',
       trailing: _actionButton(Icons.filter_list, 'Filter'),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          columns: const [
-            DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Vendor', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Renewal', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Value', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
-          ],
-          rows: _contracts.map((item) {
-            return DataRow(cells: [
-              DataCell(Text(item.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
-              DataCell(Text(item.vendor, style: const TextStyle(fontSize: 13))),
-              DataCell(_chip(item.type)),
-              DataCell(_statusChip(item.status)),
-              DataCell(Text(item.renewal, style: const TextStyle(fontSize: 12))),
-              DataCell(Text(item.value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-              DataCell(Text(item.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
-            ]);
-          }).toList(),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                columns: const [
+                  DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Vendor', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Renewal', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Value', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: _contracts.map((item) {
+                  return DataRow(cells: [
+                    DataCell(Text(item.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
+                    DataCell(Text(item.vendor, style: const TextStyle(fontSize: 13))),
+                    DataCell(_chip(item.type)),
+                    DataCell(_statusChip(item.status)),
+                    DataCell(Text(item.renewal, style: const TextStyle(fontSize: 12))),
+                    DataCell(Text(item.value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                    DataCell(Text(item.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
