@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as Math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ndu_project/widgets/header_banner_image.dart';
 import 'package:ndu_project/screens/potential_solutions_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
@@ -324,6 +325,37 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     });
   }
 
+  void _insertSuggestion(TextEditingController controller, String suggestion,
+      {bool isNotes = false}) {
+    final insertion = suggestion.trim();
+    if (insertion.isEmpty) return;
+    final existing = controller.text.trim();
+    final combined = existing.isEmpty ? insertion : '$existing\n$insertion';
+
+    controller.value = TextEditingValue(
+      text: combined,
+      selection: TextSelection.collapsed(offset: combined.length),
+    );
+
+    setState(() {
+      if (isNotes) {
+        _notesLastQuery = combined;
+      } else {
+        _businessLastQuery = combined;
+      }
+    });
+  }
+
+  Future<void> _copySuggestion(String suggestion) async {
+    final value = suggestion.trim();
+    if (value.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Suggestion copied to clipboard')),
+    );
+  }
+
   void _retryNotesSuggestions() => _fetchNotesSuggestions(_notesController.text.trim());
 
   void _retryBusinessSuggestions() =>
@@ -413,6 +445,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     required String label,
     required VoidCallback onRefresh,
     required ValueChanged<String> onSelect,
+    ValueChanged<String>? onInsert,
+    ValueChanged<String>? onCopy,
   }) {
     if (!show) return const SizedBox.shrink();
     final hasError = (error ?? '').trim().isNotEmpty;
@@ -489,7 +523,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
             ),
           if (!loading && hasSuggestions) ...[
             const Text(
-              'Tap a suggestion to copy it into your draft.',
+              'Tap a suggestion to replace, or use actions to insert or copy.',
               style: TextStyle(fontSize: 12.5, color: Colors.black54),
             ),
             const SizedBox(height: 8),
@@ -498,7 +532,9 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                 padding: const EdgeInsets.only(top: 8),
                 child: _buildSuggestionOption(
                   suggestion,
-                  () => onSelect(suggestion),
+                  onTap: () => onSelect(suggestion),
+                  onInsert: onInsert == null ? null : () => onInsert(suggestion),
+                  onCopy: onCopy == null ? null : () => onCopy(suggestion),
                 ),
               ),
             ),
@@ -508,7 +544,12 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     );
   }
 
-  Widget _buildSuggestionOption(String text, VoidCallback onTap) {
+  Widget _buildSuggestionOption(
+    String text, {
+    required VoidCallback onTap,
+    VoidCallback? onInsert,
+    VoidCallback? onCopy,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -542,7 +583,52 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                 ),
               ),
             ),
+            if (onInsert != null || onCopy != null) ...[
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onInsert != null)
+                    _buildSuggestionActionButton(
+                      icon: Icons.content_paste_rounded,
+                      tooltip: 'Insert into draft',
+                      onPressed: onInsert,
+                    ),
+                  if (onCopy != null)
+                    _buildSuggestionActionButton(
+                      icon: Icons.copy_rounded,
+                      tooltip: 'Copy',
+                      onPressed: onCopy,
+                    ),
+                ],
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 32,
+          height: 32,
+          margin: const EdgeInsets.only(left: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.withOpacity(0.2)),
+          ),
+          child: Icon(icon, size: 16, color: const Color(0xFF64748B)),
         ),
       ),
     );
@@ -965,6 +1051,12 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                 value,
                 isNotes: true,
               ),
+              onInsert: (value) => _insertSuggestion(
+                _notesController,
+                value,
+                isNotes: true,
+              ),
+              onCopy: _copySuggestion,
             ),
           ),
           SizedBox(height: AppBreakpoints.sectionGap(context)),
@@ -1044,6 +1136,11 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                 _businessCaseController,
                 value,
               ),
+              onInsert: (value) => _insertSuggestion(
+                _businessCaseController,
+                value,
+              ),
+              onCopy: _copySuggestion,
             ),
           ),
           SizedBox(height: AppBreakpoints.sectionGap(context)),
