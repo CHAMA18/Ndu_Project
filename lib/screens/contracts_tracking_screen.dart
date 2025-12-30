@@ -60,38 +60,17 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                 const SizedBox(height: 20),
                 _buildStatsRow(isNarrow),
                 const SizedBox(height: 24),
-                if (isNarrow)
-                  Column(
-                    children: [
-                      _buildContractRegister(),
-                      const SizedBox(height: 20),
-                      _buildRenewalPanel(),
-                      const SizedBox(height: 20),
-                      _buildSignalsPanel(),
-                      const SizedBox(height: 20),
-                      _buildApprovalsPanel(),
-                    ],
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _buildContractRegister()),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            _buildRenewalPanel(),
-                            const SizedBox(height: 20),
-                            _buildSignalsPanel(),
-                            const SizedBox(height: 20),
-                            _buildApprovalsPanel(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                Column(
+                  children: [
+                    _buildContractRegister(),
+                    const SizedBox(height: 20),
+                    _buildRenewalPanel(),
+                    const SizedBox(height: 20),
+                    _buildSignalsPanel(),
+                    const SizedBox(height: 20),
+                    _buildApprovalsPanel(),
+                  ],
+                ),
               ],
             ),
           ),
@@ -193,32 +172,41 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
       runSpacing: 10,
       children: filters.map((filter) {
         final selected = _selectedFilters.contains(filter);
-        return GestureDetector(
-          onTap: () {
+        return ChoiceChip(
+          label: Text(
+            filter,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : const Color(0xFF475569),
+            ),
+          ),
+          selected: selected,
+          selectedColor: const Color(0xFF111827),
+          backgroundColor: Colors.white,
+          shape: StadiumBorder(
+            side: BorderSide(color: const Color(0xFFE5E7EB)),
+          ),
+          onSelected: (value) {
             setState(() {
-              if (selected) {
-                _selectedFilters.remove(filter);
+              if (value) {
+                if (filter == 'All contracts') {
+                  _selectedFilters
+                    ..clear()
+                    ..add(filter);
+                } else {
+                  _selectedFilters
+                    ..remove('All contracts')
+                    ..add(filter);
+                }
               } else {
-                _selectedFilters.add(filter);
+                _selectedFilters.remove(filter);
+                if (_selectedFilters.isEmpty) {
+                  _selectedFilters.add('All contracts');
+                }
               }
             });
           },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFF111827) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Text(
-              filter,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : const Color(0xFF475569),
-              ),
-            ),
-          ),
         );
       }).toList(),
     );
@@ -233,20 +221,23 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     ];
 
     if (isNarrow) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: stats.map((stat) => _buildStatCard(stat)).toList(),
+      return Column(
+        children: [
+          for (int i = 0; i < stats.length; i++) ...[
+            SizedBox(width: double.infinity, child: _buildStatCard(stats[i])),
+            if (i < stats.length - 1) const SizedBox(height: 12),
+          ],
+        ],
       );
     }
 
     return Row(
-      children: stats.map((stat) => Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: _buildStatCard(stat),
-        ),
-      )).toList(),
+      children: [
+        for (int i = 0; i < stats.length; i++) ...[
+          Expanded(child: _buildStatCard(stats[i])),
+          if (i < stats.length - 1) const SizedBox(width: 12),
+        ],
+      ],
     );
   }
 

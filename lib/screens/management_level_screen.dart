@@ -29,84 +29,128 @@ class _ManagementLevelScreenState extends State<ManagementLevelScreen> {
   }
 
   Widget _buildMainContent(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        children: [
-          const SizedBox(height: 80),
-          AppLogo(
-            height: 240,
-          ),
-          const SizedBox(height: 32),
-          // Title
-          const Text(
-            'Choose Your Management Level',
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 900;
+        final horizontalPadding = isCompact ? 24.0 : 40.0;
+        final topSpacing = isCompact ? 40.0 : 80.0;
+        final cardSpacing = isCompact ? 20.0 : 60.0;
+        final availableWidth = constraints.maxWidth - (horizontalPadding * 2);
+        final columns = availableWidth >= 1100
+            ? 3
+            : availableWidth >= 720
+                ? 2
+                : 1;
+        final cardWidth = columns == 1
+            ? availableWidth
+            : (availableWidth - (cardSpacing * (columns - 1))) / columns;
+        final shouldFill = constraints.maxHeight >= 720 && columns >= 2;
+
+        final headerBlock = Column(
+          children: [
+            SizedBox(height: topSpacing),
+            AppLogo(
+              height: isCompact ? 180 : 240,
             ),
-          ),
-          const SizedBox(height: 16),
-          // Subtitle
-          Text(
-            'Select the scope of work you want to manage:',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
+            const SizedBox(height: 32),
+            const Text(
+              'Choose Your Management Level',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
             ),
-          ),
-          const SizedBox(height: 80),
-          // Management Level Cards
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildManagementCardWithImage(
-                imageUrl: 'assets/images/project-management.png',
-                title: 'Project',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProjectDashboardScreen(),
-                    ),
-                  );
-                },
+            const SizedBox(height: 16),
+            Text(
+              'Select the scope of work you want to manage:',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
               ),
-              const SizedBox(width: 60),
-              _buildManagementCardWithImage(
-                imageUrl: 'assets/images/monitoring.png',
-                title: 'Program',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProgramDashboardScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 60),
-              _buildManagementCardWithImage(
-                imageUrl: 'assets/images/professional-portfolio.png',
-                title: 'Portfolio',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PortfolioDashboardScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        );
+
+        final cardsBlock = Wrap(
+          alignment: columns == 1 ? WrapAlignment.center : WrapAlignment.spaceBetween,
+          spacing: cardSpacing,
+          runSpacing: cardSpacing,
+          children: [
+            _buildManagementCardWithImage(
+              width: cardWidth,
+              imageUrl: 'assets/images/project-management.png',
+              title: 'Project',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProjectDashboardScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildManagementCardWithImage(
+              width: cardWidth,
+              imageUrl: 'assets/images/monitoring.png',
+              title: 'Program',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProgramDashboardScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildManagementCardWithImage(
+              width: cardWidth,
+              imageUrl: 'assets/images/professional-portfolio.png',
+              title: 'Portfolio',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PortfolioDashboardScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+
+        final content = Column(
+          children: [
+            headerBlock,
+            if (!shouldFill) SizedBox(height: topSpacing),
+            if (shouldFill) const Spacer(),
+            cardsBlock,
+            const SizedBox(height: 24),
+          ],
+        );
+
+        if (shouldFill) {
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 32),
+            child: SizedBox(
+              height: constraints.maxHeight,
+              child: content,
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 32),
+          child: content,
+        );
+      },
     );
   }
 
   Widget _buildManagementCardWithImage({
+    double? width,
     required String imageUrl,
     required String title,
     VoidCallback? onTap,
@@ -115,7 +159,7 @@ class _ManagementLevelScreenState extends State<ManagementLevelScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 200,
+        width: width ?? 200,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,

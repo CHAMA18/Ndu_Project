@@ -7,7 +7,9 @@ import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/restricted_access.dart';
 
 class AdminAuthWrapper extends StatelessWidget {
-  const AdminAuthWrapper({super.key});
+  const AdminAuthWrapper({super.key, this.child});
+
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +79,7 @@ class AdminAuthWrapper extends StatelessWidget {
               );
             }
 
-            return const AdminHomeScreen();
+            return child ?? const AdminHomeScreen();
           },
         );
       },

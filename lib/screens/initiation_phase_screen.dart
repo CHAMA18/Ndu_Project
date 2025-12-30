@@ -971,7 +971,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
           // Business Case section
           EditableContentText(
             contentKey: 'business_case_heading',
-            fallback: 'Business Case',
+            fallback: 'Scope Statement',
             category: 'business_case',
             key: _businessCaseSectionKey,
             style: const TextStyle(

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -32,6 +33,9 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   String? _systemArchitectureDocument;
   String? _componentsInterfacesDocument;
   String? _engineeringReadinessDocument;
+  String? _systemArchitectureDocContent;
+  String? _componentsInterfacesDocContent;
+  String? _engineeringReadinessDocContent;
 
   // Core layers data
   final List<_CoreLayerItem> _coreLayers = [
@@ -74,7 +78,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     super.dispose();
   }
 
-  Future<void> _importDocument(String sectionName, Function(String) onImported) async {
+  Future<void> _importDocument(String sectionName, Function(String, String?) onImported) async {
     try {
       FilePickerResult? result;
       
@@ -88,12 +92,15 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
         result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'md'],
+          withData: true,
         );
       }
-      
+
       if (result != null && result.files.isNotEmpty) {
-        final fileName = result.files.first.name;
-        onImported(fileName);
+        final file = result.files.first;
+        final fileName = file.name;
+        final content = _extractTextPreview(fileName, file.bytes);
+        onImported(fileName, content);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -102,6 +109,13 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             ),
           );
         }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No document selected.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error importing document: $e');
@@ -165,8 +179,8 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: const Color(0xFF2A3441),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 0.5),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 1),
                         ),
                         child: TextField(
                           controller: _notesController,
@@ -204,14 +218,13 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                           ],
                         )
                       else
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Column(
                           children: [
-                            Expanded(child: _buildSystemArchitectureCard()),
-                            const SizedBox(width: 16),
-                            Expanded(child: _buildComponentsInterfacesCard()),
-                            const SizedBox(width: 16),
-                            Expanded(child: _buildEngineeringReadinessCard()),
+                            _buildSystemArchitectureCard(),
+                            const SizedBox(height: 16),
+                            _buildComponentsInterfacesCard(),
+                            const SizedBox(height: 16),
+                            _buildEngineeringReadinessCard(),
                           ],
                         ),
                       const SizedBox(height: 32),
@@ -235,7 +248,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     required String subtitle,
     required String sectionName,
     required String? importedDocument,
-    required Function(String) onDocumentImported,
+    required Function(String, String?) onDocumentImported,
     required VoidCallback onDeleteDocument,
     required VoidCallback onCreate,
     required bool hasContent,
@@ -373,6 +386,59 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     ],
   );
 
+  String? _extractTextPreview(String fileName, Uint8List? bytes) {
+    if (bytes == null) return null;
+    final lower = fileName.toLowerCase();
+    final isText = lower.endsWith('.txt') ||
+        lower.endsWith('.md') ||
+        lower.endsWith('.csv') ||
+        lower.endsWith('.json') ||
+        lower.endsWith('.yaml') ||
+        lower.endsWith('.yml');
+    if (!isText) return null;
+    final decoded = utf8.decode(bytes, allowMalformed: true).trim();
+    if (decoded.isEmpty) return null;
+    const maxChars = 1600;
+    return decoded.length > maxChars ? '${decoded.substring(0, maxChars)}...' : decoded;
+  }
+
+  Widget _buildImportedPreview({required String fileName, required String? content}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.insert_drive_file_outlined, size: 16, color: Color(0xFF2563EB)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  fileName,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            content ?? 'Preview unavailable for this file type. Imported file is linked to this section.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.4),
+            maxLines: 8,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSystemArchitectureCard() => Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
@@ -388,11 +454,22 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
           subtitle: 'High-level structure of the solution',
           sectionName: 'System architecture',
           importedDocument: _systemArchitectureDocument,
-          onDocumentImported: (fileName) => setState(() => _systemArchitectureDocument = fileName),
+          onDocumentImported: (fileName, content) => setState(() {
+            _systemArchitectureDocument = fileName;
+            _systemArchitectureDocContent = content;
+            _hasSystemArchitecture = true;
+          }),
           onDeleteDocument: () => setState(() => _systemArchitectureDocument = null),
           onCreate: () => setState(() => _hasSystemArchitecture = true),
           hasContent: _hasSystemArchitecture,
         ),
+        if (_systemArchitectureDocument != null) ...[
+          const SizedBox(height: 16),
+          _buildImportedPreview(
+            fileName: _systemArchitectureDocument!,
+            content: _systemArchitectureDocContent,
+          ),
+        ],
         if (_hasSystemArchitecture) ...[
           const SizedBox(height: 20),
           Text(
@@ -457,11 +534,22 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
           subtitle: 'Who owns what and how they talk',
           sectionName: 'Components & interfaces',
           importedDocument: _componentsInterfacesDocument,
-          onDocumentImported: (fileName) => setState(() => _componentsInterfacesDocument = fileName),
+          onDocumentImported: (fileName, content) => setState(() {
+            _componentsInterfacesDocument = fileName;
+            _componentsInterfacesDocContent = content;
+            _hasComponentsInterfaces = true;
+          }),
           onDeleteDocument: () => setState(() => _componentsInterfacesDocument = null),
           onCreate: () => setState(() => _hasComponentsInterfaces = true),
           hasContent: _hasComponentsInterfaces,
         ),
+        if (_componentsInterfacesDocument != null) ...[
+          const SizedBox(height: 16),
+          _buildImportedPreview(
+            fileName: _componentsInterfacesDocument!,
+            content: _componentsInterfacesDocContent,
+          ),
+        ],
         if (_hasComponentsInterfaces) ...[
           const SizedBox(height: 20),
           // Header Row
@@ -563,11 +651,22 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
           subtitle: 'Design reviews, sign-offs, and ownership',
           sectionName: 'Engineering readiness',
           importedDocument: _engineeringReadinessDocument,
-          onDocumentImported: (fileName) => setState(() => _engineeringReadinessDocument = fileName),
+          onDocumentImported: (fileName, content) => setState(() {
+            _engineeringReadinessDocument = fileName;
+            _engineeringReadinessDocContent = content;
+            _hasEngineeringReadiness = true;
+          }),
           onDeleteDocument: () => setState(() => _engineeringReadinessDocument = null),
           onCreate: () => setState(() => _hasEngineeringReadiness = true),
           hasContent: _hasEngineeringReadiness,
         ),
+        if (_engineeringReadinessDocument != null) ...[
+          const SizedBox(height: 16),
+          _buildImportedPreview(
+            fileName: _engineeringReadinessDocument!,
+            content: _engineeringReadinessDocContent,
+          ),
+        ],
         if (_hasEngineeringReadiness) ...[
           const SizedBox(height: 20),
           ..._readinessItems.map((item) => Padding(

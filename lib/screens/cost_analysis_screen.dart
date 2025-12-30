@@ -82,21 +82,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     ),
   ];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  late final PageController _pageController;
-  late final List<ScrollController> _stepScrollControllers;
+  final ScrollController _mainScrollController = ScrollController();
   bool _initiationExpanded = true;
   bool _businessCaseExpanded = true;
-  ScrollController get _scrollController {
-    assert(_stepScrollControllers.isNotEmpty, '_stepScrollControllers should be initialised in initState');
-    final index = _currentStepIndex;
-    if (index <= 0) {
-      return _stepScrollControllers.first;
-    }
-    if (index >= _stepScrollControllers.length) {
-      return _stepScrollControllers.last;
-    }
-    return _stepScrollControllers[index];
-  }
   final GlobalKey _tablesSectionKey = GlobalKey();
   int _currentStepIndex = 0;
   bool _hasUnsavedChanges = false;
@@ -217,8 +205,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   void initState() {
     super.initState();
     _suppressDirtyTracking = true;
-    _pageController = PageController();
-    _stepScrollControllers = List.generate(_stepDefinitions.length, (_) => ScrollController());
     _notesController = TextEditingController(text: widget.notes);
     _notesController.addListener(_markDirty);
     _projectValueAmountController = TextEditingController();
@@ -907,61 +893,54 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     final horizonLabel = '$_npvHorizon-year';
     final horizontalPadding = AppBreakpoints.pagePadding(context);
     final contentPadding = EdgeInsets.fromLTRB(horizontalPadding, 0, horizontalPadding, horizontalPadding);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(horizontalPadding, horizontalPadding, horizontalPadding, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const EditableContentText(contentKey: 'cost_analysis_heading', fallback: 'Cost Benefit Analysis & Financial Metrics', category: 'business_case', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              EditableContentText(
-                contentKey: 'cost_analysis_description',
-                fallback: 'Bring each potential solution\'s investment profile, project value, ROI and NPV into one consolidated workspace.',
-                category: 'business_case',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 20),
-              _buildStepProgressIndicator(),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: PageView.builder(
-            controller: _pageController,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Scrollbar(
+          controller: _mainScrollController,
+          child: SingleChildScrollView(
+            controller: _mainScrollController,
             physics: const ClampingScrollPhysics(),
-            onPageChanged: (index) {
-              if (!mounted || _currentStepIndex == index) return;
-              setState(() => _currentStepIndex = index);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) return;
-                final controller = _scrollController;
-                if (controller.hasClients) {
-                  controller.jumpTo(0);
-                }
-              });
-            },
-            itemCount: _stepDefinitions.length,
-            itemBuilder: (context, index) {
-              return _buildStepPage(
-                index: index,
-                controller: _stepScrollControllers[index],
-                isMobile: isMobile,
-                horizonLabel: horizonLabel,
-                padding: contentPadding,
-              );
-            },
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(horizontalPadding, horizontalPadding, horizontalPadding, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const EditableContentText(contentKey: 'cost_analysis_heading', fallback: 'Cost Benefit Analysis & Financial Metrics', category: 'business_case', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        EditableContentText(
+                          contentKey: 'cost_analysis_description',
+                          fallback: 'Bring each potential solution\'s investment profile, project value, ROI and NPV into one consolidated workspace.',
+                          category: 'business_case',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 20),
+                        _buildStepProgressIndicator(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildStepPage(
+                    index: _currentStepIndex,
+                    isMobile: isMobile,
+                    horizonLabel: horizonLabel,
+                    padding: contentPadding,
+                  ),
+                  _buildStepNavigationControls(),
+                  const BusinessCaseNavigationButtons(
+                    currentScreen: 'Cost Benefit Analysis & Financial Metrics',
+                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        _buildStepNavigationControls(),
-        const BusinessCaseNavigationButtons(
-          currentScreen: 'Cost Benefit Analysis & Financial Metrics',
-          padding: EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1095,7 +1074,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   Widget _buildStepPage({
     required int index,
-    required ScrollController controller,
     required bool isMobile,
     required String horizonLabel,
     required EdgeInsets padding,
@@ -1160,15 +1138,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       children.insert(0, const SizedBox(height: 12));
     }
 
-    return Scrollbar(
-      controller: controller,
-      child: SingleChildScrollView(
-        controller: controller,
-        padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
       ),
     );
   }
@@ -1258,11 +1232,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     if (!mounted || index == _currentStepIndex) return;
     if (index < 0 || index >= _stepDefinitions.length) return;
     FocusScope.of(context).unfocus();
-    await _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeInOutCubic,
-    );
+    setState(() => _currentStepIndex = index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_mainScrollController.hasClients) {
+        _mainScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   void _handlePreviousStep() {
@@ -5168,7 +5148,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _mainScrollController.dispose();
     _notesController.removeListener(_markDirty);
     _notesController.dispose();
     _projectValueAmountController.removeListener(_onProjectValueFieldChanged);
@@ -5178,9 +5158,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       controller.dispose();
     }
     _benefitCategoryTabController.dispose();
-    for (final controller in _stepScrollControllers) {
-      controller.dispose();
-    }
     for (final context in _solutionContexts) {
       context.justificationController.removeListener(_markDirty);
       context.dispose();
@@ -5622,9 +5599,9 @@ class _CostRow {
 }
 
 class _SolutionCostContext {
-  int resourceIndex;
-  int timelineIndex;
-  int complexityIndex;
+  int resourceIndex = 0;
+  int timelineIndex = 0;
+  int complexityIndex = 0;
   final TextEditingController justificationController = TextEditingController();
   bool autoGenerated = true;
   bool _updating = false;
