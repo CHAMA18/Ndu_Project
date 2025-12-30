@@ -35,6 +35,7 @@ import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/engineering_design_screen.dart';
 import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/header_banner_image.dart';
 import 'package:ndu_project/screens/issue_management_screen.dart';
 import 'package:ndu_project/screens/risk_assessment_screen.dart';
@@ -174,23 +175,75 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openRiskIdentification() {
-    _navigateWithCheckpoint('risk_identification', const RiskIdentificationScreen(notes: '', solutions: [], businessCase: ''));
+    final data = ProjectDataInherited.of(context).projectData;
+    _navigateWithCheckpoint(
+      'risk_identification',
+      RiskIdentificationScreen(
+        notes: data.notes,
+        solutions: _buildSolutionItems(data),
+        businessCase: data.businessCase,
+      ),
+    );
   }
 
   void _openITConsiderations() {
-    _navigateWithCheckpoint('it_considerations', const ITConsiderationsScreen(notes: '', solutions: []));
+    final data = ProjectDataInherited.of(context).projectData;
+    _navigateWithCheckpoint(
+      'it_considerations',
+      ITConsiderationsScreen(
+        notes: data.itConsiderationsData?.notes ?? data.notes,
+        solutions: _buildSolutionItems(data),
+      ),
+    );
   }
 
   void _openInfrastructureConsiderations() {
-    _navigateWithCheckpoint('infrastructure_considerations', const InfrastructureConsiderationsScreen(notes: '', solutions: []));
+    final data = ProjectDataInherited.of(context).projectData;
+    _navigateWithCheckpoint(
+      'infrastructure_considerations',
+      InfrastructureConsiderationsScreen(
+        notes: data.infrastructureConsiderationsData?.notes ?? data.notes,
+        solutions: _buildSolutionItems(data),
+      ),
+    );
   }
 
   void _openCoreStakeholders() {
-    _navigateWithCheckpoint('core_stakeholders', const CoreStakeholdersScreen(notes: '', solutions: []));
+    final data = ProjectDataInherited.of(context).projectData;
+    _navigateWithCheckpoint(
+      'core_stakeholders',
+      CoreStakeholdersScreen(
+        notes: data.coreStakeholdersData?.notes ?? data.notes,
+        solutions: _buildSolutionItems(data),
+      ),
+    );
   }
 
   void _openCostAnalysis() {
     _navigateWithCheckpoint('cost_analysis', const CostAnalysisScreen(notes: '', solutions: []));
+  }
+
+  List<AiSolutionItem> _buildSolutionItems(ProjectDataModel data) {
+    final potential = data.potentialSolutions
+        .map((s) => AiSolutionItem(title: s.title.trim(), description: s.description.trim()))
+        .where((s) => s.title.isNotEmpty || s.description.isNotEmpty)
+        .toList();
+    if (potential.isNotEmpty) return potential;
+
+    final preferred = data.preferredSolutionAnalysis?.solutionAnalyses
+            .map((s) => AiSolutionItem(title: s.solutionTitle.trim(), description: s.solutionDescription.trim()))
+            .where((s) => s.title.isNotEmpty || s.description.isNotEmpty)
+            .toList() ??
+        [];
+    if (preferred.isNotEmpty) return preferred;
+
+    final fallbackTitle = data.solutionTitle.trim();
+    final fallbackDescription = data.solutionDescription.trim();
+    if (fallbackTitle.isNotEmpty || fallbackDescription.isNotEmpty) {
+      return [AiSolutionItem(title: fallbackTitle, description: fallbackDescription)];
+    }
+
+    return [];
   }
 
   void _openFrontEndRequirements() {

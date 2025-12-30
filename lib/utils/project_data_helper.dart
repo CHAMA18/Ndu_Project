@@ -95,6 +95,7 @@ class ProjectDataHelper {
 
     // Include any prior Front End Planning fields already provided
     final fep = data.frontEndPlanning;
+    w('Front End Planning – Requirements Notes', fep.requirementsNotes);
     w('Front End Planning – Requirements', fep.requirements);
     w('Front End Planning – Risks', fep.risks);
     w('Front End Planning – Opportunities', fep.opportunities);
@@ -441,6 +442,7 @@ class ProjectDataHelper {
   static FrontEndPlanningData updateFEPField({
     required FrontEndPlanningData current,
     String? requirements,
+    String? requirementsNotes,
     String? risks,
     String? opportunities,
     String? contractVendorQuotes,
@@ -452,9 +454,11 @@ class ProjectDataHelper {
     String? personnel,
     String? infrastructure,
     String? contracts,
+    List<RequirementItem>? requirementItems,
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? current.requirements,
+      requirementsNotes: requirementsNotes ?? current.requirementsNotes,
       risks: risks ?? current.risks,
       opportunities: opportunities ?? current.opportunities,
       contractVendorQuotes: contractVendorQuotes ?? current.contractVendorQuotes,
@@ -466,6 +470,7 @@ class ProjectDataHelper {
       personnel: personnel ?? current.personnel,
       infrastructure: infrastructure ?? current.infrastructure,
       contracts: contracts ?? current.contracts,
+      requirementItems: requirementItems ?? current.requirementItems,
     );
   }
 }

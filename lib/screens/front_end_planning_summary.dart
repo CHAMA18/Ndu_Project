@@ -3,7 +3,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/screens/front_end_planning_summary_end.dart';
+import 'package:ndu_project/screens/front_end_planning_requirements_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -28,13 +28,17 @@ class FrontEndPlanningSummaryScreen extends StatefulWidget {
 class _FrontEndPlanningSummaryScreenState extends State<FrontEndPlanningSummaryScreen> {
   final TextEditingController _notes = TextEditingController();
   final TextEditingController _summaryNotes = TextEditingController();
+  bool _isSyncReady = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _summaryNotes.addListener(_syncSummaryToProvider);
+      _isSyncReady = true;
       final data = ProjectDataHelper.getData(context);
       _summaryNotes.text = data.frontEndPlanning.summary;
+      _syncSummaryToProvider();
       // On first load, if empty, generate AI suggestion from prior inputs
       if (_summaryNotes.text.trim().isEmpty) {
         _generateAiSuggestion();
@@ -62,9 +66,25 @@ class _FrontEndPlanningSummaryScreenState extends State<FrontEndPlanningSummaryS
 
   @override
   void dispose() {
+    if (_isSyncReady) {
+      _summaryNotes.removeListener(_syncSummaryToProvider);
+    }
     _notes.dispose();
     _summaryNotes.dispose();
     super.dispose();
+  }
+
+  void _syncSummaryToProvider() {
+    if (!mounted) return;
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.updateField(
+      (data) => data.copyWith(
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          summary: _summaryNotes.text.trim(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -293,7 +313,7 @@ class _BottomOverlay extends StatelessWidget {
                       await ProjectDataHelper.saveAndNavigate(
                         context: context,
                         checkpoint: 'fep_summary',
-                        nextScreenBuilder: () => const FrontEndPlanningSummaryEndScreen(),
+                        nextScreenBuilder: () => const FrontEndPlanningRequirementsScreen(),
                         dataUpdater: (data) => data.copyWith(
                           frontEndPlanning: ProjectDataHelper.updateFEPField(
                             current: data.frontEndPlanning,

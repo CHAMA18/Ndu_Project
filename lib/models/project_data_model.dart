@@ -42,6 +42,9 @@ class ProjectDataModel {
   
   // Cost Analysis Data
   CostAnalysisData? costAnalysisData;
+
+  // Cost Estimate Data
+  List<CostEstimateItem> costEstimateItems;
   
   // IT Considerations Data
   ITConsiderationsData? itConsiderationsData;
@@ -82,6 +85,7 @@ class ProjectDataModel {
     List<TeamMember>? teamMembers,
     List<LaunchChecklistItem>? launchChecklistItems,
     this.costAnalysisData,
+    List<CostEstimateItem>? costEstimateItems,
     this.itConsiderationsData,
     this.infrastructureConsiderationsData,
     this.coreStakeholdersData,
@@ -98,7 +102,8 @@ class ProjectDataModel {
         frontEndPlanning = frontEndPlanning ?? FrontEndPlanningData(),
         ssherData = ssherData ?? SSHERData(),
         teamMembers = teamMembers ?? [],
-        launchChecklistItems = launchChecklistItems ?? [];
+        launchChecklistItems = launchChecklistItems ?? [],
+        costEstimateItems = costEstimateItems ?? [];
 
   ProjectDataModel copyWith({
     String? projectName,
@@ -124,6 +129,7 @@ class ProjectDataModel {
     List<TeamMember>? teamMembers,
     List<LaunchChecklistItem>? launchChecklistItems,
     CostAnalysisData? costAnalysisData,
+    List<CostEstimateItem>? costEstimateItems,
     ITConsiderationsData? itConsiderationsData,
     InfrastructureConsiderationsData? infrastructureConsiderationsData,
     CoreStakeholdersData? coreStakeholdersData,
@@ -154,8 +160,9 @@ class ProjectDataModel {
       frontEndPlanning: frontEndPlanning ?? this.frontEndPlanning,
       ssherData: ssherData ?? this.ssherData,
        teamMembers: teamMembers ?? this.teamMembers,
-       launchChecklistItems: launchChecklistItems ?? this.launchChecklistItems,
+      launchChecklistItems: launchChecklistItems ?? this.launchChecklistItems,
       costAnalysisData: costAnalysisData ?? this.costAnalysisData,
+      costEstimateItems: costEstimateItems ?? this.costEstimateItems,
       itConsiderationsData: itConsiderationsData ?? this.itConsiderationsData,
       infrastructureConsiderationsData: infrastructureConsiderationsData ?? this.infrastructureConsiderationsData,
       coreStakeholdersData: coreStakeholdersData ?? this.coreStakeholdersData,
@@ -203,6 +210,7 @@ class ProjectDataModel {
       'teamMembers': teamMembers.map((m) => m.toJson()).toList(),
       'launchChecklistItems': launchChecklistItems.map((item) => item.toJson()).toList(),
       if (costAnalysisData != null) 'costAnalysisData': costAnalysisData!.toJson(),
+      'costEstimateItems': costEstimateItems.map((item) => item.toJson()).toList(),
       if (itConsiderationsData != null) 'itConsiderationsData': itConsiderationsData!.toJson(),
       if (infrastructureConsiderationsData != null) 'infrastructureConsiderationsData': infrastructureConsiderationsData!.toJson(),
       if (coreStakeholdersData != null) 'coreStakeholdersData': coreStakeholdersData!.toJson(),
@@ -315,6 +323,7 @@ class ProjectDataModel {
       teamMembers: safeParseList('teamMembers', TeamMember.fromJson),
       launchChecklistItems: safeParseList('launchChecklistItems', LaunchChecklistItem.fromJson),
       costAnalysisData: safeParseSingle('costAnalysisData', CostAnalysisData.fromJson),
+      costEstimateItems: safeParseList('costEstimateItems', CostEstimateItem.fromJson),
       itConsiderationsData: safeParseSingle('itConsiderationsData', ITConsiderationsData.fromJson),
       infrastructureConsiderationsData: safeParseSingle('infrastructureConsiderationsData', InfrastructureConsiderationsData.fromJson),
       coreStakeholdersData: safeParseSingle('coreStakeholdersData', CoreStakeholdersData.fromJson),
@@ -531,8 +540,35 @@ class WorkItem {
   }
 }
 
+class RequirementItem {
+  String description;
+  String requirementType;
+  String comments;
+
+  RequirementItem({
+    this.description = '',
+    this.requirementType = '',
+    this.comments = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'description': description,
+        'requirementType': requirementType,
+        'comments': comments,
+      };
+
+  factory RequirementItem.fromJson(Map<String, dynamic> json) {
+    return RequirementItem(
+      description: json['description'] ?? '',
+      requirementType: json['requirementType'] ?? '',
+      comments: json['comments'] ?? '',
+    );
+  }
+}
+
 class FrontEndPlanningData {
   String requirements;
+  String requirementsNotes;
   String risks;
   String opportunities;
   String contractVendorQuotes;
@@ -544,9 +580,11 @@ class FrontEndPlanningData {
   String personnel;
   String infrastructure;
   String contracts;
+  List<RequirementItem> requirementItems;
 
   FrontEndPlanningData({
     this.requirements = '',
+    this.requirementsNotes = '',
     this.risks = '',
     this.opportunities = '',
     this.contractVendorQuotes = '',
@@ -558,10 +596,12 @@ class FrontEndPlanningData {
     this.personnel = '',
     this.infrastructure = '',
     this.contracts = '',
-  });
+    List<RequirementItem>? requirementItems,
+  }) : requirementItems = requirementItems ?? [];
 
   Map<String, dynamic> toJson() => {
         'requirements': requirements,
+        'requirementsNotes': requirementsNotes,
         'risks': risks,
         'opportunities': opportunities,
         'contractVendorQuotes': contractVendorQuotes,
@@ -573,11 +613,13 @@ class FrontEndPlanningData {
         'personnel': personnel,
         'infrastructure': infrastructure,
         'contracts': contracts,
+        'requirementsItems': requirementItems.map((item) => item.toJson()).toList(),
       };
 
   factory FrontEndPlanningData.fromJson(Map<String, dynamic> json) {
     return FrontEndPlanningData(
       requirements: json['requirements'] ?? '',
+      requirementsNotes: json['requirementsNotes'] ?? '',
       risks: json['risks'] ?? '',
       opportunities: json['opportunities'] ?? '',
       contractVendorQuotes: json['contractVendorQuotes'] ?? '',
@@ -589,6 +631,10 @@ class FrontEndPlanningData {
       personnel: json['personnel'] ?? '',
       infrastructure: json['infrastructure'] ?? '',
       contracts: json['contracts'] ?? '',
+      requirementItems: (json['requirementsItems'] as List?)
+              ?.map((item) => RequirementItem.fromJson(item as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }
@@ -824,7 +870,7 @@ class CostItem {
         'description': description,
         'estimatedCost': estimatedCost,
         'roiPercent': roiPercent,
-        'npvByYear': npvByYear,
+        'npvByYear': npvByYear.map((key, value) => MapEntry(key.toString(), value)),
       };
 
   factory CostItem.fromJson(Map<String, dynamic> json) {
@@ -846,6 +892,42 @@ class CostItem {
       npvByYear: convertedNpv,
     );
   }
+}
+
+class CostEstimateItem {
+  String id;
+  String title;
+  String notes;
+  double amount;
+  String costType;
+
+  CostEstimateItem({
+    String? id,
+    this.title = '',
+    this.notes = '',
+    this.amount = 0.0,
+    this.costType = 'direct',
+  }) : id = id ?? _generateId();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'notes': notes,
+        'amount': amount,
+        'costType': costType,
+      };
+
+  factory CostEstimateItem.fromJson(Map<String, dynamic> json) {
+    return CostEstimateItem(
+      id: json['id']?.toString(),
+      title: json['title'] ?? '',
+      notes: json['notes'] ?? '',
+      amount: (json['amount'] is num) ? (json['amount'] as num).toDouble() : 0.0,
+      costType: json['costType']?.toString() ?? 'direct',
+    );
+  }
+
+  static String _generateId() => DateTime.now().microsecondsSinceEpoch.toString();
 }
 
 class CostAnalysisData {

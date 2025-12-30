@@ -19,6 +19,7 @@ class PricingScreen extends StatefulWidget {
 class _PricingScreenState extends State<PricingScreen> {
   _PlanTier _selectedTier = _PlanTier.program;
   bool _isCheckingSubscription = false;
+  bool _isAnnual = true;
 
   Future<void> _handlePlanSelection(BuildContext context, _PricingPlan plan) async {
     setState(() => _isCheckingSubscription = true);
@@ -35,7 +36,7 @@ class _PricingScreenState extends State<PricingScreen> {
         final paymentResult = await PaymentDialog.show(
           context: context,
           tier: subscriptionTier,
-          isAnnual: true,
+          isAnnual: _isAnnual,
           onPaymentComplete: () {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -77,6 +78,13 @@ class _PricingScreenState extends State<PricingScreen> {
   
   void _navigateToManagementLevel(BuildContext context) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagementLevelScreen()));
+  }
+
+  _PlanPrice _priceForPlan(_PricingPlan plan) {
+    final tier = _convertToSubscriptionTier(plan.tier);
+    final price = SubscriptionService.getPriceForTier(tier, annual: _isAnnual);
+    final String? note = plan.tier == _PlanTier.basicProject ? 'First month free' : null;
+    return _PlanPrice(price: price['price']!, period: price['period']!, note: note);
   }
 
   static const List<_PricingPlan> _plans = [
@@ -167,23 +175,52 @@ class _PricingScreenState extends State<PricingScreen> {
             children: [
               _buildHeaderRow(context),
               const SizedBox(height: 32),
-              // Payment Structure title
-              const Text(
-                'Payment Structure',
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w700,
-                  color: _primaryText,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 32),
+              _buildSectionHeader(isDesktop || isTablet),
+              const SizedBox(height: 24),
               // Plans grid
               _buildPlansGrid(isDesktop, isTablet),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(bool showInlineToggle) {
+    final title = const Text(
+      'Payment Structure',
+      style: TextStyle(
+        fontSize: 36,
+        fontWeight: FontWeight.w700,
+        color: _primaryText,
+        letterSpacing: -0.5,
+      ),
+    );
+
+    if (showInlineToggle) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          title,
+          const Spacer(),
+          _BillingToggle(
+            isAnnual: _isAnnual,
+            onChanged: (value) => setState(() => _isAnnual = value),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        title,
+        const SizedBox(height: 12),
+        _BillingToggle(
+          isAnnual: _isAnnual,
+          onChanged: (value) => setState(() => _isAnnual = value),
+        ),
+      ],
     );
   }
 
@@ -223,6 +260,7 @@ class _PricingScreenState extends State<PricingScreen> {
             child: _PlanColumn(
               plan: plan,
               isSelected: _selectedTier == plan.tier,
+              price: _priceForPlan(plan),
               onSelect: () {
                 setState(() => _selectedTier = plan.tier);
                 _handlePlanSelection(context, plan);
@@ -243,6 +281,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 child: _PlanColumn(
                   plan: _plans[0],
                   isSelected: _selectedTier == _plans[0].tier,
+                  price: _priceForPlan(_plans[0]),
                   onSelect: () {
                     setState(() => _selectedTier = _plans[0].tier);
                     _handlePlanSelection(context, _plans[0]);
@@ -254,6 +293,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 child: _PlanColumn(
                   plan: _plans[1],
                   isSelected: _selectedTier == _plans[1].tier,
+                  price: _priceForPlan(_plans[1]),
                   onSelect: () {
                     setState(() => _selectedTier = _plans[1].tier);
                     _handlePlanSelection(context, _plans[1]);
@@ -271,6 +311,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 child: _PlanColumn(
                   plan: _plans[2],
                   isSelected: _selectedTier == _plans[2].tier,
+                  price: _priceForPlan(_plans[2]),
                   onSelect: () {
                     setState(() => _selectedTier = _plans[2].tier);
                     _handlePlanSelection(context, _plans[2]);
@@ -282,6 +323,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 child: _PlanColumn(
                   plan: _plans[3],
                   isSelected: _selectedTier == _plans[3].tier,
+                  price: _priceForPlan(_plans[3]),
                   onSelect: () {
                     setState(() => _selectedTier = _plans[3].tier);
                     _handlePlanSelection(context, _plans[3]);
@@ -300,6 +342,7 @@ class _PricingScreenState extends State<PricingScreen> {
           child: _PlanColumn(
             plan: plan,
             isSelected: _selectedTier == plan.tier,
+            price: _priceForPlan(plan),
             onSelect: () {
               setState(() => _selectedTier = plan.tier);
               _handlePlanSelection(context, plan);
@@ -332,15 +375,99 @@ class _BackButton extends StatelessWidget {
   }
 }
 
+class _BillingToggle extends StatelessWidget {
+  const _BillingToggle({required this.isAnnual, required this.onChanged});
+
+  final bool isAnnual;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+            spreadRadius: -6,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _BillingToggleButton(
+            label: 'Monthly',
+            isActive: !isAnnual,
+            onTap: () => onChanged(false),
+          ),
+          _BillingToggleButton(
+            label: 'Annual',
+            isActive: isAnnual,
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BillingToggleButton extends StatelessWidget {
+  const _BillingToggleButton({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: BoxDecoration(
+        color: isActive ? _themeColor : Colors.transparent,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isActive ? Colors.white : _secondaryText,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PlanColumn extends StatelessWidget {
   const _PlanColumn({
     required this.plan,
     required this.isSelected,
+    required this.price,
     required this.onSelect,
   });
 
   final _PricingPlan plan;
   final bool isSelected;
+  final _PlanPrice price;
   final VoidCallback onSelect;
 
   @override
@@ -449,6 +576,44 @@ class _PlanColumn extends StatelessWidget {
               letterSpacing: -0.1,
             ),
           ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                price.price,
+                style: const TextStyle(
+                  color: _primaryText,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.6,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  price.period,
+                  style: const TextStyle(
+                    color: _secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (price.note != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              price.note!,
+              style: const TextStyle(
+                color: _secondaryText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           ...plan.features.map((feature) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -522,6 +687,14 @@ class _PricingPlan {
   final Color badgeColor;
   final String subtitle;
   final List<String> features;
+}
+
+class _PlanPrice {
+  const _PlanPrice({required this.price, required this.period, this.note});
+
+  final String price;
+  final String period;
+  final String? note;
 }
 
 enum _PlanTier { basicProject, project, program, portfolio }

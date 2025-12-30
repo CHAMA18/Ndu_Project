@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/front_end_planning_risks_screen.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -9,6 +11,7 @@ import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 
 /// Front End Planning – Project Requirements page
 /// Implements the layout from the provided screenshot exactly:
@@ -32,18 +35,24 @@ class FrontEndPlanningRequirementsScreen extends StatefulWidget {
 
 class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningRequirementsScreen> {
   final TextEditingController _notesController = TextEditingController();
+  bool _isGeneratingRequirements = false;
+  Timer? _autoSaveTimer;
+  DateTime? _lastAutoSaveSnackAt;
 
   // Start with a single requirement row; additional rows are added via "Add another"
-  final List<_RequirementRow> _rows = [
-    _RequirementRow(number: 1),
-  ];
+  final List<_RequirementRow> _rows = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_rows.isEmpty) {
+        _rows.add(_createRow(1));
+      }
       final projectData = ProjectDataHelper.getData(context);
-      _notesController.text = projectData.frontEndPlanning.requirements;
+      _notesController.text = projectData.frontEndPlanning.requirementsNotes;
+      _notesController.addListener(_handleNotesChanged);
+      _loadSavedRequirements(projectData);
       // Seed requirement rows from AI if empty
       if (_rows.isEmpty || (_rows.length == 1 && _rows.first.descriptionController.text.trim().isEmpty)) {
         _generateRequirementsFromContext();
@@ -52,7 +61,47 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
     });
   }
 
+  _RequirementRow _createRow(int number) {
+    return _RequirementRow(number: number, onChanged: _scheduleAutoSave);
+  }
+
+  void _loadSavedRequirements(ProjectDataModel data) {
+    final savedItems = data.frontEndPlanning.requirementItems;
+    if (savedItems.isNotEmpty) {
+      _rows
+        ..clear()
+        ..addAll(savedItems.asMap().entries.map((entry) {
+          final item = entry.value;
+          final row = _createRow(entry.key + 1);
+          row.descriptionController.text = item.description;
+          row.commentsController.text = item.comments;
+          row.selectedType = item.requirementType;
+          return row;
+        }));
+      return;
+    }
+
+    final savedText = data.frontEndPlanning.requirements.trim();
+    if (savedText.isNotEmpty) {
+      final lines = savedText
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+      if (lines.isNotEmpty) {
+        _rows
+          ..clear()
+          ..addAll(lines.asMap().entries.map((entry) {
+            final row = _createRow(entry.key + 1);
+            row.descriptionController.text = entry.value;
+            return row;
+          }));
+      }
+    }
+  }
+
   Future<void> _generateRequirementsFromContext() async {
+    setState(() => _isGeneratingRequirements = true);
     try {
       final data = ProjectDataHelper.getData(context);
       final ctx = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Project Requirements');
@@ -64,21 +113,29 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
           _rows
             ..clear()
             ..addAll(reqs.asMap().entries.map((e) {
-              final r = _RequirementRow(number: e.key + 1);
+              final r = _createRow(e.key + 1);
               r.descriptionController.text = (e.value['requirement'] ?? '').toString();
               r.commentsController.text = '';
               r.selectedType = (e.value['requirementType'] ?? '').toString();
               return r;
             }));
+          _isGeneratingRequirements = false;
         });
+        _commitAutoSave(showSnack: false);
+        return;
       }
     } catch (e) {
       debugPrint('AI requirements suggestion failed: $e');
+    }
+    if (mounted) {
+      setState(() => _isGeneratingRequirements = false);
     }
   }
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
+    _notesController.removeListener(_handleNotesChanged);
     _notesController.dispose();
     for (final r in _rows) {
       r.dispose();
@@ -135,7 +192,7 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
                         const SizedBox(height: 14),
                         _buildRequirementsTable(context),
                         const SizedBox(height: 16),
-                        _addAnotherButton(),
+                        _buildActionButtons(),
                               const SizedBox(height: 140),
                             ],
                           ),
@@ -212,35 +269,59 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
     );
   }
 
-  Widget _addAnotherButton() {
-    return SizedBox(
-      height: 44,
-      child: OutlinedButton(
-        onPressed: () {
-          setState(() {
-            _rows.add(_RequirementRow(number: _rows.length + 1));
-          });
-        },
-        style: OutlinedButton.styleFrom(
-          backgroundColor: const Color(0xFFF2F4F7),
-          foregroundColor: const Color(0xFF111827),
-          side: const BorderSide(color: Color(0xFFE5E7EB)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        SizedBox(
+          height: 44,
+          child: OutlinedButton(
+            onPressed: () {
+              setState(() {
+                _rows.add(_createRow(_rows.length + 1));
+              });
+            },
+            style: OutlinedButton.styleFrom(
+              backgroundColor: const Color(0xFFF2F4F7),
+              foregroundColor: const Color(0xFF111827),
+              side: const BorderSide(color: Color(0xFFE5E7EB)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            child: const Text('Add another', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          ),
         ),
-        child: const Text('Add another', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-      ),
+        const SizedBox(width: 12),
+        SizedBox(
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: _isGeneratingRequirements ? null : _confirmRegenerate,
+            icon: _isGeneratingRequirements
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                  )
+                : const Icon(Icons.auto_awesome, size: 18),
+            label: Text(
+              _isGeneratingRequirements ? 'Generating...' : 'Regenerate',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF2563EB),
+              side: const BorderSide(color: Color(0xFFBFDBFE)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   void _handleSubmit() async {
-    // Gather non-empty requirement descriptions
-    final requirements = _rows
-        .map((r) => r.descriptionController.text.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
-    
-    final requirementsText = requirements.join('\n');
+    final requirementItems = _buildRequirementItems();
+    final requirementsText = requirementItems.map((item) => item.description.trim()).where((t) => t.isNotEmpty).join('\n');
+    final requirementsNotes = _notesController.text.trim();
     
     await ProjectDataHelper.saveAndNavigate(
       context: context,
@@ -250,14 +331,124 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
         frontEndPlanning: ProjectDataHelper.updateFEPField(
           current: data.frontEndPlanning,
           requirements: requirementsText,
+          requirementsNotes: requirementsNotes,
+          requirementItems: requirementItems,
         ),
       ),
     );
   }
+
+  List<RequirementItem> _buildRequirementItems() {
+    return _rows
+        .map((row) => RequirementItem(
+              description: row.descriptionController.text.trim(),
+              requirementType: row.selectedType ?? '',
+              comments: row.commentsController.text.trim(),
+            ))
+        .where((item) =>
+            item.description.isNotEmpty ||
+            item.requirementType.isNotEmpty ||
+            item.comments.isNotEmpty)
+        .toList();
+  }
+
+  void _handleNotesChanged() {
+    _scheduleAutoSave();
+  }
+
+  void _scheduleAutoSave({bool showSnack = true}) {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 500), () {
+      _commitAutoSave(showSnack: showSnack);
+    });
+  }
+
+  void _commitAutoSave({bool showSnack = true}) {
+    if (!mounted) return;
+    final items = _buildRequirementItems();
+    final requirementsText = items.map((item) => item.description.trim()).where((t) => t.isNotEmpty).join('\n');
+    final requirementsNotes = _notesController.text.trim();
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.updateField(
+      (data) => data.copyWith(
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          requirements: requirementsText,
+          requirementsNotes: requirementsNotes,
+          requirementItems: items,
+        ),
+      ),
+    );
+
+    if (showSnack) {
+      _showAutoSaveSnack();
+    }
+  }
+
+  void _showAutoSaveSnack() {
+    final now = DateTime.now();
+    if (_lastAutoSaveSnackAt != null && now.difference(_lastAutoSaveSnackAt!) < const Duration(seconds: 4)) {
+      return;
+    }
+    _lastAutoSaveSnackAt = now;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..removeCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Draft saved'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+  }
+
+  bool _hasAnyRequirementInputs() {
+    for (final row in _rows) {
+      if (row.descriptionController.text.trim().isNotEmpty ||
+          row.commentsController.text.trim().isNotEmpty ||
+          (row.selectedType ?? '').trim().isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _confirmRegenerate() async {
+    if (_isGeneratingRequirements) return;
+    if (!_hasAnyRequirementInputs()) {
+      await _generateRequirementsFromContext();
+      return;
+    }
+
+    final shouldRegenerate = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Regenerate requirements?'),
+          content: const Text('This will replace your current requirements. Continue?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Regenerate'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldRegenerate == true && mounted) {
+      await _generateRequirementsFromContext();
+    }
+  }
 }
 
 class _RequirementRow {
-  _RequirementRow({required this.number})
+  _RequirementRow({required this.number, this.onChanged})
       : descriptionController = TextEditingController(),
         commentsController = TextEditingController();
 
@@ -265,6 +456,7 @@ class _RequirementRow {
   final TextEditingController descriptionController;
   final TextEditingController commentsController;
   String? selectedType;
+  final VoidCallback? onChanged;
 
   void dispose() {
     descriptionController.dispose();
@@ -284,6 +476,7 @@ class _RequirementRow {
             controller: descriptionController,
             minLines: 2,
             maxLines: null,
+            onChanged: (_) => onChanged?.call(),
             decoration: const InputDecoration(
               hintText: 'Requirement description',
               hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
@@ -297,7 +490,10 @@ class _RequirementRow {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: _TypeDropdown(
             value: selectedType,
-            onChanged: (v) => selectedType = v,
+            onChanged: (v) {
+              selectedType = v;
+              onChanged?.call();
+            },
           ),
         ),
         Padding(
@@ -306,6 +502,7 @@ class _RequirementRow {
             controller: commentsController,
             minLines: 2,
             maxLines: null,
+            onChanged: (_) => onChanged?.call(),
             decoration: const InputDecoration(
               hintText: 'Add comments…',
               hintStyle: TextStyle(color: Color(0xFF9CA3AF)),

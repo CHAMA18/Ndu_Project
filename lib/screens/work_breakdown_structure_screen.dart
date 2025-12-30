@@ -67,6 +67,22 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
   String? _selectedCriteriaA;
   String? _selectedCriteriaB;
   final List<List<_GoalItem>> _goalItems = [[], [], []];
+  final List<String> _goalTitles = List.filled(3, '');
+  final List<String> _goalDescriptions = List.filled(3, '');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final projectData = ProjectDataHelper.getData(context);
+      _selectedCriteriaA = projectData.wbsCriteriaA;
+      _selectedCriteriaB = projectData.wbsCriteriaB;
+      _syncGoalContext(projectData);
+      _hydrateGoalItems(projectData.goalWorkItems);
+      setState(() {});
+    });
+  }
 
   Future<void> _handleAddGoalItem(int goalIndex) async {
     final newItem = await _openAddGoalItemDialog();
@@ -194,6 +210,74 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
     return result;
   }
 
+  void _syncGoalContext(ProjectDataModel data) {
+    for (var i = 0; i < 3; i++) {
+      _goalTitles[i] = '';
+      _goalDescriptions[i] = '';
+    }
+
+    for (var i = 0; i < data.planningGoals.length && i < 3; i++) {
+      final planningGoal = data.planningGoals[i];
+      final title = planningGoal.title.trim();
+      final description = planningGoal.description.trim();
+      final targetYear = planningGoal.targetYear.trim();
+      if (title.isNotEmpty) {
+        _goalTitles[i] = title;
+      }
+      if (description.isNotEmpty) {
+        _goalDescriptions[i] = description;
+      } else if (targetYear.isNotEmpty) {
+        _goalDescriptions[i] = 'Target year: $targetYear';
+      }
+    }
+
+    for (var i = 0; i < data.projectGoals.length && i < 3; i++) {
+      if (_goalTitles[i].isEmpty) {
+        _goalTitles[i] = data.projectGoals[i].name.trim();
+      }
+      if (_goalDescriptions[i].isEmpty) {
+        _goalDescriptions[i] = data.projectGoals[i].description.trim();
+      }
+    }
+  }
+
+  void _hydrateGoalItems(List<List<WorkItem>> savedGoals) {
+    for (final items in _goalItems) {
+      items.clear();
+    }
+
+    for (var goalIndex = 0; goalIndex < _goalItems.length; goalIndex++) {
+      if (goalIndex >= savedGoals.length) continue;
+      for (final item in savedGoals[goalIndex]) {
+        final title = item.title.trim();
+        final description = item.description.trim();
+        if (title.isEmpty && description.isEmpty) continue;
+        _goalItems[goalIndex].add(
+          _GoalItem(
+            title: title.isEmpty ? 'Untitled deliverable' : title,
+            description: description,
+            status: _goalStatusFromString(item.status),
+          ),
+        );
+      }
+    }
+  }
+
+  _GoalStatus _goalStatusFromString(String status) {
+    final normalized = status.trim().toLowerCase().replaceAll(' ', '_');
+    switch (normalized) {
+      case 'in_progress':
+      case 'inprogress':
+        return _GoalStatus.inProgress;
+      case 'completed':
+      case 'complete':
+      case 'done':
+        return _GoalStatus.completed;
+      default:
+        return _GoalStatus.notStarted;
+    }
+  }
+
   Widget _buildCriteriaDropdown({required String hint, required String? value, required ValueChanged<String?> onChanged}) {
     return SizedBox(
       width: 160,
@@ -273,14 +357,41 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
   }
 
   Widget _buildGoalHeading(int goalIndex) {
+    final goalTitle = _goalTitles[goalIndex];
+    final goalDescription = _goalDescriptions[goalIndex];
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Text(
-            'Goal ${goalIndex + 1}',
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _kPrimaryText),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Goal ${goalIndex + 1}',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _kPrimaryText),
+              ),
+              if (goalTitle.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  goalTitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kPrimaryText),
+                ),
+              ],
+              if (goalDescription.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  goalDescription,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kSecondaryText),
+                ),
+              ],
+            ],
           ),
         ),
+        const SizedBox(width: 8),
         _buildAddGoalButton(goalIndex),
       ],
     );
@@ -381,9 +492,10 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
 
   Widget _buildGoalsSection(double maxWidth) {
     const double gap = 22;
-    final bool isNarrow = maxWidth < 980;
+    const double minColumnWidth = 240;
+    final bool showColumns = maxWidth >= (minColumnWidth * 3) + (gap * 2);
 
-    if (isNarrow) {
+    if (!showColumns) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -4,6 +4,8 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 
 class CostEstimateScreen extends StatefulWidget {
   const CostEstimateScreen({super.key});
@@ -17,64 +19,14 @@ class CostEstimateScreen extends StatefulWidget {
 }
 
 class _CostEstimateScreenState extends State<CostEstimateScreen> {
-  static const List<_CostSummary> _summaryMetrics = [
-    _CostSummary(
-      title: 'Total Project Cost',
-      amount: 1317000.0,
-      description: 'Composite of direct & indirect cost bases',
-      backgroundColor: Colors.white,
-      accentColor: Color(0xFF111827),
-      descriptionColor: Color(0xFF6B7280),
-      badgeLabel: 'All Programmes',
-    ),
-    _CostSummary(
-      title: 'Direct Costs',
-      amount: 1100000.0,
-      description: '83.5% of total',
-      backgroundColor: Color(0xFFEFF6FF),
-      accentColor: Color(0xFF1D4ED8),
-      descriptionColor: Color(0xFF1D4ED8),
-      badgeLabel: 'Direct',
-    ),
-    _CostSummary(
-      title: 'Indirect Costs',
-      amount: 217000.0,
-      description: '16.5% of total',
-      backgroundColor: Color(0xFFEFFDF5),
-      accentColor: Color(0xFF047857),
-      descriptionColor: Color(0xFF047857),
-      badgeLabel: 'Overheads',
-    ),
-  ];
-
-  static const Map<_CostView, _CostViewDefinition> _views = {
-    _CostView.direct: _CostViewDefinition(
+  static const Map<_CostView, _CostViewMeta> _viewMeta = {
+    _CostView.direct: _CostViewMeta(
       label: 'Direct Costs',
       description: 'Delivery spend, capital allocation & external squads',
-      categories: [
-        _CostCategory(title: 'Implementation Services', icon: Icons.handyman_outlined, amount: 240000.0),
-        _CostCategory(title: 'Software Licences', icon: Icons.apps_outlined, amount: 215000.0),
-        _CostCategory(title: 'Hardware & Infrastructure', icon: Icons.router_outlined, amount: 190000.0),
-        _CostCategory(title: 'Specialist Contractors', icon: Icons.groups_2_outlined, amount: 165000.0),
-        _CostCategory(title: 'Quality Assurance & Testing', icon: Icons.verified_outlined, amount: 150000.0),
-        _CostCategory(title: 'Contingency Reserve', icon: Icons.savings_outlined, amount: 140000.0),
-      ],
-      trailingSummaryLabel: 'Total Direct Costs',
-      trailingSummaryAmount: 1100000.0,
     ),
-    _CostView.indirect: _CostViewDefinition(
+    _CostView.indirect: _CostViewMeta(
       label: 'Indirect Costs',
       description: 'Programme overheads, enablement, shared services',
-      categories: [
-        _CostCategory(title: 'Rent', icon: Icons.business_outlined, amount: 42000.0),
-        _CostCategory(title: 'Utilities', icon: Icons.lightbulb_outline, amount: 38000.0),
-        _CostCategory(title: 'Maintenance', icon: Icons.handyman_outlined, amount: 36000.0),
-        _CostCategory(title: 'Supplies', icon: Icons.inventory_2_outlined, amount: 32000.0),
-        _CostCategory(title: 'Salaries', icon: Icons.people_alt_outlined, amount: 34000.0),
-        _CostCategory(title: 'Accounting', icon: Icons.calculate_outlined, amount: 35000.0),
-      ],
-      trailingSummaryLabel: 'Total Indirect Costs',
-      trailingSummaryAmount: 217000.0,
     ),
   };
 
@@ -86,7 +38,18 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final bool isTablet = AppBreakpoints.isTablet(context) && !isMobile;
     final double horizontalPadding = isMobile ? 20 : (isTablet ? 28 : 36);
-    final _CostViewDefinition view = _views[_activeView]!;
+    final projectData = ProjectDataHelper.getData(context);
+    final directItems = _itemsForView(projectData, _CostView.direct);
+    final indirectItems = _itemsForView(projectData, _CostView.indirect);
+    final double directTotal = _sumCostItems(directItems);
+    final double indirectTotal = _sumCostItems(indirectItems);
+    final double total = directTotal + indirectTotal;
+    final viewDefinitions = {
+      _CostView.direct: _buildViewDefinition(_CostView.direct, directItems, directTotal),
+      _CostView.indirect: _buildViewDefinition(_CostView.indirect, indirectItems, indirectTotal),
+    };
+    final _CostViewDefinition view = viewDefinitions[_activeView]!;
+    final summaryMetrics = _buildSummaryMetrics(total, directTotal, indirectTotal);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -110,11 +73,11 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                         const SizedBox(height: 24),
                         const _HeroBanner(),
                         const SizedBox(height: 20),
-                        _MetricStrip(metrics: _summaryMetrics, isMobile: isMobile),
+                        _MetricStrip(metrics: summaryMetrics, isMobile: isMobile),
                         const SizedBox(height: 26),
                         _ViewSelector(
                           activeView: _activeView,
-                          definitions: _views,
+                          definitions: viewDefinitions,
                           onChanged: (view) => setState(() => _activeView = view),
                         ),
                         const SizedBox(height: 20),
@@ -144,6 +107,111 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     );
   }
 
+  List<CostEstimateItem> _itemsForView(ProjectDataModel data, _CostView view) {
+    final key = _viewKey(view);
+    return data.costEstimateItems.where((item) => item.costType == key).toList();
+  }
+
+  double _sumCostItems(List<CostEstimateItem> items) {
+    return items.fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  _CostViewDefinition _buildViewDefinition(_CostView view, List<CostEstimateItem> items, double total) {
+    final meta = _viewMeta[view]!;
+    final categories = items
+        .map(
+          (item) => _CostCategory(
+            title: item.title,
+            icon: _iconForItem(item, view),
+            amount: item.amount,
+            notes: item.notes,
+          ),
+        )
+        .toList();
+    return _CostViewDefinition(
+      label: meta.label,
+      description: meta.description,
+      categories: categories,
+      trailingSummaryLabel: view == _CostView.direct ? 'Total Direct Costs' : 'Total Indirect Costs',
+      trailingSummaryAmount: total,
+    );
+  }
+
+  List<_CostSummary> _buildSummaryMetrics(double total, double directTotal, double indirectTotal) {
+    final String totalDescription = total == 0
+        ? 'No cost items yet'
+        : 'Composite of direct & indirect cost bases';
+    final String directDescription = total == 0
+        ? 'No cost items yet'
+        : '${_formatPercent(directTotal / total)} of total';
+    final String indirectDescription = total == 0
+        ? 'No cost items yet'
+        : '${_formatPercent(indirectTotal / total)} of total';
+
+    return [
+      _CostSummary(
+        title: 'Total Project Cost',
+        amount: total,
+        description: totalDescription,
+        backgroundColor: Colors.white,
+        accentColor: const Color(0xFF111827),
+        descriptionColor: const Color(0xFF6B7280),
+        badgeLabel: total == 0 ? null : 'All Programmes',
+      ),
+      _CostSummary(
+        title: 'Direct Costs',
+        amount: directTotal,
+        description: directDescription,
+        backgroundColor: const Color(0xFFEFF6FF),
+        accentColor: const Color(0xFF1D4ED8),
+        descriptionColor: const Color(0xFF1D4ED8),
+        badgeLabel: directTotal == 0 ? null : 'Direct',
+      ),
+      _CostSummary(
+        title: 'Indirect Costs',
+        amount: indirectTotal,
+        description: indirectDescription,
+        backgroundColor: const Color(0xFFEFFDF5),
+        accentColor: const Color(0xFF047857),
+        descriptionColor: const Color(0xFF047857),
+        badgeLabel: indirectTotal == 0 ? null : 'Overheads',
+      ),
+    ];
+  }
+
+  String _formatPercent(double value) {
+    final percent = (value * 100).clamp(0, 100);
+    return '${percent.toStringAsFixed(1)}%';
+  }
+
+  IconData _iconForItem(CostEstimateItem item, _CostView view) {
+    final iconSet = view == _CostView.direct
+        ? const [
+            Icons.handyman_outlined,
+            Icons.apps_outlined,
+            Icons.router_outlined,
+            Icons.groups_2_outlined,
+            Icons.verified_outlined,
+            Icons.savings_outlined,
+            Icons.precision_manufacturing_outlined,
+            Icons.build_circle_outlined,
+          ]
+        : const [
+            Icons.business_outlined,
+            Icons.lightbulb_outline,
+            Icons.handyman_outlined,
+            Icons.inventory_2_outlined,
+            Icons.people_alt_outlined,
+            Icons.calculate_outlined,
+            Icons.support_agent_outlined,
+            Icons.apartment_outlined,
+          ];
+    final index = item.title.isEmpty ? 0 : item.title.hashCode.abs() % iconSet.length;
+    return iconSet[index];
+  }
+
+  String _viewKey(_CostView view) => view == _CostView.direct ? 'direct' : 'indirect';
+
   void _showAiSuggestions(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -153,13 +221,18 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     );
   }
 
-  void _showAddItem(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Add a cost item under ${_views[_activeView]!.label}.'),
-        behavior: SnackBarBehavior.floating,
-      ),
+  Future<void> _showAddItem(BuildContext context) async {
+    final selected = await showDialog<CostEstimateItem>(
+      context: context,
+      builder: (dialogContext) => _AddCostItemDialog(initialView: _activeView),
     );
+
+    if (selected == null) return;
+
+    final provider = ProjectDataHelper.getProvider(context);
+    final items = List<CostEstimateItem>.from(provider.projectData.costEstimateItems)..add(selected);
+    provider.updateField((data) => data.copyWith(costEstimateItems: items));
+    await provider.saveToFirebase(checkpoint: 'cost_estimate');
   }
 }
 
@@ -626,6 +699,10 @@ class _CostCategoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (view.categories.isEmpty) {
+      return _EmptyCostState(viewLabel: view.label);
+    }
+
     return Column(
       children: view.categories
           .map(
@@ -635,6 +712,54 @@ class _CostCategoryList extends StatelessWidget {
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class _EmptyCostState extends StatelessWidget {
+  const _EmptyCostState({required this.viewLabel});
+
+  final String viewLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3CD),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.add_task, color: Color(0xFFB45309)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No $viewLabel yet',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Add your first cost item to start tracking estimates here.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -681,9 +806,11 @@ class _CategoryTile extends StatelessWidget {
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Tap to expand line items & vendor notes',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                Text(
+                  category.notes.isEmpty ? 'Tap to expand line items & vendor notes' : category.notes,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                 ),
               ],
             ),
@@ -739,6 +866,302 @@ class _TrailingSummaryCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AddCostItemDialog extends StatefulWidget {
+  const _AddCostItemDialog({required this.initialView});
+
+  final _CostView initialView;
+
+  @override
+  State<_AddCostItemDialog> createState() => _AddCostItemDialogState();
+}
+
+class _AddCostItemDialogState extends State<_AddCostItemDialog> {
+  final _titleController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _notesController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  late _CostView _selectedView = widget.initialView;
+  bool _showValidation = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _accentForView(_selectedView);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      backgroundColor: Colors.white,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(22, 20, 12, 16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    accent.withOpacity(0.16),
+                    accent.withOpacity(0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.add_circle_outline, color: accent),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Add Cost Item',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Capture a new cost line under ${_viewLabel(_selectedView)}.',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
+              child: Form(
+                key: _formKey,
+                autovalidateMode: _showValidation ? AutovalidateMode.always : AutovalidateMode.disabled,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _DialogLabel(label: 'Category'),
+                    const SizedBox(height: 8),
+                    _TypeSelector(
+                      selectedView: _selectedView,
+                      onChanged: (value) => setState(() => _selectedView = value),
+                    ),
+                    const SizedBox(height: 18),
+                    _DialogLabel(label: 'Cost item'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: _inputDecoration('e.g., Vendor integration services'),
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Add a short name for this cost item';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _DialogLabel(label: 'Estimated amount'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: _inputDecoration('0.00', prefix: '\$'),
+                      validator: (value) {
+                        final amount = _parseAmount(value ?? '');
+                        if (amount <= 0) {
+                          return 'Enter a valid amount';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _DialogLabel(label: 'Notes (optional)'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _notesController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: _inputDecoration('Add vendor notes, scope details, or assumptions'),
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                              foregroundColor: const Color(0xFF475569),
+                            ),
+                            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _submit,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Add item', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      setState(() => _showValidation = true);
+      return;
+    }
+
+    final amount = _parseAmount(_amountController.text);
+    final item = CostEstimateItem(
+      title: _titleController.text.trim(),
+      notes: _notesController.text.trim(),
+      amount: amount,
+      costType: _viewKey(_selectedView),
+    );
+    Navigator.of(context).pop(item);
+  }
+
+  double _parseAmount(String input) {
+    final cleaned = input.replaceAll(RegExp(r'[^0-9.]'), '');
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  InputDecoration _inputDecoration(String hint, {String? prefix}) {
+    return InputDecoration(
+      hintText: hint,
+      prefixText: prefix,
+      prefixStyle: const TextStyle(color: Color(0xFF64748B)),
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+    );
+  }
+
+  Color _accentForView(_CostView view) => view == _CostView.direct ? const Color(0xFF2563EB) : const Color(0xFF047857);
+
+  String _viewLabel(_CostView view) => view == _CostView.direct ? 'Direct Costs' : 'Indirect Costs';
+
+  String _viewKey(_CostView view) => view == _CostView.direct ? 'direct' : 'indirect';
+}
+
+class _TypeSelector extends StatelessWidget {
+  const _TypeSelector({required this.selectedView, required this.onChanged});
+
+  final _CostView selectedView;
+  final ValueChanged<_CostView> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: _CostView.values.map((view) {
+          final bool isActive = view == selectedView;
+          final Color accent = view == _CostView.direct ? const Color(0xFF2563EB) : const Color(0xFF047857);
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(view),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isActive ? accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      view == _CostView.direct ? Icons.trending_up : Icons.layers_outlined,
+                      size: 16,
+                      color: isActive ? Colors.white : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      view == _CostView.direct ? 'Direct Costs' : 'Indirect Costs',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isActive ? Colors.white : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _DialogLabel extends StatelessWidget {
+  const _DialogLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
     );
   }
 }
@@ -806,12 +1229,20 @@ class _CostSummary {
   final String? badgeLabel;
 }
 
+class _CostViewMeta {
+  const _CostViewMeta({required this.label, required this.description});
+
+  final String label;
+  final String description;
+}
+
 class _CostCategory {
-  const _CostCategory({required this.title, required this.icon, required this.amount});
+  const _CostCategory({required this.title, required this.icon, required this.amount, this.notes = ''});
 
   final String title;
   final IconData icon;
   final double amount;
+  final String notes;
 }
 
 enum _CostView { direct, indirect }
