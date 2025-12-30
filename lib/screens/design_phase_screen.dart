@@ -206,9 +206,25 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     return '#${c.value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
   }
 
+  // Keep icon resolution to a known set so web builds can tree-shake icons safely.
+  static final Map<int, IconData> _iconLookup = <int, IconData>{
+    Icons.settings_suggest.codePoint: Icons.settings_suggest,
+    Icons.cloud_sync_outlined.codePoint: Icons.cloud_sync_outlined,
+    Icons.storage.codePoint: Icons.storage,
+    Icons.sync_alt.codePoint: Icons.sync_alt,
+    Icons.memory.codePoint: Icons.memory,
+    Icons.verified_user.codePoint: Icons.verified_user,
+    Icons.phone_android.codePoint: Icons.phone_android,
+    Icons.language.codePoint: Icons.language,
+    Icons.admin_panel_settings.codePoint: Icons.admin_panel_settings,
+    Icons.link.codePoint: Icons.link,
+    Icons.insert_drive_file_outlined.codePoint: Icons.insert_drive_file_outlined,
+  };
+
   static IconData? _iconFromCode(int? codePoint, String? fontFamily) {
     if (codePoint == null) return null;
-    return IconData(codePoint, fontFamily: fontFamily ?? 'MaterialIcons');
+    if (fontFamily != null && fontFamily != 'MaterialIcons') return null;
+    return _iconLookup[codePoint];
   }
   @override
   Widget build(BuildContext context) {
