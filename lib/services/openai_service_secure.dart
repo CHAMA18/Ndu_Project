@@ -1436,12 +1436,12 @@ Return ONLY valid JSON in this exact structure:
   ]
 }
 
-Business Case:
+Project Context:
 $businessCase
 ''';
 
   String _requirementsPrompt(String businessCase) => '''
-Based on this business case, generate 10-20 specific project requirements that must be met for the project to be considered successful.
+Based on this project context, generate 10-20 specific project requirements that must be met for the project to be considered successful.
 
 Each requirement should be:
 - Clear and specific

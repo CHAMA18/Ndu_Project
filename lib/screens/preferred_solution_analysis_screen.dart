@@ -16,7 +16,6 @@ import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/screens/project_decision_summary_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_summary.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/initiation_phase_screen.dart';
@@ -770,7 +769,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const WorkBreakdownStructureScreen(),
+        builder: (_) => const FrontEndPlanningSummaryScreen(),
       ),
     );
   }
