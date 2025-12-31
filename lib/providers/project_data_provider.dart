@@ -218,12 +218,14 @@ class ProjectDataProvider extends ChangeNotifier {
     String? projectObjective,
     List<PlanningGoal>? planningGoals,
     List<Milestone>? keyMilestones,
+    Map<String, String>? planningNotes,
   }) {
     _projectData = _projectData.copyWith(
       potentialSolution: potentialSolution ?? _projectData.potentialSolution,
       projectObjective: projectObjective ?? _projectData.projectObjective,
       planningGoals: planningGoals ?? _projectData.planningGoals,
       keyMilestones: keyMilestones ?? _projectData.keyMilestones,
+      planningNotes: planningNotes ?? _projectData.planningNotes,
     );
     notifyListeners();
   }

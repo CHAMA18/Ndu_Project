@@ -6,6 +6,7 @@ import 'package:ndu_project/services/change_request_service.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class ChangeManagementScreen extends StatelessWidget {
   const ChangeManagementScreen({super.key});
@@ -59,6 +60,14 @@ class ChangeManagementScreen extends StatelessWidget {
                               _YellowButton(label: 'New Project', onPressed: () {}),
                             ],
                           ),
+                        ),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Change Management',
+                          noteKey: 'planning_change_management_notes',
+                          checkpoint: 'change_management',
+                          description: 'Capture change governance, approval workflows, and impact assessment focus areas.',
                         ),
                         const SizedBox(height: 24),
                         // Page title

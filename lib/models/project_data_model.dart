@@ -22,6 +22,7 @@ class ProjectDataModel {
   String projectObjective;
   List<PlanningGoal> planningGoals;
   List<Milestone> keyMilestones;
+  Map<String, String> planningNotes;
   
   // Work Breakdown Structure Data
   String? wbsCriteriaA;
@@ -77,6 +78,7 @@ class ProjectDataModel {
     this.projectObjective = '',
     List<PlanningGoal>? planningGoals,
     List<Milestone>? keyMilestones,
+    Map<String, String>? planningNotes,
     this.wbsCriteriaA,
     this.wbsCriteriaB,
     List<List<WorkItem>>? goalWorkItems,
@@ -98,6 +100,7 @@ class ProjectDataModel {
         projectGoals = projectGoals ?? [],
         planningGoals = planningGoals ?? List.generate(3, (i) => PlanningGoal(goalNumber: i + 1)),
         keyMilestones = keyMilestones ?? [],
+        planningNotes = planningNotes ?? {},
         goalWorkItems = goalWorkItems ?? List.generate(3, (_) => []),
         frontEndPlanning = frontEndPlanning ?? FrontEndPlanningData(),
         ssherData = ssherData ?? SSHERData(),
@@ -121,6 +124,7 @@ class ProjectDataModel {
     String? projectObjective,
     List<PlanningGoal>? planningGoals,
     List<Milestone>? keyMilestones,
+    Map<String, String>? planningNotes,
     String? wbsCriteriaA,
     String? wbsCriteriaB,
     List<List<WorkItem>>? goalWorkItems,
@@ -154,6 +158,7 @@ class ProjectDataModel {
       projectObjective: projectObjective ?? this.projectObjective,
       planningGoals: planningGoals ?? this.planningGoals,
       keyMilestones: keyMilestones ?? this.keyMilestones,
+      planningNotes: planningNotes ?? this.planningNotes,
       wbsCriteriaA: wbsCriteriaA ?? this.wbsCriteriaA,
       wbsCriteriaB: wbsCriteriaB ?? this.wbsCriteriaB,
       goalWorkItems: goalWorkItems ?? this.goalWorkItems,
@@ -202,6 +207,7 @@ class ProjectDataModel {
       'projectObjective': projectObjective,
       'planningGoals': planningGoals.map((g) => g.toJson()).toList(),
       'keyMilestones': keyMilestones.map((m) => m.toJson()).toList(),
+      'planningNotes': planningNotes,
       'wbsCriteriaA': wbsCriteriaA,
       'wbsCriteriaB': wbsCriteriaB,
       'goalWorkItems': flattenedWorkItems,
@@ -315,6 +321,11 @@ class ProjectDataModel {
           ? List.generate(3, (i) => PlanningGoal(goalNumber: i + 1))
           : safeParseList('planningGoals', PlanningGoal.fromJson),
       keyMilestones: safeParseList('keyMilestones', Milestone.fromJson),
+      planningNotes: (json['planningNotes'] is Map)
+          ? Map<String, String>.from(
+              (json['planningNotes'] as Map).map((key, value) => MapEntry(key.toString(), value.toString())),
+            )
+          : {},
       wbsCriteriaA: json['wbsCriteriaA']?.toString(),
       wbsCriteriaB: json['wbsCriteriaB']?.toString(),
       goalWorkItems: reconstructedGoalWorkItems,

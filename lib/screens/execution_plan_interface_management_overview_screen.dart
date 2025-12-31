@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -5,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/ai_diagram_panel.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class ExecutionPlanInterfaceManagementOverviewScreen extends StatelessWidget {
   const ExecutionPlanInterfaceManagementOverviewScreen({super.key});
@@ -87,11 +89,6 @@ class _ExecutionPlanDetailsSection extends StatelessWidget {
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Execution Plan Details',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
-          ),
-          const SizedBox(height: 12),
           _OverviewAiEditor(),
         ],
       ),
@@ -161,8 +158,46 @@ class _OverviewAiEditor extends StatefulWidget {
 
 class _OverviewAiEditorState extends State<_OverviewAiEditor> {
   String _current = '';
+  Timer? _saveDebounce;
+  DateTime? _lastSavedAt;
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _handleChanged(String value) {
+    _current = value;
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 700), () async {
+      final trimmed = value.trim();
+      final success = await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'planning_execution_plan_interface_overview',
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            'execution_plan_interface_overview': trimmed,
+          },
+        ),
+        showSnackbar: false,
+      );
+      if (mounted && success) {
+        setState(() => _lastSavedAt = DateTime.now());
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_current.isEmpty) {
+      final saved = ProjectDataHelper.getData(context).planningNotes['execution_plan_interface_overview'] ?? '';
+      if (saved.trim().isNotEmpty) {
+        _current = saved;
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -170,8 +205,20 @@ class _OverviewAiEditorState extends State<_OverviewAiEditor> {
           fieldLabel: 'Execution Plan Details',
           hintText: 'Input your notes here...',
           sectionLabel: 'Execution Plan - Interface Management Overview',
-          onChanged: (v) => _current = v,
+          showLabel: false,
+          initialText: ProjectDataHelper.getData(context).planningNotes['execution_plan_interface_overview'],
+          autoGenerate: true,
+          autoGenerateSection: 'Interface Management Overview',
+          onChanged: _handleChanged,
         ),
+        if (_lastSavedAt != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Saved ${TimeOfDay.fromDateTime(_lastSavedAt!).format(context)}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            ),
+          ),
         const SizedBox(height: 8),
         AiDiagramPanel(
           sectionLabel: 'Interface Management Overview',

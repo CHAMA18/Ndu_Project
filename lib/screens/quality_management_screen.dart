@@ -4,6 +4,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics }
 
@@ -51,6 +52,14 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const _PageHeader(),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Quality Management',
+                          noteKey: 'planning_quality_management_notes',
+                          checkpoint: 'quality_management',
+                          description: 'Summarize quality targets, assurance cadence, and control measures.',
+                        ),
                         const SizedBox(height: 24),
                         _TabStrip(selectedTab: _selectedTab, onSelected: _handleTabSelected),
                         const SizedBox(height: 28),

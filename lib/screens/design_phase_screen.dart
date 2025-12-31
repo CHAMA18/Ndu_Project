@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/architecture_canvas.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/architecture_service.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class DesignPhaseScreen extends StatefulWidget {
   const DesignPhaseScreen({super.key, this.activeItemLabel = 'Design Management'});
@@ -242,22 +243,12 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Notes Section
-                  Container(
-                    height: 120,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: const TextField(
-                      maxLines: null,
-                      decoration: InputDecoration(
-                        hintText: 'Input your notes here...',
-                        border: InputBorder.none,
-                      ),
-                    ),
+                  const PlanningAiNotesCard(
+                    title: 'AI Notes',
+                    sectionLabel: 'Design',
+                    noteKey: 'planning_design_notes',
+                    checkpoint: 'design',
+                    description: 'Summarize design goals, artifacts, and key decisions.',
                   ),
                   const SizedBox(height: 24),
                   

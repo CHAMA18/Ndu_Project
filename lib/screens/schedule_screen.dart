@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -6,6 +7,8 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 
 /// Schedule screen recreated to match the provided mockup with
 /// notes input, schedule management overview, and project timeline.
@@ -26,9 +29,64 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   final TextEditingController _notesController = TextEditingController();
   String _selectedMethodology = 'Waterfall';
   int _timelineTabIndex = 0;
+  Timer? _saveDebounce;
+  DateTime? _lastSavedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final data = ProjectDataHelper.getData(context);
+      _notesController.text = data.planningNotes['planning_schedule_notes'] ?? '';
+      if (_notesController.text.trim().isEmpty) {
+        _generateInitialNotes();
+      }
+      _notesController.addListener(_handleNotesChanged);
+    });
+  }
+
+  Future<void> _generateInitialNotes() async {
+    final data = ProjectDataHelper.getData(context);
+    final contextText = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Schedule');
+    if (contextText.trim().isEmpty) return;
+    final ai = OpenAiServiceSecure();
+    final suggestion = await ai.generateFepSectionText(
+      section: 'Schedule',
+      context: contextText,
+      maxTokens: 700,
+      temperature: 0.45,
+    );
+    if (!mounted) return;
+    if (_notesController.text.trim().isEmpty && suggestion.trim().isNotEmpty) {
+      _notesController.text = suggestion.trim();
+    }
+  }
+
+  void _handleNotesChanged() {
+    final value = _notesController.text.trim();
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 700), () async {
+      final success = await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'planning_schedule',
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            'planning_schedule_notes': value,
+          },
+        ),
+        showSnackbar: false,
+      );
+      if (mounted && success) {
+        setState(() => _lastSavedAt = DateTime.now());
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _saveDebounce?.cancel();
+    _notesController.removeListener(_handleNotesChanged);
     _notesController.dispose();
     super.dispose();
   }
@@ -67,7 +125,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           showContentButton: false,
                         ),
                         const SizedBox(height: 24),
-                        _NotesInputField(controller: _notesController),
+                        _NotesInputField(
+                          controller: _notesController,
+                          savedAt: _lastSavedAt,
+                        ),
                         const SizedBox(height: 24),
                         _ScheduleManagementCard(
                           methodology: _selectedMethodology,
@@ -99,32 +160,45 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 }
 
 class _NotesInputField extends StatelessWidget {
-  const _NotesInputField({required this.controller});
+  const _NotesInputField({required this.controller, this.savedAt});
 
   final TextEditingController controller;
+  final DateTime? savedAt;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x11000000), blurRadius: 14, offset: Offset(0, 8)),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: TextField(
-        controller: controller,
-        minLines: 3,
-        maxLines: 6,
-        decoration: const InputDecoration(
-          hintText: 'Input your notes here...',
-          hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-          border: InputBorder.none,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x11000000), blurRadius: 14, offset: Offset(0, 8)),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: TextField(
+            controller: controller,
+            minLines: 3,
+            maxLines: 6,
+            decoration: const InputDecoration(
+              hintText: 'Input your notes here...',
+              hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+              border: InputBorder.none,
+            ),
+          ),
         ),
-      ),
+        if (savedAt != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Saved ${TimeOfDay.fromDateTime(savedAt!).format(context)}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          ),
+        ],
+      ],
     );
   }
 }

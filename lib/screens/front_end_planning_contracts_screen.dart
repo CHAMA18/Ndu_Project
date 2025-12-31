@@ -11,6 +11,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/contract_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 /// Front End Planning – Contracts screen
 /// Recreates the provided contract management mock with tabs, notes field,
@@ -92,6 +93,14 @@ class _FrontEndPlanningContractsScreenState extends State<FrontEndPlanningContra
                                   }
                                   setState(() => _selectedTabIndex = index);
                                 },
+                              ),
+                              const SizedBox(height: 20),
+                              const PlanningAiNotesCard(
+                                title: 'AI Notes',
+                                sectionLabel: 'Contract',
+                                noteKey: 'planning_contract_notes',
+                                checkpoint: 'contracts',
+                                description: 'Summarize contract scope, vendor commitments, and negotiation priorities.',
                               ),
                               const SizedBox(height: 20),
                               _NotesField(controller: _notesController),

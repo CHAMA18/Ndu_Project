@@ -243,9 +243,12 @@ class _AiDiagramPanelState extends State<AiDiagramPanel> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
-            child: CustomPaint(
-              painter: _DiagramPainter(_diagram!),
-              child: const SizedBox.expand(),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CustomPaint(
+                painter: _DiagramPainter(_diagram!),
+                child: const SizedBox.expand(),
+              ),
             ),
           ),
       ],

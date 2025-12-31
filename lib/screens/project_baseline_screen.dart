@@ -4,6 +4,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class ProjectBaselineScreen extends StatefulWidget {
   const ProjectBaselineScreen({super.key});
@@ -116,6 +117,14 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeader(context),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Project Baseline',
+                          noteKey: 'planning_project_baseline_notes',
+                          checkpoint: 'project_baseline',
+                          description: 'Summarize baseline assumptions, schedule/cost variances, and approvals.',
+                        ),
                         const SizedBox(height: 24),
                         _buildBaselineCards(context),
                         const SizedBox(height: 24),
