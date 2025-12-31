@@ -2519,6 +2519,181 @@ class _MobileInfrastructurePlanActions extends StatelessWidget {
   }
 }
 
+class ExecutionPlanAgileDeliveryPlanScreen extends StatelessWidget {
+  const ExecutionPlanAgileDeliveryPlanScreen({super.key});
+
+  static void open(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ExecutionPlanAgileDeliveryPlanScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = AppBreakpoints.isMobile(context);
+    final double horizontalPadding = isMobile ? 20 : 40;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFC),
+      body: SafeArea(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DraggableSidebar(
+              openWidth: AppBreakpoints.sidebarWidth(context),
+              child: const InitiationLikeSidebar(activeItemLabel: 'Execution Plan - Agile Delivery Plan'),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
+                    const SizedBox(height: 32),
+                    const _SectionIntro(title: 'Execution Plan - Agile Delivery Plan'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Agile Delivery Plan',
+                      hintText: 'Outline sprint cadence, release waves, and backlog governance.',
+                      noteKey: 'execution_agile_delivery_plan',
+                    ),
+                    const SizedBox(height: 32),
+                    const _AgileDeliveryPlanSection(),
+                    const SizedBox(height: 56),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AgileDeliveryPlanSection extends StatelessWidget {
+  const _AgileDeliveryPlanSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = AppBreakpoints.isMobile(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Agile Delivery Plan',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF111827),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: const [
+            _AgileDeliveryMetricCard(title: 'Cadence', value: '2-week sprints'),
+            _AgileDeliveryMetricCard(title: 'Release Waves', value: '4 major drops'),
+            _AgileDeliveryMetricCard(title: 'Backlog Health', value: '78% ready'),
+            _AgileDeliveryMetricCard(title: 'Sprint Goals', value: '12 mapped'),
+          ],
+        ),
+        const SizedBox(height: 28),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Delivery Guardrails',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+              ),
+              const SizedBox(height: 12),
+              const _AgileDeliveryBullet(text: 'Definition of Done enforced across all squads.'),
+              const _AgileDeliveryBullet(text: 'Release criteria reviewed in weekly governance.'),
+              const _AgileDeliveryBullet(text: 'Scope change requests prioritized in backlog grooming.'),
+              const _AgileDeliveryBullet(text: 'Velocity trends monitored to protect milestones.'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Align(
+          alignment: isMobile ? Alignment.centerLeft : Alignment.centerRight,
+          child: const _InfoBadge(),
+        ),
+      ],
+    );
+  }
+}
+
+class _AgileDeliveryMetricCard extends StatelessWidget {
+  const _AgileDeliveryMetricCard({required this.title, required this.value});
+
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AgileDeliveryBullet extends StatelessWidget {
+  const _AgileDeliveryBullet({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF10B981)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF374151), height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
   const ExecutionPlanStakeholderIdentificationScreen({super.key});
 

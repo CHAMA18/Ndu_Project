@@ -6,11 +6,16 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 class GapAnalysisScopeReconcillationScreen extends StatefulWidget {
-  const GapAnalysisScopeReconcillationScreen({super.key});
+  const GapAnalysisScopeReconcillationScreen({
+    super.key,
+    this.activeItemLabel = 'Gap Analysis And Scope Reconcillation',
+  });
 
-  static void open(BuildContext context) {
+  final String activeItemLabel;
+
+  static void open(BuildContext context, {String activeItemLabel = 'Gap Analysis And Scope Reconcillation'}) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const GapAnalysisScopeReconcillationScreen()),
+      MaterialPageRoute(builder: (_) => GapAnalysisScopeReconcillationScreen(activeItemLabel: activeItemLabel)),
     );
   }
 
@@ -35,7 +40,7 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Gap Analysis And Scope Reconcillation'),
+                  child: InitiationLikeSidebar(activeItemLabel: widget.activeItemLabel),
             ),
             Expanded(
               child: Stack(

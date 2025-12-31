@@ -745,7 +745,7 @@ class _ProjectTimelineCard extends StatelessWidget {
   final int selectedTab;
   final ValueChanged<int> onTabChanged;
 
-  static const List<String> _tabs = ['Gantt', 'List', 'Board'];
+  static const List<String> _tabs = ['Gantt Chart', 'List', 'Board'];
 
   static const List<_TimelineItem> _timelineItems = [
     _TimelineItem.milestone(
@@ -918,21 +918,9 @@ class _ProjectTimelineCard extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             child: selectedTab == 0
                 ? _TimelineGanttView(items: _timelineItems)
-                : Container(
-                    key: ValueKey<int>(selectedTab),
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(40),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: Text(
-                      '${_tabs[selectedTab]} view coming soon',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                    ),
-                  ),
+                : selectedTab == 1
+                    ? _TimelineListView(items: _timelineItems)
+                    : _TimelineBoardView(items: _timelineItems),
           ),
         ],
       ),
@@ -1047,6 +1035,317 @@ class _TimelineGanttView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TimelineListView extends StatelessWidget {
+  const _TimelineListView({required this.items});
+
+  final List<_TimelineItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('timeline_list_view'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        children: [
+          const _TimelineListHeader(),
+          const SizedBox(height: 8),
+          ...items.map((item) => _TimelineListRow(item: item)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineListHeader extends StatelessWidget {
+  const _TimelineListHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(
+          child: Text(
+            'Item',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+          ),
+        ),
+        SizedBox(
+          width: 110,
+          child: Text(
+            'Start',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+          ),
+        ),
+        SizedBox(
+          width: 100,
+          child: Text(
+            'Duration',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+          ),
+        ),
+        SizedBox(
+          width: 120,
+          child: Text(
+            'Status',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimelineListRow extends StatelessWidget {
+  const _TimelineListRow({required this.item});
+
+  final _TimelineItem item;
+
+  String _statusLabel() {
+    if (item.isMilestone) return 'Milestone';
+    if (item.progress >= 1) return 'Done';
+    if (item.progress > 0) return 'In Progress';
+    return 'Not Started';
+  }
+
+  Color _statusColor() {
+    if (item.isMilestone) return const Color(0xFF2563EB);
+    if (item.progress >= 1) return const Color(0xFF10B981);
+    if (item.progress > 0) return const Color(0xFFF59E0B);
+    return const Color(0xFF9CA3AF);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _statusLabel();
+    final color = _statusColor();
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: item.color,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                  ),
+                ),
+                if (item.isCritical)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'Critical',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 110,
+            child: Text(
+              'Week ${item.startWeek}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            ),
+          ),
+          SizedBox(
+            width: 100,
+            child: Text(
+              '${item.durationWeeks}w',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            ),
+          ),
+          SizedBox(
+            width: 120,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineBoardView extends StatelessWidget {
+  const _TimelineBoardView({required this.items});
+
+  final List<_TimelineItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final todo = items.where((item) => item.progress == 0).toList();
+    final inProgress = items.where((item) => item.progress > 0 && item.progress < 1).toList();
+    final done = items.where((item) => item.progress >= 1).toList();
+
+    return Container(
+      key: const ValueKey<String>('timeline_board_view'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _TimelineBoardColumn(title: 'To Do', items: todo, background: const Color(0xFFF5F7FE)),
+            const SizedBox(width: 16),
+            _TimelineBoardColumn(title: 'In Progress', items: inProgress, background: const Color(0xFFEAF4FF)),
+            const SizedBox(width: 16),
+            _TimelineBoardColumn(title: 'Done', items: done, background: const Color(0xFFE9F9F2)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineBoardColumn extends StatelessWidget {
+  const _TimelineBoardColumn({required this.title, required this.items, required this.background});
+
+  final String title;
+  final List<_TimelineItem> items;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 260,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  items.length.toString(),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF6B7280)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            const Text('No items', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))
+          else
+            ...items.map((item) => _TimelineBoardCard(item: item)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineBoardCard extends StatelessWidget {
+  const _TimelineBoardCard({required this.item});
+
+  final _TimelineItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                ),
+              ),
+              if (item.isCritical)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Critical',
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Start Week ${item.startWeek} • ${item.durationWeeks}w',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: item.isMilestone ? 0 : item.progress,
+            minHeight: 6,
+            color: item.color,
+            backgroundColor: const Color(0xFFE5E7EB),
+          ),
+        ],
       ),
     );
   }

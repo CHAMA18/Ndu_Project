@@ -11,6 +11,7 @@ import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
 import 'package:ndu_project/screens/cost_estimate_screen.dart';
+import 'package:ndu_project/screens/scope_tracking_plan_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_requirements_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_risks_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_opportunities_screen.dart';
@@ -27,6 +28,7 @@ import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_contracts_screen.dart';
 import 'package:ndu_project/screens/change_management_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
+import 'package:ndu_project/screens/project_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
 import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
 import 'package:ndu_project/screens/stakeholder_management_screen.dart';
@@ -37,6 +39,10 @@ import 'package:ndu_project/screens/engineering_design_screen.dart';
 import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/screens/interface_management_screen.dart';
 import 'package:ndu_project/screens/startup_planning_screen.dart';
+import 'package:ndu_project/screens/design_deliverables_screen.dart';
+import 'package:ndu_project/screens/startup_planning_subsections_screen.dart';
+import 'package:ndu_project/screens/deliverable_roadmap_subsections_screen.dart';
+import 'package:ndu_project/screens/organization_plan_subsections_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/header_banner_image.dart';
@@ -111,9 +117,17 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   static bool? _sharedDesignPhaseExpanded;
   static bool? _sharedExecutionPhaseExpanded;
   static bool? _sharedLaunchPhaseExpanded;
+  static bool? _sharedActualVsPlannedExpanded;
+  static bool? _sharedProjectCloseOutExpanded;
   static bool? _sharedExecutiveSummaryExpanded;
   static bool? _sharedProgressTrackingExpanded;
-  static bool? _sharedTeamMeetingsExpanded;
+  static bool? _sharedStartUpPlanningExpanded;
+  static bool? _sharedDeliverableRoadmapExpanded;
+  static bool? _sharedOrganizationPlanExpanded;
+  static bool? _sharedProjectPlanExpanded;
+  static bool? _sharedPunchlistExpanded;
+  static bool? _sharedCostEstimateExpanded;
+  static bool? _sharedProjectServicesExpanded;
   static double _sharedScrollOffset = 0;
 
   late bool _initiationExpanded = _sharedInitiationExpanded ?? true;
@@ -124,9 +138,17 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   late bool _designPhaseExpanded = _sharedDesignPhaseExpanded ?? false;
   late bool _executionPhaseExpanded = _sharedExecutionPhaseExpanded ?? false;
   late bool _launchPhaseExpanded = _sharedLaunchPhaseExpanded ?? false;
+  late bool _actualVsPlannedExpanded = _sharedActualVsPlannedExpanded ?? false;
+  late bool _projectCloseOutExpanded = _sharedProjectCloseOutExpanded ?? false;
   late bool _executiveSummaryExpanded = _sharedExecutiveSummaryExpanded ?? true;
   late bool _progressTrackingExpanded = _sharedProgressTrackingExpanded ?? false;
-  late bool _teamMeetingsExpanded = _sharedTeamMeetingsExpanded ?? false;
+  late bool _startUpPlanningExpanded = _sharedStartUpPlanningExpanded ?? false;
+  late bool _deliverableRoadmapExpanded = _sharedDeliverableRoadmapExpanded ?? false;
+  late bool _organizationPlanExpanded = _sharedOrganizationPlanExpanded ?? false;
+  late bool _projectPlanExpanded = _sharedProjectPlanExpanded ?? false;
+  late bool _punchlistExpanded = _sharedPunchlistExpanded ?? false;
+  late bool _costEstimateExpanded = _sharedCostEstimateExpanded ?? false;
+  late bool _projectServicesExpanded = _sharedProjectServicesExpanded ?? false;
   late final ScrollController _scrollController =
       ScrollController(initialScrollOffset: _sharedScrollOffset);
   
@@ -371,6 +393,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('execution_plan_infrastructure_plan', const ExecutionPlanInfrastructurePlanScreen());
   }
 
+  void _openExecutionPlanAgileDeliveryPlan() {
+    _navigateWithCheckpoint('execution_plan_agile_delivery_plan', const ExecutionPlanAgileDeliveryPlanScreen());
+  }
+
   void _openExecutionPlanInterfaceManagement() {
     _navigateWithCheckpoint('execution_plan_interface_management', const ExecutionPlanInterfaceManagementScreen());
   }
@@ -403,6 +429,34 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('startup_planning', const StartUpPlanningScreen());
   }
 
+  void _openStartUpPlanningOperations() {
+    _navigateWithCheckpoint(
+      'startup_planning_operations',
+      const StartUpPlanningOperationsScreen(),
+    );
+  }
+
+  void _openStartUpPlanningHypercare() {
+    _navigateWithCheckpoint(
+      'startup_planning_hypercare',
+      const StartUpPlanningHypercareScreen(),
+    );
+  }
+
+  void _openStartUpPlanningDevOps() {
+    _navigateWithCheckpoint(
+      'startup_planning_devops',
+      const StartUpPlanningDevOpsScreen(),
+    );
+  }
+
+  void _openStartUpPlanningCloseOut() {
+    _navigateWithCheckpoint(
+      'startup_planning_closeout',
+      const StartUpPlanningCloseOutPlanScreen(),
+    );
+  }
+
   void _openTeamManagement() {
     _navigateWithCheckpoint('team_management', const TeamManagementScreen());
   }
@@ -427,12 +481,28 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('cost_estimate', const CostEstimateScreen());
   }
 
+  void _openScopeTrackingPlan() {
+    _navigateWithCheckpoint('scope_tracking_plan', const ScopeTrackingPlanScreen());
+  }
+
   void _openChangeManagement() {
     _navigateWithCheckpoint('change_management', const ChangeManagementScreen());
   }
 
   void _openProjectPlan() {
     _navigateWithCheckpoint('project_plan', const ProjectPlanScreen());
+  }
+
+  void _openProjectPlanLevel1Schedule() {
+    _navigateWithCheckpoint('project_plan_level1_schedule', const ProjectPlanLevel1ScheduleScreen());
+  }
+
+  void _openProjectPlanDetailedSchedule() {
+    _navigateWithCheckpoint('project_plan_detailed_schedule', const ProjectPlanDetailedScheduleScreen());
+  }
+
+  void _openProjectPlanCondensedSummary() {
+    _navigateWithCheckpoint('project_plan_condensed_summary', const ProjectPlanCondensedSummaryScreen());
   }
 
   void _openProjectBaseline() {
@@ -461,6 +531,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   void _openTeamTraining() {
     _navigateWithCheckpoint('team_training', const TeamTrainingAndBuildingScreen());
+  }
+
+  void _openOrganizationRolesResponsibilities() {
+    _navigateWithCheckpoint('organization_roles_responsibilities', const OrganizationRolesResponsibilitiesScreen());
+  }
+
+  void _openOrganizationStaffingPlan() {
+    _navigateWithCheckpoint('organization_staffing_plan', const OrganizationStaffingPlanScreen());
   }
 
   void _openStaffTeam() {
@@ -523,6 +601,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('development_set_up', const DevelopmentSetUpScreen());
   }
 
+  void _openDesignDeliverables() {
+    _navigateWithCheckpoint('design_deliverables', const DesignDeliverablesScreen());
+  }
+
   void _openLongLeadEquipmentOrdering() {
     _navigateWithCheckpoint('long_lead_equipment_ordering', const LongLeadEquipmentOrderingScreen());
   }
@@ -547,12 +629,41 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('project_close_out', const ProjectCloseOutScreen());
   }
 
+  void _openProjectCloseOutLongForm() {
+    _navigateWithCheckpoint(
+      'project_close_out',
+      const ProjectCloseOutScreen(
+        summarized: false,
+        activeItemLabel: 'Project Close Out - Long Form',
+      ),
+    );
+  }
+
+  void _openProjectCloseOutSummarized() {
+    _navigateWithCheckpoint(
+      'project_close_out',
+      const ProjectCloseOutScreen(
+        summarized: true,
+        activeItemLabel: 'Project Close Out - Summarized Form',
+      ),
+    );
+  }
+
   void _openDemobilizeTeam() {
     _navigateWithCheckpoint('demobilize_team', const DemobilizeTeamScreen());
   }
 
   void _openActualVsPlannedGapAnalysis() {
     _navigateWithCheckpoint('actual_vs_planned_gap_analysis', const ActualVsPlannedGapAnalysisScreen());
+  }
+
+  void _openActualVsPlannedScopeReconcillation() {
+    _navigateWithCheckpoint(
+      'actual_vs_planned_gap_analysis',
+      const GapAnalysisScopeReconcillationScreen(
+        activeItemLabel: 'Actual vs Planned Gap Analysis - Scope Reconcillation',
+      ),
+    );
   }
 
   void _openCommerceViability() {
@@ -613,6 +724,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   void _openDeliverableRoadmap() {
     _navigateWithCheckpoint('deliverable_roadmap', const DeliverablesRoadmapScreen());
+  }
+
+  void _openDeliverableRoadmapAgileMapOut() {
+    _navigateWithCheckpoint('deliverable_roadmap_agile_map_out', const DeliverableRoadmapAgileMapOutScreen());
   }
 
   Future<void> _openExecutiveSummary() async {
@@ -852,6 +967,91 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     );
   }
 
+  Widget _buildSubSubExpandableHeader(String title, {required bool expanded, required VoidCallback onTap, bool isActive = false}) {
+    final primary = const Color(0xFFFFD700);
+    return Padding(
+      padding: const EdgeInsets.only(left: 72, right: 24, top: 2, bottom: 2),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: isActive ? primary.withValues(alpha: 0.08) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isActive ? primary : Colors.grey[400],
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isActive ? primary : Colors.black87,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey[600], size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubSubSubMenuItem(String title, {VoidCallback? onTap, bool isActive = false}) {
+    final primary = const Color(0xFFFFD700);
+    return Padding(
+      padding: const EdgeInsets.only(left: 92, right: 24, top: 2, bottom: 2),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? primary.withValues(alpha: 0.08) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isActive ? primary : Colors.grey[400],
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isActive ? primary : Colors.black87,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildExpandableHeader(IconData icon, String title, {required bool expanded, required VoidCallback onTap, bool isActive = false}) {
     final primary = const Color(0xFFFFD700);
     return Padding(
@@ -1071,10 +1271,62 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   _buildSubMenuItem('SSHER', onTap: _openSSHER, isActive: widget.activeItemLabel == 'SSHER'),
                   _buildSubMenuItem('Change Management', onTap: _openChangeManagement, isActive: widget.activeItemLabel == 'Change Management'),
                   _buildSubMenuItem('Issue Management', onTap: _openIssueManagement, isActive: widget.activeItemLabel == 'Issue Management'),
-                  _buildSubMenuItem('Cost Estimate', onTap: _openCostEstimate, isActive: widget.activeItemLabel == 'Cost Estimate'),
+                  _buildSubExpandableHeader(
+                    'Cost Estimate',
+                    expanded: _costEstimateExpanded,
+                    onTap: () => setState(() {
+                      _costEstimateExpanded = !_costEstimateExpanded;
+                      _sharedCostEstimateExpanded = _costEstimateExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Cost Estimate' || widget.activeItemLabel == 'Scope Tracking Plan',
+                  ),
+                  if (_costEstimateExpanded) ...[
+                    _buildSubSubMenuItem('Cost Estimate Overview', onTap: _openCostEstimate, isActive: widget.activeItemLabel == 'Cost Estimate'),
+                    _buildSubSubExpandableHeader(
+                      'Project Services',
+                      expanded: _projectServicesExpanded,
+                      onTap: () => setState(() {
+                        _projectServicesExpanded = !_projectServicesExpanded;
+                        _sharedProjectServicesExpanded = _projectServicesExpanded;
+                      }),
+                      isActive: widget.activeItemLabel == 'Scope Tracking Plan',
+                    ),
+                    if (_projectServicesExpanded) ...[
+                      _buildSubSubSubMenuItem('Scope Tracking Plan', onTap: _openScopeTrackingPlan, isActive: widget.activeItemLabel == 'Scope Tracking Plan'),
+                    ],
+                  ],
                   _buildSubMenuItem('Contract', onTap: _openContract, isActive: widget.activeItemLabel == 'Contract'),
                   _buildSubMenuItem('Procurement', onTap: _openProcurement, isActive: widget.activeItemLabel == 'Procurement'),
-                  _buildSubMenuItem('Project Plan', onTap: _openProjectPlan, isActive: widget.activeItemLabel == 'Project Plan'),
+                  _buildSubExpandableHeader(
+                    'Project Plan',
+                    expanded: _projectPlanExpanded,
+                    onTap: () => setState(() {
+                      _projectPlanExpanded = !_projectPlanExpanded;
+                      _sharedProjectPlanExpanded = _projectPlanExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Project Plan' ||
+                        widget.activeItemLabel == 'Project Plan - Level 1 - Project Schedule' ||
+                        widget.activeItemLabel == 'Project Plan - Detailed Project Schedule' ||
+                        widget.activeItemLabel == 'Project Plan - Condensed Project Summary',
+                  ),
+                  if (_projectPlanExpanded) ...[
+                    _buildSubSubMenuItem('Project Plan Overview', onTap: _openProjectPlan, isActive: widget.activeItemLabel == 'Project Plan'),
+                    _buildSubSubMenuItem(
+                      'Level 1 - Project Schedule',
+                      onTap: _openProjectPlanLevel1Schedule,
+                      isActive: widget.activeItemLabel == 'Project Plan - Level 1 - Project Schedule',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Detailed Project Schedule',
+                      onTap: _openProjectPlanDetailedSchedule,
+                      isActive: widget.activeItemLabel == 'Project Plan - Detailed Project Schedule',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Condensed Project Summary',
+                      onTap: _openProjectPlanCondensedSummary,
+                      isActive: widget.activeItemLabel == 'Project Plan - Condensed Project Summary',
+                    ),
+                  ],
                   _buildSubExpandableHeader(
                     'Execution Plan',
                     expanded: _executionPlanExpanded,
@@ -1082,38 +1334,91 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                       _executionPlanExpanded = !_executionPlanExpanded;
                       _sharedExecutionPlanExpanded = _executionPlanExpanded;
                     }),
-                    isActive: widget.activeItemLabel == 'Execution Plan',
+                    isActive: widget.activeItemLabel == 'Execution Plan' ||
+                        widget.activeItemLabel == 'Execution Plan - Construction Plan' ||
+                        widget.activeItemLabel == 'Execution Plan - Infrastructure Plan' ||
+                        widget.activeItemLabel == 'Execution Plan - Agile Delivery Plan',
                   ),
                   if (_executionPlanExpanded) ...[
-                    _buildSubSubMenuItem('Executive Plan Outline', onTap: _openExecutionPlan, isActive: widget.activeItemLabel == 'Executive Plan Outline'),
-                    _buildSubSubMenuItem('Executive Plan Strategy', onTap: _openExecutionPlanStrategy, isActive: widget.activeItemLabel == 'Executive Plan Strategy'),
-                    _buildSubSubMenuItem('Execution Plan Details', onTap: _openExecutionPlanDetails, isActive: widget.activeItemLabel == 'Execution Plan Details'),
-                    _buildSubSubMenuItem('Execution Early Works', onTap: _openExecutionEarlyWorks, isActive: widget.activeItemLabel == 'Execution Early Works'),
-                    _buildSubSubMenuItem('Execution Enabling Work Plan', onTap: _openExecutionEnablingWorkPlan, isActive: widget.activeItemLabel == 'Execution Enabling Work Plan'),
-                    _buildSubSubMenuItem('Execution Issue Management', onTap: _openExecutionIssueManagement, isActive: widget.activeItemLabel == 'Execution Issue Management'),
-                    _buildSubSubMenuItem('Execution Plan - Lesson Learned', onTap: _openExecutionPlanLessonsLearned, isActive: widget.activeItemLabel == 'Execution Plan - Lesson Learned'),
-                    _buildSubSubMenuItem('Execution Plan - Best Practices', onTap: _openExecutionPlanBestPractices, isActive: widget.activeItemLabel == 'Execution Plan - Best Practices'),
-                    _buildSubSubMenuItem('Execution Plan - Construction Plan', onTap: _openExecutionPlanConstructionPlan, isActive: widget.activeItemLabel == 'Execution Plan - Construction Plan'),
-                    _buildSubSubMenuItem('Execution Plan - Infrastructure Plan', onTap: _openExecutionPlanInfrastructurePlan, isActive: widget.activeItemLabel == 'Execution Plan - Infrastructure Plan'),
-                    _buildSubSubMenuItem('Execution Plan - Stakeholder Identification', onTap: _openExecutionPlanStakeholderIdentification, isActive: widget.activeItemLabel == 'Execution Plan - Stakeholder Identification'),
-                    _buildSubSubMenuItem('Execution Plan - Interface Management', onTap: _openExecutionPlanInterfaceManagement, isActive: widget.activeItemLabel == 'Execution Plan - Interface Management'),
-                    _buildSubSubMenuItem('Execution Plan - Communication Plan', onTap: _openExecutionPlanCommunicationPlan, isActive: widget.activeItemLabel == 'Execution Plan - Communication Plan'),
-                    _buildSubSubMenuItem('Execution Plan - Interface Management Plan', onTap: _openExecutionPlanInterfaceManagementPlan, isActive: widget.activeItemLabel == 'Execution Plan - Interface Management Plan'),
-                    _buildSubSubMenuItem('Execution Plan - Interface Management Overview', onTap: _openExecutionPlanInterfaceManagementOverview, isActive: widget.activeItemLabel == 'Execution Plan - Interface Management Overview'),
+                    _buildSubSubMenuItem('Construction Plan', onTap: _openExecutionPlanConstructionPlan, isActive: widget.activeItemLabel == 'Execution Plan - Construction Plan'),
+                    _buildSubSubMenuItem('Infrastructure Plan', onTap: _openExecutionPlanInfrastructurePlan, isActive: widget.activeItemLabel == 'Execution Plan - Infrastructure Plan'),
+                    _buildSubSubMenuItem('Agile Delivery Plan', onTap: _openExecutionPlanAgileDeliveryPlan, isActive: widget.activeItemLabel == 'Execution Plan - Agile Delivery Plan'),
                   ],
                   _buildSubMenuItem('Schedule', onTap: _openSchedule, isActive: widget.activeItemLabel == 'Schedule'),
                   _buildSubMenuItem('Design', onTap: _openDesign, isActive: widget.activeItemLabel == 'Design'),
                   _buildSubMenuItem('Technology', onTap: _openTechnology, isActive: widget.activeItemLabel == 'Technology'),
                   _buildSubMenuItem('Interface Management', onTap: _openInterfaceManagement, isActive: widget.activeItemLabel == 'Interface Management'),
-                  _buildSubMenuItem('Start-Up Planning', onTap: _openStartUpPlanning, isActive: widget.activeItemLabel == 'Start-Up Planning'),
-                  _buildSubMenuItem('Deliverable Roadmap', onTap: _openDeliverableRoadmap, isActive: widget.activeItemLabel == 'Deliverable Roadmap'),
+                  _buildSubExpandableHeader(
+                    'Start-Up Planning',
+                    expanded: _startUpPlanningExpanded,
+                    onTap: () => setState(() {
+                      _startUpPlanningExpanded = !_startUpPlanningExpanded;
+                      _sharedStartUpPlanningExpanded = _startUpPlanningExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Start-Up Planning' ||
+                        widget.activeItemLabel == 'Start-Up Planning - Operations Plan and Manual' ||
+                        widget.activeItemLabel == 'Start-Up Planning - Hypercare Plan' ||
+                        widget.activeItemLabel == 'Start-Up Planning - DevOps' ||
+                        widget.activeItemLabel == 'Start-Up Planning - Close Out Plan',
+                  ),
+                  if (_startUpPlanningExpanded) ...[
+                    _buildSubSubMenuItem(
+                      'Operations Plan and Manual',
+                      onTap: _openStartUpPlanningOperations,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - Operations Plan and Manual',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Hypercare Plan',
+                      onTap: _openStartUpPlanningHypercare,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - Hypercare Plan',
+                    ),
+                    _buildSubSubMenuItem(
+                      'DevOps',
+                      onTap: _openStartUpPlanningDevOps,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - DevOps',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Close Out Plan',
+                      onTap: _openStartUpPlanningCloseOut,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - Close Out Plan',
+                    ),
+                  ],
+                  _buildSubExpandableHeader(
+                    'Deliverable Roadmap',
+                    expanded: _deliverableRoadmapExpanded,
+                    onTap: () => setState(() {
+                      _deliverableRoadmapExpanded = !_deliverableRoadmapExpanded;
+                      _sharedDeliverableRoadmapExpanded = _deliverableRoadmapExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Deliverable Roadmap' || widget.activeItemLabel == 'Deliverable Roadmap - Agile Map Out',
+                  ),
+                  if (_deliverableRoadmapExpanded) ...[
+                    _buildSubSubMenuItem('Roadmap Overview', onTap: _openDeliverableRoadmap, isActive: widget.activeItemLabel == 'Deliverable Roadmap'),
+                    _buildSubSubMenuItem('Agile Map Out', onTap: _openDeliverableRoadmapAgileMapOut, isActive: widget.activeItemLabel == 'Deliverable Roadmap - Agile Map Out'),
+                  ],
                   _buildSubMenuItem('Agile Project Baseline', onTap: _openAgileProjectBaseline, isActive: widget.activeItemLabel == 'Agile Project Baseline'),
                   _buildSubMenuItem('Project Baseline', onTap: _openProjectBaseline, isActive: widget.activeItemLabel == 'Project Baseline'),
-                  _buildSubMenuItem('Organization Plan', isActive: widget.activeItemLabel == 'Organization Plan'),
-                  _buildSubSubMenuItem('Team Training and Team Building', onTap: _openTeamTraining, isActive: widget.activeItemLabel == 'Team Training and Team Building'),
+                  _buildSubExpandableHeader(
+                    'Organization Plan',
+                    expanded: _organizationPlanExpanded,
+                    onTap: () => setState(() {
+                      _organizationPlanExpanded = !_organizationPlanExpanded;
+                      _sharedOrganizationPlanExpanded = _organizationPlanExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Organization Plan' ||
+                        widget.activeItemLabel == 'Organization Plan - Roles & Responsibilities' ||
+                        widget.activeItemLabel == 'Organization Plan - Staffing Plan' ||
+                        widget.activeItemLabel == 'Team Training and Team Building' ||
+                        widget.activeItemLabel == 'Stakeholder Management',
+                  ),
+                  if (_organizationPlanExpanded) ...[
+                    _buildSubSubMenuItem('Roles & Responsibilities', onTap: _openOrganizationRolesResponsibilities, isActive: widget.activeItemLabel == 'Organization Plan - Roles & Responsibilities'),
+                    _buildSubSubMenuItem('Staffing Plan', onTap: _openOrganizationStaffingPlan, isActive: widget.activeItemLabel == 'Organization Plan - Staffing Plan'),
+                    _buildSubSubMenuItem('Training & Team Building', onTap: _openTeamTraining, isActive: widget.activeItemLabel == 'Team Training and Team Building'),
+                    _buildSubSubMenuItem('Stakeholder Management', onTap: _openStakeholderManagement, isActive: widget.activeItemLabel == 'Stakeholder Management'),
+                  ],
                   _buildSubMenuItem('Lessons Learned', onTap: _openLessonsLearned, isActive: widget.activeItemLabel == 'Lessons Learned'),
                   _buildSubMenuItem('Team Management', onTap: _openTeamManagement, isActive: widget.activeItemLabel == 'Team Management'),
-                  _buildSubMenuItem('Stakeholder Management', onTap: _openStakeholderManagement, isActive: widget.activeItemLabel == 'Stakeholder Management'),
                   _buildSubMenuItem('Risk Assessment', onTap: _openRiskAssessment, isActive: widget.activeItemLabel == 'Risk Assessment'),
                   _buildSubMenuItem('Security Management', onTap: _openSecurityManagement, isActive: widget.activeItemLabel == 'Security Management'),
                   _buildSubMenuItem('Quality Management', onTap: _openQualityManagement, isActive: widget.activeItemLabel == 'Quality Management'),
@@ -1140,7 +1445,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   _buildSubMenuItem('Tools Integration', onTap: _openToolsIntegration, isActive: widget.activeItemLabel == 'Tools Integration'),
                   _buildSubMenuItem('Long Lead Equipment Ordering', onTap: _openLongLeadEquipmentOrdering, isActive: widget.activeItemLabel == 'Long Lead Equipment Ordering'),
                   _buildSubMenuItem('Specialized Design', onTap: _openSpecializedDesign, isActive: widget.activeItemLabel == 'Specialized Design'),
-                  _buildSubMenuItem('Design Deliverables', isActive: widget.activeItemLabel == 'Design Deliverables'),
+                  _buildSubMenuItem('Design Deliverables', onTap: _openDesignDeliverables, isActive: widget.activeItemLabel == 'Design Deliverables'),
                 ],
                 _buildExpandableHeader(
                   Icons.play_circle_outline,
@@ -1154,22 +1459,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                 ),
                 if (_executionPhaseExpanded) ...[
                   _buildSubMenuItem('Staff Team', onTap: _openStaffTeam, isActive: widget.activeItemLabel == 'Staff Team'),
-                  _buildSubExpandableHeader(
-                    'Team Meetings',
-                    expanded: _teamMeetingsExpanded,
-                    onTap: () => setState(() {
-                      _teamMeetingsExpanded = !_teamMeetingsExpanded;
-                      _sharedTeamMeetingsExpanded = _teamMeetingsExpanded;
-                    }),
-                    isActive: widget.activeItemLabel == 'Team Meetings' || widget.activeItemLabel == 'Calendar & Schedule' || widget.activeItemLabel == 'Meeting Details & Agenda' || widget.activeItemLabel == 'Active Meeting Workspace' || widget.activeItemLabel == 'Action Items Tracker' || widget.activeItemLabel == 'Decisions & Outcomes',
-                  ),
-                  if (_teamMeetingsExpanded) ...[
-                    _buildSubSubMenuItem('Calendar & Schedule', onTap: _openTeamMeetings, isActive: widget.activeItemLabel == 'Calendar & Schedule'),
-                    _buildSubSubMenuItem('Meeting Details & Agenda', onTap: _openTeamMeetings, isActive: widget.activeItemLabel == 'Meeting Details & Agenda'),
-                    _buildSubSubMenuItem('Active Meeting Workspace', onTap: _openTeamMeetings, isActive: widget.activeItemLabel == 'Active Meeting Workspace'),
-                    _buildSubSubMenuItem('Action Items Tracker', onTap: _openTeamMeetings, isActive: widget.activeItemLabel == 'Action Items Tracker'),
-                    _buildSubSubMenuItem('Decisions & Outcomes', onTap: _openTeamMeetings, isActive: widget.activeItemLabel == 'Decisions & Outcomes'),
-                  ],
+                  _buildSubMenuItem('Team Meetings', onTap: _openTeamMeetings, isActive: widget.activeItemLabel == 'Team Meetings'),
                   _buildSubExpandableHeader(
                     'Progress Tracking',
                     expanded: _progressTrackingExpanded,
@@ -1190,12 +1480,23 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   _buildSubMenuItem('Scope Tracking Implementation', onTap: _openScopeTrackingImplementation, isActive: widget.activeItemLabel == 'Scope Tracking Implementation'),
                   _buildSubMenuItem('Stakeholder Alignment', onTap: _openStakeholderAlignment, isActive: widget.activeItemLabel == 'Stakeholder Alignment'),
                   _buildSubMenuItem('Update Ops and Maintenance Plans', onTap: _openUpdateOpsMaintenancePlans, isActive: widget.activeItemLabel == 'Update Ops and Maintenance Plans'),
-                  _buildSubMenuItem('Technical Debt Management', onTap: _openTechnicalDebtManagement, isActive: widget.activeItemLabel == 'Technical Debt Management'),
                   _buildSubMenuItem('Start-up or Launch Checklist', onTap: _openLaunchChecklist, isActive: widget.activeItemLabel == 'Start-up or Launch Checklist'),
                   _buildSubMenuItem('Risk Tracking', onTap: _openRiskTracking, isActive: widget.activeItemLabel == 'Risk Tracking'),
                   _buildSubMenuItem('Scope Completion', onTap: _openScopeCompletion, isActive: widget.activeItemLabel == 'Scope Completion'),
                   _buildSubMenuItem('Gap Analysis and Scope Reconciliation', onTap: _openGapAnalysisAndScopeReconcillation, isActive: widget.activeItemLabel == 'Gap Analysis and Scope Reconciliation'),
-                  _buildSubMenuItem('Punchlist Actions', onTap: _openPunchlistActions, isActive: widget.activeItemLabel == 'Punchlist Actions'),
+                  _buildSubExpandableHeader(
+                    'Punchlist Actions',
+                    expanded: _punchlistExpanded,
+                    onTap: () => setState(() {
+                      _punchlistExpanded = !_punchlistExpanded;
+                      _sharedPunchlistExpanded = _punchlistExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Punchlist Actions' || widget.activeItemLabel == 'Technical Debt Management',
+                  ),
+                  if (_punchlistExpanded) ...[
+                    _buildSubSubMenuItem('Punchlist Overview', onTap: _openPunchlistActions, isActive: widget.activeItemLabel == 'Punchlist Actions'),
+                    _buildSubSubMenuItem('Tech Debt Management', onTap: _openTechnicalDebtManagement, isActive: widget.activeItemLabel == 'Technical Debt Management'),
+                  ],
                   _buildSubMenuItem('Identify and Staff Ops Team', onTap: _openIdentifyStaffOpsTeam, isActive: widget.activeItemLabel == 'Identify and Staff Ops Team'),
                   _buildSubMenuItem('Salvage and/or Disposal Plan', onTap: _openSalvageDisposalTeam, isActive: widget.activeItemLabel == 'Salvage and/or Disposal Plan'),
                   _buildSubMenuItem('Finalize Project', isActive: widget.activeItemLabel == 'Finalize Project'),
@@ -1217,9 +1518,52 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   _buildSubMenuItem('Vendor Account Close Out', onTap: _openVendorAccountCloseOut, isActive: widget.activeItemLabel == 'Vendor Account Close Out'),
                   _buildSubMenuItem('Summarize Account Of All Section Including Risks', onTap: _openSummarizeAccountRisks, isActive: widget.activeItemLabel == 'Summarize Account Of All Section Including Risks'),
                   _buildSubMenuItem('Commerce Warranty', onTap: _openCommerceViability, isActive: widget.activeItemLabel == 'Commerce Warranty'),
-                  _buildSubMenuItem('Actual vs Planned Gap Analysis', onTap: _openActualVsPlannedGapAnalysis, isActive: widget.activeItemLabel == 'Actual vs Planned Gap Analysis'),
+                  _buildSubExpandableHeader(
+                    'Actual vs Planned Gap Analysis',
+                    expanded: _actualVsPlannedExpanded,
+                    onTap: () => setState(() {
+                      _actualVsPlannedExpanded = !_actualVsPlannedExpanded;
+                      _sharedActualVsPlannedExpanded = _actualVsPlannedExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Actual vs Planned Gap Analysis' ||
+                        widget.activeItemLabel == 'Actual vs Planned Gap Analysis - Scope Reconcillation',
+                  ),
+                  if (_actualVsPlannedExpanded) ...[
+                    _buildSubSubMenuItem(
+                      'Gap Analysis',
+                      onTap: _openActualVsPlannedGapAnalysis,
+                      isActive: widget.activeItemLabel == 'Actual vs Planned Gap Analysis',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Scope Reconcillation',
+                      onTap: _openActualVsPlannedScopeReconcillation,
+                      isActive: widget.activeItemLabel == 'Actual vs Planned Gap Analysis - Scope Reconcillation',
+                    ),
+                  ],
                   _buildSubMenuItem('Demobilize Team', onTap: _openDemobilizeTeam, isActive: widget.activeItemLabel == 'Demobilize Team'),
-                  _buildSubMenuItem('Project Close Out', onTap: _openProjectCloseOut, isActive: widget.activeItemLabel == 'Project Close Out'),
+                  _buildSubExpandableHeader(
+                    'Project Close Out',
+                    expanded: _projectCloseOutExpanded,
+                    onTap: () => setState(() {
+                      _projectCloseOutExpanded = !_projectCloseOutExpanded;
+                      _sharedProjectCloseOutExpanded = _projectCloseOutExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Project Close Out' ||
+                        widget.activeItemLabel == 'Project Close Out - Long Form' ||
+                        widget.activeItemLabel == 'Project Close Out - Summarized Form',
+                  ),
+                  if (_projectCloseOutExpanded) ...[
+                    _buildSubSubMenuItem(
+                      'Long Form',
+                      onTap: _openProjectCloseOutLongForm,
+                      isActive: widget.activeItemLabel == 'Project Close Out - Long Form',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Summarized Form',
+                      onTap: _openProjectCloseOutSummarized,
+                      isActive: widget.activeItemLabel == 'Project Close Out - Summarized Form',
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 20),
                 _buildMenuItem(Icons.settings_outlined, 'Settings', onTap: () => SettingsScreen.open(context), isActive: widget.activeItemLabel == 'Settings'),
@@ -1307,8 +1651,20 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('cost estimate'.contains(query)) {
       results.add(_buildMenuItem(Icons.attach_money_outlined, 'Cost Estimate', onTap: _openCostEstimate, isActive: widget.activeItemLabel == 'Cost Estimate'));
     }
+    if ('project services'.contains(query) || 'scope tracking plan'.contains(query) || 'scope tracking'.contains(query)) {
+      results.add(_buildMenuItem(Icons.track_changes_outlined, 'Scope Tracking Plan', onTap: _openScopeTrackingPlan, isActive: widget.activeItemLabel == 'Scope Tracking Plan'));
+    }
     if ('project plan'.contains(query)) {
       results.add(_buildMenuItem(Icons.assignment_outlined, 'Project Plan', onTap: _openProjectPlan, isActive: widget.activeItemLabel == 'Project Plan'));
+    }
+    if ('level 1 project schedule'.contains(query) || 'level 1 - project schedule'.contains(query) || 'level 1 schedule'.contains(query)) {
+      results.add(_buildMenuItem(Icons.timeline_outlined, 'Level 1 - Project Schedule', onTap: _openProjectPlanLevel1Schedule, isActive: widget.activeItemLabel == 'Project Plan - Level 1 - Project Schedule'));
+    }
+    if ('detailed project schedule'.contains(query) || 'detailed schedule'.contains(query)) {
+      results.add(_buildMenuItem(Icons.event_note_outlined, 'Detailed Project Schedule', onTap: _openProjectPlanDetailedSchedule, isActive: widget.activeItemLabel == 'Project Plan - Detailed Project Schedule'));
+    }
+    if ('condensed project summary'.contains(query) || 'condensed summary'.contains(query) || 'project summary'.contains(query)) {
+      results.add(_buildMenuItem(Icons.summarize_outlined, 'Condensed Project Summary', onTap: _openProjectPlanCondensedSummary, isActive: widget.activeItemLabel == 'Project Plan - Condensed Project Summary'));
     }
     if ('agile project baseline'.contains(query)) {
       results.add(_buildMenuItem(Icons.grid_view_outlined, 'Agile Project Baseline', onTap: _openAgileProjectBaseline, isActive: widget.activeItemLabel == 'Agile Project Baseline'));
@@ -1316,8 +1672,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('project baseline'.contains(query) || 'baseline'.contains(query)) {
       results.add(_buildMenuItem(Icons.flag_circle_outlined, 'Project Baseline', onTap: _openProjectBaseline, isActive: widget.activeItemLabel == 'Project Baseline'));
     }
-    if ('execution plan'.contains(query)) {
-      results.add(_buildMenuItem(Icons.play_arrow_outlined, 'Executive Plan Outline', onTap: _openExecutionPlan, isActive: widget.activeItemLabel == 'Executive Plan Outline'));
+    if ('execution plan'.contains(query) || 'construction plan'.contains(query)) {
+      results.add(_buildMenuItem(Icons.home_repair_service_outlined, 'Construction Plan', onTap: _openExecutionPlanConstructionPlan, isActive: widget.activeItemLabel == 'Execution Plan - Construction Plan'));
+    }
+    if ('execution plan'.contains(query) || 'infrastructure plan'.contains(query)) {
+      results.add(_buildMenuItem(Icons.domain_outlined, 'Infrastructure Plan', onTap: _openExecutionPlanInfrastructurePlan, isActive: widget.activeItemLabel == 'Execution Plan - Infrastructure Plan'));
+    }
+    if ('execution plan'.contains(query) || 'agile delivery plan'.contains(query) || 'agile delivery'.contains(query)) {
+      results.add(_buildMenuItem(Icons.route_outlined, 'Agile Delivery Plan', onTap: _openExecutionPlanAgileDeliveryPlan, isActive: widget.activeItemLabel == 'Execution Plan - Agile Delivery Plan'));
     }
     if ('schedule'.contains(query)) {
       results.add(_buildMenuItem(Icons.calendar_today_outlined, 'Schedule', onTap: _openSchedule, isActive: widget.activeItemLabel == 'Schedule'));
@@ -1334,8 +1696,26 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('start-up planning'.contains(query) || 'startup planning'.contains(query) || 'start up planning'.contains(query)) {
       results.add(_buildMenuItem(Icons.rocket_launch_outlined, 'Start-Up Planning', onTap: _openStartUpPlanning, isActive: widget.activeItemLabel == 'Start-Up Planning'));
     }
+    if ('operations plan'.contains(query) || 'manual'.contains(query)) {
+      results.add(_buildMenuItem(Icons.menu_book_outlined, 'Operations Plan and Manual', onTap: _openStartUpPlanningOperations, isActive: widget.activeItemLabel == 'Start-Up Planning - Operations Plan and Manual'));
+    }
+    if ('hypercare'.contains(query)) {
+      results.add(_buildMenuItem(Icons.health_and_safety_outlined, 'Hypercare Plan', onTap: _openStartUpPlanningHypercare, isActive: widget.activeItemLabel == 'Start-Up Planning - Hypercare Plan'));
+    }
+    if ('devops'.contains(query) || 'ci/cd'.contains(query) || 'pipeline'.contains(query)) {
+      results.add(_buildMenuItem(Icons.settings_suggest_outlined, 'DevOps', onTap: _openStartUpPlanningDevOps, isActive: widget.activeItemLabel == 'Start-Up Planning - DevOps'));
+    }
+    if ('close out plan'.contains(query) || 'closeout plan'.contains(query)) {
+      results.add(_buildMenuItem(Icons.fact_check_outlined, 'Close Out Plan', onTap: _openStartUpPlanningCloseOut, isActive: widget.activeItemLabel == 'Start-Up Planning - Close Out Plan'));
+    }
     if ('team training'.contains(query) || 'team building'.contains(query)) {
       results.add(_buildMenuItem(Icons.school_outlined, 'Team Training and Team Building', onTap: _openTeamTraining, isActive: widget.activeItemLabel == 'Team Training and Team Building'));
+    }
+    if ('roles and responsibilities'.contains(query) || 'roles & responsibilities'.contains(query) || 'roles responsibilities'.contains(query)) {
+      results.add(_buildMenuItem(Icons.assignment_ind_outlined, 'Roles & Responsibilities', onTap: _openOrganizationRolesResponsibilities, isActive: widget.activeItemLabel == 'Organization Plan - Roles & Responsibilities'));
+    }
+    if ('staffing plan'.contains(query) || 'staffing'.contains(query) || 'resource plan'.contains(query)) {
+      results.add(_buildMenuItem(Icons.badge_outlined, 'Staffing Plan', onTap: _openOrganizationStaffingPlan, isActive: widget.activeItemLabel == 'Organization Plan - Staffing Plan'));
     }
     if ('lessons learned'.contains(query)) {
       results.add(_buildMenuItem(Icons.history_edu_outlined, 'Lessons Learned', onTap: _openLessonsLearned, isActive: widget.activeItemLabel == 'Lessons Learned'));
@@ -1357,6 +1737,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     }
     if ('design management'.contains(query)) {
       results.add(_buildMenuItem(Icons.design_services_outlined, 'Design Management', onTap: _openDesignManagement, isActive: widget.activeItemLabel == 'Design Management'));
+    }
+    if ('design deliverables'.contains(query) || 'deliverables'.contains(query)) {
+      results.add(_buildMenuItem(Icons.inventory_2_outlined, 'Design Deliverables', onTap: _openDesignDeliverables, isActive: widget.activeItemLabel == 'Design Deliverables'));
     }
     if ('requirements implementation'.contains(query) || 'requirements'.contains(query) || 'implementation'.contains(query)) {
       results.add(_buildMenuItem(Icons.checklist_rtl_outlined, 'Requirements Implementation', onTap: _openRequirementsImplementation, isActive: widget.activeItemLabel == 'Requirements Implementation'));
@@ -1421,6 +1804,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('deliverable roadmap'.contains(query) || 'deliverables'.contains(query) || 'roadmap'.contains(query)) {
       results.add(_buildMenuItem(Icons.map_outlined, 'Deliverable Roadmap', onTap: _openDeliverableRoadmap, isActive: widget.activeItemLabel == 'Deliverable Roadmap'));
     }
+    if ('agile map out'.contains(query) || 'agile map'.contains(query) || 'map out'.contains(query)) {
+      results.add(_buildMenuItem(Icons.timeline_outlined, 'Agile Map Out', onTap: _openDeliverableRoadmapAgileMapOut, isActive: widget.activeItemLabel == 'Deliverable Roadmap - Agile Map Out'));
+    }
     if ('tools integration'.contains(query) || 'integration'.contains(query) || 'figma'.contains(query) || 'miro'.contains(query)) {
       results.add(_buildMenuItem(Icons.extension_outlined, 'Tools Integration', onTap: _openToolsIntegration, isActive: widget.activeItemLabel == 'Tools Integration'));
     }
@@ -1439,14 +1825,23 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('transition'.contains(query) || 'production team'.contains(query) || 'prod team'.contains(query) || 'handover'.contains(query)) {
       results.add(_buildMenuItem(Icons.swap_horiz_outlined, 'Transition To Production Team', onTap: _openTransitionToProdTeam, isActive: widget.activeItemLabel == 'Transition To Production Team'));
     }
-    if ('project close out'.contains(query) || 'project closure'.contains(query) || 'close out'.contains(query) || 'closeout'.contains(query)) {
-      results.add(_buildMenuItem(Icons.task_alt_outlined, 'Project Close Out', onTap: _openProjectCloseOut, isActive: widget.activeItemLabel == 'Project Close Out'));
+    if ('project close out'.contains(query) || 'project closure'.contains(query) || 'closeout'.contains(query)) {
+      results.add(_buildMenuItem(Icons.task_alt_outlined, 'Project Close Out - Long Form', onTap: _openProjectCloseOutLongForm, isActive: widget.activeItemLabel == 'Project Close Out - Long Form'));
+    }
+    if ('close out long form'.contains(query) || 'long form'.contains(query)) {
+      results.add(_buildMenuItem(Icons.task_alt_outlined, 'Project Close Out - Long Form', onTap: _openProjectCloseOutLongForm, isActive: widget.activeItemLabel == 'Project Close Out - Long Form'));
+    }
+    if ('close out summarized form'.contains(query) || 'summarized form'.contains(query) || 'summary form'.contains(query) || 'close out summary'.contains(query)) {
+      results.add(_buildMenuItem(Icons.task_alt_outlined, 'Project Close Out - Summarized Form', onTap: _openProjectCloseOutSummarized, isActive: widget.activeItemLabel == 'Project Close Out - Summarized Form'));
     }
     if ('demobilize team'.contains(query) || 'demobilize'.contains(query) || 'team ramp down'.contains(query) || 'wind down'.contains(query)) {
       results.add(_buildMenuItem(Icons.groups_outlined, 'Demobilize Team', onTap: _openDemobilizeTeam, isActive: widget.activeItemLabel == 'Demobilize Team'));
     }
     if ('actual vs planned'.contains(query) || 'gap analysis'.contains(query)) {
       results.add(_buildMenuItem(Icons.compare_arrows_outlined, 'Actual vs Planned Gap Analysis', onTap: _openActualVsPlannedGapAnalysis, isActive: widget.activeItemLabel == 'Actual vs Planned Gap Analysis'));
+    }
+    if ('scope reconcillation'.contains(query) || 'scope reconciliation'.contains(query)) {
+      results.add(_buildMenuItem(Icons.compare_arrows_outlined, 'Scope Reconcillation', onTap: _openActualVsPlannedScopeReconcillation, isActive: widget.activeItemLabel == 'Actual vs Planned Gap Analysis - Scope Reconcillation'));
     }
     if ('commerce warranty'.contains(query) || 'commerce viability'.contains(query) || 'commercial'.contains(query) || 'viability'.contains(query)) {
       results.add(_buildMenuItem(Icons.monetization_on_outlined, 'Commerce Warranty', onTap: _openCommerceViability, isActive: widget.activeItemLabel == 'Commerce Warranty'));
