@@ -6,11 +6,27 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 class ProjectCloseOutScreen extends StatefulWidget {
-  const ProjectCloseOutScreen({super.key});
+  const ProjectCloseOutScreen({
+    super.key,
+    this.summarized = false,
+    this.activeItemLabel = 'Project Close Out',
+  });
 
-  static void open(BuildContext context) {
+  final bool summarized;
+  final String activeItemLabel;
+
+  static void open(
+    BuildContext context, {
+    bool summarized = false,
+    String activeItemLabel = 'Project Close Out',
+  }) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProjectCloseOutScreen()),
+      MaterialPageRoute(
+        builder: (_) => ProjectCloseOutScreen(
+          summarized: summarized,
+          activeItemLabel: activeItemLabel,
+        ),
+      ),
     );
   }
 
@@ -22,6 +38,13 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
   final List<LaunchEntry> _closeOutChecklist = [];
   final List<LaunchEntry> _approvals = [];
   final List<LaunchEntry> _archive = [];
+  late _CloseOutView _selectedView;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedView = widget.summarized ? _CloseOutView.summarized : _CloseOutView.longForm;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +52,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
     final double horizontalPadding = isMobile ? 16 : 32;
 
     return ResponsiveScaffold(
-      activeItemLabel: 'Project Close Out',
+      activeItemLabel: widget.activeItemLabel,
       backgroundColor: const Color(0xFFF5F7FB),
       floatingActionButton: const KazAiChatBubble(),
       body: SingleChildScrollView(
@@ -39,28 +62,39 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
           children: [
             _buildPageHeader(context, isMobile),
             const SizedBox(height: 20),
-            LaunchEditableSection(
-              title: 'Close-out checklist',
-              description: 'Add the tasks you need to finish before the project is closed.',
-              entries: _closeOutChecklist,
-              onAdd: () => _addEntry(_closeOutChecklist, titleLabel: 'Checklist item', includeStatus: true),
-              onRemove: (index) => setState(() => _closeOutChecklist.removeAt(index)),
-            ),
-            LaunchEditableSection(
-              title: 'Approvals & sign-off',
-              description: 'Capture approvers, their roles, and confirmation status.',
-              entries: _approvals,
-              onAdd: () => _addEntry(_approvals, titleLabel: 'Approver', includeStatus: true),
-              onRemove: (index) => setState(() => _approvals.removeAt(index)),
-            ),
-            LaunchEditableSection(
-              title: 'Archive & access',
-              description: 'List the repositories, documents, and access changes required.',
-              entries: _archive,
-              onAdd: () => _addEntry(_archive, titleLabel: 'Archive item'),
-              onRemove: (index) => setState(() => _archive.removeAt(index)),
-              showStatusChip: false,
-            ),
+            if (_selectedView == _CloseOutView.longForm) ...[
+              LaunchEditableSection(
+                title: 'Close-out checklist',
+                description: 'Add the tasks you need to finish before the project is closed.',
+                entries: _closeOutChecklist,
+                onAdd: () => _addEntry(_closeOutChecklist, titleLabel: 'Checklist item', includeStatus: true),
+                onRemove: (index) => setState(() => _closeOutChecklist.removeAt(index)),
+              ),
+              LaunchEditableSection(
+                title: 'Approvals & sign-off',
+                description: 'Capture approvers, their roles, and confirmation status.',
+                entries: _approvals,
+                onAdd: () => _addEntry(_approvals, titleLabel: 'Approver', includeStatus: true),
+                onRemove: (index) => setState(() => _approvals.removeAt(index)),
+              ),
+              LaunchEditableSection(
+                title: 'Archive & access',
+                description: 'List the repositories, documents, and access changes required.',
+                entries: _archive,
+                onAdd: () => _addEntry(_archive, titleLabel: 'Archive item'),
+                onRemove: (index) => setState(() => _archive.removeAt(index)),
+                showStatusChip: false,
+              ),
+            ] else ...[
+              _CloseOutSummary(
+                checklistCount: _closeOutChecklist.length,
+                approvalCount: _approvals.length,
+                archiveCount: _archive.length,
+                approvals: _approvals,
+                checklist: _closeOutChecklist,
+                archive: _archive,
+              ),
+            ],
             const SizedBox(height: 48),
           ],
         ),
@@ -117,5 +151,230 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
     if (entry != null && mounted) {
       setState(() => targetList.add(entry));
     }
+  }
+}
+
+enum _CloseOutView { longForm, summarized }
+
+class _CloseOutNavItem extends StatelessWidget {
+  const _CloseOutNavItem({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFF111827) : const Color(0xFF9CA3AF),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: const Color(0xFF111827),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CloseOutSummary extends StatelessWidget {
+  const _CloseOutSummary({
+    required this.checklistCount,
+    required this.approvalCount,
+    required this.archiveCount,
+    required this.approvals,
+    required this.checklist,
+    required this.archive,
+  });
+
+  final int checklistCount;
+  final int approvalCount;
+  final int archiveCount;
+  final List<LaunchEntry> approvals;
+  final List<LaunchEntry> checklist;
+  final List<LaunchEntry> archive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SummaryMetrics(
+          checklistCount: checklistCount,
+          approvalCount: approvalCount,
+          archiveCount: archiveCount,
+        ),
+        const SizedBox(height: 16),
+        _SummaryCard(
+          title: 'Close-out Highlights',
+          subtitle: 'Top tasks and blockers for close-out readiness.',
+          items: _buildSummaryItems(checklist, fallback: 'No checklist items captured yet.'),
+        ),
+        _SummaryCard(
+          title: 'Approvals Snapshot',
+          subtitle: 'Latest sign-off entries and statuses.',
+          items: _buildSummaryItems(approvals, fallback: 'No approvers captured yet.'),
+        ),
+        _SummaryCard(
+          title: 'Archive & Access',
+          subtitle: 'Systems and documents queued for archive.',
+          items: _buildSummaryItems(archive, fallback: 'No archive items captured yet.'),
+        ),
+      ],
+    );
+  }
+
+  List<String> _buildSummaryItems(List<LaunchEntry> entries, {required String fallback}) {
+    if (entries.isEmpty) {
+      return [fallback];
+    }
+    return entries.take(3).map((e) {
+      final details = e.details.trim();
+      if (details.isEmpty) return e.title;
+      return '${e.title} — $details';
+    }).toList();
+  }
+}
+
+class _SummaryMetrics extends StatelessWidget {
+  const _SummaryMetrics({
+    required this.checklistCount,
+    required this.approvalCount,
+    required this.archiveCount,
+  });
+
+  final int checklistCount;
+  final int approvalCount;
+  final int archiveCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: [
+        _SummaryMetricCard(
+          label: 'Checklist Items',
+          value: '$checklistCount',
+          color: const Color(0xFF2563EB),
+        ),
+        _SummaryMetricCard(
+          label: 'Approvals',
+          value: '$approvalCount',
+          color: const Color(0xFF10B981),
+        ),
+        _SummaryMetricCard(
+          label: 'Archive Items',
+          value: '$archiveCount',
+          color: const Color(0xFFF59E0B),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryMetricCard extends StatelessWidget {
+  const _SummaryMetricCard({required this.label, required this.value, required this.color});
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.title, required this.subtitle, required this.items});
+
+  final String title;
+  final String subtitle;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4)),
+          const SizedBox(height: 12),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.circle, size: 8, color: Color(0xFF9CA3AF)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF374151), height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

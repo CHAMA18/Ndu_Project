@@ -15,6 +15,12 @@ class DesignPhaseScreen extends StatefulWidget {
 
   final String activeItemLabel;
 
+  static void open(BuildContext context, {String activeItemLabel = 'Design Management'}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => DesignPhaseScreen(activeItemLabel: activeItemLabel)),
+    );
+  }
+
   @override
   State<DesignPhaseScreen> createState() => _DesignPhaseScreenState();
 }
