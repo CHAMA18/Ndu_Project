@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'project_framework_next_screen.dart';
 
 class ProjectFrameworkScreen extends StatefulWidget {
@@ -23,7 +24,6 @@ class ProjectFrameworkScreen extends StatefulWidget {
 }
 
 class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
-  final TextEditingController _notes = TextEditingController();
   String? _selectedOverallFramework;
   final List<_Goal> _goals = [_Goal(id: 1, name: 'Goal 1', framework: null)];
 
@@ -32,7 +32,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final projectData = ProjectDataHelper.getData(context);
-      _notes.text = projectData.notes;
       _selectedOverallFramework = projectData.overallFramework;
       
       if (projectData.projectGoals.isNotEmpty) {
@@ -53,7 +52,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
 
   @override
   void dispose() {
-    _notes.dispose();
     for (var goal in _goals) {
       goal.dispose();
     }
@@ -95,7 +93,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
       checkpoint: 'project_framework',
       nextScreenBuilder: () => const ProjectFrameworkNextScreen(),
       dataUpdater: (data) => data.copyWith(
-        notes: _notes.text.trim(),
         overallFramework: _selectedOverallFramework,
         projectGoals: projectGoals,
       ),
@@ -127,7 +124,13 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _roundedField(controller: _notes, hint: 'Input your notes here...', minLines: 3),
+                              const PlanningAiNotesCard(
+                                title: 'AI Notes',
+                                sectionLabel: 'Project Management Framework',
+                                noteKey: 'planning_framework_notes',
+                                checkpoint: 'project_framework',
+                                description: 'Capture the framework approach, governance model, and key objectives.',
+                              ),
                               const SizedBox(height: 40),
                               _MainContentCard(
                                 selectedOverallFramework: _selectedOverallFramework,

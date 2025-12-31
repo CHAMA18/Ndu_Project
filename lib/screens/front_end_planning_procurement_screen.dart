@@ -7,7 +7,9 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/screens/front_end_planning_security.dart';
 
 /// Front End Planning – Procurement screen
 /// Recreates the provided procurement workspace mock with strategies and vendor table.
@@ -188,6 +190,32 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
     setState(() => _selectedTrackableIndex = index);
   }
 
+  _ProcurementTab? _nextTab() {
+    final tabs = _ProcurementTab.values;
+    final index = tabs.indexOf(_selectedTab);
+    if (index == -1 || index >= tabs.length - 1) return null;
+    return tabs[index + 1];
+  }
+
+  Future<void> _goToNextSection() async {
+    final nextTab = _nextTab();
+    if (nextTab != null) {
+      setState(() => _selectedTab = nextTab);
+      return;
+    }
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'fep_procurement',
+      nextScreenBuilder: () => const FrontEndPlanningSecurityScreen(),
+      dataUpdater: (data) => data.copyWith(
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          procurement: _notes.text.trim(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTabContent() {
     switch (_selectedTab) {
       case _ProcurementTab.procurementDashboard:
@@ -259,6 +287,26 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
           currencyFormat: _currencyFormat,
         );
     }
+  }
+
+  Widget _buildNextSectionButton() {
+    final nextTab = _nextTab();
+    final nextLabel = nextTab?.label ?? 'Security';
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ElevatedButton.icon(
+        onPressed: _goToNextSection,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFF6C437),
+          foregroundColor: const Color(0xFF111827),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          elevation: 0,
+        ),
+        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+        label: Text('Next: $nextLabel', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      ),
+    );
   }
 
   Widget _buildDashboardSection({Key? key}) {
@@ -1149,9 +1197,17 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
                               children: [
                                 _ProcurementTopBar(
                                   onBack: () => Navigator.of(context).maybePop(),
-                                  onForward: () {},
+                                  onForward: _goToNextSection,
                                 ),
                                 const SizedBox(height: 24),
+                                const PlanningAiNotesCard(
+                                  title: 'AI Notes',
+                                  sectionLabel: 'Procurement',
+                                  noteKey: 'planning_procurement_notes',
+                                  checkpoint: 'fep_procurement',
+                                  description: 'Capture procurement priorities, vendors, and approval constraints.',
+                                ),
+                                const SizedBox(height: 16),
                                 _NotesCard(
                                   controller: _notes,
                                   onChanged: _handleNotesChanged,
@@ -1166,6 +1222,8 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
                                   duration: const Duration(milliseconds: 250),
                                   child: _buildTabContent(),
                                 ),
+                                const SizedBox(height: 24),
+                                _buildNextSectionButton(),
                                 const SizedBox(height: 40),
                               ],
                             ),

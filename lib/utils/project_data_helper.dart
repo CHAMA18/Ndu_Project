@@ -56,7 +56,10 @@ class ProjectDataHelper {
     w('Solution Title', data.solutionTitle);
     w('Solution Description', data.solutionDescription);
     w('Business Case', data.businessCase);
+    w('Initiation Notes', data.notes);
+    w('Potential Solution', data.potentialSolution);
     w('Project Objective', data.projectObjective);
+    w('Overall Framework', data.overallFramework);
 
     if (data.projectGoals.isNotEmpty) {
       buf.writeln('Project Goals:');
@@ -90,6 +93,16 @@ class ProjectDataHelper {
         if (name.isEmpty && due.isEmpty && discipline.isEmpty) continue;
         buf.writeln('- ${name.isEmpty ? 'Milestone' : name} | Due: ${due.isEmpty ? 'TBD' : due} | ${discipline.isEmpty ? '' : 'Discipline: $discipline'}');
       }
+      buf.writeln();
+    }
+
+    if (data.planningNotes.isNotEmpty) {
+      buf.writeln('Planning Phase Notes:');
+      data.planningNotes.forEach((key, value) {
+        final v = value.trim();
+        if (v.isEmpty) return;
+        buf.writeln('- ${key.trim()}: $v');
+      });
       buf.writeln();
     }
 
@@ -193,6 +206,13 @@ class ProjectDataHelper {
         return details.isEmpty ? name : '$name ($details)';
       });
       wList('Key Milestones', items);
+    }
+
+    if (data.planningNotes.isNotEmpty) {
+      final items = data.planningNotes.entries
+          .where((e) => e.value.trim().isNotEmpty)
+          .map((e) => '${e.key}: ${e.value}');
+      wList('Planning Notes', items);
     }
 
     if (data.potentialSolutions.isNotEmpty) {

@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 const Color _kAccentColor = Color(0xFFFFC812);
 const Color _kPrimaryText = Color(0xFF1F2933);
@@ -160,6 +161,14 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
                   children: [
                     const _HeaderRow(),
                     const SizedBox(height: 32),
+                    const PlanningAiNotesCard(
+                      title: 'AI Notes',
+                      sectionLabel: 'Project Summary',
+                      noteKey: 'planning_project_summary_notes',
+                      checkpoint: 'project_framework_next',
+                      description: 'Summarize planning goals, milestones, and delivery themes.',
+                    ),
+                    const SizedBox(height: 24),
                     const _LabeledField(label: 'Potential Solution', value: 'Refactor Homepage Logic'),
                     const SizedBox(height: 24),
                     const _LabeledField(label: 'Project Objective  (Detailed aim of the project.)', value: 'Refactor Homepage Logic'),

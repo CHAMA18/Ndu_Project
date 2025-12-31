@@ -5,6 +5,7 @@ import '../widgets/initiation_like_sidebar.dart';
 import '../widgets/draggable_sidebar.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../widgets/responsive.dart';
+import '../widgets/planning_ai_notes_card.dart';
 import 'front_end_planning_personnel_screen.dart';
 
 const Color _kBackground = Color(0xFFF7F8FC);
@@ -717,6 +718,14 @@ class _DeliverablesRoadmapBodyState extends State<_DeliverablesRoadmapBody> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(context),
+          const SizedBox(height: 32),
+          const PlanningAiNotesCard(
+            title: 'AI Notes',
+            sectionLabel: 'Deliverable Roadmap',
+            noteKey: 'planning_deliverable_roadmap_notes',
+            checkpoint: 'deliverable_roadmap',
+            description: 'Summarize roadmap milestones, delivery pacing, and risk flags.',
+          ),
           const SizedBox(height: 32),
           Expanded(
             child: LayoutBuilder(

@@ -5,6 +5,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class LessonsLearnedScreen extends StatefulWidget {
   const LessonsLearnedScreen({super.key});
@@ -152,6 +153,14 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(isMobile),
+          const SizedBox(height: 24),
+          const PlanningAiNotesCard(
+            title: 'AI Notes',
+            sectionLabel: 'Lessons Learned',
+            noteKey: 'planning_lessons_learned_notes',
+            checkpoint: 'lessons_learned',
+            description: 'Summarize key lessons, adoption steps, and follow-up actions.',
+          ),
           const SizedBox(height: 24),
           _buildSummaryCard(isMobile),
           const SizedBox(height: 24),

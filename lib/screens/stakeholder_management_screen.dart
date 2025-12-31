@@ -3,6 +3,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class StakeholderManagementScreen extends StatefulWidget {
   const StakeholderManagementScreen({super.key});
@@ -84,6 +85,14 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
                           showButtonsBelow: isMobile,
                           onExport: () {},
                           onAddProject: () {},
+                        ),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Stakeholder Management',
+                          noteKey: 'planning_stakeholder_management_notes',
+                          checkpoint: 'stakeholder_management',
+                          description: 'Summarize stakeholder priorities, engagement cadence, and influence mapping.',
                         ),
                         const SizedBox(height: 24),
                         const _ParagraphBlock(

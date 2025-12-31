@@ -28,12 +28,15 @@ import 'package:ndu_project/screens/front_end_planning_contracts_screen.dart';
 import 'package:ndu_project/screens/change_management_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
+import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
 import 'package:ndu_project/screens/stakeholder_management_screen.dart';
 import 'package:ndu_project/screens/lessons_learned_screen.dart';
 import 'package:ndu_project/screens/team_training_building_screen.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/engineering_design_screen.dart';
 import 'package:ndu_project/screens/schedule_screen.dart';
+import 'package:ndu_project/screens/interface_management_screen.dart';
+import 'package:ndu_project/screens/startup_planning_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/header_banner_image.dart';
@@ -323,11 +326,25 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openExecutionPlanDetails() {
-    _navigateWithCheckpoint('execution_plan_details', const ExecutionPlanDetailsScreen());
+    _navigateWithCheckpoint(
+      'execution_plan_details',
+      const ExecutionPlanDetailsScreen(
+        activeItemLabel: 'Execution Plan Details',
+        showPlanDetails: true,
+        showEarlyWorks: false,
+      ),
+    );
   }
 
   void _openExecutionEarlyWorks() {
-    _navigateWithCheckpoint('execution_early_works', const ExecutionPlanDetailsScreen());
+    _navigateWithCheckpoint(
+      'execution_early_works',
+      const ExecutionPlanDetailsScreen(
+        activeItemLabel: 'Execution Early Works',
+        showPlanDetails: false,
+        showEarlyWorks: true,
+      ),
+    );
   }
 
   void _openExecutionEnablingWorkPlan() {
@@ -378,6 +395,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('technology', const FrontEndPlanningTechnologyScreen());
   }
 
+  void _openInterfaceManagement() {
+    _navigateWithCheckpoint('interface_management', const InterfaceManagementScreen());
+  }
+
+  void _openStartUpPlanning() {
+    _navigateWithCheckpoint('startup_planning', const StartUpPlanningScreen());
+  }
+
   void _openTeamManagement() {
     _navigateWithCheckpoint('team_management', const TeamManagementScreen());
   }
@@ -412,6 +437,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   void _openProjectBaseline() {
     _navigateWithCheckpoint('project_baseline', const ProjectBaselineScreen());
+  }
+
+  void _openAgileProjectBaseline() {
+    _navigateWithCheckpoint('agile_project_baseline', const AgileProjectBaselineScreen());
   }
 
   void _openStakeholderManagement() {
@@ -1075,10 +1104,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   _buildSubMenuItem('Schedule', onTap: _openSchedule, isActive: widget.activeItemLabel == 'Schedule'),
                   _buildSubMenuItem('Design', onTap: _openDesign, isActive: widget.activeItemLabel == 'Design'),
                   _buildSubMenuItem('Technology', onTap: _openTechnology, isActive: widget.activeItemLabel == 'Technology'),
-                  _buildSubMenuItem('Interface Management', isActive: widget.activeItemLabel == 'Interface Management'),
-                  _buildSubMenuItem('Start-Up Planning', isActive: widget.activeItemLabel == 'Start-Up Planning'),
+                  _buildSubMenuItem('Interface Management', onTap: _openInterfaceManagement, isActive: widget.activeItemLabel == 'Interface Management'),
+                  _buildSubMenuItem('Start-Up Planning', onTap: _openStartUpPlanning, isActive: widget.activeItemLabel == 'Start-Up Planning'),
                   _buildSubMenuItem('Deliverable Roadmap', onTap: _openDeliverableRoadmap, isActive: widget.activeItemLabel == 'Deliverable Roadmap'),
-                  _buildSubMenuItem('Agile Project Wireframe', isActive: widget.activeItemLabel == 'Agile Project Wireframe'),
+                  _buildSubMenuItem('Agile Project Baseline', onTap: _openAgileProjectBaseline, isActive: widget.activeItemLabel == 'Agile Project Baseline'),
                   _buildSubMenuItem('Project Baseline', onTap: _openProjectBaseline, isActive: widget.activeItemLabel == 'Project Baseline'),
                   _buildSubMenuItem('Organization Plan', isActive: widget.activeItemLabel == 'Organization Plan'),
                   _buildSubSubMenuItem('Team Training and Team Building', onTap: _openTeamTraining, isActive: widget.activeItemLabel == 'Team Training and Team Building'),
@@ -1281,6 +1310,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('project plan'.contains(query)) {
       results.add(_buildMenuItem(Icons.assignment_outlined, 'Project Plan', onTap: _openProjectPlan, isActive: widget.activeItemLabel == 'Project Plan'));
     }
+    if ('agile project baseline'.contains(query)) {
+      results.add(_buildMenuItem(Icons.grid_view_outlined, 'Agile Project Baseline', onTap: _openAgileProjectBaseline, isActive: widget.activeItemLabel == 'Agile Project Baseline'));
+    }
     if ('project baseline'.contains(query) || 'baseline'.contains(query)) {
       results.add(_buildMenuItem(Icons.flag_circle_outlined, 'Project Baseline', onTap: _openProjectBaseline, isActive: widget.activeItemLabel == 'Project Baseline'));
     }
@@ -1295,6 +1327,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     }
     if ('technology'.contains(query)) {
       results.add(_buildMenuItem(Icons.computer_outlined, 'Technology', onTap: _openTechnology, isActive: widget.activeItemLabel == 'Technology'));
+    }
+    if ('interface management'.contains(query) || 'interfaces'.contains(query)) {
+      results.add(_buildMenuItem(Icons.device_hub_outlined, 'Interface Management', onTap: _openInterfaceManagement, isActive: widget.activeItemLabel == 'Interface Management'));
+    }
+    if ('start-up planning'.contains(query) || 'startup planning'.contains(query) || 'start up planning'.contains(query)) {
+      results.add(_buildMenuItem(Icons.rocket_launch_outlined, 'Start-Up Planning', onTap: _openStartUpPlanning, isActive: widget.activeItemLabel == 'Start-Up Planning'));
     }
     if ('team training'.contains(query) || 'team building'.contains(query)) {
       results.add(_buildMenuItem(Icons.school_outlined, 'Team Training and Team Building', onTap: _openTeamTraining, isActive: widget.activeItemLabel == 'Team Training and Team Building'));

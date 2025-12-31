@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class RiskAssessmentScreen extends StatelessWidget {
   const RiskAssessmentScreen({super.key});
@@ -46,6 +47,14 @@ class RiskAssessmentScreen extends StatelessWidget {
                         const SizedBox(height: 24),
                         const _PageHeading(),
                         const SizedBox(height: 20),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Risk Assessment',
+                          noteKey: 'planning_risk_assessment_notes',
+                          checkpoint: 'risk_assessment',
+                          description: 'Summarize key risks, probability/impact themes, and mitigation focus.',
+                        ),
+                        const SizedBox(height: 24),
                         _MetricsWrap(isMobile: isMobile),
                         const SizedBox(height: 28),
                         const _RiskMatrixCard(),

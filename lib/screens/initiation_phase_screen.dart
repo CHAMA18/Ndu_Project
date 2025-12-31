@@ -108,6 +108,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
   String _notesLastQuery = '';
   String _businessLastQuery = '';
+  final List<String> _notesUndoStack = [];
+  final List<String> _businessUndoStack = [];
   bool _notesInvalid = false;
   bool _businessInvalid = false;
   static const int _notesWordMinimum = 5;
@@ -309,6 +311,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     final replacement = suggestion.trim();
     if (replacement.isEmpty) return;
 
+    _pushUndo(controller, isNotes: isNotes);
+
     controller.value = TextEditingValue(
       text: replacement,
       selection: TextSelection.collapsed(offset: replacement.length),
@@ -332,6 +336,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     final existing = controller.text.trim();
     final combined = existing.isEmpty ? insertion : '$existing\n$insertion';
 
+    _pushUndo(controller, isNotes: isNotes);
+
     controller.value = TextEditingValue(
       text: combined,
       selection: TextSelection.collapsed(offset: combined.length),
@@ -354,6 +360,24 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Suggestion copied to clipboard')),
     );
+  }
+
+  void _pushUndo(TextEditingController controller, {required bool isNotes}) {
+    final stack = isNotes ? _notesUndoStack : _businessUndoStack;
+    if (stack.isEmpty || stack.last != controller.text) {
+      stack.add(controller.text);
+    }
+  }
+
+  void _undoSuggestion(TextEditingController controller, {required bool isNotes}) {
+    final stack = isNotes ? _notesUndoStack : _businessUndoStack;
+    if (stack.isEmpty) return;
+    final previous = stack.removeLast();
+    controller.value = TextEditingValue(
+      text: previous,
+      selection: TextSelection.collapsed(offset: previous.length),
+    );
+    setState(() {});
   }
 
   void _retryNotesSuggestions() => _fetchNotesSuggestions(_notesController.text.trim());
@@ -444,6 +468,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     required String? error,
     required String label,
     required VoidCallback onRefresh,
+    VoidCallback? onUndo,
+    bool canUndo = false,
     required ValueChanged<String> onSelect,
     ValueChanged<String>? onInsert,
     ValueChanged<String>? onCopy,
@@ -499,9 +525,16 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
-                )
-              else
-                const SizedBox(width: 8),
+                ),
+              if (canUndo && onUndo != null)
+                TextButton.icon(
+                  onPressed: onUndo,
+                  icon: const Icon(Icons.undo, size: 16),
+                  label: const Text('Undo'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1046,6 +1079,13 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               error: _notesSuggestionError,
               label: 'AI suggestions for notes',
               onRefresh: _retryNotesSuggestions,
+              onUndo: _notesUndoStack.isEmpty
+                  ? null
+                  : () => _undoSuggestion(
+                        _notesController,
+                        isNotes: true,
+                      ),
+              canUndo: _notesUndoStack.isNotEmpty,
               onSelect: (value) => _applySuggestion(
                 _notesController,
                 value,
@@ -1132,6 +1172,13 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               error: _businessSuggestionError,
               label: 'AI suggestions for the business case',
               onRefresh: _retryBusinessSuggestions,
+              onUndo: _businessUndoStack.isEmpty
+                  ? null
+                  : () => _undoSuggestion(
+                        _businessCaseController,
+                        isNotes: false,
+                      ),
+              canUndo: _businessUndoStack.isNotEmpty,
               onSelect: (value) => _applySuggestion(
                 _businessCaseController,
                 value,

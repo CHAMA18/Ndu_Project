@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class SsherStackedScreen extends StatefulWidget {
   const SsherStackedScreen({super.key});
@@ -223,6 +224,14 @@ class _SsherStackedScreenState extends State<SsherStackedScreen> {
     return SingleChildScrollView(
       padding: padding,
       child: Column(children: [
+        const PlanningAiNotesCard(
+          title: 'AI Notes',
+          sectionLabel: 'SSHER',
+          noteKey: 'planning_ssher_notes',
+          checkpoint: 'ssher',
+          description: 'Summarize key SSHER risks, mitigation plans, and compliance requirements.',
+        ),
+        const SizedBox(height: 20),
         // Plan Summary (from page 1)
         Container(
           margin: const EdgeInsets.only(bottom: 20),
@@ -379,4 +388,3 @@ class _SsherStackedScreenState extends State<SsherStackedScreen> {
     );
   }
 }
-

@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 enum _SecurityTab { dashboard, roles, permissions, settings, accessLogs }
 
@@ -54,6 +55,14 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const _PageHeader(),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Security Management',
+                          noteKey: 'planning_security_management_notes',
+                          checkpoint: 'security_management',
+                          description: 'Summarize security priorities, access controls, and monitoring needs.',
+                        ),
                         const SizedBox(height: 24),
                         _TabStrip(selectedTab: _selectedTab, onSelected: _handleTabSelected),
                         const SizedBox(height: 28),

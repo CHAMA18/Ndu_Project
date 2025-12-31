@@ -4,6 +4,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class IssueManagementScreen extends StatefulWidget {
   const IssueManagementScreen({super.key});
@@ -69,6 +70,14 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _TopUtilityBar(onBack: () => Navigator.maybePop(context)),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Issue Management',
+                          noteKey: 'planning_issue_management_notes',
+                          checkpoint: 'issue_management',
+                          description: 'Summarize key issues, escalation paths, and resolution priorities.',
+                        ),
                         const SizedBox(height: 24),
                         const _PageTitle(),
                         const SizedBox(height: 24),

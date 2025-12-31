@@ -3,6 +3,7 @@ import 'package:ndu_project/screens/training_project_tasks_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class TeamTrainingAndBuildingScreen extends StatelessWidget {
   const TeamTrainingAndBuildingScreen({super.key});
@@ -59,6 +60,14 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
               ),
             ),
 
+            const SizedBox(height: 16),
+            const PlanningAiNotesCard(
+              title: 'AI Notes',
+              sectionLabel: 'Team Training and Team Building',
+              noteKey: 'planning_team_training_notes',
+              checkpoint: 'team_training',
+              description: 'Outline training themes, cadence, and team-building priorities.',
+            ),
             const SizedBox(height: 16),
             // Main overview card
             Container(

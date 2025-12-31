@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
@@ -10,6 +11,7 @@ import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/ai_diagram_panel.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class ExecutionPlanScreen extends StatefulWidget {
   const ExecutionPlanScreen({super.key});
@@ -65,6 +67,7 @@ class _ExecutionPlanScreenState extends State<ExecutionPlanScreen> {
                     const SizedBox(height: 28),
                     _ExecutionPlanForm(
                       hintText: 'Describe the sequential, and overall, thought process for executing the project',
+                      noteKey: 'execution_plan_outline',
                     ),
                     const SizedBox(height: 48),
                     Align(
@@ -318,10 +321,17 @@ class _SectionIntro extends StatelessWidget {
 }
 
 class _ExecutionPlanForm extends StatefulWidget {
-  const _ExecutionPlanForm({this.title = 'Executive Plan Outline', required this.hintText});
+  const _ExecutionPlanForm({
+    this.title = 'Executive Plan Outline',
+    required this.hintText,
+    this.showFieldLabel = false,
+    this.noteKey,
+  });
 
   final String title;
   final String hintText;
+  final bool showFieldLabel;
+  final String? noteKey;
 
   @override
   State<_ExecutionPlanForm> createState() => _ExecutionPlanFormState();
@@ -329,27 +339,70 @@ class _ExecutionPlanForm extends StatefulWidget {
 
 class _ExecutionPlanFormState extends State<_ExecutionPlanForm> {
   String _currentText = '';
+  Timer? _saveDebounce;
+  DateTime? _lastSavedAt;
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _handleChanged(String value) {
+    _currentText = value;
+    final noteKey = widget.noteKey;
+    if (noteKey == null || noteKey.trim().isEmpty) return;
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 700), () async {
+      final trimmed = value.trim();
+      final success = await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'planning_$noteKey',
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            noteKey: trimmed,
+          },
+        ),
+        showSnackbar: false,
+      );
+      if (mounted && success) {
+        setState(() => _lastSavedAt = DateTime.now());
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final noteKey = widget.noteKey;
+    if (noteKey != null && _currentText.isEmpty) {
+      final saved = ProjectDataHelper.getData(context).planningNotes[noteKey] ?? '';
+      if (saved.trim().isNotEmpty) {
+        _currentText = saved;
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF111827),
-          ),
-        ),
-        const SizedBox(height: 14),
         AiSuggestingTextField(
           fieldLabel: widget.title,
           hintText: widget.hintText,
           sectionLabel: 'Execution Plan',
-          onChanged: (v) => _currentText = v,
+          showLabel: widget.showFieldLabel,
+          initialText: noteKey == null ? null : ProjectDataHelper.getData(context).planningNotes[noteKey],
+          autoGenerate: true,
+          autoGenerateSection: widget.title,
+          onChanged: _handleChanged,
         ),
+        if (_lastSavedAt != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Saved ${TimeOfDay.fromDateTime(_lastSavedAt!).format(context)}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            ),
+          ),
         AiDiagramPanel(
           sectionLabel: widget.title,
           currentTextProvider: () => _currentText,
@@ -502,7 +555,11 @@ class ExecutionPlanSolutionsScreen extends StatelessWidget {
                     const SizedBox(height: 28),
                     const _SectionIntro(title: 'Executive Plan Strategy'),
                     const SizedBox(height: 28),
-                    _ExecutionPlanForm(title: 'Executive Plan Strategy', hintText: 'Input your notes here...'),
+                    _ExecutionPlanForm(
+                      title: 'Executive Plan Strategy',
+                      hintText: 'Input your notes here...',
+                      noteKey: 'execution_plan_strategy',
+                    ),
                     const SizedBox(height: 28),
                     const _ExecutionPlanTable(),
                     const SizedBox(height: 20),
@@ -715,11 +772,38 @@ class _AddSolutionButton extends StatelessWidget {
 }
 
 class ExecutionPlanDetailsScreen extends StatelessWidget {
-  const ExecutionPlanDetailsScreen({super.key});
+  const ExecutionPlanDetailsScreen({
+    super.key,
+    this.activeItemLabel = 'Execution Plan Details',
+    this.showPlanDetails = true,
+    this.showEarlyWorks = false,
+  });
+
+  final String activeItemLabel;
+  final bool showPlanDetails;
+  final bool showEarlyWorks;
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ExecutionPlanDetailsScreen()),
+      MaterialPageRoute(
+        builder: (_) => const ExecutionPlanDetailsScreen(
+          activeItemLabel: 'Execution Plan Details',
+          showPlanDetails: true,
+          showEarlyWorks: false,
+        ),
+      ),
+    );
+  }
+
+  static void openEarlyWorks(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ExecutionPlanDetailsScreen(
+          activeItemLabel: 'Execution Early Works',
+          showPlanDetails: false,
+          showEarlyWorks: true,
+        ),
+      ),
     );
   }
 
@@ -736,7 +820,7 @@ class ExecutionPlanDetailsScreen extends StatelessWidget {
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Execution Early Works'),
+              child: InitiationLikeSidebar(activeItemLabel: activeItemLabel),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -746,15 +830,48 @@ class ExecutionPlanDetailsScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
-                    ),
-                    const SizedBox(height: 48),
-                    const _EarlyWorksSection(),
-                    const SizedBox(height: 56),
+                    if (showPlanDetails) ...[
+                      const _SectionIntro(title: 'Execution Plan Details'),
+                      const SizedBox(height: 28),
+                      _ExecutionPlanForm(
+                        title: 'Execution Plan Details',
+                        hintText: 'Input your notes here...',
+                        noteKey: 'execution_plan_details',
+                      ),
+                      const SizedBox(height: 40),
+                    ],
+                    if (showPlanDetails && !showEarlyWorks) ...[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Wrap(
+                          spacing: 16,
+                          runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          alignment: WrapAlignment.end,
+                          children: [
+                            const _InfoBadge(),
+                            const _AiTipCard(),
+                            _YellowActionButton(
+                              label: 'Next',
+                              onPressed: () => ExecutionPlanDetailsScreen.openEarlyWorks(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 56),
+                    ],
+                    if (showEarlyWorks) ...[
+                      const _SectionIntro(title: 'Execution Early Works'),
+                      const SizedBox(height: 24),
+                      const _ExecutionPlanForm(
+                        title: 'Execution Early Works',
+                        hintText: 'Outline early works scope, sequencing, and handoffs.',
+                        noteKey: 'execution_early_works',
+                      ),
+                      const SizedBox(height: 32),
+                      const _EarlyWorksSection(),
+                      const SizedBox(height: 56),
+                    ],
                   ],
                 ),
               ),
@@ -968,13 +1085,14 @@ class ExecutionEnablingWorkPlanScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
+                    const _SectionIntro(title: 'Execution Enabling Work Plan'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Enabling Work Plan',
+                      hintText: 'Capture enabling works, dependencies, and resourcing needs.',
+                      noteKey: 'execution_enabling_work_plan',
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _EnablingWorksPlanSection(),
                     const SizedBox(height: 56),
                   ],
@@ -1222,13 +1340,14 @@ class ExecutionIssueManagementScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
+                    const _SectionIntro(title: 'Execution Issue Management'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Issue Management',
+                      hintText: 'Summarize issue tracking, escalation paths, and mitigation cadence.',
+                      noteKey: 'execution_issue_management',
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _IssuesManagementSection(),
                     const SizedBox(height: 56),
                   ],
@@ -1467,13 +1586,14 @@ class ExecutionPlanLessonsLearnedScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
+                    const _SectionIntro(title: 'Execution Plan - Lesson Learned'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Lesson Learned',
+                      hintText: 'Capture lessons learned and how they influence execution.',
+                      noteKey: 'execution_lessons_learned',
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _LessonsLearnedSection(),
                     const SizedBox(height: 56),
                   ],
@@ -1730,13 +1850,14 @@ class ExecutionPlanBestPracticesScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
+                    const _SectionIntro(title: 'Execution Plan - Best Practices'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Best Practices',
+                      hintText: 'Document the best practices to follow during execution.',
+                      noteKey: 'execution_best_practices',
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _BestPracticesSection(),
                     const SizedBox(height: 56),
                   ],
@@ -1993,13 +2114,14 @@ class ExecutionPlanConstructionPlanScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
+                    const _SectionIntro(title: 'Execution Plan - Construction Plan'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Construction Plan',
+                      hintText: 'Summarize construction sequencing, logistics, and safety constraints.',
+                      noteKey: 'execution_construction_plan',
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _ConstructionPlanSection(),
                     const SizedBox(height: 56),
                   ],
@@ -2227,13 +2349,14 @@ class ExecutionPlanInfrastructurePlanScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
+                    const _SectionIntro(title: 'Execution Plan - Infrastructure Plan'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Infrastructure Plan',
+                      hintText: 'Outline infrastructure dependencies, scope, and delivery approach.',
+                      noteKey: 'execution_infrastructure_plan',
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _InfrastructurePlanSection(),
                     const SizedBox(height: 56),
                   ],
@@ -2428,13 +2551,14 @@ class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
+                    const _SectionIntro(title: 'Execution Plan - Stakeholder Identification'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Stakeholder Identification',
+                      hintText: 'Capture stakeholder groups, engagement strategies, and key concerns.',
+                      noteKey: 'execution_stakeholder_identification',
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _StakeholderIdentificationSection(),
                     const SizedBox(height: 56),
                   ],
@@ -2677,22 +2801,14 @@ class ExecutionPlanInterfaceManagementScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Outline the strategy and actions for the implementation phase.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF6B7280),
-                      ),
+                    const _SectionIntro(title: 'Execution Plan - Interface Management'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Interface Management',
+                      hintText: 'Summarize interface dependencies, coordination protocols, and governance.',
+                      noteKey: 'execution_interface_management',
                     ),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
-                    ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _InterfaceManagementSection(),
                     const SizedBox(height: 56),
                   ],
@@ -2820,22 +2936,14 @@ class ExecutionPlanCommunicationPlanScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Outline the strategy and actions for the implementation phase.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF6B7280),
-                      ),
+                    const _SectionIntro(title: 'Execution Plan - Communication Plan'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Communication Plan',
+                      hintText: 'Outline communication cadence, channels, and stakeholder updates.',
+                      noteKey: 'execution_communication_plan',
                     ),
-                    const SizedBox(height: 28),
-                    _ExecutionPlanForm(
-                      title: 'Execution Plan Details',
-                      hintText: 'Input your notes here...',
-                    ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
                     const _CommunicationPlanSection(),
                     const SizedBox(height: 56),
                   ],
@@ -2963,17 +3071,14 @@ class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
                   children: [
                     _ExecutionPlanHeader(onBack: () => Navigator.maybePop(context)),
                     const SizedBox(height: 32),
-                    const _SectionIntro(title: 'Execution Plan Details'),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Outline the strategy and actions for the implementation phase.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF6B7280),
-                      ),
+                    const _SectionIntro(title: 'Execution Plan - Interface Management Plan'),
+                    const SizedBox(height: 24),
+                    const _ExecutionPlanForm(
+                      title: 'Execution Plan - Interface Management Plan',
+                      hintText: 'Summarize interface management plan objectives and control points.',
+                      noteKey: 'execution_interface_management_plan',
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 32),
                     const _InterfaceManagementPlanForm(),
                     const SizedBox(height: 48),
                     const _InterfaceManagementPlanSection(),
@@ -2998,7 +3103,7 @@ class _InterfaceManagementPlanForm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Execution Plan Details',
+          'Interface Management Plan Details',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,

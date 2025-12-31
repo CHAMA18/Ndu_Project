@@ -4,6 +4,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class ProjectPlanScreen extends StatefulWidget {
   const ProjectPlanScreen({super.key});
@@ -72,6 +73,14 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen> with SingleTicker
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeader(isMobile),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Project Plan',
+                          noteKey: 'planning_project_plan_notes',
+                          checkpoint: 'project_plan',
+                          description: 'Summarize the project plan, key deliverables, and alignment checkpoints.',
+                        ),
                         const SizedBox(height: 24),
                         _ProjectPlanOverviewCard(isMobile: isMobile),
                         const SizedBox(height: 24),

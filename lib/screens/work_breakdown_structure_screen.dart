@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'project_framework_screen.dart';
 
 const Color _kSurfaceBackground = Color(0xFFF7F8FC);
@@ -593,18 +594,14 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
   }
 
   Widget _buildNotesCard() {
-    return Container(
-      width: 240,
-      height: 150,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 14, offset: const Offset(0, 6))],
-      ),
-      child: const Align(
-        alignment: Alignment.topLeft,
-        child: Text('Input your notes here...', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kSecondaryText)),
+    return SizedBox(
+      width: 360,
+      child: const PlanningAiNotesCard(
+        title: 'AI Notes',
+        sectionLabel: 'Work Breakdown Structure',
+        noteKey: 'planning_wbs_notes',
+        checkpoint: 'wbs',
+        description: 'Summarize the WBS structure, criteria decisions, and any key dependencies.',
       ),
     );
   }

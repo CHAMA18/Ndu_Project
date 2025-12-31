@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 
 class CostEstimateScreen extends StatefulWidget {
   const CostEstimateScreen({super.key});
@@ -70,6 +71,14 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _TopUtilityBar(onBack: () => Navigator.maybePop(context)),
+                        const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'AI Notes',
+                          sectionLabel: 'Cost Estimate',
+                          noteKey: 'planning_cost_estimate_notes',
+                          checkpoint: 'cost_estimate',
+                          description: 'Summarize cost drivers, assumptions, and mitigation for budget risks.',
+                        ),
                         const SizedBox(height: 24),
                         const _HeroBanner(),
                         const SizedBox(height: 20),
