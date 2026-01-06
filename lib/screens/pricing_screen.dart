@@ -37,10 +37,14 @@ class _PricingScreenState extends State<PricingScreen> {
       if (hasSubscription) {
         _navigateToManagementLevel(context, isBasicPlan: isBasicPlan);
       } else {
+        final price = _priceForPlan(plan);
         final paymentResult = await PaymentDialog.show(
           context: context,
           tier: subscriptionTier,
           isAnnual: _isAnnual,
+          displayTierName: plan.label,
+          displayPrice: price.price,
+          displayPeriod: _isAnnual ? 'Billed annually' : 'Billed monthly',
           onPaymentComplete: () {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -116,13 +120,13 @@ class _PricingScreenState extends State<PricingScreen> {
       monthlyPrice: 39,
       monthlyOriginalPrice: 79,
       features: [
-        'One time Freemium for the 1st month',
-        'Monthly payment with annual discount.',
+        'Free for the first month',
         '1 user',
-        'Limited AI features',
-        'Any email or School email only (special domain. No gmail, yahoo, outlook, etc.) No other free trial for that domain.',
-        'Limited AI incorporation (prompt to upgrade after 1st implementation)',
-        'Can be upgraded to others at any time and details get immediately carried forward to full project',
+        'Full project delivery from initiation to Launch',
+        'Auto AI assist',
+        'One-time incremental AI assist per section',
+        'Limited Documentation features',
+        'Upgrade tier any time',
       ],
     ),
     _PricingPlan(
@@ -133,16 +137,12 @@ class _PricingScreenState extends State<PricingScreen> {
       monthlyPrice: 129,
       monthlyOriginalPrice: 179,
       features: [
-        'Subscription Based.',
         'Maximum 7 users',
-        'Monthly. Annual at a discount.',
-        'Access to completed project pdfs when done with each project.',
-        'Can upgrade anytime to other levels.',
-        'Can\'t downgrade any active project until that actual project is completed.',
-        'Can add new project, program and portfolio to the account',
-        'Once project is completed, new project could be at another level.',
-        'Business email or School email (special domain. No gmail, yahoo, outlook, etc.) No other free trial for that domain.',
-        'Promocode can be applied to payment.',
+        'Robust project delivery with full features including organization planning, design, change management, work breakdown structure, and more',
+        'Auto AI assist',
+        'One-time incremental AI assist per section',
+        'Document print out feature',
+        'Upgrade tier anytime',
       ],
     ),
     _PricingPlan(
@@ -153,15 +153,12 @@ class _PricingScreenState extends State<PricingScreen> {
       monthlyPrice: 319,
       monthlyOriginalPrice: 1000,
       features: [
-        'Subscription Based.',
+        'Everything in Project',
         'Maximum 12 users',
         'Monthly. Annual at a discount.',
-        'Access to completed project pdfs when done with each project, and at program level.',
-        'Can upgrade anytime to portfolio.',
-        'Can\'t downgrade any active project within a program once started. All identified projects within a program stays until the program is completed.',
-        'Can add new project, program and portfolio to the account',
-        'Business email or School email (special domain. No gmail, yahoo, outlook, etc.) No other free trial for that domain.',
-        'Promocode can be applied to payment.',
+        'Interface management',
+        'Project dependency tracking',
+        'Program level reports for cost, schedule, scope tracking',
       ],
     ),
     _PricingPlan(
@@ -172,14 +169,9 @@ class _PricingScreenState extends State<PricingScreen> {
       monthlyPrice: 750,
       monthlyOriginalPrice: 1400,
       features: [
-        'Subscription Based.',
+        'Everything in Program',
         'Maximum 24 users',
-        'Monthly. Annual at a discount.',
-        'Access to completed project pdfs when done with each project/program.',
-        'Can\'t downgrade any active project or program once started. All identified projects within a program stays until the program is completed.',
-        'Can add new project, program and portfolio to the account',
-        'Business email or School email (special domain. No gmail, yahoo, outlook, etc.) No other free trial for that domain.',
-        'Promocode can be applied to payment.',
+        'Portfolio level reports for cost, schedule, scope tracking',
       ],
     ),
   ];
@@ -317,85 +309,91 @@ class _PricingScreenState extends State<PricingScreen> {
   Widget _buildPlansGrid(bool isDesktop, bool isTablet) {
     if (isDesktop) {
       // 4 columns on desktop
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _plans.map((plan) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: _PlanColumn(
-              plan: plan,
-              isSelected: _selectedTier == plan.tier,
-              price: _priceForPlan(plan),
-              onSelect: () {
-                setState(() => _selectedTier = plan.tier);
-                _handlePlanSelection(context, plan);
-              },
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: _plans.map((plan) => Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _PlanColumn(
+                plan: plan,
+                isSelected: _selectedTier == plan.tier,
+                price: _priceForPlan(plan),
+                onSelect: () {
+                  setState(() => _selectedTier = plan.tier);
+                  _handlePlanSelection(context, plan);
+                },
+              ),
             ),
-          ),
-        )).toList(),
+          )).toList(),
+        ),
       );
     } else if (isTablet) {
       // 2x2 grid on tablet
       return Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _PlanColumn(
-                  plan: _plans[0],
-                  isSelected: _selectedTier == _plans[0].tier,
-                  price: _priceForPlan(_plans[0]),
-                  onSelect: () {
-                    setState(() => _selectedTier = _plans[0].tier);
-                    _handlePlanSelection(context, _plans[0]);
-                  },
-                ),
-              )),
-              Expanded(child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _PlanColumn(
-                  plan: _plans[1],
-                  isSelected: _selectedTier == _plans[1].tier,
-                  price: _priceForPlan(_plans[1]),
-                  onSelect: () {
-                    setState(() => _selectedTier = _plans[1].tier);
-                    _handlePlanSelection(context, _plans[1]);
-                  },
-                ),
-              )),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _PlanColumn(
+                    plan: _plans[0],
+                    isSelected: _selectedTier == _plans[0].tier,
+                    price: _priceForPlan(_plans[0]),
+                    onSelect: () {
+                      setState(() => _selectedTier = _plans[0].tier);
+                      _handlePlanSelection(context, _plans[0]);
+                    },
+                  ),
+                )),
+                Expanded(child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _PlanColumn(
+                    plan: _plans[1],
+                    isSelected: _selectedTier == _plans[1].tier,
+                    price: _priceForPlan(_plans[1]),
+                    onSelect: () {
+                      setState(() => _selectedTier = _plans[1].tier);
+                      _handlePlanSelection(context, _plans[1]);
+                    },
+                  ),
+                )),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _PlanColumn(
-                  plan: _plans[2],
-                  isSelected: _selectedTier == _plans[2].tier,
-                  price: _priceForPlan(_plans[2]),
-                  onSelect: () {
-                    setState(() => _selectedTier = _plans[2].tier);
-                    _handlePlanSelection(context, _plans[2]);
-                  },
-                ),
-              )),
-              Expanded(child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _PlanColumn(
-                  plan: _plans[3],
-                  isSelected: _selectedTier == _plans[3].tier,
-                  price: _priceForPlan(_plans[3]),
-                  onSelect: () {
-                    setState(() => _selectedTier = _plans[3].tier);
-                    _handlePlanSelection(context, _plans[3]);
-                  },
-                ),
-              )),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _PlanColumn(
+                    plan: _plans[2],
+                    isSelected: _selectedTier == _plans[2].tier,
+                    price: _priceForPlan(_plans[2]),
+                    onSelect: () {
+                      setState(() => _selectedTier = _plans[2].tier);
+                      _handlePlanSelection(context, _plans[2]);
+                    },
+                  ),
+                )),
+                Expanded(child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _PlanColumn(
+                    plan: _plans[3],
+                    isSelected: _selectedTier == _plans[3].tier,
+                    price: _priceForPlan(_plans[3]),
+                    onSelect: () {
+                      setState(() => _selectedTier = _plans[3].tier);
+                      _handlePlanSelection(context, _plans[3]);
+                    },
+                  ),
+                )),
+              ],
+            ),
           ),
         ],
       );
@@ -572,6 +570,7 @@ class _PlanColumn extends StatelessWidget {
       ),
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       child: Column(
+        mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -692,38 +691,45 @@ class _PlanColumn extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          ...plan.features.map((feature) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      height: 10,
-                      width: 10,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [accent, accent.withOpacity(0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: plan.features.map((feature) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            height: 10,
+                            width: 10,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [accent, accent.withOpacity(0.7)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              feature,
+                              style: const TextStyle(
+                                color: _primaryText,
+                                fontSize: 13,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        feature,
-                        style: const TextStyle(
-                          color: _primaryText,
-                          fontSize: 13,
-                          height: 1.45,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+                    )).toList(),
+              ),
+            ),
+          ),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,

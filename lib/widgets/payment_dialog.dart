@@ -14,11 +14,17 @@ class PaymentDialog extends StatefulWidget {
     required this.tier,
     required this.isAnnual,
     required this.onPaymentComplete,
+    this.displayTierName,
+    this.displayPrice,
+    this.displayPeriod,
   });
 
   final SubscriptionTier tier;
   final bool isAnnual;
   final VoidCallback onPaymentComplete;
+  final String? displayTierName;
+  final String? displayPrice;
+  final String? displayPeriod;
 
   /// Show the payment dialog
   static Future<bool> show({
@@ -26,6 +32,9 @@ class PaymentDialog extends StatefulWidget {
     required SubscriptionTier tier,
     required bool isAnnual,
     required VoidCallback onPaymentComplete,
+    String? displayTierName,
+    String? displayPrice,
+    String? displayPeriod,
   }) async {
     final result = await showDialog<bool>(
       context: context,
@@ -34,6 +43,9 @@ class PaymentDialog extends StatefulWidget {
         tier: tier,
         isAnnual: isAnnual,
         onPaymentComplete: onPaymentComplete,
+        displayTierName: displayTierName,
+        displayPrice: displayPrice,
+        displayPeriod: displayPeriod,
       ),
     );
     return result ?? false;
@@ -58,9 +70,12 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   String get _tierName => SubscriptionService.getTierName(widget.tier);
   Map<String, String> get _price => SubscriptionService.getPriceForTier(widget.tier, annual: widget.isAnnual);
+  String get _displayTierName => widget.displayTierName ?? _tierName;
+  String get _displayPrice => widget.displayPrice ?? _price['price']!;
+  String get _displayPeriod => widget.displayPeriod ?? (widget.isAnnual ? 'Billed annually' : 'Billed monthly');
   
   double get _originalPrice {
-    final priceStr = _price['price']!.replaceAll('\$', '').replaceAll(',', '');
+    final priceStr = _displayPrice.replaceAll('\$', '').replaceAll(',', '');
     return double.tryParse(priceStr) ?? 0;
   }
   
@@ -338,7 +353,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Subscribe to $_tierName',
+                'Subscribe to $_displayTierName',
                 style: const TextStyle(color: _secondaryText, fontSize: 16),
               ),
               const SizedBox(height: 24),
@@ -368,7 +383,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _tierName,
+                                _displayTierName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: _primaryText,
@@ -376,7 +391,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                                 ),
                               ),
                               Text(
-                                widget.isAnnual ? 'Billed annually' : 'Billed monthly',
+                                _displayPeriod,
                                 style: const TextStyle(color: _secondaryText, fontSize: 13),
                               ),
                             ],
@@ -387,7 +402,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                           children: [
                             if (_appliedCoupon != null) ...[
                               Text(
-                                _price['price']!,
+                                _displayPrice,
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -405,7 +420,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                               ),
                             ] else
                               Text(
-                                _price['price']!,
+                                _displayPrice,
                                 style: const TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w800,
