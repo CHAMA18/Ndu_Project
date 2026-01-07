@@ -10,6 +10,7 @@ import '../models/program_model.dart';
 import '../services/navigation_context_service.dart';
 import '../services/program_service.dart';
 import '../services/project_service.dart';
+import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 
 class ProgramDashboardScreen extends StatefulWidget {
@@ -26,6 +27,10 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
   String? _error;
   StreamSubscription<List<ProgramModel>>? _programSubscription;
   StreamSubscription<List<ProjectRecord>>? _projectSubscription;
+  StreamSubscription<List<ProjectRecord>>? _allProjectsSubscription;
+  int _totalProjects = 0;
+  int _basicProjectCount = 0;
+  int _programCount = 0;
 
   @override
   void initState() {
@@ -37,18 +42,36 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
   void dispose() {
     _programSubscription?.cancel();
     _projectSubscription?.cancel();
+    _allProjectsSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _loadProgramData() async {
     final user = FirebaseAuth.instance.currentUser;
+    _allProjectsSubscription?.cancel();
     if (user == null) {
       setState(() {
         _isLoading = false;
         _error = 'Please sign in to view program data';
+        _currentProgram = null;
+        _projects = [];
+        _programCount = 0;
+        _totalProjects = 0;
+        _basicProjectCount = 0;
       });
       return;
     }
+
+    _allProjectsSubscription = ProjectService.streamProjects(ownerId: user.uid, limit: 100).listen((projects) {
+      if (!mounted) return;
+      final basicCount = projects.where((project) => project.isBasicPlanProject).length;
+      setState(() {
+        _totalProjects = projects.length;
+        _basicProjectCount = basicCount;
+      });
+    }, onError: (error) {
+      debugPrint('Error streaming all projects: $error');
+    });
 
     try {
       // Listen to user's programs and get the first one
@@ -63,10 +86,12 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
             _currentProgram = null;
             _projects = [];
             _error = null;
+            _programCount = 0;
           });
           return;
         }
 
+        final programCount = programs.length;
         final program = programs.first;
         final programChanged = _currentProgram?.id != program.id;
 
@@ -75,6 +100,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
         if (program.projectIds.isNotEmpty) {
           if (programChanged) {
             setState(() {
+              _programCount = programCount;
               _currentProgram = program;
               _projects = [];
               _isLoading = true;
@@ -82,6 +108,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
             });
           } else {
             setState(() {
+              _programCount = programCount;
               _currentProgram = program;
               _error = null;
             });
@@ -104,6 +131,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
           });
         } else {
           setState(() {
+            _programCount = programCount;
             _currentProgram = program;
             _projects = [];
             _isLoading = false;
@@ -116,6 +144,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
         setState(() {
           _isLoading = false;
           _error = 'Failed to load program data';
+          _programCount = 0;
         });
       });
     } catch (e) {
@@ -124,6 +153,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
         setState(() {
           _isLoading = false;
           _error = 'An error occurred while loading data';
+          _programCount = 0;
         });
       }
     }
@@ -144,6 +174,8 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth >= 1180;
                 final horizontalPadding = constraints.maxWidth < 900 ? 20.0 : 32.0;
+                final statsIsStacked = constraints.maxWidth < 920;
+                final isSignedIn = FirebaseAuth.instance.currentUser != null;
 
                 return SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(horizontalPadding, 28, horizontalPadding, 36),
@@ -153,6 +185,13 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
                       _Header(
                         isWide: isWide,
                         programName: _currentProgram?.name,
+                      ),
+                      const SizedBox(height: 24),
+                      DashboardStatLayout(
+                        cards: _buildProgramStatsCards(isSignedIn),
+                        isStacked: statsIsStacked,
+                        horizontalSpacing: 20,
+                        verticalSpacing: 16,
                       ),
                       const SizedBox(height: 24),
                       if (showEmptyState)
@@ -189,6 +228,72 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
       ),
     );
   }
+
+  List<DashboardStatCard> _buildProgramStatsCards(bool isSignedIn) {
+    if (!isSignedIn) {
+      return const [
+        DashboardStatCard(
+          label: 'Single Projects',
+          value: '—',
+          subLabel: 'Sign in to view',
+          icon: Icons.folder_open_rounded,
+          color: Color(0xFF2563EB),
+        ),
+        DashboardStatCard(
+          label: 'Basic Projects',
+          value: '—',
+          subLabel: 'Sign in to view',
+          icon: Icons.folder_special_rounded,
+          color: Color(0xFF16A34A),
+        ),
+        DashboardStatCard(
+          label: 'Programs',
+          value: '—',
+          subLabel: 'Sign in to view',
+          icon: Icons.layers_outlined,
+          color: Color(0xFF9333EA),
+        ),
+        DashboardStatCard(
+          label: 'Portfolios',
+          value: '—',
+          subLabel: 'Sign in to view',
+          icon: Icons.pie_chart_outline_rounded,
+          color: Color(0xFF15803D),
+        ),
+      ];
+    }
+
+    return [
+      DashboardStatCard(
+        label: 'Single Projects',
+        value: '$_totalProjects',
+        subLabel: 'Active workspaces',
+        icon: Icons.folder_open_rounded,
+        color: Colors.blue.shade600,
+      ),
+      DashboardStatCard(
+        label: 'Basic Projects',
+        value: '$_basicProjectCount',
+        subLabel: 'Basic plan workspaces',
+        icon: Icons.folder_special_rounded,
+        color: Colors.teal.shade600,
+      ),
+      DashboardStatCard(
+        label: 'Programs',
+        value: '$_programCount',
+        subLabel: 'Grouped projects',
+        icon: Icons.layers_outlined,
+        color: Colors.purple.shade600,
+      ),
+      const DashboardStatCard(
+        label: 'Portfolios',
+        value: '0',
+        subLabel: 'Executive views',
+        icon: Icons.pie_chart_outline_rounded,
+        color: Color(0xFF16A34A),
+      ),
+    ];
+  }
 }
 
 class _Header extends StatelessWidget {
@@ -210,6 +315,43 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(40),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                      boxShadow: [
+                        BoxShadow(
+                          offset: const Offset(0, 12),
+                          blurRadius: 24,
+                          color: Colors.black.withOpacity(0.08),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Image.asset(
+                      'assets/images/Ndu_Logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'World-class delivery intelligence',
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF4D5060),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

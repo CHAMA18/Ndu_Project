@@ -14,6 +14,7 @@ import '../services/project_service.dart';
 import '../services/user_service.dart';
 import '../services/project_navigation_service.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import 'basic_plan_dashboard_screen.dart';
 import 'initiation_phase_screen.dart';
@@ -806,7 +807,7 @@ class _StatusStrip extends StatelessWidget {
 
         if (user == null) {
           final metrics = [
-            _StatCard(
+            DashboardStatCard(
               label: 'Single Projects',
               value: '—',
               subLabel: 'Sign in to view',
@@ -814,7 +815,7 @@ class _StatusStrip extends StatelessWidget {
               color: Colors.blue.shade600,
               onTap: openProjectDashboard,
             ),
-            _StatCard(
+            DashboardStatCard(
               label: 'Basic Projects',
               value: '—',
               subLabel: 'Sign in to view',
@@ -822,7 +823,7 @@ class _StatusStrip extends StatelessWidget {
               color: Colors.teal.shade600,
               onTap: openBasicDashboard,
             ),
-            _StatCard(
+            DashboardStatCard(
               label: 'Programs',
               value: '—',
               subLabel: 'Sign in to view',
@@ -830,7 +831,7 @@ class _StatusStrip extends StatelessWidget {
               color: Colors.purple.shade600,
               onTap: openProgramDashboard,
             ),
-            _StatCard(
+            DashboardStatCard(
               label: 'Portfolios',
               value: '—',
               subLabel: 'Sign in to view',
@@ -840,24 +841,9 @@ class _StatusStrip extends StatelessWidget {
             ),
           ];
 
-          if (isStacked) {
-            return Column(
-              children: metrics
-                  .map((metric) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: metric,
-                      ))
-                  .toList(),
-            );
-          }
-
-          return Row(
-            children: [
-              for (final metric in metrics) ...[
-                Expanded(child: metric),
-                if (metric != metrics.last) const SizedBox(width: 20),
-              ],
-            ],
+          return DashboardStatLayout(
+            cards: metrics,
+            isStacked: isStacked,
           );
         }
 
@@ -874,7 +860,7 @@ class _StatusStrip extends StatelessWidget {
                 final programCount = programSnapshot.hasData ? programSnapshot.data!.length : 0;
                 
                 final metrics = [
-                  _StatCard(
+                  DashboardStatCard(
                     label: 'Single Projects',
                     value: '$projectCount',
                     subLabel: 'Active workspaces',
@@ -882,7 +868,7 @@ class _StatusStrip extends StatelessWidget {
                     color: Colors.blue.shade600,
                     onTap: openProjectDashboard,
                   ),
-                  _StatCard(
+                  DashboardStatCard(
                     label: 'Basic Projects',
                     value: '$basicProjectCount',
                     subLabel: 'Basic plan workspaces',
@@ -890,7 +876,7 @@ class _StatusStrip extends StatelessWidget {
                     color: Colors.teal.shade600,
                     onTap: openBasicDashboard,
                   ),
-                  _StatCard(
+                  DashboardStatCard(
                     label: 'Programs',
                     value: '$programCount',
                     subLabel: 'Grouped projects',
@@ -898,7 +884,7 @@ class _StatusStrip extends StatelessWidget {
                     color: Colors.purple.shade600,
                     onTap: openProgramDashboard,
                   ),
-                  _StatCard(
+                  DashboardStatCard(
                     label: 'Portfolios',
                     value: '0',
                     subLabel: 'Executive views',
@@ -908,24 +894,9 @@ class _StatusStrip extends StatelessWidget {
                   ),
                 ];
 
-                if (isStacked) {
-                  return Column(
-                    children: metrics
-                        .map((metric) => Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: metric,
-                            ))
-                        .toList(),
-                  );
-                }
-
-                return Row(
-                  children: [
-                    for (final metric in metrics) ...[
-                      Expanded(child: metric),
-                      if (metric != metrics.last) const SizedBox(width: 20),
-                    ],
-                  ],
+                return DashboardStatLayout(
+                  cards: metrics,
+                  isStacked: isStacked,
                 );
               },
             );
@@ -1229,7 +1200,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
               builder: (context) {
                 final allProjects = widget.isBasicPlan
                     ? widget.projects.where((project) => project.isBasicPlanProject).toList()
-                    : widget.projects;
+                    : widget.projects.where((project) => !project.isBasicPlanProject).toList();
 
                 // Apply search filter
                 final firebaseProjects = _searchQuery.isEmpty
@@ -2124,6 +2095,35 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
 
   final ProjectRecord project;
 
+  String _lastEditorName() {
+    final ownerName = project.ownerName.trim();
+    if (ownerName.isNotEmpty && !ownerName.contains('@')) return ownerName;
+    final email = project.ownerEmail.trim();
+    if (email.isNotEmpty) {
+      final username = email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
+      return username.split(' ').map((part) => part.isEmpty ? '' : '${part[0].toUpperCase()}${part.substring(1)}').join(' ');
+    }
+    return 'Unknown';
+  }
+
+  String _relativeTimeString(DateTime? time) {
+    if (time == null) return 'moments ago';
+    final diff = DateTime.now().difference(time);
+    if (diff.isNegative) {
+      return 'just now';
+    }
+    if (diff.inDays >= 1) {
+      return diff.inDays == 1 ? '1 day ago' : '${diff.inDays} days ago';
+    }
+    if (diff.inHours >= 1) {
+      return diff.inHours == 1 ? '1 hour ago' : '${diff.inHours} hours ago';
+    }
+    if (diff.inMinutes >= 1) {
+      return diff.inMinutes == 1 ? '1 minute ago' : '${diff.inMinutes} minutes ago';
+    }
+    return 'moments ago';
+  }
+
   Color _stageBackgroundColor(String status) {
     final normalized = status.toLowerCase();
     if (normalized.contains('execution')) return const Color(0xFFE6FAF1);
@@ -2574,38 +2574,43 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: () => _openProject(context),
-                  child: Text(
-                    displayName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
-                      color: Color(0xFF1A4DB3),
-                      decoration: TextDecoration.underline,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    onTap: () => _openProject(context),
+                    child: Text(
+                      displayName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: Color(0xFF1A4DB3),
+                        decoration: TextDecoration.underline,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    milestoneLabel,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey.shade600,
+                      letterSpacing: 0.2,
+                    ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  milestoneLabel,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey.shade600,
-                    letterSpacing: 0.2,
+                  const SizedBox(height: 6),
+                  Text(
+                    'Last edited by ${_lastEditorName()} · ${_relativeTimeString(project.updatedAt)}',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -3216,107 +3221,6 @@ class _TableHeaderLabel extends StatelessWidget {
           letterSpacing: 0.3,
         ),
         textAlign: TextAlign.center,
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.subLabel,
-    required this.icon,
-    required this.color,
-    this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final String subLabel;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final card = Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFEFF1F5), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(icon, color: color, size: 36),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111111),
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111111),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subLabel,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (onTap == null) {
-      return card;
-    }
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: card,
       ),
     );
   }

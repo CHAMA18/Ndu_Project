@@ -11,6 +11,7 @@ import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/screens/create_account_screen.dart';
 import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
+import 'package:ndu_project/screens/mobile_dashboard_screen.dart';
 import 'package:ndu_project/screens/project_dashboard_screen.dart';
 import 'package:ndu_project/screens/program_dashboard_screen.dart';
 import 'package:ndu_project/screens/portfolio_dashboard_screen.dart';
@@ -192,6 +193,7 @@ class AppRoutes {
   static const designPhase = 'design-phase';
   static const deliverablesRoadmap = 'deliverables-roadmap';
   static const managementLevel = 'management-level';
+  static const mobileDashboard = 'mobile-dashboard';
   static const home = 'home';
   static const lessonsLearned = 'lessons-learned';
   static const stakeholderManagement = 'stakeholder-management';
@@ -339,6 +341,11 @@ class AppRouter {
         name: AppRoutes.programDashboard,
         path: '/${AppRoutes.programDashboard}',
         builder: (context, state) => const ProgramDashboardScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.mobileDashboard,
+        path: '/${AppRoutes.mobileDashboard}',
+        builder: (context, state) => const MobileDashboardScreen(),
       ),
       GoRoute(
         name: AppRoutes.portfolioDashboard,
