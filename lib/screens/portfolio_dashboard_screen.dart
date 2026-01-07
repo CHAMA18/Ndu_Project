@@ -1,12 +1,18 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../routing/app_router.dart';
 import '../services/navigation_context_service.dart';
 import '../services/project_service.dart';
 import '../services/program_service.dart';
 import '../models/program_model.dart';
+import 'basic_plan_dashboard_screen.dart';
+import 'project_dashboard_screen.dart';
+import 'program_dashboard_screen.dart';
 
 class PortfolioDashboardScreen extends StatelessWidget {
   const PortfolioDashboardScreen({super.key});
@@ -31,6 +37,73 @@ class PortfolioDashboardScreen extends StatelessWidget {
 class _PortfolioRollUpContent extends StatelessWidget {
   const _PortfolioRollUpContent();
 
+  void _openProjectDashboard(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProjectDashboardScreen()),
+    );
+  }
+
+  void _openBasicProjectDashboard(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const BasicPlanDashboardScreen()),
+    );
+  }
+
+  void _openProgramDashboard(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProgramDashboardScreen()),
+    );
+  }
+
+  void _openPortfolioDashboard(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PortfolioDashboardScreen()),
+    );
+  }
+
+  List<DashboardStatCard> _buildPortfolioStatsCards(BuildContext context, _PortfolioMetrics metrics) {
+    final basicProjectCount = metrics.projects.where((project) => project.isBasicPlanProject).length;
+
+    return [
+      DashboardStatCard(
+        label: 'Single Projects',
+        value: '${metrics.projectCount}',
+        subLabel: 'Active workspaces',
+        icon: Icons.folder_open_rounded,
+        color: Colors.blue.shade600,
+        onTap: () => _openProjectDashboard(context),
+      ),
+      DashboardStatCard(
+        label: 'Basic Projects',
+        value: '$basicProjectCount',
+        subLabel: 'Basic plan workspaces',
+        icon: Icons.folder_special_rounded,
+        color: Colors.teal.shade600,
+        onTap: () => _openBasicProjectDashboard(context),
+      ),
+      DashboardStatCard(
+        label: 'Programs',
+        value: '${metrics.programCount}',
+        subLabel: 'Grouped projects',
+        icon: Icons.layers_outlined,
+        color: Colors.purple.shade600,
+        onTap: () => _openProgramDashboard(context),
+      ),
+      DashboardStatCard(
+        label: 'Portfolios',
+        value: '0',
+        subLabel: 'Executive views',
+        icon: Icons.pie_chart_outline_rounded,
+        color: const Color(0xFF16A34A),
+        onTap: () => _openPortfolioDashboard(context),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -48,39 +121,34 @@ class _PortfolioRollUpContent extends StatelessWidget {
             final metrics = _PortfolioMetrics.fromData(projects: projects, programs: programs);
 
             return LayoutBuilder(
-              builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 1000;
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _HeaderSection(metrics: metrics),
-                      const SizedBox(height: 24),
-                      if (isNarrow) ...[
-                        _ProgramsProjectsCard(metrics: metrics),
-                        const SizedBox(height: 24),
-                        const _GovernanceReportingCard(),
-                        const SizedBox(height: 24),
-                        _IndependentProjectsCard(metrics: metrics),
-                      ] else
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 6,
-                              child: Column(
-                                children: [
-                                  _ProgramsProjectsCard(metrics: metrics),
-                                  const SizedBox(height: 16),
-                                  _IndependentProjectsCard(metrics: metrics),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            const Expanded(flex: 4, child: _GovernanceReportingCard()),
-                          ],
-                        ),
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 1000;
+          final statsIsStacked = constraints.maxWidth < 920;
+          final statCards = _buildPortfolioStatsCards(context, metrics);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HeaderSection(metrics: metrics),
+                const SizedBox(height: 24),
+                DashboardStatLayout(
+                  cards: statCards,
+                  isStacked: statsIsStacked,
+                  horizontalSpacing: 20,
+                  verticalSpacing: 16,
+                ),
+                const SizedBox(height: 24),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ProgramsProjectsCard(metrics: metrics),
+                    const SizedBox(height: 24),
+                    const _GovernanceReportingCard(),
+                    const SizedBox(height: 24),
+                    _IndependentProjectsCard(metrics: metrics),
+                  ],
+                ),
                       const SizedBox(height: 24),
                       _CostScheduleRiskSection(metrics: metrics),
                       const SizedBox(height: 24),
@@ -114,28 +182,62 @@ class _HeaderSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8E6),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFFE4A0)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.auto_awesome, size: 14, color: Colors.amber.shade700),
-                    const SizedBox(width: 6),
-                    Text('Roll-up preview', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade800)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text('Confirm portfolio roll-up', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: const Color(0xFF1A1D21))),
-              const SizedBox(height: 8),
-              Text(
-                'Review which programs, projects, governance rules, and risks will be rolled up into this portfolio view before publishing it for executives and steering committees.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B7280), height: 1.5),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 220,
+                    height: 220,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(52),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                      boxShadow: [
+                        BoxShadow(
+                          offset: const Offset(0, 20),
+                          blurRadius: 36,
+                          color: Colors.black.withOpacity(0.08),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/images/Ndu_Logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E6),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFFFE4A0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome, size: 14, color: Colors.amber.shade700),
+                              const SizedBox(width: 6),
+                              Text('Roll-up preview', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade800)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text('Confirm portfolio roll-up', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF1A1D21))),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Review which programs, projects, governance rules, and risks will be rolled up into this portfolio view before publishing it for executives and steering committees.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B7280), height: 1.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -823,21 +925,31 @@ class _ProjectCostComparison extends StatelessWidget {
         if (items.isEmpty)
           const Text('No projects available yet.', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)))
         else
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (int i = 0; i < items.length; i++) ...[
-                  _CostBar(
-                    label: items[i].label,
-                    value: items[i].formattedValue,
-                    height: items[i].height,
-                    color: items[i].color,
-                  ),
-                  if (i != items.length - 1) const SizedBox(width: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double spacing = 12.0;
+              final int count = math.max(1, items.length);
+              final double totalSpacing = (count - 1) * spacing;
+              final double usableWidth = math.max(0, constraints.maxWidth - totalSpacing);
+              final double candidateWidth = usableWidth / count;
+              final double barWidth = math.max(110, candidateWidth).toDouble();
+              return Row(
+                children: [
+                  for (int i = 0; i < items.length; i++) ...[
+                    SizedBox(
+                      width: barWidth,
+                      child: _CostBar(
+                        label: items[i].label,
+                        value: items[i].formattedValue,
+                        height: items[i].height,
+                        color: items[i].color,
+                      ),
+                    ),
+                    if (i != items.length - 1) SizedBox(width: spacing),
+                  ],
                 ],
-              ],
-            ),
+              );
+            },
           ),
       ],
     );

@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/screens/project_framework_screen.dart';
 
 class ProjectCharterScreen extends StatefulWidget {
   const ProjectCharterScreen({super.key});
@@ -77,6 +78,33 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                 ],
               ),
               child: _CharterContent(isStacked: isMobile, projectData: _projectData),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Back', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                ElevatedButton(
+                  onPressed: () => ProjectFrameworkScreen.open(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LightModeColors.accent,
+                    foregroundColor: const Color(0xFF151515),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Next', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
             ),
           ],
         ),
