@@ -3,7 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+<<<<<<< HEAD
 import '../widgets/dashboard_stat_card.dart';
+=======
+import 'package:go_router/go_router.dart';
+>>>>>>> origin/sub
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../routing/app_router.dart';
 import '../services/navigation_context_service.dart';
@@ -15,19 +19,21 @@ import 'project_dashboard_screen.dart';
 import 'program_dashboard_screen.dart';
 
 class PortfolioDashboardScreen extends StatelessWidget {
-  const PortfolioDashboardScreen({super.key});
+  const PortfolioDashboardScreen({super.key, this.portfolioId});
+
+  final String? portfolioId;
 
   @override
   Widget build(BuildContext context) {
     NavigationContextService.instance.setLastClientDashboard(AppRoutes.portfolioDashboard);
-    return const Scaffold(
-      backgroundColor: Color(0xFFF8F9FB),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB),
       body: Stack(
         children: [
           SafeArea(
-            child: _PortfolioRollUpContent(),
+            child: _PortfolioRollUpContent(portfolioId: portfolioId),
           ),
-          KazAiChatBubble(),
+          const KazAiChatBubble(),
         ],
       ),
     );
@@ -35,7 +41,9 @@ class PortfolioDashboardScreen extends StatelessWidget {
 }
 
 class _PortfolioRollUpContent extends StatelessWidget {
-  const _PortfolioRollUpContent();
+  const _PortfolioRollUpContent({this.portfolioId});
+
+  final String? portfolioId;
 
   void _openProjectDashboard(BuildContext context) {
     Navigator.push(
@@ -366,6 +374,7 @@ class _ProgramsProjectsCard extends StatelessWidget {
             ),
             for (final rollup in rollups)
               _ProgramRow(
+                programId: rollup.id,
                 title: rollup.name,
                 description: rollup.description,
                 projectScopeLabel: rollup.projectScopeLabel,
@@ -382,6 +391,7 @@ class _ProgramsProjectsCard extends StatelessWidget {
 
 class _ProgramRow extends StatelessWidget {
   const _ProgramRow({
+    required this.programId,
     required this.title,
     required this.description,
     required this.projectScopeLabel,
@@ -390,6 +400,7 @@ class _ProgramRow extends StatelessWidget {
     required this.priorityColor,
   });
 
+  final String programId;
   final String title;
   final String description;
   final String projectScopeLabel;
@@ -399,34 +410,39 @@ class _ProgramRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6)))),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827))),
-                const SizedBox(height: 4),
-                Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)), maxLines: 2, overflow: TextOverflow.ellipsis),
-              ],
+    return InkWell(
+      onTap: () {
+        context.go('/${AppRoutes.programDashboard}?programId=$programId');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6)))),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827))),
+                  const SizedBox(height: 4),
+                  Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)), maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(4)),
-              child: Text(projectScopeLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF92400E))),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(4)),
+                child: Text(projectScopeLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF92400E))),
+              ),
             ),
-          ),
-          Expanded(flex: 1, child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)))),
-          Expanded(flex: 1, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)), child: Text(priority, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: priorityColor)))),
-        ],
+            Expanded(flex: 1, child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)))),
+            Expanded(flex: 1, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)), child: Text(priority, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: priorityColor)))),
+          ],
+        ),
       ),
     );
   }
