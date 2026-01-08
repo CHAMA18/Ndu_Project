@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/agile_development_iterations_screen.dart';
+import 'package:ndu_project/screens/stakeholder_alignment_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -19,7 +22,7 @@ class ScopeTrackingImplementationScreen extends StatefulWidget {
 class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImplementationScreen> {
   final Set<String> _selectedFilters = {'All scope'};
 
-  final List<_ScopeItem> _scopeItems = const [
+  final List<_ScopeItem> _scopeItems = [
     _ScopeItem('SC-301', 'Core platform rollout', 'On track', '0%', 'Engineering', 'Oct 18'),
     _ScopeItem('SC-308', 'Reporting dashboards', 'Variance', '+6%', 'Analytics', 'Oct 22'),
     _ScopeItem('SC-315', 'Integration hub', 'At risk', '+3%', 'Platform', 'Oct 20'),
@@ -27,17 +30,50 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
     _ScopeItem('SC-332', 'Ops handover', 'Pending', '+2%', 'Operations', 'Nov 02'),
   ];
 
-  final List<_VarianceSignal> _varianceSignals = const [
+  final List<_VarianceSignal> _varianceSignals = [
     _VarianceSignal('Scope variance', '2 items exceed baseline by 5%.'),
     _VarianceSignal('Change request backlog', '3 items awaiting approval.'),
     _VarianceSignal('Dependency gap', 'Vendor milestone shifted by 2 weeks.'),
   ];
 
-  final List<_ChangeItem> _changeItems = const [
+  final List<_ChangeItem> _changeItems = [
     _ChangeItem('CR-112', 'Add audit log export', 'Approved', 'Oct 10'),
     _ChangeItem('CR-118', 'Reduce legacy migration scope', 'Approved', 'Oct 14'),
     _ChangeItem('CR-123', 'Expand training scope', 'Pending', 'Oct 19'),
   ];
+
+  final List<_BaselineCheckpoint> _baselineItems = [
+    _BaselineCheckpoint('Baseline scope sign-off', 'Complete', true),
+    _BaselineCheckpoint('Scope variance review', 'In progress', false),
+    _BaselineCheckpoint('Sponsor acceptance', 'Scheduled', false),
+  ];
+
+  final List<_StatCardData> _stats = [
+    _StatCardData('Scope items', '32', '4 critical', const Color(0xFF0EA5E9)),
+    _StatCardData('Variance', '2.4%', 'Within guardrails', const Color(0xFF10B981)),
+    _StatCardData('Change requests', '3', '1 pending', const Color(0xFFF59E0B)),
+    _StatCardData('Acceptance', '84%', 'Stakeholder aligned', const Color(0xFF6366F1)),
+  ];
+
+  static const List<String> _scopeStatusOptions = [
+    'On track',
+    'Variance',
+    'At risk',
+    'Pending',
+  ];
+
+  static const List<String> _changeStatusOptions = [
+    'Approved',
+    'Pending',
+  ];
+
+  static const Map<String, Color> _statColors = {
+    'Blue': Color(0xFF0EA5E9),
+    'Green': Color(0xFF10B981),
+    'Orange': Color(0xFFF59E0B),
+    'Purple': Color(0xFF6366F1),
+    'Gray': Color(0xFF64748B),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +94,8 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
                 const SizedBox(height: 16),
                 _buildFilterChips(),
                 const SizedBox(height: 20),
+                _buildStatsHeader(),
+                const SizedBox(height: 12),
                 _buildStatsRow(isNarrow),
                 const SizedBox(height: 24),
                 Column(
@@ -71,6 +109,13 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
                     const SizedBox(height: 20),
                     _buildBaselinePanel(),
                   ],
+                ),
+                const SizedBox(height: 24),
+                LaunchPhaseNavigation(
+                  backLabel: 'Back: Agile Development Iterations',
+                  nextLabel: 'Next: Stakeholder Alignment',
+                  onBack: () => AgileDevelopmentIterationsScreen.open(context),
+                  onNext: () => StakeholderAlignmentScreen.open(context),
                 ),
               ],
             ),
@@ -131,7 +176,8 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
       spacing: 10,
       runSpacing: 10,
       children: [
-        _actionButton(Icons.add, 'Add scope item'),
+        _actionButton(Icons.add, 'Add scope item', onPressed: () => _showScopeItemDialog()),
+        _actionButton(Icons.add_chart, 'Add stat', onPressed: () => _showStatDialog()),
         _actionButton(Icons.sync_alt, 'Sync baseline'),
         _actionButton(Icons.description_outlined, 'Export log'),
         _primaryButton('Run scope review'),
@@ -139,9 +185,9 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
     );
   }
 
-  Widget _actionButton(IconData icon, String label) {
+  Widget _actionButton(IconData icon, String label, {VoidCallback? onPressed}) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed ?? () {},
       icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
       label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
       style: OutlinedButton.styleFrom(
@@ -163,6 +209,49 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
+    );
+  }
+
+  Widget _panelIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+    );
+  }
+
+  Widget _cardIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    Color color = const Color(0xFF64748B),
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: color),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+    );
+  }
+
+  Widget _buildStatsHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text('Key stats', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+        _panelIconButton(
+          icon: Icons.add,
+          tooltip: 'Add stat',
+          onPressed: () => _showStatDialog(),
+        ),
+      ],
     );
   }
 
@@ -205,23 +294,16 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
   }
 
   Widget _buildStatsRow(bool isNarrow) {
-    final stats = [
-      _StatCardData('Scope items', '32', '4 critical', const Color(0xFF0EA5E9)),
-      _StatCardData('Variance', '2.4%', 'Within guardrails', const Color(0xFF10B981)),
-      _StatCardData('Change requests', '3', '1 pending', const Color(0xFFF59E0B)),
-      _StatCardData('Acceptance', '84%', 'Stakeholder aligned', const Color(0xFF6366F1)),
-    ];
-
     if (isNarrow) {
       return Wrap(
         spacing: 12,
         runSpacing: 12,
-        children: stats.map((stat) => _buildStatCard(stat)).toList(),
+        children: _stats.map((stat) => _buildStatCard(stat)).toList(),
       );
     }
 
     return Row(
-      children: stats.map((stat) => Expanded(
+      children: _stats.map((stat) => Expanded(
         child: Padding(
           padding: const EdgeInsets.only(right: 12),
           child: _buildStatCard(stat),
@@ -241,7 +323,27 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(data.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: data.color)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(data.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: data.color)),
+              ),
+              _cardIconButton(
+                icon: Icons.edit,
+                tooltip: 'Edit stat',
+                onPressed: () => _showStatDialog(existing: data),
+              ),
+              _cardIconButton(
+                icon: Icons.delete_outline,
+                tooltip: 'Delete stat',
+                onPressed: () => _confirmDelete(
+                  label: 'stat "${data.label}"',
+                  onDelete: () => setState(() => _stats.remove(data)),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(data.label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           const SizedBox(height: 6),
@@ -255,30 +357,68 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
     return _PanelShell(
       title: 'Scope register',
       subtitle: 'Baseline delivery and variance tracking',
-      trailing: _actionButton(Icons.filter_list, 'Filter'),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          columns: const [
-            DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Scope item', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Variance', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Next review', style: TextStyle(fontWeight: FontWeight.w600))),
-          ],
-          rows: _scopeItems.map((item) {
-            return DataRow(cells: [
-              DataCell(Text(item.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
-              DataCell(Text(item.title, style: const TextStyle(fontSize: 13))),
-              DataCell(_statusChip(item.status)),
-              DataCell(Text(item.variance, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-              DataCell(Text(item.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
-              DataCell(Text(item.reviewDate, style: const TextStyle(fontSize: 12))),
-            ]);
-          }).toList(),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _panelIconButton(
+            icon: Icons.add,
+            tooltip: 'Add scope item',
+            onPressed: () => _showScopeItemDialog(),
+          ),
+          const SizedBox(width: 6),
+          _actionButton(Icons.filter_list, 'Filter'),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                columnSpacing: 24,
+                columns: const [
+                  DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Scope item', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Variance', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Next review', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: _scopeItems.map((item) {
+                  return DataRow(cells: [
+                    DataCell(Text(item.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
+                    DataCell(Text(item.title, style: const TextStyle(fontSize: 13))),
+                    DataCell(_statusChip(item.status)),
+                    DataCell(Text(item.variance, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                    DataCell(Text(item.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                    DataCell(Text(item.reviewDate, style: const TextStyle(fontSize: 12))),
+                    DataCell(Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _cardIconButton(
+                          icon: Icons.edit,
+                          tooltip: 'Edit scope item',
+                          onPressed: () => _showScopeItemDialog(existing: item),
+                        ),
+                        _cardIconButton(
+                          icon: Icons.delete_outline,
+                          tooltip: 'Delete scope item',
+                          onPressed: () => _confirmDelete(
+                            label: 'scope item "${item.id}"',
+                            onDelete: () => setState(() => _scopeItems.remove(item)),
+                          ),
+                        ),
+                      ],
+                    )),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -287,22 +427,49 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
     return _PanelShell(
       title: 'Variance signals',
       subtitle: 'Scope drift and dependency impacts',
+      trailing: _panelIconButton(
+        icon: Icons.add,
+        tooltip: 'Add variance signal',
+        onPressed: () => _showVarianceDialog(),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _varianceSignals.map((signal) {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(12),
+            width: double.infinity,
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(signal.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(signal.subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(signal.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(signal.subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    ],
+                  ),
+                ),
+                _cardIconButton(
+                  icon: Icons.edit,
+                  tooltip: 'Edit variance signal',
+                  onPressed: () => _showVarianceDialog(existing: signal),
+                ),
+                _cardIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete variance signal',
+                  onPressed: () => _confirmDelete(
+                    label: 'variance signal "${signal.title}"',
+                    onDelete: () => setState(() => _varianceSignals.remove(signal)),
+                  ),
+                ),
               ],
             ),
           );
@@ -315,6 +482,11 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
     return _PanelShell(
       title: 'Change log',
       subtitle: 'Recent scope change requests',
+      trailing: _panelIconButton(
+        icon: Icons.add,
+        tooltip: 'Add change request',
+        onPressed: () => _showChangeDialog(),
+      ),
       child: Column(
         children: _changeItems.map((change) {
           final color = change.status == 'Approved' ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
@@ -346,6 +518,20 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
                   ),
                   child: Text(change.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
                 ),
+                const SizedBox(width: 8),
+                _cardIconButton(
+                  icon: Icons.edit,
+                  tooltip: 'Edit change request',
+                  onPressed: () => _showChangeDialog(existing: change),
+                ),
+                _cardIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete change request',
+                  onPressed: () => _confirmDelete(
+                    label: 'change request "${change.id}"',
+                    onDelete: () => setState(() => _changeItems.remove(change)),
+                  ),
+                ),
               ],
             ),
           );
@@ -358,13 +544,25 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
     return _PanelShell(
       title: 'Baseline alignment',
       subtitle: 'Scope checkpoints for sign-off',
+      trailing: _panelIconButton(
+        icon: Icons.add,
+        tooltip: 'Add baseline checkpoint',
+        onPressed: () => _showBaselineDialog(),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _BaselineItem('Baseline scope sign-off', 'Complete', true),
-          _BaselineItem('Scope variance review', 'In progress', false),
-          _BaselineItem('Sponsor acceptance', 'Scheduled', false),
-        ],
+        children: _baselineItems.map((item) {
+          return _BaselineItem(
+            item.title,
+            item.status,
+            item.complete,
+            onEdit: () => _showBaselineDialog(existing: item),
+            onDelete: () => _confirmDelete(
+              label: 'baseline checkpoint "${item.title}"',
+              onDelete: () => setState(() => _baselineItems.remove(item)),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -391,6 +589,425 @@ class _ScopeTrackingImplementationScreenState extends State<ScopeTrackingImpleme
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+
+  Future<void> _confirmDelete({required String label, required VoidCallback onDelete}) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete item'),
+        content: Text('Delete $label? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              onDelete();
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showScopeItemDialog({_ScopeItem? existing}) async {
+    final idController = TextEditingController(text: existing?.id ?? '');
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final varianceController = TextEditingController(text: existing?.variance ?? '');
+    final ownerController = TextEditingController(text: existing?.owner ?? '');
+    final reviewController = TextEditingController(text: existing?.reviewDate ?? '');
+    var status = existing?.status ?? _scopeStatusOptions.first;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add scope item' : 'Edit scope item'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: idController,
+                    decoration: const InputDecoration(labelText: 'ID'),
+                  ),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Scope item'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: _scopeStatusOptions
+                        .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => status = value);
+                    },
+                  ),
+                  TextField(
+                    controller: varianceController,
+                    decoration: const InputDecoration(labelText: 'Variance'),
+                  ),
+                  TextField(
+                    controller: ownerController,
+                    decoration: const InputDecoration(labelText: 'Owner'),
+                  ),
+                  TextField(
+                    controller: reviewController,
+                    decoration: const InputDecoration(labelText: 'Next review'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final id = idController.text.trim();
+                  final title = titleController.text.trim();
+                  if (id.isEmpty || title.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ID and Scope item are required.')),
+                    );
+                    return;
+                  }
+                  final updated = _ScopeItem(
+                    id,
+                    title,
+                    status,
+                    varianceController.text.trim(),
+                    ownerController.text.trim(),
+                    reviewController.text.trim(),
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _scopeItems.add(updated);
+                    } else {
+                      final index = _scopeItems.indexOf(existing);
+                      if (index >= 0) {
+                        _scopeItems[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showVarianceDialog({_VarianceSignal? existing}) async {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final subtitleController = TextEditingController(text: existing?.subtitle ?? '');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(existing == null ? 'Add variance signal' : 'Edit variance signal'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              TextField(
+                controller: subtitleController,
+                decoration: const InputDecoration(labelText: 'Detail'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final title = titleController.text.trim();
+              if (title.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Title is required.')),
+                );
+                return;
+              }
+              final updated = _VarianceSignal(title, subtitleController.text.trim());
+              setState(() {
+                if (existing == null) {
+                  _varianceSignals.add(updated);
+                } else {
+                  final index = _varianceSignals.indexOf(existing);
+                  if (index >= 0) {
+                    _varianceSignals[index] = updated;
+                  }
+                }
+              });
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showChangeDialog({_ChangeItem? existing}) async {
+    final idController = TextEditingController(text: existing?.id ?? '');
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final dateController = TextEditingController(text: existing?.date ?? '');
+    var status = existing?.status ?? _changeStatusOptions.first;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add change request' : 'Edit change request'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: idController,
+                    decoration: const InputDecoration(labelText: 'ID'),
+                  ),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Title'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: _changeStatusOptions
+                        .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => status = value);
+                    },
+                  ),
+                  TextField(
+                    controller: dateController,
+                    decoration: const InputDecoration(labelText: 'Date'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final id = idController.text.trim();
+                  final title = titleController.text.trim();
+                  if (id.isEmpty || title.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ID and Title are required.')),
+                    );
+                    return;
+                  }
+                  final updated = _ChangeItem(
+                    id,
+                    title,
+                    status,
+                    dateController.text.trim(),
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _changeItems.add(updated);
+                    } else {
+                      final index = _changeItems.indexOf(existing);
+                      if (index >= 0) {
+                        _changeItems[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showBaselineDialog({_BaselineCheckpoint? existing}) async {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final statusController = TextEditingController(text: existing?.status ?? '');
+    var complete = existing?.complete ?? false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add baseline checkpoint' : 'Edit baseline checkpoint'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Title'),
+                  ),
+                  TextField(
+                    controller: statusController,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Complete'),
+                    value: complete,
+                    onChanged: (value) => setDialogState(() => complete = value),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final title = titleController.text.trim();
+                  if (title.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Title is required.')),
+                    );
+                    return;
+                  }
+                  final updated = _BaselineCheckpoint(
+                    title,
+                    statusController.text.trim(),
+                    complete,
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _baselineItems.add(updated);
+                    } else {
+                      final index = _baselineItems.indexOf(existing);
+                      if (index >= 0) {
+                        _baselineItems[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showStatDialog({_StatCardData? existing}) async {
+    final labelController = TextEditingController(text: existing?.label ?? '');
+    final valueController = TextEditingController(text: existing?.value ?? '');
+    final supportingController = TextEditingController(text: existing?.supporting ?? '');
+    var selectedColorName = _statColors.entries.firstWhere(
+      (entry) => entry.value == existing?.color,
+      orElse: () => _statColors.entries.first,
+    ).key;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add stat' : 'Edit stat'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: labelController,
+                    decoration: const InputDecoration(labelText: 'Label'),
+                  ),
+                  TextField(
+                    controller: valueController,
+                    decoration: const InputDecoration(labelText: 'Value'),
+                  ),
+                  TextField(
+                    controller: supportingController,
+                    decoration: const InputDecoration(labelText: 'Supporting text'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: selectedColorName,
+                    decoration: const InputDecoration(labelText: 'Accent color'),
+                    items: _statColors.keys
+                        .map((name) => DropdownMenuItem(value: name, child: Text(name)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedColorName = value);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final label = labelController.text.trim();
+                  final value = valueController.text.trim();
+                  if (label.isEmpty || value.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Label and Value are required.')),
+                    );
+                    return;
+                  }
+                  final updated = _StatCardData(
+                    label,
+                    value,
+                    supportingController.text.trim(),
+                    _statColors[selectedColorName] ?? const Color(0xFF64748B),
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _stats.add(updated);
+                    } else {
+                      final index = _stats.indexOf(existing);
+                      if (index >= 0) {
+                        _stats[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -445,11 +1062,19 @@ class _PanelShell extends StatelessWidget {
 }
 
 class _BaselineItem extends StatelessWidget {
-  const _BaselineItem(this.title, this.status, this.complete);
+  const _BaselineItem(
+    this.title,
+    this.status,
+    this.complete, {
+    this.onEdit,
+    this.onDelete,
+  });
 
   final String title;
   final String status;
   final bool complete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -475,6 +1100,22 @@ class _BaselineItem extends StatelessWidget {
               ],
             ),
           ),
+          if (onEdit != null)
+            IconButton(
+              tooltip: 'Edit baseline checkpoint',
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit, size: 16, color: Color(0xFF64748B)),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+            ),
+          if (onDelete != null)
+            IconButton(
+              tooltip: 'Delete baseline checkpoint',
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFF64748B)),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+            ),
         ],
       ),
     );
@@ -506,6 +1147,14 @@ class _ChangeItem {
   final String title;
   final String status;
   final String date;
+}
+
+class _BaselineCheckpoint {
+  const _BaselineCheckpoint(this.title, this.status, this.complete);
+
+  final String title;
+  final String status;
+  final bool complete;
 }
 
 class _StatCardData {

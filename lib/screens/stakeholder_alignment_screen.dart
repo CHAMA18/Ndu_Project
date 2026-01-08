@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/scope_tracking_implementation_screen.dart';
+import 'package:ndu_project/screens/update_ops_maintenance_plans_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -71,6 +74,13 @@ class _StakeholderAlignmentScreenState extends State<StakeholderAlignmentScreen>
                     const SizedBox(height: 20),
                     _buildCadencePanel(),
                   ],
+                ),
+                const SizedBox(height: 24),
+                LaunchPhaseNavigation(
+                  backLabel: 'Back: Scope Tracking Implementation',
+                  nextLabel: 'Next: Update Ops & Maintenance Plans',
+                  onBack: () => ScopeTrackingImplementationScreen.open(context),
+                  onNext: () => UpdateOpsMaintenancePlansScreen.open(context),
                 ),
               ],
             ),

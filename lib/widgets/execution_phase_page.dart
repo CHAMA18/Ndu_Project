@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/services/execution_phase_service.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -30,6 +31,7 @@ class ExecutionPhasePage extends StatefulWidget {
     required this.subtitle,
     required this.sections,
     this.introText,
+    this.navigation,
   });
 
   final String pageKey;
@@ -37,6 +39,7 @@ class ExecutionPhasePage extends StatefulWidget {
   final String subtitle;
   final String? introText;
   final List<ExecutionSectionSpec> sections;
+  final PhaseNavigationSpec? navigation;
 
   @override
   State<ExecutionPhasePage> createState() => _ExecutionPhasePageState();
@@ -81,6 +84,15 @@ class _ExecutionPhasePageState extends State<ExecutionPhasePage> {
               const SizedBox(height: 16),
             ],
             _buildSubmitRow(),
+            if (widget.navigation != null) ...[
+              const SizedBox(height: 24),
+              LaunchPhaseNavigation(
+                backLabel: widget.navigation!.backLabel,
+                nextLabel: widget.navigation!.nextLabel,
+                onBack: widget.navigation!.onBack,
+                onNext: widget.navigation!.onNext,
+              ),
+            ],
             const SizedBox(height: 48),
           ],
         ),
@@ -170,4 +182,18 @@ class _ExecutionPhasePageState extends State<ExecutionPhasePage> {
       if (mounted) setState(() => _submitting = false);
     }
   }
+}
+
+class PhaseNavigationSpec {
+  const PhaseNavigationSpec({
+    required this.backLabel,
+    required this.nextLabel,
+    required this.onBack,
+    required this.onNext,
+  });
+
+  final String backLabel;
+  final String nextLabel;
+  final VoidCallback onBack;
+  final VoidCallback onNext;
 }

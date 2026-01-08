@@ -3,13 +3,14 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'project_framework_next_screen.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
 class ProjectFrameworkScreen extends StatefulWidget {
   const ProjectFrameworkScreen({super.key});
@@ -99,16 +100,16 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     if (contextText.trim().isEmpty) return;
 
     setState(() => _isAiPopulating = true);
-    AiProjectFrameworkAndGoals aiResult;
     try {
-      aiResult = await OpenAiServiceSecure().suggestProjectFrameworkGoals(context: contextText);
+      final aiResult = await OpenAiServiceSecure().suggestProjectFrameworkGoals(context: contextText);
+      if (!mounted) return;
+      _applyAiResult(aiResult);
     } catch (e) {
-      print('AI framework suggestion failed: $e');
-      aiResult = AiProjectFrameworkAndGoals.fallback(contextText);
+      // Surface a clear error state to the user and do not populate dummy data
+      if (!mounted) return;
+      setState(() => _isAiPopulating = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('AI generation failed: ${e.toString()}')));
     }
-
-    if (!mounted) return;
-    _applyAiResult(aiResult);
   }
 
   void _applyAiResult(AiProjectFrameworkAndGoals aiResult) {
@@ -210,9 +211,10 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                                 isAiPopulating: _isAiPopulating,
                               ),
                               const SizedBox(height: 24),
-                              BusinessCaseNavigationButtons(
-                                currentScreen: 'Project Management Framework',
-                                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                              LaunchPhaseNavigation(
+                                backLabel: 'Back: Work Breakdown Structure',
+                                nextLabel: 'Next: SSHER',
+                                onBack: () => WorkBreakdownStructureScreen.open(context),
                                 onNext: _handleNextPressed,
                               ),
                               const SizedBox(height: 40),

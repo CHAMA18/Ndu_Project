@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/launch_checklist_screen.dart';
+import 'package:ndu_project/screens/stakeholder_alignment_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -72,6 +75,13 @@ class _UpdateOpsMaintenancePlansScreenState extends State<UpdateOpsMaintenancePl
                     const SizedBox(height: 20),
                     _buildMaintenancePanel(),
                   ],
+                ),
+                const SizedBox(height: 24),
+                LaunchPhaseNavigation(
+                  backLabel: 'Back: Stakeholder Alignment',
+                  nextLabel: 'Next: Start-up / Launch Checklist',
+                  onBack: () => StakeholderAlignmentScreen.open(context),
+                  onNext: () => LaunchChecklistScreen.open(context),
                 ),
               ],
             ),

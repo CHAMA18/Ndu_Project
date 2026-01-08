@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/launch_checklist_screen.dart';
+import 'package:ndu_project/screens/scope_completion_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -19,13 +22,7 @@ class RiskTrackingScreen extends StatefulWidget {
 class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
   final Set<String> _selectedFilters = {'All risks'};
 
-  final List<_RiskItem> _risks = const [
-    _RiskItem('R-018', 'Vendor API stability', 'Integration', '0.6', 'High', 'Mitigating', 'Oct 12'),
-    _RiskItem('R-024', 'Scope creep in analytics', 'Product', '0.4', 'Medium', 'Monitoring', 'Oct 15'),
-    _RiskItem('R-031', 'Regulatory review delay', 'Compliance', '0.5', 'High', 'Escalated', 'Oct 09'),
-    _RiskItem('R-037', 'Data quality regression', 'Data team', '0.3', 'Medium', 'Mitigating', 'Oct 18'),
-    _RiskItem('R-045', 'Ops handover readiness', 'Operations', '0.2', 'Low', 'Accepted', 'Oct 22'),
-  ];
+  final List<_RiskItem> _risks = [];
 
   final List<_RiskSignal> _signals = const [
     _RiskSignal('Critical path dependencies', '2 risks require executive unblock.'),
@@ -71,6 +68,13 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     const SizedBox(height: 20),
                     _buildEscalationPanel(),
                   ],
+                ),
+                const SizedBox(height: 24),
+                LaunchPhaseNavigation(
+                  backLabel: 'Back: Start-up / Launch Checklist',
+                  nextLabel: 'Next: Scope Completion',
+                  onBack: () => LaunchChecklistScreen.open(context),
+                  onNext: () => ScopeCompletionScreen.open(context),
                 ),
               ],
             ),
@@ -131,7 +135,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
       spacing: 10,
       runSpacing: 10,
       children: [
-        _actionButton(Icons.add, 'Add risk'),
+        _actionButton(Icons.add, 'Add risk', onPressed: _openAddRiskDialog),
         _actionButton(Icons.download_outlined, 'Import risk log'),
         _actionButton(Icons.description_outlined, 'Export report'),
         _primaryButton('Run weekly review'),
@@ -139,9 +143,9 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     );
   }
 
-  Widget _actionButton(IconData icon, String label) {
+  Widget _actionButton(IconData icon, String label, {VoidCallback? onPressed}) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed ?? () {},
       icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
       label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
       style: OutlinedButton.styleFrom(
@@ -206,10 +210,32 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
 
   Widget _buildStatsRow(bool isNarrow) {
     final stats = [
-      _StatCardData('Active risks', '12', '3 critical', const Color(0xFFEF4444)),
-      _StatCardData('Mitigation coverage', '78%', 'Next review Fri', const Color(0xFF10B981)),
-      _StatCardData('Escalations', '2', 'Exec sync scheduled', const Color(0xFFF97316)),
-      _StatCardData('Exposure score', '61/100', 'Stable', const Color(0xFF6366F1)),
+      _StatCardData(
+        'Active risks',
+        '$_activeRiskCount',
+        '$_criticalRiskCount critical',
+        const Color(0xFFEF4444),
+      ),
+      _StatCardData(
+        'Mitigation coverage',
+        '${(_mitigationCoverageRate * 100).round()}%',
+        _risks.isEmpty
+            ? 'Add risks to start tracking'
+            : '$_mitigatedRiskCount of $_activeRiskCount mitigated',
+        const Color(0xFF10B981),
+      ),
+      _StatCardData(
+        'Escalations',
+        '$_escalationCount',
+        _escalationCount > 0 ? 'Exec sync scheduled' : 'None',
+        const Color(0xFFF97316),
+      ),
+      _StatCardData(
+        'Exposure score',
+        _risks.isEmpty ? '—' : '$_exposureScore/100',
+        _risks.isEmpty ? 'Add risks to compute' : _exposureStatus,
+        const Color(0xFF6366F1),
+      ),
     ];
 
     if (isNarrow) {
@@ -251,45 +277,222 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     );
   }
 
+  int get _activeRiskCount => _risks.length;
+
+  int get _criticalRiskCount => _risks.where((risk) => risk.impact == 'High').length;
+
+  int get _mitigatedRiskCount => _risks.where((risk) => _isMitigatingStatus(risk.status)).length;
+
+  double get _mitigationCoverageRate => _risks.isEmpty ? 0 : _mitigatedRiskCount / _activeRiskCount;
+
+  int get _escalationCount => _risks.where((risk) => risk.status == 'Escalated').length;
+
+  double get _averageProbability => _risks.isEmpty
+      ? 0
+      : _risks.map((risk) => _safeProbability(risk.probability)).reduce((a, b) => a + b) / _activeRiskCount;
+
+  int get _exposureScore => _risks.isEmpty ? 0 : ((1 - _averageProbability).clamp(0.0, 1.0) * 100).round();
+
+  String get _exposureStatus => _exposureScore >= 70
+      ? 'Stable'
+      : _exposureScore >= 40
+          ? 'Caution'
+          : 'At risk';
+
+  double _safeProbability(String value) {
+    return (double.tryParse(value) ?? 0).clamp(0.0, 1.0);
+  }
+
+  bool _isMitigatingStatus(String status) {
+    return status == 'Mitigating' || status == 'Monitoring' || status == 'Accepted';
+  }
+
   Widget _buildRiskRegister() {
     return _PanelShell(
       title: 'Risk register',
       subtitle: 'Live view of probability, impact, and mitigation status',
       trailing: _actionButton(Icons.filter_list, 'Filter'),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                columns: const [
-                  DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Risk', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Probability', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Impact', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Next review', style: TextStyle(fontWeight: FontWeight.w600))),
-                ],
-                rows: _risks.map((risk) {
-                  return DataRow(cells: [
-                    DataCell(Text(risk.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
-                    DataCell(Text(risk.title, style: const TextStyle(fontSize: 13))),
-                    DataCell(Text(risk.owner, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
-                    DataCell(_chip('${risk.probability} p')),
-                    DataCell(_impactChip(risk.impact)),
-                    DataCell(_statusChip(risk.status)),
-                    DataCell(Text(risk.nextReview, style: const TextStyle(fontSize: 12))),
-                  ]);
-                }).toList(),
+      child: _risks.isEmpty
+        ? _buildEmptyRiskState()
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                        columns: const [
+                          DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
+                          DataColumn(label: Text('Risk', style: TextStyle(fontWeight: FontWeight.w600))),
+                          DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
+                          DataColumn(label: Text('Probability', style: TextStyle(fontWeight: FontWeight.w600))),
+                          DataColumn(label: Text('Impact', style: TextStyle(fontWeight: FontWeight.w600))),
+                          DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
+                          DataColumn(label: Text('Next review', style: TextStyle(fontWeight: FontWeight.w600))),
+                        ],
+                        rows: _risks.map((risk) {
+                          return DataRow(cells: [
+                            DataCell(Text(risk.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
+                            DataCell(Text(risk.title, style: const TextStyle(fontSize: 13))),
+                            DataCell(Text(risk.owner, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
+                            DataCell(_chip('${risk.probability} p')),
+                            DataCell(_impactChip(risk.impact)),
+                            DataCell(_statusChip(risk.status)),
+                            DataCell(Text(risk.nextReview, style: const TextStyle(fontSize: 12))),
+                          ]);
+                        }).toList(),
+                      ),
+                    ),
+                  );
+                },
               ),
-            ),
-          );
-        },
+      );
+  }
+
+  Widget _buildEmptyRiskState() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'No risks logged yet.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Add a risk to start tracking probability, impact, and mitigation status for your execution plan.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 16),
+          _actionButton(Icons.add, 'Add risk', onPressed: _openAddRiskDialog),
+        ],
       ),
     );
+  }
+
+  void _openAddRiskDialog() {
+    final idController = TextEditingController();
+    final titleController = TextEditingController();
+    final ownerController = TextEditingController();
+    final probabilityController = TextEditingController();
+    final nextReviewController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var selectedImpact = 'High';
+    var selectedStatus = 'Mitigating';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add risk'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: idController,
+                        decoration: const InputDecoration(labelText: 'Risk ID', hintText: 'e.g., R-050'),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter an ID' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: 'Risk title'),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Describe the risk' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: ownerController,
+                        decoration: const InputDecoration(labelText: 'Owner'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: probabilityController,
+                        decoration: const InputDecoration(labelText: 'Probability (e.g., 0.42)'),
+                        keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: selectedImpact,
+                        items: const ['Low', 'Medium', 'High']
+                            .map((impact) => DropdownMenuItem(value: impact, child: Text(impact)))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedImpact = value);
+                          }
+                        },
+                        decoration: const InputDecoration(labelText: 'Impact'),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: selectedStatus,
+                        items: const ['Mitigating', 'Monitoring', 'Escalated', 'Accepted']
+                            .map((status) => DropdownMenuItem(value: status, child: Text(status)))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedStatus = value);
+                          }
+                        },
+                        decoration: const InputDecoration(labelText: 'Status'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: nextReviewController,
+                        decoration: const InputDecoration(labelText: 'Next review (date or note)'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState?.validate() ?? false) {
+                      setState(() {
+                        _risks.add(
+                          _RiskItem(
+                            idController.text.trim(),
+                            titleController.text.trim(),
+                            ownerController.text.trim(),
+                            probabilityController.text.trim(),
+                            selectedImpact,
+                            selectedStatus,
+                            nextReviewController.text.trim(),
+                          ),
+                        );
+                      });
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text('Add risk'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      idController.dispose();
+      titleController.dispose();
+      ownerController.dispose();
+      probabilityController.dispose();
+      nextReviewController.dispose();
+    });
   }
 
   Widget _buildMitigationPanel() {

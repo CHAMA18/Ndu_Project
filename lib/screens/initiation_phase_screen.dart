@@ -3,6 +3,7 @@ import 'dart:math' as Math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/screens/potential_solutions_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
@@ -20,6 +21,7 @@ import 'package:ndu_project/screens/it_considerations_screen.dart';
 import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
+import 'package:ndu_project/screens/front_end_planning_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
@@ -435,6 +437,44 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const PotentialSolutionsScreen(),
+      ),
+    );
+  }
+
+  Future<void> _handleSkipPressed() async {
+    FocusScope.of(context).unfocus();
+
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.updateInitiationData(
+      notes: _notesController.text.trim(),
+      businessCase: _businessCaseController.text.trim(),
+    );
+
+    await provider.saveToFirebase(checkpoint: 'front_end_planning');
+
+    final projectId = provider.projectData.projectId;
+    if (projectId != null && projectId.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance.collection('projects').doc(projectId).update({
+          'status': 'Planning',
+          'milestone': 'front-end planning',
+          'checkpointRoute': 'front_end_planning',
+          'checkpointAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Warning: Unable to update project status. ${e.toString()}')),
+          );
+        }
+      }
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const FrontEndPlanningScreen(),
       ),
     );
   }
@@ -1196,6 +1236,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
             currentScreen: 'Business Case',
             padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
             onNext: _handleNextPressed,
+            onSkip: _handleSkipPressed,
+            skipLabel: 'Skip',
           ),
         ],
       ),

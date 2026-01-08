@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/actual_vs_planned_gap_analysis_screen.dart';
+import 'package:ndu_project/screens/deliver_project_closure_screen.dart';
+import 'package:ndu_project/screens/demobilize_team_screen.dart';
+import 'package:ndu_project/screens/scope_completion_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 class GapAnalysisScopeReconcillationScreen extends StatefulWidget {
@@ -82,6 +87,13 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
                         const _PrimarySections(),
                         const SizedBox(height: 24),
                         const _SecondarySections(),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Scope Completion',
+                          nextLabel: 'Next: Deliver Project',
+                          onBack: () => ScopeCompletionScreen.open(context),
+                          onNext: () => DeliverProjectClosureScreen.open(context),
+                        ),
                         const SizedBox(height: 48),
                       ],
                     ),
@@ -473,25 +485,15 @@ class _PrimarySections extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        double targetWidth;
+        final sectionWidth = constraints.maxWidth;
 
-        if (maxWidth >= 1150) {
-          targetWidth = (maxWidth - 40) / 3;
-        } else if (maxWidth >= 820) {
-          targetWidth = (maxWidth - 20) / 2;
-        } else {
-          targetWidth = maxWidth;
-        }
-
-        final sectionWidth = maxWidth < 320 ? maxWidth : targetWidth.clamp(320.0, maxWidth);
-
-        return Wrap(
-          spacing: 20,
-          runSpacing: 20,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _GapRegisterCard(width: sectionWidth),
+            const SizedBox(height: 20),
             _GapAnalysisRootCauseCard(width: sectionWidth),
+            const SizedBox(height: 20),
             _ReconciliationPlanningCard(width: sectionWidth),
           ],
         );
@@ -507,25 +509,15 @@ class _SecondarySections extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        double targetWidth;
+        final sectionWidth = constraints.maxWidth;
 
-        if (maxWidth >= 1150) {
-          targetWidth = (maxWidth - 40) / 3;
-        } else if (maxWidth >= 820) {
-          targetWidth = (maxWidth - 20) / 2;
-        } else {
-          targetWidth = maxWidth;
-        }
-
-        final sectionWidth = maxWidth < 320 ? maxWidth : targetWidth.clamp(320.0, maxWidth);
-
-        return Wrap(
-          spacing: 20,
-          runSpacing: 20,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ImpactAssessmentCard(width: sectionWidth),
+            const SizedBox(height: 20),
             _ReconciliationWorkflowCard(width: sectionWidth),
+            const SizedBox(height: 20),
             _LessonsLearnedCard(width: sectionWidth),
           ],
         );

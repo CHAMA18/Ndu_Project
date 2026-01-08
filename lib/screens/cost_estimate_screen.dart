@@ -7,6 +7,8 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/screens/scope_tracking_plan_screen.dart';
 
 class CostEstimateScreen extends StatefulWidget {
   const CostEstimateScreen({super.key});
@@ -102,6 +104,13 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                         _CostCategoryList(view: view),
                         const SizedBox(height: 22),
                         _TrailingSummaryCard(view: view),
+                        const SizedBox(height: 16),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Issue Management',
+                          nextLabel: 'Next: Scope Tracking Plan',
+                          onBack: () => Navigator.of(context).maybePop(),
+                          onNext: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ScopeTrackingPlanScreen())),
+                        ),
                         const SizedBox(height: 80),
                       ],
                     ),

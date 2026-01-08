@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/screens/requirements_implementation_screen.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/architecture_canvas.dart';
@@ -333,6 +335,15 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                     ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          LaunchPhaseNavigation(
+            backLabel: 'Back: Design overview',
+            nextLabel: 'Next: Requirements Implementation',
+            onBack: () => Navigator.of(context).maybePop(),
+            onNext: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RequirementsImplementationScreen()),
             ),
           ),
         ],

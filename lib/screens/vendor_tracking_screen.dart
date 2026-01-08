@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:intl/intl.dart';
+import 'package:ndu_project/screens/contracts_tracking_screen.dart';
+import 'package:ndu_project/screens/detailed_design_screen.dart';
 import 'package:ndu_project/services/vendor_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
-import 'package:intl/intl.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 class VendorTrackingScreen extends StatefulWidget {
   const VendorTrackingScreen({super.key});
@@ -63,6 +66,13 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                     const SizedBox(height: 20),
                     _buildActionPanel(),
                   ],
+                ),
+                const SizedBox(height: 24),
+                LaunchPhaseNavigation(
+                  backLabel: 'Back: Contracts Tracking',
+                  nextLabel: 'Next: Detailed Design',
+                  onBack: () => ContractsTrackingScreen.open(context),
+                  onNext: () => DetailedDesignScreen.open(context),
                 ),
               ],
             ),

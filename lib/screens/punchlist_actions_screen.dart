@@ -525,7 +525,15 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
   }
 
   Widget _wrapInsightCards(List<Widget> cards) {
-    return _buildPanelGrid(cards, horizontalSpacing: 16, verticalSpacing: 16);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < cards.length; i++) ...[
+          cards[i],
+          if (i != cards.length - 1) const SizedBox(height: 16),
+        ],
+      ],
+    );
   }
 
   Widget _buildPanelGrid(

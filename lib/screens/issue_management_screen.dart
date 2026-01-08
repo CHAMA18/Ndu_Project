@@ -7,6 +7,8 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/screens/change_management_screen.dart';
 
 class IssueManagementScreen extends StatefulWidget {
   const IssueManagementScreen({super.key});
@@ -90,6 +92,13 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                         ),
                         const SizedBox(height: 24),
                         _ProjectIssuesLogCard(entries: issueItems),
+                        const SizedBox(height: 16),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: SSHER',
+                          nextLabel: 'Next: Change Management',
+                          onBack: () => Navigator.of(context).maybePop(),
+                          onNext: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangeManagementScreen())),
+                        ),
                         const SizedBox(height: 80),
                       ],
                     ),

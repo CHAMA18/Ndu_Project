@@ -12,6 +12,8 @@ import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/screens/change_management_screen.dart';
 
 enum _SsherCategory { safety, security, health, environment, regulatory }
 
@@ -506,6 +508,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen> {
         ),
 
         const SizedBox(height: 16),
+        LaunchPhaseNavigation(
+          backLabel: 'Back: Project Management Framework',
+          nextLabel: 'Next: Change Management',
+          onBack: () => Navigator.of(context).maybePop(),
+          onNext: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangeManagementScreen())),
+        ),
       ]),
     );
   }

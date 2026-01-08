@@ -6,12 +6,12 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 
 /// Schedule screen recreated to match the provided mockup with
-/// notes input, schedule management overview, and project timeline.
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
 
@@ -145,6 +145,18 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           onTabChanged: (index) => setState(() => _timelineTabIndex = index),
                         ),
                       ],
+                    ),
+                  ),
+                  // Navigation footer matching Launch Phase styling
+                  Positioned(
+                    left: isMobile ? 20 : 32,
+                    right: isMobile ? 20 : 32,
+                    bottom: 90,
+                    child: LaunchPhaseNavigation(
+                      backLabel: 'Back: Schedule overview',
+                      nextLabel: 'Next: Schedule timeline',
+                      onBack: () => Navigator.maybePop(context),
+                      onNext: () {},
                     ),
                   ),
                   const KazAiChatBubble(),

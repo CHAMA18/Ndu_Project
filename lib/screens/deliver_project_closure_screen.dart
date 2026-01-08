@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/project_close_out_screen.dart';
+import 'package:ndu_project/screens/transition_to_prod_team_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 class DeliverProjectClosureScreen extends StatefulWidget {
@@ -77,6 +80,17 @@ class _DeliverProjectClosureScreenState extends State<DeliverProjectClosureScree
                           entries: _checklist,
                           onAdd: () => _addEntry(_checklist, titleLabel: 'Checklist item', includeStatus: true),
                           onRemove: (index) => setState(() => _checklist.removeAt(index)),
+                        ),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Project Close Out',
+                          nextLabel: 'Next: Transition To Production Team',
+                          onBack: () => ProjectCloseOutScreen.open(
+                            context,
+                            summarized: false,
+                            activeItemLabel: 'Project Close Out',
+                          ),
+                          onNext: () => TransitionToProdTeamScreen.open(context),
                         ),
                         const SizedBox(height: 48),
                       ],

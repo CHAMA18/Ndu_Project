@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/deliver_project_closure_screen.dart';
+import 'package:ndu_project/screens/demobilize_team_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -95,6 +98,25 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
                 archive: _archive,
               ),
             ],
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel: _selectedView == _CloseOutView.longForm ? 'Back: Demobilize Team' : 'Back: Close-out long form',
+              nextLabel: _selectedView == _CloseOutView.longForm ? 'Next: Summarized Form' : 'Next: Deliver Project',
+              onBack: _selectedView == _CloseOutView.longForm
+                  ? () => DemobilizeTeamScreen.open(context)
+                  : () => ProjectCloseOutScreen.open(
+                        context,
+                        summarized: false,
+                        activeItemLabel: 'Project Close Out',
+                      ),
+              onNext: _selectedView == _CloseOutView.longForm
+                  ? () => ProjectCloseOutScreen.open(
+                        context,
+                        summarized: true,
+                        activeItemLabel: 'Project Close Out - Summarized Form',
+                      )
+                  : () => DeliverProjectClosureScreen.open(context),
+            ),
             const SizedBox(height: 48),
           ],
         ),

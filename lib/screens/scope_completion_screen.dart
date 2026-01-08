@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
 
+import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
+import 'package:ndu_project/screens/gap_analysis_scope_reconcillation_screen.dart';
+import 'package:ndu_project/screens/risk_tracking_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 class ScopeCompletionScreen extends StatefulWidget {
@@ -55,6 +59,13 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                         _buildFooterNavigation(context),
                         const SizedBox(height: 12),
                         _buildTipRow(context),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Risk Tracking',
+                          nextLabel: 'Next: Gap Analysis & Scope Reconciliation',
+                          onBack: () => RiskTrackingScreen.open(context),
+                          onNext: () => GapAnalysisScopeReconcillationScreen.open(context),
+                        ),
                         const SizedBox(height: 48),
                       ],
                     ),
