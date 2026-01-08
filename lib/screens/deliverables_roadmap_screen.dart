@@ -6,6 +6,7 @@ import '../widgets/draggable_sidebar.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../widgets/responsive.dart';
 import '../widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'front_end_planning_personnel_screen.dart';
 
 const Color _kBackground = Color(0xFFF7F8FC);
@@ -79,8 +80,7 @@ class _SprintConfig {
     required this.heading,
     required this.summaryLabel,
     required this.summaryColor,
-    this.allowAdd = false,
-  });
+  }) : allowAdd = false;
 
   final String heading;
   final String summaryLabel;
@@ -668,28 +668,11 @@ class _DeliverablesRoadmapBodyState extends State<_DeliverablesRoadmapBody> {
             ),
           ),
           const SizedBox(height: 28),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () => FrontEndPlanningPersonnelScreen.open(context),
-              child: Container(
-                width: 102,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: _kAccent,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'NEXT',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: _kHeadline,
-                  ),
-                ),
-              ),
-            ),
+          LaunchPhaseNavigation(
+            backLabel: 'Back: Start-Up Planning',
+            nextLabel: 'Next: Personnel',
+            onBack: () => Navigator.of(context).maybePop(),
+            onNext: () => FrontEndPlanningPersonnelScreen.open(context),
           ),
         ],
       ),

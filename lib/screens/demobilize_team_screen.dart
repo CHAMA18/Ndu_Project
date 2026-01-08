@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/gap_analysis_scope_reconcillation_screen.dart';
+import 'package:ndu_project/screens/project_close_out_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -68,6 +71,13 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
               onAdd: () => _addEntry(_communications, titleLabel: 'Communication item'),
               onRemove: (index) => setState(() => _communications.removeAt(index)),
               showStatusChip: false,
+            ),
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel: 'Back: Project Financial Review - Scope Reconcillation',
+              nextLabel: 'Next: Project Close Out',
+              onBack: () => GapAnalysisScopeReconcillationScreen.open(context),
+              onNext: () => ProjectCloseOutScreen.open(context),
             ),
             const SizedBox(height: 48),
           ],

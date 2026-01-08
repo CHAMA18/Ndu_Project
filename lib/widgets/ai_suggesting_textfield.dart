@@ -6,7 +6,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 
 /// Debouncer utility to limit API calls while typing
 class _Debouncer {
-  _Debouncer({this.delay = const Duration(milliseconds: 400)});
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 400);
   final Duration delay;
   Timer? _timer;
   void run(void Function() action) {
@@ -348,11 +348,12 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
 
 class _AiLimitBanner extends StatelessWidget {
   const _AiLimitBanner({
+    Key? key,
     required this.message,
     required this.background,
     required this.border,
     required this.textColor,
-  });
+  }) : super(key: key);
 
   final String message;
   final Color background;
@@ -363,6 +364,7 @@ class _AiLimitBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(10),

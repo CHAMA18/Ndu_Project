@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
-import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/technical_alignment_screen.dart';
+import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 class RequirementsImplementationScreen extends StatefulWidget {
   const RequirementsImplementationScreen({super.key});
@@ -205,8 +206,12 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
                     ),
                   ),
                   const SizedBox(height: 40),
-                  // Bottom navigation bar
-                  _buildBottomNavigation(isMobile),
+                  LaunchPhaseNavigation(
+                    backLabel: 'Back: Design overview',
+                    nextLabel: 'Next: Technical alignment',
+                    onBack: _navigateToDesignOverview,
+                    onNext: _navigateToTechnicalAlignment,
+                  ),
                 ],
               ),
             ),
@@ -764,139 +769,6 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
     );
   }
 
-  Widget _buildBottomNavigation(bool isMobile) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16.0 : 40.0,
-        vertical: 20,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isMobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildBackButton(),
-                const SizedBox(height: 12),
-                Text(
-                  'Design phase · Requirements implementation',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildNextButton(),
-              ],
-            )
-          else
-            Row(
-              children: [
-                _buildBackButton(),
-                const SizedBox(width: 16),
-                Text(
-                  'Design phase · Requirements implementation',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const Spacer(),
-                _buildNextButton(),
-              ],
-            ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.lightbulb_outline,
-                size: 18,
-                color: Colors.amber[700],
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Use this page to ensure requirements are complete and understandable. The next step, Technical alignment, will validate feasibility, architecture, and sequencing against these requirements.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBackButton() {
-    return InkWell(
-      onTap: _navigateToDesignOverview,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE4E7EC)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.arrow_back, size: 18, color: Color(0xFF1A1D1F)),
-            const SizedBox(width: 8),
-            const Text(
-              'Back: Design overview',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1A1D1F),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNextButton() {
-    return InkWell(
-      onTap: _navigateToTechnicalAlignment,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF3B82F6),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text(
-              'Next: Technical alignment',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_forward, size: 18, color: Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 enum ChecklistStatus { ready, inReview, pending }

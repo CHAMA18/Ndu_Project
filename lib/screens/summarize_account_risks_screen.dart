@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/commerce_viability_screen.dart';
+import 'package:ndu_project/screens/vendor_account_close_out_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 class SummarizeAccountRisksScreen extends StatefulWidget {
@@ -78,6 +81,13 @@ class _SummarizeAccountRisksScreenState extends State<SummarizeAccountRisksScree
                           entries: _next90Days,
                           onAdd: () => _addEntry(_next90Days, titleLabel: 'Follow-up', includeStatus: true),
                           onRemove: (index) => setState(() => _next90Days.removeAt(index)),
+                        ),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Vendor Account Close Out',
+                          nextLabel: 'Next: Warranties & Operations Support',
+                          onBack: () => VendorAccountCloseOutScreen.open(context),
+                          onNext: () => CommerceViabilityScreen.open(context),
                         ),
                         const SizedBox(height: 48),
                       ],

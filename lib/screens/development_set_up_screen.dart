@@ -6,6 +6,7 @@ import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
 class DevelopmentSetUpScreen extends StatefulWidget {
   const DevelopmentSetUpScreen({super.key});
@@ -93,7 +94,12 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                     children: _cards.map(_buildSetupCard).toList(),
                   ),
                   const SizedBox(height: 32),
-                  _buildFooterActions(isMobile),
+                  LaunchPhaseNavigation(
+                    backLabel: 'Back: Technical alignment',
+                    nextLabel: 'Next: Development set up',
+                    onBack: () => Navigator.of(context).maybePop(),
+                    onNext: () {},
+                  ),
                 ],
               ),
             ),

@@ -8,6 +8,8 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/utils/download_helper.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/screens/project_framework_screen.dart';
 
 class ChangeManagementScreen extends StatefulWidget {
   const ChangeManagementScreen({super.key});
@@ -214,6 +216,13 @@ class _ChangeManagementScreenState extends State<ChangeManagementScreen> {
                         const SizedBox(height: 10),
 
                         _ChangeRequestsTable(key: _tableKey),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Issue Management',
+                          nextLabel: 'Next: Project Management Framework',
+                          onBack: () => Navigator.of(context).maybePop(),
+                          onNext: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProjectFrameworkScreen())),
+                        ),
                       ],
                     ),
                   ),

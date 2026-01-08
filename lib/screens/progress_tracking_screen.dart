@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/contracts_tracking_screen.dart';
+import 'package:ndu_project/screens/team_meetings_screen.dart';
 import 'package:ndu_project/widgets/execution_phase_page.dart';
 
 class ProgressTrackingScreen extends StatelessWidget {
@@ -12,7 +14,7 @@ class ProgressTrackingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ExecutionPhasePage(
+    return ExecutionPhasePage(
       pageKey: 'progress_tracking',
       title: 'Progress Tracking Command Center',
       subtitle: 'Execution Phase',
@@ -39,6 +41,12 @@ class ProgressTrackingScreen extends StatelessWidget {
           titleLabel: 'Report / ask',
         ),
       ],
+      navigation: PhaseNavigationSpec(
+        backLabel: 'Back: Team Meetings',
+        nextLabel: 'Next: Contracts Tracking',
+        onBack: () => TeamMeetingsScreen.open(context),
+        onNext: () => ContractsTrackingScreen.open(context),
+      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/screens/ui_ux_design_screen.dart';
 import 'package:ndu_project/screens/engineering_design_screen.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
 class BackendDesignScreen extends StatelessWidget {
   const BackendDesignScreen({super.key});
@@ -57,7 +58,12 @@ class BackendDesignScreen extends StatelessWidget {
                       ],
                     ),
                   const SizedBox(height: 28),
-                  _BottomNavigation(isMobile: isMobile),
+                  LaunchPhaseNavigation(
+                    backLabel: 'Back: UI/UX design',
+                    nextLabel: 'Next: Engineering',
+                    onBack: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UiUxDesignScreen())),
+                    onNext: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EngineeringDesignScreen())),
+                  ),
                 ],
               ),
             ),

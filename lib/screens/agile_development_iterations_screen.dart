@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/detailed_design_screen.dart';
+import 'package:ndu_project/screens/scope_tracking_implementation_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/agile_service.dart';
@@ -1098,6 +1101,13 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 24),
+        LaunchPhaseNavigation(
+          backLabel: 'Back: Detailed Design',
+          nextLabel: 'Next: Scope Tracking Implementation',
+          onBack: () => DetailedDesignScreen.open(context),
+          onNext: () => ScopeTrackingImplementationScreen.open(context),
         ),
       ],
     );

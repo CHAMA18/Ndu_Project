@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/screens/deliverables_roadmap_screen.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
 class StartUpPlanningScreen extends StatelessWidget {
   const StartUpPlanningScreen({super.key});
@@ -82,19 +83,11 @@ class StartUpPlanningScreen extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 28),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton(
-                                onPressed: () => DeliverablesRoadmapScreen.open(context),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFFD700),
-                                  foregroundColor: const Color(0xFF111827),
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                ),
-                                child: const Text('Next', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                              ),
+                            LaunchPhaseNavigation(
+                              backLabel: 'Back: Interface Management',
+                              nextLabel: 'Next: Deliverable Roadmap',
+                              onBack: () => Navigator.of(context).maybePop(),
+                              onNext: () => DeliverablesRoadmapScreen.open(context),
                             ),
                             const SizedBox(height: 40),
                           ],

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/actual_vs_planned_gap_analysis_screen.dart';
+import 'package:ndu_project/screens/summarize_account_risks_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -59,6 +62,13 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
               entries: _decisions,
               onAdd: () => _addEntry(_decisions, titleLabel: 'Decision', includeStatus: true),
               onRemove: (index) => setState(() => _decisions.removeAt(index)),
+            ),
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel: 'Back: Project Summary',
+              nextLabel: 'Next: Project Financial Review',
+              onBack: () => SummarizeAccountRisksScreen.open(context),
+              onNext: () => ActualVsPlannedGapAnalysisScreen.open(context),
             ),
             const SizedBox(height: 48),
           ],

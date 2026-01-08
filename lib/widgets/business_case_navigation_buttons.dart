@@ -7,6 +7,8 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
   final EdgeInsets? padding;
   final Future<void> Function()? onNext;
   final Future<void> Function()? onBack;
+  final Future<void> Function()? onSkip;
+  final String skipLabel;
 
   const BusinessCaseNavigationButtons({
     super.key,
@@ -14,6 +16,8 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
     this.padding,
     this.onNext,
     this.onBack,
+    this.onSkip,
+    this.skipLabel = 'Skip',
   });
 
   @override
@@ -26,6 +30,8 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
     final handleNext = onNext == null
         ? () => BusinessCaseNavigation.navigateForward(context, currentScreen)
         : () async => await onNext!();
+    final hasSkip = onSkip != null;
+    final handleSkip = onSkip == null ? null : () async => await onSkip!();
 
     return Container(
       width: double.infinity,
@@ -43,6 +49,17 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
             )
           else
             const SizedBox(width: 120),
+
+          if (hasSkip)
+            TextButton(
+              onPressed: handleSkip,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF6B7280),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              child: Text(skipLabel),
+            ),
 
           // Forward button
           if (hasNext)

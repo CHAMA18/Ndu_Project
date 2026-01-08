@@ -3,12 +3,12 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'project_framework_screen.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
 const Color _kSurfaceBackground = Color(0xFFF7F8FC);
 const Color _kAccentColor = Color(0xFFFFC812);
@@ -750,9 +750,10 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
                     ),
                   ),
                   const SizedBox(height: 24),
-                  BusinessCaseNavigationButtons(
-                    currentScreen: 'Work Breakdown Structure',
-                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                  LaunchPhaseNavigation(
+                    backLabel: 'Back: Planning home',
+                    nextLabel: 'Next: Project Management Framework',
+                    onBack: () => Navigator.of(context).maybePop(),
                     onNext: _handleNextPressed,
                   ),
                 ],

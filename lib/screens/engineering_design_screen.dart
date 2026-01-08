@@ -180,7 +180,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF2A3441),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 1),
+                          border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
                         ),
                         child: TextField(
                           controller: _notesController,
@@ -252,139 +252,122 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     required VoidCallback onDeleteDocument,
     required VoidCallback onCreate,
     required bool hasContent,
-  }) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-              ],
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
             ),
-          ),
-          // Import document button
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _importDocument(sectionName, onDocumentImported),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _importDocument(sectionName, onDocumentImported),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.upload_file, size: 16, color: Colors.grey[700]),
+                      const SizedBox(width: 6),
+                      Text('Import', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (importedDocument != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
+                  decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.upload_file, size: 16, color: Colors.grey[700]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Import',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                    ),
+                    const Icon(Icons.insert_drive_file, size: 14, color: Colors.green),
+                    const SizedBox(width: 6),
+                    Text(importedDocument, style: const TextStyle(fontSize: 12, color: Colors.green), overflow: TextOverflow.ellipsis),
                   ],
+                ),
+              ),
+              if (_isAdmin) ...[
+                const SizedBox(width: 8),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onDeleteDocument,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      ),
+                      child: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+        if (!hasContent) ...[
+          const SizedBox(height: 12),
+          Center(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onCreate,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                    color: LightModeColors.accent.withOpacity(0.1),
+                    border: Border.all(color: LightModeColors.accent),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.add, size: 18, color: Colors.black87),
+                      SizedBox(width: 8),
+                      Text('Create', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ],
-      ),
-      if (importedDocument != null) ...[
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.insert_drive_file, size: 14, color: Colors.green),
-                  const SizedBox(width: 6),
-                  Text(
-                    importedDocument,
-                    style: const TextStyle(fontSize: 12, color: Colors.green),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            // Admin-only delete button
-            if (_isAdmin) ...[
-              const SizedBox(width: 8),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onDeleteDocument,
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                    ),
-                    child: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
       ],
-      if (!hasContent) ...[
-        const SizedBox(height: 20),
-        Center(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onCreate,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: LightModeColors.accent.withValues(alpha: 0.1),
-                  border: Border.all(color: LightModeColors.accent),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.add, size: 18, color: Colors.black87),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Create \'$sectionName\'',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    ],
-  );
+    );
+  }
 
   String? _extractTextPreview(String fileName, Uint8List? bytes) {
     if (bytes == null) return null;
@@ -439,85 +422,59 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     );
   }
 
-  Widget _buildSystemArchitectureCard() => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppSemanticColors.border),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader(
-          title: 'System architecture',
-          subtitle: 'High-level structure of the solution',
-          sectionName: 'System architecture',
-          importedDocument: _systemArchitectureDocument,
-          onDocumentImported: (fileName, content) => setState(() {
-            _systemArchitectureDocument = fileName;
-            _systemArchitectureDocContent = content;
-            _hasSystemArchitecture = true;
-          }),
-          onDeleteDocument: () => setState(() => _systemArchitectureDocument = null),
-          onCreate: () => setState(() => _hasSystemArchitecture = true),
-          hasContent: _hasSystemArchitecture,
-        ),
-        if (_systemArchitectureDocument != null) ...[
-          const SizedBox(height: 16),
-          _buildImportedPreview(
-            fileName: _systemArchitectureDocument!,
-            content: _systemArchitectureDocContent,
+  Widget _buildSystemArchitectureCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            title: 'System architecture',
+            subtitle: 'High-level layers and responsibilities',
+            sectionName: 'System architecture',
+            importedDocument: _systemArchitectureDocument,
+            onDocumentImported: (fileName, content) => setState(() {
+              _systemArchitectureDocument = fileName;
+              _systemArchitectureDocContent = content;
+              _hasSystemArchitecture = true;
+            }),
+            onDeleteDocument: () => setState(() => _systemArchitectureDocument = null),
+            onCreate: () => setState(() => _hasSystemArchitecture = true),
+            hasContent: _hasSystemArchitecture,
           ),
-        ],
-        if (_hasSystemArchitecture) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Architecture style',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[700]),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Microservices with API gateway, shared auth, and separate data domains for core modules.',
-            style: TextStyle(fontSize: 14, color: Colors.black87),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Core layers',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[700]),
-          ),
-          const SizedBox(height: 12),
-          ..._coreLayers.map((layer) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    layer.name,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                  ),
+          if (_systemArchitectureDocument != null) ...[
+            const SizedBox(height: 16),
+            _buildImportedPreview(fileName: _systemArchitectureDocument!, content: _systemArchitectureDocContent),
+          ],
+          if (_hasSystemArchitecture) ...[
+            const SizedBox(height: 20),
+            for (final layer in _coreLayers) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(layer.name, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+                    ),
+                    Text(layer.description, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                  ],
                 ),
-                Text(
-                  layer.description,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          )),
-          const SizedBox(height: 16),
-          Text(
-            'Key decisions',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[700]),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Document trade-offs for scalability, resilience, and security so all teams implement consistently.',
-            style: TextStyle(fontSize: 14, color: Colors.black87),
-          ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Text('Key decisions', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[700])),
+            const SizedBox(height: 8),
+            const Text('Document trade-offs for scalability, resilience, and security so all teams implement consistently.', style: TextStyle(fontSize: 14, color: Colors.black87)),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 
   Widget _buildComponentsInterfacesCard() => Container(
     padding: const EdgeInsets.all(20),

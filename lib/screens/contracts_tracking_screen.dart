@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/screens/progress_tracking_screen.dart';
+import 'package:ndu_project/screens/vendor_tracking_screen.dart';
+import 'package:ndu_project/services/contract_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/services/contract_service.dart';
-import 'package:ndu_project/providers/project_data_provider.dart';
-import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class ContractsTrackingScreen extends StatefulWidget {
   const ContractsTrackingScreen({super.key});
@@ -63,6 +66,13 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                     const SizedBox(height: 20),
                     _buildApprovalsPanel(),
                   ],
+                ),
+                const SizedBox(height: 24),
+                LaunchPhaseNavigation(
+                  backLabel: 'Back: Progress Tracking',
+                  nextLabel: 'Next: Vendor Tracking',
+                  onBack: () => ProgressTrackingScreen.open(context),
+                  onNext: () => VendorTrackingScreen.open(context),
                 ),
               ],
             ),

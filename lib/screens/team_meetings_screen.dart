@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/progress_tracking_screen.dart';
+import 'package:ndu_project/screens/staff_team_screen.dart';
 import 'package:ndu_project/widgets/execution_phase_page.dart';
 
 class TeamMeetingsScreen extends StatelessWidget {
@@ -12,7 +14,7 @@ class TeamMeetingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ExecutionPhasePage(
+    return ExecutionPhasePage(
       pageKey: 'team_meetings',
       title: 'Meeting Intelligence Hub',
       subtitle: 'Execution Phase',
@@ -39,6 +41,12 @@ class TeamMeetingsScreen extends StatelessWidget {
           titleLabel: 'Decision',
         ),
       ],
+      navigation: PhaseNavigationSpec(
+        backLabel: 'Back: Staff Team',
+        nextLabel: 'Next: Progress Tracking',
+        onBack: () => StaffTeamScreen.open(context),
+        onNext: () => ProgressTrackingScreen.open(context),
+      ),
     );
   }
 }

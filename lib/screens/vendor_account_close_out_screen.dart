@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/contract_close_out_screen.dart';
+import 'package:ndu_project/screens/summarize_account_risks_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 class VendorAccountCloseOutScreen extends StatefulWidget {
@@ -77,6 +80,13 @@ class _VendorAccountCloseOutScreenState extends State<VendorAccountCloseOutScree
                           entries: _signOffs,
                           onAdd: () => _addEntry(_signOffs, titleLabel: 'Approver or action', includeStatus: true),
                           onRemove: (index) => setState(() => _signOffs.removeAt(index)),
+                        ),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Contract Close Out',
+                          nextLabel: 'Next: Project Summary',
+                          onBack: () => ContractCloseOutScreen.open(context),
+                          onNext: () => SummarizeAccountRisksScreen.open(context),
                         ),
                         const SizedBox(height: 48),
                       ],

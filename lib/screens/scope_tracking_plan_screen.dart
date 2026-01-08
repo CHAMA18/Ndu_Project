@@ -8,6 +8,8 @@ import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/screens/change_management_screen.dart';
 
 class ScopeTrackingPlanScreen extends StatelessWidget {
   const ScopeTrackingPlanScreen({super.key});
@@ -86,6 +88,13 @@ class ScopeTrackingPlanScreen extends StatelessWidget {
                             const _ScopeControlPlaybook(),
                             const SizedBox(height: 28),
                             const _ChangeRegisterCard(),
+                            const SizedBox(height: 16),
+                            LaunchPhaseNavigation(
+                              backLabel: 'Back: Cost Estimate',
+                              nextLabel: 'Next: Change Management',
+                              onBack: () => Navigator.of(context).maybePop(),
+                              onNext: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangeManagementScreen())),
+                            ),
                             const SizedBox(height: 40),
                           ],
                         );

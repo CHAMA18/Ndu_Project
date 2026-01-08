@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/agile_development_iterations_screen.dart';
+import 'package:ndu_project/screens/vendor_tracking_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -93,6 +96,13 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                       ),
                     ],
                   ),
+                const SizedBox(height: 24),
+                LaunchPhaseNavigation(
+                  backLabel: 'Back: Vendor Tracking',
+                  nextLabel: 'Next: Agile Development Iterations',
+                  onBack: () => VendorTrackingScreen.open(context),
+                  onNext: () => AgileDevelopmentIterationsScreen.open(context),
+                ),
               ],
             ),
           ),

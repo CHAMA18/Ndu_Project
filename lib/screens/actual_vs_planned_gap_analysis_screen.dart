@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/commerce_viability_screen.dart';
+import 'package:ndu_project/screens/gap_analysis_scope_reconcillation_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -67,6 +70,13 @@ class _ActualVsPlannedGapAnalysisScreenState extends State<ActualVsPlannedGapAna
               entries: _benefitsAndCauses,
               onAdd: () => _addEntry(_benefitsAndCauses, includeStatus: true, titleLabel: 'Benefit or cause'),
               onRemove: (index) => setState(() => _benefitsAndCauses.removeAt(index)),
+            ),
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel: 'Back: Warranties & Operations Support',
+              nextLabel: 'Next: Scope Reconciliation',
+              onBack: () => CommerceViabilityScreen.open(context),
+              onNext: () => GapAnalysisScopeReconcillationScreen.open(context),
             ),
             const SizedBox(height: 48),
           ],

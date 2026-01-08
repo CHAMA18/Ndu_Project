@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/design_deliverables_screen.dart';
+import 'package:ndu_project/screens/team_meetings_screen.dart';
 import 'package:ndu_project/widgets/execution_phase_page.dart';
 
 class StaffTeamScreen extends StatelessWidget {
@@ -12,7 +14,7 @@ class StaffTeamScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ExecutionPhasePage(
+    return ExecutionPhasePage(
       pageKey: 'staff_team',
       title: 'Staff Team Orchestration',
       subtitle: 'Execution Phase',
@@ -39,6 +41,12 @@ class StaffTeamScreen extends StatelessWidget {
           titleLabel: 'Risk',
         ),
       ],
+      navigation: PhaseNavigationSpec(
+        backLabel: 'Back: Design Deliverables',
+        nextLabel: 'Next: Team Meetings',
+        onBack: () => DesignDeliverablesScreen.open(context),
+        onNext: () => TeamMeetingsScreen.open(context),
+      ),
     );
   }
 }

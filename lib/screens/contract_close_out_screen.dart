@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/transition_to_prod_team_screen.dart';
+import 'package:ndu_project/screens/vendor_account_close_out_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 class ContractCloseOutScreen extends StatefulWidget {
@@ -77,6 +80,13 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
                           entries: _signoffs,
                           onAdd: () => _addEntry(_signoffs, titleLabel: 'Approver', includeStatus: true),
                           onRemove: (index) => setState(() => _signoffs.removeAt(index)),
+                        ),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: 'Back: Transition To Production Team',
+                          nextLabel: 'Next: Vendor Account Close Out',
+                          onBack: () => TransitionToProdTeamScreen.open(context),
+                          onNext: () => VendorAccountCloseOutScreen.open(context),
                         ),
                         const SizedBox(height: 48),
                       ],

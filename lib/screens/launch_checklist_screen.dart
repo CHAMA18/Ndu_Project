@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/screens/risk_tracking_screen.dart';
+import 'package:ndu_project/screens/update_ops_maintenance_plans_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -63,6 +66,12 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
             const SizedBox(height: 28),
             _buildInsightsGrid(context),
             const SizedBox(height: 48),
+            LaunchPhaseNavigation(
+              backLabel: 'Back: Update Ops & Maintenance Plans',
+              nextLabel: 'Next: Risk Tracking',
+              onBack: () => UpdateOpsMaintenancePlansScreen.open(context),
+              onNext: () => RiskTrackingScreen.open(context),
+            ),
           ],
         ),
       ),

@@ -208,14 +208,6 @@ class AiProjectFrameworkAndGoals {
   }
 }
 
-String _guessFramework(String context) {
-  final lower = context.toLowerCase();
-  if (lower.contains('compliance') || lower.contains('regulatory') || lower.contains('audit')) return 'Waterfall';
-  if (lower.contains('hybrid') || lower.contains('governance') || lower.contains('programs')) return 'Hybrid';
-  if (lower.contains('agile') || lower.contains('iterative') || lower.contains('customer experience')) return 'Agile';
-  return 'Agile';
-}
-
 String _extractProjectName(String context) {
   final lines = context.split('\n');
   for (final line in lines) {
@@ -312,9 +304,7 @@ class OpenAiServiceSecure {
     final trimmedContext = context.trim();
     if (trimmedContext.isEmpty) return '';
     if (!OpenAiConfig.isConfigured) {
-      // Fallback: extract a few most relevant lines heuristically
-      final lines = trimmedContext.split('\n').where((l) => l.trim().isNotEmpty).take(14).toList();
-      return '${section.trim()} Plan:\n${lines.join('\n')}';
+      throw const OpenAiNotConfiguredException();
     }
 
     final uri = OpenAiConfig.chatUri();
@@ -359,9 +349,8 @@ class OpenAiServiceSecure {
       }
       return '';
     } catch (e) {
-      // Silent degrade to a compact fallback using the context head
-      final lines = trimmedContext.split('\n').where((l) => l.trim().isNotEmpty).take(10).toList();
-      return '${section.trim()} Notes:\n${lines.join('\n')}';
+      // Surface the error to callers so the UI can show a clear failure state
+      rethrow;
     }
   }
 
@@ -372,10 +361,10 @@ class OpenAiServiceSecure {
   }) async {
     final trimmedContext = context.trim();
     if (trimmedContext.isEmpty) {
-      return AiProjectFrameworkAndGoals.fallback(trimmedContext);
+      throw Exception('No project context provided');
     }
     if (!OpenAiConfig.isConfigured) {
-      return AiProjectFrameworkAndGoals.fallback(trimmedContext);
+      throw const OpenAiNotConfiguredException();
     }
 
     final uri = OpenAiConfig.chatUri();
@@ -401,7 +390,7 @@ class OpenAiServiceSecure {
       ],
     });
 
-    try {
+  try {
       final response = await _client.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
@@ -423,10 +412,10 @@ class OpenAiServiceSecure {
         }
       }
     } catch (e) {
-      print('suggestProjectFrameworkGoals failed: $e');
+      // Let callers handle the failure and show an explicit error state
+      rethrow;
     }
-
-    return AiProjectFrameworkAndGoals.fallback(trimmedContext);
+  throw Exception('OpenAI did not return framework goals');
   }
 
   // OPPORTUNITIES
@@ -434,10 +423,8 @@ class OpenAiServiceSecure {
   // Returns up to 12 rows suitable for the Opportunities table.
   Future<List<Map<String, String>>> generateOpportunitiesFromContext(String context) async {
     final trimmed = context.trim();
-    if (trimmed.isEmpty) return _fallbackOpportunities();
-    if (!OpenAiConfig.isConfigured) {
-      return _fallbackOpportunities();
-    }
+  if (trimmed.isEmpty) throw Exception('No context provided');
+  if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
     final headers = {
@@ -488,36 +475,10 @@ class OpenAiServiceSecure {
         });
       }
       if (result.isNotEmpty) return result.take(12).toList();
-      return _fallbackOpportunities();
+      throw Exception('OpenAI returned no opportunities');
     } catch (e) {
-      return _fallbackOpportunities();
+      rethrow;
     }
-  }
-
-  List<Map<String, String>> _fallbackOpportunities() {
-    return [
-      {
-        'opportunity': 'Consolidate vendor contracts to negotiate volume discounts',
-        'discipline': 'Procurement',
-        'stakeholder': 'Finance',
-        'potentialCost1': '25,000',
-        'potentialCost2': '—',
-      },
-      {
-        'opportunity': 'Automate onboarding workflow to reduce manual processing time',
-        'discipline': 'Operations',
-        'stakeholder': 'HR',
-        'potentialCost1': '18,000',
-        'potentialCost2': '2 weeks',
-      },
-      {
-        'opportunity': 'Standardize reporting with a unified analytics dashboard',
-        'discipline': 'IT',
-        'stakeholder': 'Executive Team',
-        'potentialCost1': '12,000',
-        'potentialCost2': '—',
-      },
-    ];
   }
 
   String _opportunitiesPrompt(String context) {
@@ -586,10 +547,7 @@ $c
     final String trimmed = itemName.trim();
     if (trimmed.isEmpty) return 0;
 
-    // If no API key, provide a deterministic but reasonable fallback
-    if (!OpenAiConfig.isConfigured) {
-      return _fallbackEstimateForItem(trimmed);
-    }
+  if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
     final headers = {
@@ -642,8 +600,7 @@ $c
       final dynamic value = parsed['estimated_cost'] ?? parsed['cost'] ?? parsed['value'];
       return _toDouble(value);
     } catch (e) {
-      // Fall back to a local heuristic if API fails
-      return _fallbackEstimateForItem(trimmed);
+      rethrow;
     }
   }
 
@@ -654,16 +611,7 @@ $c
     return double.tryParse(s) ?? 0;
   }
 
-  double _fallbackEstimateForItem(String itemName) {
-    // Deterministic hash-based bucket to produce a plausible figure
-    int hash = 0;
-    for (int i = 0; i < itemName.length; i++) {
-      hash = 31 * hash + itemName.codeUnitAt(i);
-    }
-    final buckets = [2500, 5000, 7500, 12000, 18000, 25000, 35000, 50000, 75000, 120000];
-    final idx = (hash.abs()) % buckets.length;
-    return buckets[idx].toDouble();
-  }
+// Removed small deterministic fallback helpers — API failures must surface to the UI.
 
   String _singleItemEstimatePrompt({
     required String itemName,
@@ -693,23 +641,19 @@ Additional context: "$notes"
 
   // SOLUTIONS
   Future<List<AiSolutionItem>> generateSolutionsFromBusinessCase(String businessCase) async {
-    if (businessCase.trim().isEmpty) return _getFallbackSolutions();
-    if (!OpenAiConfig.isConfigured) {
-      print('Warning: No API key available, returning fallback solutions');
-      return _getFallbackSolutions();
-    }
+  if (businessCase.trim().isEmpty) throw Exception('Business case is empty');
+  if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
         final solutions = await _attemptSolutionsApiCall(businessCase);
         if (solutions.isNotEmpty) return solutions;
       } catch (e) {
-        print('API attempt ${attempt + 1} failed: $e');
         if (attempt < maxRetries - 1) await Future.delayed(retryDelay);
+        if (attempt == maxRetries - 1) rethrow;
       }
     }
-    print('All API attempts failed, returning smart fallback solutions');
-    return _getSmartFallbackSolutions(businessCase);
+    throw Exception('OpenAI returned no solutions');
   }
 
   Future<List<AiSolutionItem>> _attemptSolutionsApiCall(String businessCase) async {
@@ -748,8 +692,8 @@ Additional context: "$notes"
 
   // RISKS
   Future<Map<String, List<String>>> generateRisksForSolutions(List<AiSolutionItem> solutions, {String contextNotes = ''}) async {
-    if (solutions.isEmpty) return {};
-    if (!OpenAiConfig.isConfigured) return _fallbackRisks(solutions);
+  if (solutions.isEmpty) return {};
+  if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
     final headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'};
@@ -786,8 +730,7 @@ Additional context: "$notes"
       }
       return _mergeWithFallbackRisks(solutions, result);
     } catch (e) {
-      print('generateRisksForSolutions failed: $e');
-      return _fallbackRisks(solutions);
+      rethrow;
     }
   }
 
@@ -842,23 +785,19 @@ Additional context: "$notes"
 
   // REQUIREMENTS GENERATION
   Future<List<Map<String, String>>> generateRequirementsFromBusinessCase(String businessCase) async {
-    if (businessCase.trim().isEmpty) return _getFallbackRequirements();
-    if (!OpenAiConfig.isConfigured) {
-      print('Warning: No API key available, returning fallback requirements');
-      return _getFallbackRequirements();
-    }
+  if (businessCase.trim().isEmpty) throw Exception('Business case is empty');
+  if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
         final requirements = await _attemptRequirementsApiCall(businessCase);
         if (requirements.isNotEmpty) return requirements;
       } catch (e) {
-        print('API attempt ${attempt + 1} failed: $e');
         if (attempt < maxRetries - 1) await Future.delayed(retryDelay);
+        if (attempt == maxRetries - 1) rethrow;
       }
     }
-    print('All API attempts failed, returning fallback requirements');
-    return _getFallbackRequirements();
+    throw Exception('OpenAI returned no requirements');
   }
 
   Future<List<Map<String, String>>> _attemptRequirementsApiCall(String businessCase) async {
@@ -903,20 +842,12 @@ Additional context: "$notes"
     return items.take(20).toList();
   }
 
-  List<Map<String, String>> _getFallbackRequirements() {
-    return [
-      {'requirement': 'System must be accessible via web and mobile platforms', 'requirementType': 'Functional'},
-      {'requirement': 'User authentication and authorization system', 'requirementType': 'Technical'},
-      {'requirement': 'Data must be stored securely with encryption', 'requirementType': 'Non-Functional'},
-      {'requirement': 'System must comply with relevant data protection regulations', 'requirementType': 'Regulatory'},
-      {'requirement': 'Provide comprehensive reporting and analytics capabilities', 'requirementType': 'Business'},
-    ];
-  }
+  // Fallback requirements removed. OpenAI failures should surface to the UI.
 
   // TECHNOLOGIES
   Future<Map<String, List<String>>> generateTechnologiesForSolutions(List<AiSolutionItem> solutions, {String contextNotes = ''}) async {
-    if (solutions.isEmpty) return {};
-    if (!OpenAiConfig.isConfigured) return _fallbackTechnologies(solutions);
+  if (solutions.isEmpty) return {};
+  if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
     final headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'};
@@ -934,7 +865,7 @@ Additional context: "$notes"
       ],
     });
 
-    try {
+  try {
       final response = await _client.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
@@ -953,8 +884,7 @@ Additional context: "$notes"
       }
       return _mergeWithFallbackTech(solutions, result);
     } catch (e) {
-      print('generateTechnologiesForSolutions failed: $e');
-      return _fallbackTechnologies(solutions);
+      rethrow;
     }
   }
 
@@ -963,11 +893,10 @@ Additional context: "$notes"
       generateTechnologiesForSolutions(solutions, contextNotes: contextNotes);
 
   Map<String, List<String>> _mergeWithFallbackTech(List<AiSolutionItem> solutions, Map<String, List<String>> generated) {
-    final fallback = _fallbackTechnologies(solutions);
     final merged = <String, List<String>>{};
     for (final s in solutions) {
       final g = generated[s.title];
-      merged[s.title] = (g != null && g.isNotEmpty) ? g.take(6).toList() : (fallback[s.title] ?? []);
+      merged[s.title] = (g != null && g.isNotEmpty) ? g.take(6).toList() : <String>[];
     }
     return merged;
   }
@@ -1292,59 +1221,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
     return suggestions;
   }
 
-  Map<String, List<String>> _fallbackTechnologies(List<AiSolutionItem> solutions) {
-    // Different technology sets to ensure unique suggestions per solution
-    final techSets = [
-      [
-        'Cloud platform (AWS with EC2, S3, Lambda)',
-        'NoSQL database (MongoDB or DynamoDB)',
-        'Serverless architecture (AWS Lambda, API Gateway)',
-        'Frontend framework (React with TypeScript)',
-        'CI/CD pipeline (GitHub Actions)',
-        'Monitoring & logging (CloudWatch, Datadog)'
-      ],
-      [
-        'Cloud platform (Microsoft Azure with App Service)',
-        'Relational database (Azure SQL or PostgreSQL)',
-        'Backend framework (ASP.NET Core or Node.js)',
-        'Frontend framework (Angular or Vue.js)',
-        'DevOps pipeline (Azure DevOps)',
-        'Identity management (Azure AD, OAuth 2.0)'
-      ],
-      [
-        'Cloud platform (Google Cloud Platform)',
-        'Database (Cloud Firestore or BigQuery)',
-        'Backend framework (Python/FastAPI or Go)',
-        'Frontend framework (Flutter for cross-platform)',
-        'CI/CD (Cloud Build, Artifact Registry)',
-        'Container orchestration (Google Kubernetes Engine)'
-      ],
-      [
-        'Hybrid cloud infrastructure (On-premise + Cloud)',
-        'Enterprise database (Oracle or SQL Server)',
-        'Integration middleware (MuleSoft, Apache Kafka)',
-        'Enterprise portal (SharePoint, custom web app)',
-        'Legacy system connectors (REST APIs, SOAP)',
-        'Security & compliance (SSO, encryption at rest)'
-      ],
-      [
-        'Multi-cloud strategy (AWS + Azure)',
-        'Distributed database (CockroachDB, Cassandra)',
-        'Microservices architecture (Docker, Kubernetes)',
-        'API management (Kong, Apigee)',
-        'Event-driven messaging (RabbitMQ, Apache Kafka)',
-        'Observability stack (Prometheus, Grafana, ELK)'
-      ],
-    ];
-    
-    final map = <String, List<String>>{};
-    for (int i = 0; i < solutions.length; i++) {
-      final s = solutions[i];
-      // Use modulo to cycle through tech sets for different solutions
-      map[s.title] = techSets[i % techSets.length];
-    }
-    return map;
-  }
+  // Removed fallback technology suggestions; API must provide technologies or return an error.
 
   // INFRASTRUCTURE
   Future<Map<String, List<String>>> generateInfrastructureForSolutions(List<AiSolutionItem> solutions, {String contextNotes = ''}) async {
@@ -1545,64 +1422,7 @@ Context notes (optional): $notes
     return normalized;
   }
 
-  List<AiSolutionItem> _getFallbackSolutions() {
-    return [
-      AiSolutionItem(
-        title: 'Phased Implementation Approach',
-        description: 'Implement the solution in phases to minimize risk and ensure proper testing at each stage. This allows for early value delivery and iterative improvements.',
-      ),
-      AiSolutionItem(
-        title: 'Hybrid Technology Solution',
-        description: 'Combine existing systems with new technology to leverage current investments while introducing modern capabilities for improved efficiency.',
-      ),
-      AiSolutionItem(
-        title: 'Outsourced Development Model',
-        description: 'Partner with specialized vendors to accelerate development while maintaining control over core business requirements and quality standards.',
-      ),
-    ];
-  }
-
-  List<AiSolutionItem> _getSmartFallbackSolutions(String businessCase) {
-    final caseWords = businessCase.toLowerCase();
-    final solutions = <AiSolutionItem>[];
-    if (caseWords.contains('digital') || caseWords.contains('technology') || caseWords.contains('system')) {
-      solutions.add(AiSolutionItem(
-        title: 'Digital Transformation Strategy',
-        description: 'Modernize current processes with digital solutions to improve efficiency, reduce costs, and enhance user experience while ensuring seamless integration.',
-      ));
-    }
-    if (caseWords.contains('customer') || caseWords.contains('user') || caseWords.contains('client')) {
-      solutions.add(AiSolutionItem(
-        title: 'Customer-Centric Solution',
-        description: 'Design the solution with customer needs at the center, ensuring improved satisfaction, engagement, and long-term value creation.',
-      ));
-    }
-    if (caseWords.contains('cost') || caseWords.contains('budget') || caseWords.contains('efficient')) {
-      solutions.add(AiSolutionItem(
-        title: 'Cost-Optimization Framework',
-        description: 'Implement cost-effective solutions that maximize ROI while maintaining quality and performance standards through strategic resource allocation.',
-      ));
-    }
-    while (solutions.length < 5) {
-      if (solutions.isEmpty || solutions.length == 3) {
-        solutions.add(AiSolutionItem(
-          title: 'Comprehensive Analysis Approach',
-          description: 'Conduct thorough analysis of current state and requirements to design a solution that addresses all stakeholder needs effectively.',
-        ));
-      } else if (solutions.length == 1 || solutions.length == 4) {
-        solutions.add(AiSolutionItem(
-          title: 'Agile Implementation Method',
-          description: 'Use iterative development cycles to ensure flexibility, rapid feedback, and continuous improvement throughout the project lifecycle.',
-        ));
-      } else {
-        solutions.add(AiSolutionItem(
-          title: 'Risk Mitigation Strategy',
-          description: 'Implement comprehensive risk management practices to identify, assess, and mitigate potential challenges before they impact the project.',
-        ));
-      }
-    }
-    return solutions;
-  }
+  
 
   String _solutionsPrompt(String businessCase) => '''
 Generate exactly 5 concrete solution options for this business case. Each solution should be practical, achievable, and directly address the project needs.

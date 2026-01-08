@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/screens/development_set_up_screen.dart';
+import 'package:ndu_project/screens/ui_ux_design_screen.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -165,7 +168,28 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                   const SizedBox(height: 32),
 
                   // Bottom Navigation
-                  _buildBottomNavigation(isMobile),
+                  LaunchPhaseNavigation(
+                    backLabel: 'Back: Requirements implementation',
+                    nextLabel: 'Next: UI/UX design',
+                    onBack: () => Navigator.of(context).maybePop(),
+                    onNext: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const UiUxDesignScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.lightbulb_outline, size: 18, color: LightModeColors.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Document decisions at the level of contracts and constraints. Detailed implementation choices can live with engineering once the direction is clear.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -849,90 +873,6 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  Widget _buildBottomNavigation(bool isMobile) {
-    return Column(
-      children: [
-        const Divider(),
-        const SizedBox(height: 16),
-        if (isMobile)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Design phase b7 Technical alignment', style: TextStyle(fontSize: 13, color: Colors.grey[500]), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, size: 18),
-                label: const Text('Back: Requirements implementation'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  foregroundColor: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.arrow_forward, size: 18),
-                label: const Text('Next: UI/UX design'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-              ),
-            ],
-          )
-        else
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, size: 18),
-                label: const Text('Back: Requirements implementation'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  foregroundColor: Colors.black87,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Text('Design phase b7 Technical alignment', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.arrow_forward, size: 18),
-                label: const Text('Next: UI/UX design'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-              ),
-            ],
-          ),
-        const SizedBox(height: 16),
-        // Footer hint
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.lightbulb_outline, size: 18, color: LightModeColors.accent),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Document decisions at the level of contracts and constraints. Detailed implementation choices can live with engineering once the direction is clear.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }
 
 class _TableColumn {

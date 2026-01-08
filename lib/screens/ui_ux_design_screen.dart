@@ -3,6 +3,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/screens/backend_design_screen.dart';
 
 class UiUxDesignScreen extends StatefulWidget {
   const UiUxDesignScreen({super.key});
@@ -113,9 +115,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
-
-                  // Bottom Navigation
-                  _buildBottomNavigation(isMobile),
+                  LaunchPhaseNavigation(
+                    backLabel: 'Back: Technical alignment',
+                    nextLabel: 'Next: Backend design',
+                    onBack: () => Navigator.of(context).maybePop(),
+                    onNext: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BackendDesignScreen())),
+                  ),
                 ],
               ),
             ),
@@ -362,90 +367,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     );
   }
 
-  Widget _buildBottomNavigation(bool isMobile) {
-    return Column(
-      children: [
-        const Divider(),
-        const SizedBox(height: 16),
-        if (isMobile)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Design phase · UI/UX design', style: TextStyle(fontSize: 13, color: Colors.grey[500]), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, size: 18),
-                label: const Text('Back'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  foregroundColor: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Text('Next: Backend design'),
-                label: const Icon(Icons.arrow_forward, size: 18),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A1D1F),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-            ],
-          )
-        else
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, size: 18),
-                label: const Text('Back: Development set up'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  foregroundColor: Colors.black87,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Text('Design phase · UI/UX design', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Text('Next: Backend design'),
-                label: const Icon(Icons.arrow_forward, size: 18),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A1D1F),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-            ],
-          ),
-        const SizedBox(height: 16),
-        // Tip
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.lightbulb_outline, size: 18, color: LightModeColors.accent),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Design only what will unblock developers in the first increments: core journeys, navigation, and the smallest useful design system.',
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // _buildBottomNavigation removed — replaced by the shared LaunchPhaseNavigation in the main build.
 }
 
 class _JourneyItem {
