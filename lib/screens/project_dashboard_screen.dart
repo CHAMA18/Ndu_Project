@@ -13,6 +13,7 @@ import '../services/program_service.dart';
 import '../services/project_service.dart';
 import '../services/user_service.dart';
 import '../services/project_navigation_service.dart';
+import '../utils/navigation_route_resolver.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
@@ -31,42 +32,6 @@ class ProjectDashboardScreen extends StatefulWidget {
 }
 
 class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
-  static const List<_ProjectEntry> _projects = [
-    _ProjectEntry(
-      id: 'PRJ-001',
-      title: 'Terminal upgrade - Phase 1',
-      details: 'ID: PRJ-001 · Infrastructure',
-      stageLabel: 'Front-end planning',
-      stageBackground: Color(0xFFFFF1CC),
-      stageForeground: Color(0xFF875900),
-      owner: 'Alex Rivera',
-      riskSummary: 'Medium · Mitigations in place',
-      statusLabel: 'Open',
-    ),
-    _ProjectEntry(
-      id: 'PRJ-002',
-      title: 'Control system upgrade',
-      details: 'ID: PRJ-002 · Operations',
-      stageLabel: 'Execution',
-      stageBackground: Color(0xFFE6FAF1),
-      stageForeground: Color(0xFF14734E),
-      owner: 'Morgan Lee',
-      riskSummary: 'Low · Within tolerance',
-      statusLabel: 'Open',
-    ),
-    _ProjectEntry(
-      id: 'PRJ-003',
-      title: 'Safety system refresh',
-      details: 'ID: PRJ-003 · SHE/R',
-      stageLabel: 'Idea intake',
-      stageBackground: Color(0xFFF3F4F8),
-      stageForeground: Color(0xFF4A4D57),
-      owner: 'Jamie Chen',
-      riskSummary: 'Not yet scored',
-      statusLabel: 'Open',
-    ),
-  ];
-
   late final ValueNotifier<Set<String>> _selectedProjectIds;
 
   @override
@@ -118,7 +83,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
         final scheme = theme.colorScheme;
 
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               Container(
@@ -127,7 +93,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                   color: scheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.create_new_folder, color: scheme.primary, size: 24),
+                child: Icon(Icons.create_new_folder,
+                    color: scheme.primary, size: 24),
               ),
               const SizedBox(width: 12),
               const Text('Name Your Project'),
@@ -192,8 +159,10 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: scheme.primary,
                 foregroundColor: scheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Continue'),
             ),
@@ -279,7 +248,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create project: ${provider.lastError ?? "Unknown error"}'),
+            content: Text(
+                'Failed to create project: ${provider.lastError ?? "Unknown error"}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -301,7 +271,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
     }
   }
 
-  Future<void> _processDuplicateCheck(String trimmed, BuildContext dialogContext) async {
+  Future<void> _processDuplicateCheck(
+      String trimmed, BuildContext dialogContext) async {
     showDialog(
       context: dialogContext,
       barrierDismissible: false,
@@ -319,7 +290,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
     if (duplicate) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('A project named "$trimmed" already exists. Please choose another.'),
+          content: Text(
+              'A project named "$trimmed" already exists. Please choose another.'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
         ),
@@ -350,7 +322,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     // Record this dashboard so the logo knows where to return on tap
-    NavigationContextService.instance.setLastClientDashboard(AppRoutes.dashboard);
+    NavigationContextService.instance
+        .setLastClientDashboard(AppRoutes.dashboard);
     final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       backgroundColor: Colors.white,
@@ -360,7 +333,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isCompact = constraints.maxWidth < 1180;
-                final horizontalPadding = constraints.maxWidth < 600 ? 20.0 : 40.0;
+                final horizontalPadding =
+                    constraints.maxWidth < 600 ? 20.0 : 40.0;
 
                 Widget buildProjectColumns({
                   required List<ProjectRecord> projects,
@@ -443,7 +417,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                 }
 
                 return SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 36),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding, vertical: 36),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -455,7 +430,8 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                       const _StatusStrip(),
                       const SizedBox(height: 28),
                       if (user == null)
-                        buildProjectColumns(projects: const [], isLoading: false)
+                        buildProjectColumns(
+                            projects: const [], isLoading: false)
                       else
                         StreamBuilder<List<ProjectRecord>>(
                           stream: ProjectService.streamProjects(
@@ -464,9 +440,13 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                             limit: 200,
                           ),
                           builder: (context, snapshot) {
-                            final projects = snapshot.data ?? const <ProjectRecord>[];
-                            final isLoading = snapshot.connectionState == ConnectionState.waiting;
-                            final error = snapshot.hasError ? snapshot.error.toString() : null;
+                            final projects =
+                                snapshot.data ?? const <ProjectRecord>[];
+                            final isLoading = snapshot.connectionState ==
+                                ConnectionState.waiting;
+                            final error = snapshot.hasError
+                                ? snapshot.error.toString()
+                                : null;
                             return buildProjectColumns(
                               projects: projects,
                               isLoading: isLoading,
@@ -528,13 +508,14 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
 
   Future<void> _handleLogout() async {
     if (!mounted) return;
-    
+
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         final theme = Theme.of(dialogContext);
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Confirm Log Out'),
           content: const Text('Are you sure you want to log out?'),
           actions: [
@@ -547,8 +528,10 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.error,
                 foregroundColor: theme.colorScheme.onError,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Log Out'),
             ),
@@ -601,7 +584,8 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.view_quilt_outlined, size: 18, color: Colors.grey.shade700),
+              Icon(Icons.view_quilt_outlined,
+                  size: 18, color: Colors.grey.shade700),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -628,7 +612,8 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
                   child: Padding(
                     padding: EdgeInsets.only(bottom: compact ? 16 : 20),
                     child: Align(
-                      alignment: compact ? Alignment.center : Alignment.centerLeft,
+                      alignment:
+                          compact ? Alignment.center : Alignment.centerLeft,
                       child: AppLogo(
                         height: compact ? 72 : 104,
                         semanticLabel: 'NDU Project Platform',
@@ -649,8 +634,10 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
                         foregroundColor: Colors.white,
                         elevation: 2,
                         shadowColor: Colors.black.withOpacity(0.1),
-                        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 26, vertical: 18),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         textStyle: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       child: Row(
@@ -658,7 +645,9 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
                         children: [
                           const Icon(Icons.add_circle_outline, size: 22),
                           const SizedBox(width: 10),
-                          Text(widget.isBasicPlan ? 'Create Basic Project' : 'Create Project'),
+                          Text(widget.isBasicPlan
+                              ? 'Create Basic Project'
+                              : 'Create Project'),
                           const SizedBox(width: 6),
                           const Icon(Icons.arrow_forward, size: 20),
                         ],
@@ -852,13 +841,15 @@ class _StatusStrip extends StatelessWidget {
           builder: (context, projectSnapshot) {
             final projects = projectSnapshot.data ?? const <ProjectRecord>[];
             final projectCount = projects.length;
-            final basicProjectCount = projects.where((project) => project.isBasicPlanProject).length;
-            
+            final basicProjectCount =
+                projects.where((project) => project.isBasicPlanProject).length;
+
             return StreamBuilder<List<ProgramModel>>(
               stream: ProgramService.streamPrograms(ownerId: user.uid),
               builder: (context, programSnapshot) {
-                final programCount = programSnapshot.hasData ? programSnapshot.data!.length : 0;
-                
+                final programCount =
+                    programSnapshot.hasData ? programSnapshot.data!.length : 0;
+
                 final metrics = [
                   DashboardStatCard(
                     label: 'Single Projects',
@@ -966,7 +957,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
     final subtitleText = widget.isBasicPlan
         ? 'Review all basic plan projects before upgrading to unlock more sections.'
         : 'Review all standalone projects before they are linked into programs or portfolios.';
-    final searchHint = widget.isBasicPlan ? 'Search basic projects...' : 'Search projects...';
+    final searchHint =
+        widget.isBasicPlan ? 'Search basic projects...' : 'Search projects...';
     final tipText = widget.isBasicPlan
         ? 'Basic plan workspaces focus on initiation essentials'
         : 'If more than 3 projects, group up to 3 into a program';
@@ -985,13 +977,15 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                       onPressed: _openExpandedView,
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFFFF4D6D),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         textStyle: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       child: const Text('See All'),
                     );
               final tip = Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(30),
@@ -1000,7 +994,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.merge_type, size: 18, color: Colors.grey.shade600),
+                    Icon(Icons.merge_type,
+                        size: 18, color: Colors.grey.shade600),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
@@ -1098,7 +1093,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
             decoration: InputDecoration(
               hintText: searchHint,
               hintStyle: const TextStyle(fontSize: 16),
-              prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 24),
+              prefixIcon:
+                  Icon(Icons.search, color: Colors.grey.shade600, size: 24),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, size: 22),
@@ -1122,9 +1118,11 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2.5),
+                borderSide: BorderSide(
+                    color: Theme.of(context).primaryColor, width: 2.5),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             ),
             onChanged: (value) {
               setState(() => _searchQuery = value.toLowerCase().trim());
@@ -1142,7 +1140,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.person_off_outlined, size: 48, color: Colors.grey.shade400),
+                    Icon(Icons.person_off_outlined,
+                        size: 48, color: Colors.grey.shade400),
                     const SizedBox(height: 16),
                     Text(
                       'Please sign in to view your projects',
@@ -1155,7 +1154,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                 ),
               ),
             )
-           else if (widget.isLoading)
+          else if (widget.isLoading)
             Container(
               padding: const EdgeInsets.all(60),
               decoration: BoxDecoration(
@@ -1176,7 +1175,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+                    Icon(Icons.error_outline,
+                        size: 48, color: Colors.red.shade400),
                     const SizedBox(height: 16),
                     Text(
                       'Error loading projects',
@@ -1188,7 +1188,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                     const SizedBox(height: 8),
                     Text(
                       widget.error!,
-                      style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: Colors.grey.shade600),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1199,8 +1200,12 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
             Builder(
               builder: (context) {
                 final allProjects = widget.isBasicPlan
-                    ? widget.projects.where((project) => project.isBasicPlanProject).toList()
-                    : widget.projects.where((project) => !project.isBasicPlanProject).toList();
+                    ? widget.projects
+                        .where((project) => project.isBasicPlanProject)
+                        .toList()
+                    : widget.projects
+                        .where((project) => !project.isBasicPlanProject)
+                        .toList();
 
                 // Apply search filter
                 final firebaseProjects = _searchQuery.isEmpty
@@ -1225,10 +1230,13 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.folder_off_outlined, size: 48, color: Colors.grey.shade400),
+                          Icon(Icons.folder_off_outlined,
+                              size: 48, color: Colors.grey.shade400),
                           const SizedBox(height: 16),
                           Text(
-                            widget.isBasicPlan ? 'No basic projects yet' : 'No projects yet',
+                            widget.isBasicPlan
+                                ? 'No basic projects yet'
+                                : 'No projects yet',
                             style: textTheme.bodyLarge?.copyWith(
                               color: Colors.grey.shade600,
                               fontWeight: FontWeight.w600,
@@ -1239,7 +1247,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                             widget.isBasicPlan
                                 ? 'Create your first basic project using the "Create Project" button above'
                                 : 'Create your first project using the "Create Project" button above',
-                            style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -1259,7 +1268,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                          Icon(Icons.search_off,
+                              size: 48, color: Colors.grey.shade400),
                           const SizedBox(height: 16),
                           Text(
                             'No matching projects',
@@ -1271,7 +1281,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                           const SizedBox(height: 8),
                           Text(
                             'Try adjusting your search criteria',
-                            style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -1284,7 +1295,9 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                   builder: (context, constraints) {
                     // Provide horizontal scroll for narrow screens
                     final totalCount = firebaseProjects.length;
-                    final visibleCount = _showAll ? totalCount : (totalCount > 10 ? 10 : totalCount);
+                    final visibleCount = _showAll
+                        ? totalCount
+                        : (totalCount > 10 ? 10 : totalCount);
                     final table = DecoratedBox(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -1298,18 +1311,33 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                             child: Row(
                               children: const [
                                 Expanded(child: _TableHeaderLabel('Project')),
-                                Expanded(child: _TableHeaderLabel('Stage', alignment: Alignment.center)),
-                                Expanded(child: _TableHeaderLabel('Owner', alignment: Alignment.center)),
-                                Expanded(child: _TableHeaderLabel('Investment', alignment: Alignment.center)),
-                                Expanded(child: _TableHeaderLabel('Actions', alignment: Alignment.center)),
+                                Expanded(
+                                    child: _TableHeaderLabel('Stage',
+                                        alignment: Alignment.center)),
+                                Expanded(
+                                    child: _TableHeaderLabel('Owner',
+                                        alignment: Alignment.center)),
+                                Expanded(
+                                    child: _TableHeaderLabel('Investment',
+                                        alignment: Alignment.center)),
+                                Expanded(
+                                    child: _TableHeaderLabel('Actions',
+                                        alignment: Alignment.center)),
                               ],
                             ),
                           ),
-                          const Divider(height: 1, thickness: 1, color: Color(0xFFE8E9F2)),
+                          const Divider(
+                              height: 1,
+                              thickness: 1,
+                              color: Color(0xFFE8E9F2)),
                           for (int i = 0; i < visibleCount; i++) ...[
-                            _ProjectTableRowFromFirebase(project: firebaseProjects[i]),
+                            _ProjectTableRowFromFirebase(
+                                project: firebaseProjects[i]),
                             if (i < visibleCount - 1)
-                              const Divider(height: 1, thickness: 1, color: Color(0xFFE8E9F2)),
+                              const Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: Color(0xFFE8E9F2)),
                           ],
                           if (totalCount > 10 && !widget.expandedView)
                             Padding(
@@ -1322,11 +1350,20 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                                   },
                                   style: TextButton.styleFrom(
                                     foregroundColor: Colors.black87,
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(24)),
                                   ),
-                                  icon: Icon(_showAll ? Icons.expand_less : Icons.expand_more, size: 18),
-                                  label: Text(_showAll ? 'Show 10' : 'View All ($totalCount)'),
+                                  icon: Icon(
+                                      _showAll
+                                          ? Icons.expand_less
+                                          : Icons.expand_more,
+                                      size: 18),
+                                  label: Text(_showAll
+                                      ? 'Show 10'
+                                      : 'View All ($totalCount)'),
                                 ),
                               ),
                             ),
@@ -1338,7 +1375,8 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 900, maxWidth: 900),
+                          constraints: const BoxConstraints(
+                              minWidth: 900, maxWidth: 900),
                           child: table,
                         ),
                       );
@@ -1425,9 +1463,10 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
       builder: (dialogContext) {
         final theme = Theme.of(dialogContext);
         final scheme = theme.colorScheme;
-        
+
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               Container(
@@ -1459,13 +1498,17 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                   decoration: InputDecoration(
                     labelText: 'Program Name',
                     hintText: 'e.g., Terminal Modernization Program',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                    fillColor:
+                        scheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Please enter a name';
-                    if (value.trim().length < 3) return 'Name must be at least 3 characters';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Please enter a name';
+                    if (value.trim().length < 3)
+                      return 'Name must be at least 3 characters';
                     return null;
                   },
                 ),
@@ -1486,7 +1529,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: scheme.primary,
                 foregroundColor: scheme.onPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Create Program'),
             ),
@@ -1498,28 +1542,32 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
     if (programName == null || !mounted) return;
 
     try {
-       final user = FirebaseAuth.instance.currentUser;
-       if (user == null) return;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-       // Create program
-       await ProgramService.createProgram(
-         name: programName,
-         projectIds: widget.selectedIds.toList(),
-         ownerId: user.uid,
-       );
+      // Create program
+      await ProgramService.createProgram(
+        name: programName,
+        projectIds: widget.selectedIds.toList(),
+        ownerId: user.uid,
+      );
 
-       if (!mounted) return;
-       
-       // Clear selection
-       widget.onClear();
-       
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text('Program created successfully!'), backgroundColor: Colors.green),
-       );
+      if (!mounted) return;
+
+      // Clear selection
+      widget.onClear();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Program created successfully!'),
+            backgroundColor: Colors.green),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error creating program: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error creating program: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -1544,7 +1592,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                       onPressed: _openExpandedView,
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFFFF4D6D),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         textStyle: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       child: const Text('See All'),
@@ -1573,9 +1622,11 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
               );
 
               final capChip = Align(
-                alignment: isColumn ? Alignment.centerLeft : Alignment.topCenter,
+                alignment:
+                    isColumn ? Alignment.centerLeft : Alignment.topCenter,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(30),
@@ -1584,7 +1635,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.filter_alt_outlined, size: 18, color: Colors.grey.shade600),
+                      Icon(Icons.filter_alt_outlined,
+                          size: 18, color: Colors.grey.shade600),
                       const SizedBox(width: 8),
                       Text(
                         'Up to 3 projects',
@@ -1599,7 +1651,7 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                 ),
               );
 
-                if (isColumn) {
+              if (isColumn) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1639,7 +1691,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
             decoration: InputDecoration(
               hintText: 'Search projects to group...',
               hintStyle: const TextStyle(fontSize: 16),
-              prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 24),
+              prefixIcon:
+                  Icon(Icons.search, color: Colors.grey.shade600, size: 24),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, size: 22),
@@ -1663,9 +1716,11 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2.5),
+                borderSide: BorderSide(
+                    color: Theme.of(context).primaryColor, width: 2.5),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             ),
             onChanged: (value) {
               setState(() => _searchQuery = value.toLowerCase().trim());
@@ -1706,7 +1761,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.error_outline, size: 40, color: Colors.red.shade400),
+                    Icon(Icons.error_outline,
+                        size: 40, color: Colors.red.shade400),
                     const SizedBox(height: 12),
                     Text(
                       'Error loading projects',
@@ -1718,7 +1774,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                     const SizedBox(height: 8),
                     Text(
                       widget.error!,
-                      style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: Colors.grey.shade600),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1736,7 +1793,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                     : allProjects.where((project) {
                         final name = project.name.toLowerCase();
                         final status = project.status.toLowerCase();
-                        return name.contains(_searchQuery) || status.contains(_searchQuery);
+                        return name.contains(_searchQuery) ||
+                            status.contains(_searchQuery);
                       }).toList();
 
                 if (allProjects.isEmpty) {
@@ -1770,7 +1828,8 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.search_off, size: 40, color: Colors.grey.shade400),
+                          Icon(Icons.search_off,
+                              size: 40, color: Colors.grey.shade400),
                           const SizedBox(height: 12),
                           Text(
                             'No matching projects',
@@ -1786,14 +1845,72 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                 }
 
                 // Show only 10 by default
-                final visibleCount = _showAll ? firebaseProjects.length : (firebaseProjects.length > 10 ? 10 : firebaseProjects.length);
+                final visibleCount = _showAll
+                    ? firebaseProjects.length
+                    : (firebaseProjects.length > 10
+                        ? 10
+                        : firebaseProjects.length);
 
+                // Use ValueListenableBuilder to react to selection changes
+                if (widget.selectedIdsListenable != null)
+                  return ValueListenableBuilder<Set<String>>(
+                    valueListenable: widget.selectedIdsListenable!,
+                    builder: (context, selectedIds, _) {
+                      return Column(
+                        children: [
+                          for (int i = 0; i < visibleCount; i++) ...[
+                            _SelectableProjectRowFromFirebase(
+                              project: firebaseProjects[i],
+                              selected:
+                                  selectedIds.contains(firebaseProjects[i].id),
+                              onTap: () =>
+                                  widget.onToggle(firebaseProjects[i].id),
+                            ),
+                            if (i < visibleCount - 1)
+                              const SizedBox(height: 12),
+                          ],
+                          if (firebaseProjects.length > 10 &&
+                              !widget.expandedView)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    setState(() => _showAll = !_showAll);
+                                  },
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.black87,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(24)),
+                                  ),
+                                  icon: Icon(
+                                      _showAll
+                                          ? Icons.expand_less
+                                          : Icons.expand_more,
+                                      size: 18),
+                                  label: Text(_showAll
+                                      ? 'Show 10'
+                                      : 'View All (${firebaseProjects.length})'),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  );
+
+                // Fallback if no ValueListenable provided
                 return Column(
                   children: [
                     for (int i = 0; i < visibleCount; i++) ...[
                       _SelectableProjectRowFromFirebase(
                         project: firebaseProjects[i],
-                        selected: widget.selectedIds.contains(firebaseProjects[i].id),
+                        selected:
+                            widget.selectedIds.contains(firebaseProjects[i].id),
                         onTap: () => widget.onToggle(firebaseProjects[i].id),
                       ),
                       if (i < visibleCount - 1) const SizedBox(height: 12),
@@ -1809,11 +1926,19 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                             },
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24)),
                             ),
-                            icon: Icon(_showAll ? Icons.expand_less : Icons.expand_more, size: 18),
-                            label: Text(_showAll ? 'Show 10' : 'View All (${firebaseProjects.length})'),
+                            icon: Icon(
+                                _showAll
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                                size: 18),
+                            label: Text(_showAll
+                                ? 'Show 10'
+                                : 'View All (${firebaseProjects.length})'),
                           ),
                         ),
                       ),
@@ -1822,35 +1947,86 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
               },
             ),
           const SizedBox(height: 24),
-          Text(
-            '$selectedCount/3 projects selected. Select exactly three to create a program.',
-            style: textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: selectedCount == 3 ? _handleCreateProgram : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF111111),
-                foregroundColor: Colors.white,
-                elevation: selectedCount == 3 ? 10 : 0,
-                shadowColor: Colors.black.withOpacity(0.3),
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 17,
-                  letterSpacing: 0.3,
+          // Use ValueListenableBuilder for selection count if available
+          widget.selectedIdsListenable != null
+              ? ValueListenableBuilder<Set<String>>(
+                  valueListenable: widget.selectedIdsListenable!,
+                  builder: (context, selectedIds, _) {
+                    final count = selectedIds.length;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$count/3 projects selected. Select exactly three to create a program.',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: count == 3 ? _handleCreateProgram : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF111111),
+                              foregroundColor: Colors.white,
+                              elevation: count == 3 ? 10 : 0,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                            ),
+                            child: Text(
+                              count == 3
+                                  ? 'Create Program'
+                                  : 'Select ${3 - count} more',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$selectedCount/3 projects selected. Select exactly three to create a program.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed:
+                            selectedCount == 3 ? _handleCreateProgram : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF111111),
+                          foregroundColor: Colors.white,
+                          elevation: selectedCount == 3 ? 10 : 0,
+                          shadowColor: Colors.black.withOpacity(0.3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 28, vertical: 22),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(32)),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 17,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        child: const Text('Create program from selected'),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              child: const Text('Create program from selected'),
-            ),
-          ),
         ],
       ),
     );
@@ -1915,7 +2091,8 @@ class _ProgramsSummaryCard extends StatelessWidget {
             StreamBuilder<List<ProgramModel>>(
               stream: ProgramService.streamPrograms(ownerId: user.uid),
               builder: (context, programSnapshot) {
-                final programCount = programSnapshot.hasData ? programSnapshot.data!.length : 0;
+                final programCount =
+                    programSnapshot.hasData ? programSnapshot.data!.length : 0;
                 // Portfolios are not yet implemented, so we show 0
                 const portfolioCount = 0;
 
@@ -1940,7 +2117,8 @@ class _ProgramsSummaryCard extends StatelessWidget {
                 ];
 
                 return LayoutBuilder(
-                  builder: (context, constraints) => _buildStatsLayout(constraints, stats),
+                  builder: (context, constraints) =>
+                      _buildStatsLayout(constraints, stats),
                 );
               },
             ),
@@ -1949,7 +2127,8 @@ class _ProgramsSummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsLayout(BoxConstraints constraints, List<_SummaryStat> stats) {
+  Widget _buildStatsLayout(
+      BoxConstraints constraints, List<_SummaryStat> stats) {
     if (constraints.maxWidth < 620) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1963,7 +2142,8 @@ class _ProgramsSummaryCard extends StatelessWidget {
     }
 
     if (constraints.maxWidth < 1024) {
-      final double cardWidth = ((constraints.maxWidth - 18) / 2).clamp(260.0, constraints.maxWidth);
+      final double cardWidth =
+          ((constraints.maxWidth - 18) / 2).clamp(260.0, constraints.maxWidth);
       return Wrap(
         spacing: 18,
         runSpacing: 18,
@@ -2100,8 +2280,14 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     if (ownerName.isNotEmpty && !ownerName.contains('@')) return ownerName;
     final email = project.ownerEmail.trim();
     if (email.isNotEmpty) {
-      final username = email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
-      return username.split(' ').map((part) => part.isEmpty ? '' : '${part[0].toUpperCase()}${part.substring(1)}').join(' ');
+      final username =
+          email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
+      return username
+          .split(' ')
+          .map((part) => part.isEmpty
+              ? ''
+              : '${part[0].toUpperCase()}${part.substring(1)}')
+          .join(' ');
     }
     return 'Unknown';
   }
@@ -2119,7 +2305,9 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
       return diff.inHours == 1 ? '1 hour ago' : '${diff.inHours} hours ago';
     }
     if (diff.inMinutes >= 1) {
-      return diff.inMinutes == 1 ? '1 minute ago' : '${diff.inMinutes} minutes ago';
+      return diff.inMinutes == 1
+          ? '1 minute ago'
+          : '${diff.inMinutes} minutes ago';
     }
     return 'moments ago';
   }
@@ -2129,7 +2317,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     if (normalized.contains('execution')) return const Color(0xFFE6FAF1);
     if (normalized.contains('planning')) return const Color(0xFFFFF1CC);
     if (normalized.contains('design')) return const Color(0xFFE8E6FF);
-    if (normalized.contains('initiation') || normalized.contains('idea')) return const Color(0xFFF3F4F8);
+    if (normalized.contains('initiation') || normalized.contains('idea'))
+      return const Color(0xFFF3F4F8);
     return const Color(0xFFF3F4F8);
   }
 
@@ -2138,7 +2327,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     if (normalized.contains('execution')) return const Color(0xFF14734E);
     if (normalized.contains('planning')) return const Color(0xFF875900);
     if (normalized.contains('design')) return const Color(0xFF5941C6);
-    if (normalized.contains('initiation') || normalized.contains('idea')) return const Color(0xFF4A4D57);
+    if (normalized.contains('initiation') || normalized.contains('idea'))
+      return const Color(0xFF4A4D57);
     return const Color(0xFF4A4D57);
   }
 
@@ -2184,7 +2374,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     try {
       final provider = ProjectDataInherited.of(context);
       debugPrint('📥 Calling loadFromFirebase for project: ${project.id}');
-      
+
       final success = await provider.loadFromFirebase(project.id);
 
       debugPrint('📤 Load result: $success, error: ${provider.lastError}');
@@ -2194,23 +2384,32 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
       Navigator.of(context).pop(); // Close loading dialog
 
       if (success) {
-        // Get the last visited page for this project
-        final lastPage = await ProjectNavigationService.instance.getLastPage(project.id);
-        debugPrint('✅ Project loaded successfully, navigating to last page: $lastPage');
-        
-        // Navigate to the last visited page (default to initiation)
+        // Get checkpoint from Firestore (primary source) or fallback to SharedPreferences
+        final checkpointRoute = project.checkpointRoute.isNotEmpty
+            ? project.checkpointRoute
+            : await ProjectNavigationService.instance.getLastPage(project.id);
+        debugPrint(
+            '✅ Project loaded successfully, navigating to checkpoint: $checkpointRoute');
+
+        // Resolve checkpoint to screen widget
+        final screen = NavigationRouteResolver.resolveCheckpointToScreen(
+          checkpointRoute.isEmpty ? 'initiation' : checkpointRoute,
+          context,
+        );
+
+        // Navigate to the resolved screen
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const InitiationPhaseScreen(),
-          ),
+              builder: (_) => screen ?? const InitiationPhaseScreen()),
         );
       } else {
         debugPrint('❌ Failed to load project: ${provider.lastError}');
         showDialog(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
                 Container(
@@ -2219,7 +2418,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.error_outline, color: Colors.red.shade700, size: 24),
+                  child: Icon(Icons.error_outline,
+                      color: Colors.red.shade700, size: 24),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(child: Text('Failed to Load Project')),
@@ -2231,11 +2431,13 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
               children: [
                 Text(
                   'Project: ${project.name}',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 15),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  provider.lastError ?? 'Unknown error occurred while loading project data.',
+                  provider.lastError ??
+                      'Unknown error occurred while loading project data.',
                   style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                 ),
                 const SizedBox(height: 12),
@@ -2258,8 +2460,10 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A4DB3),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Retry'),
               ),
@@ -2270,7 +2474,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     } catch (e, stackTrace) {
       debugPrint('❌ Exception opening project: $e');
       debugPrint('Stack trace: $stackTrace');
-      
+
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
@@ -2278,7 +2482,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
         showDialog(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
                 Container(
@@ -2287,7 +2492,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.error_outline, color: Colors.red.shade700, size: 24),
+                  child: Icon(Icons.error_outline,
+                      color: Colors.red.shade700, size: 24),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(child: Text('Error Opening Project')),
@@ -2299,7 +2505,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
               children: [
                 Text(
                   'An unexpected error occurred:',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 15),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -2343,7 +2550,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
         final scheme = theme.colorScheme;
 
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               Container(
@@ -2352,7 +2560,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                   color: scheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.edit_outlined, color: scheme.primary, size: 24),
+                child:
+                    Icon(Icons.edit_outlined, color: scheme.primary, size: 24),
               ),
               const SizedBox(width: 12),
               const Text('Rename Project'),
@@ -2379,7 +2588,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                    fillColor:
+                        scheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -2393,7 +2603,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) {
                     if (formKey.currentState?.validate() ?? false) {
-                      Navigator.of(dialogContext).pop(nameController.text.trim());
+                      Navigator.of(dialogContext)
+                          .pop(nameController.text.trim());
                     }
                   },
                 ),
@@ -2414,8 +2625,10 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: scheme.primary,
                 foregroundColor: scheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Rename'),
             ),
@@ -2471,7 +2684,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               Container(
@@ -2480,7 +2694,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                   color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 24),
+                child: Icon(Icons.warning_amber_rounded,
+                    color: Colors.red.shade700, size: 24),
               ),
               const SizedBox(width: 12),
               const Text('Delete Project?'),
@@ -2492,7 +2707,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
             children: [
               Text(
                 'Are you sure you want to delete "${project.name}"?',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               Text(
@@ -2511,8 +2727,10 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Delete'),
             ),
@@ -2562,11 +2780,14 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = project.name.isNotEmpty ? project.name : 'Untitled Project';
-    final statusLabel = project.status.isNotEmpty ? project.status : 'Initiation';
-    final milestoneLabel = project.milestone.isNotEmpty ? project.milestone : 'Starting up';
-    final investment = project.investmentMillions > 0 
-        ? '\$${project.investmentMillions.toStringAsFixed(1)}M' 
+    final displayName =
+        project.name.isNotEmpty ? project.name : 'Untitled Project';
+    final statusLabel =
+        project.status.isNotEmpty ? project.status : 'Initiation';
+    final milestoneLabel =
+        project.milestone.isNotEmpty ? project.milestone : 'Starting up';
+    final investment = project.investmentMillions > 0
+        ? '\$${project.investmentMillions.toStringAsFixed(1)}M'
         : 'Not set';
 
     return Padding(
@@ -2574,49 +2795,50 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InkWell(
-                    onTap: () => _openProject(context),
-                    child: Text(
-                      displayName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                        color: Color(0xFF1A4DB3),
-                        decoration: TextDecoration.underline,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () => _openProject(context),
+                  child: Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      color: Color(0xFF1A4DB3),
+                      decoration: TextDecoration.underline,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    milestoneLabel,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                      letterSpacing: 0.2,
-                    ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Last edited by ${_lastEditorName()} · ${_relativeTimeString(project.updatedAt)}',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  milestoneLabel,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.2,
                   ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Last edited by ${_lastEditorName()} · ${_relativeTimeString(project.updatedAt)}',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                ),
+              ],
             ),
+          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   decoration: BoxDecoration(
                     color: _stageBackgroundColor(statusLabel),
                     borderRadius: BorderRadius.circular(24),
@@ -2672,9 +2894,12 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                       label: const Text('Open'),
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFF1A4DB3),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        textStyle: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ),
@@ -2692,9 +2917,12 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                         value: 'rename',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined, size: 20, color: Color(0xFF1A4DB3)),
+                            Icon(Icons.edit_outlined,
+                                size: 20, color: Color(0xFF1A4DB3)),
                             SizedBox(width: 12),
-                            Text('Rename', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                            Text('Rename',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 15)),
                           ],
                         ),
                       ),
@@ -2702,24 +2930,32 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                            Icon(Icons.delete_outline,
+                                size: 20, color: Colors.red),
                             SizedBox(width: 12),
-                            Text('Delete', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red, fontSize: 15)),
+                            Text('Delete',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.red,
+                                    fontSize: 15)),
                           ],
                         ),
                       ),
                     ],
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                        border:
+                            Border.all(color: Colors.grey.shade300, width: 1.5),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.more_horiz, size: 20, color: Colors.grey.shade700),
+                          Icon(Icons.more_horiz,
+                              size: 20, color: Colors.grey.shade700),
                         ],
                       ),
                     ),
@@ -2841,98 +3077,6 @@ class _OwnerNameCellState extends State<_OwnerNameCell> {
   }
 }
 
-class _ProjectTableRow extends StatelessWidget {
-  const _ProjectTableRow({required this.project});
-
-  final _ProjectEntry project;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  project.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: Color(0xFF111111),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  project.details,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: project.stageBackground,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  project.stageLabel,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: project.stageForeground,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              project.owner,
-              style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E1F23)),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              project.riskSummary,
-              style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
-            ),
-          ),
-          SizedBox(
-            width: 72,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF1A4DB3),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                child: Text(project.statusLabel),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SelectableProjectRowFromFirebase extends StatelessWidget {
   const _SelectableProjectRowFromFirebase({
     required this.project,
@@ -2954,9 +3098,10 @@ class _SelectableProjectRowFromFirebase extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = project.name.isNotEmpty ? project.name : 'Untitled Project';
-    final statusLabel = project.status.isNotEmpty ? project.status : 'Initiation';
-    final shortId = project.id.substring(0, project.id.length > 8 ? 8 : project.id.length);
+    final displayName =
+        project.name.isNotEmpty ? project.name : 'Untitled Project';
+    final statusLabel =
+        project.status.isNotEmpty ? project.status : 'Initiation';
 
     return InkWell(
       onTap: onTap,
@@ -3041,101 +3186,6 @@ class _SelectableProjectRowFromFirebase extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: selected ? Colors.white : const Color(0xFF4A4D57),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SelectableProjectRow extends StatelessWidget {
-  const _SelectableProjectRow({
-    required this.project,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final _ProjectEntry project;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF7E6) : const Color(0xFFF7F8FD),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: selected ? const Color(0xFFFFCF6B) : const Color(0xFFE3E6F2),
-            width: 1.4,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFFFC14A).withOpacity(0.35),
-                    blurRadius: 22,
-                    offset: const Offset(0, 12),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFB300),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    project.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF101218),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${project.stageLabel} · ${project.id}',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 18),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFF111111) : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: selected ? Colors.black : const Color(0xFFE1E4ED)),
-              ),
-              child: Text(
-                selected ? 'Selected' : 'Tap to include',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
                   color: selected ? Colors.white : const Color(0xFF4A4D57),
                 ),
               ),
@@ -3254,39 +3304,5 @@ class _FrostedSurface extends StatelessWidget {
       ),
       child: child,
     );
-  }
-}
-
-
-class _ProjectEntry {
-  const _ProjectEntry({
-    required this.id,
-    required this.title,
-    required this.details,
-    required this.stageLabel,
-    required this.stageBackground,
-    required this.stageForeground,
-    required this.owner,
-    required this.riskSummary,
-    required this.statusLabel,
-  });
-
-  final String id;
-  final String title;
-  final String details;
-  final String stageLabel;
-  final Color stageBackground;
-  final Color stageForeground;
-  final String owner;
-  final String riskSummary;
-  final String statusLabel;
-}
-
-extension on Color {
-  Color darken([double amount = 0.2]) {
-    assert(amount >= 0 && amount <= 1);
-    final hsl = HSLColor.fromColor(this);
-    final lightness = (hsl.lightness - amount).clamp(0.0, 1.0);
-    return hsl.withLightness(lightness).toColor();
   }
 }

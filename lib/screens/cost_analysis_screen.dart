@@ -20,8 +20,8 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
-import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
+import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/widgets/expanding_text_field.dart';
 import 'package:ndu_project/screens/initiation_phase_screen.dart';
 import 'package:ndu_project/screens/potential_solutions_screen.dart';
@@ -30,36 +30,20 @@ import 'package:ndu_project/screens/it_considerations_screen.dart';
 import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class CostAnalysisScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
-  const CostAnalysisScreen({super.key, required this.notes, required this.solutions});
+  const CostAnalysisScreen(
+      {super.key, required this.notes, required this.solutions});
 
   @override
   State<CostAnalysisScreen> createState() => _CostAnalysisScreenState();
 }
 
-class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTickerProviderStateMixin {
-  static const List<MapEntry<IconData, String>> _primaryMenuItems = [
-    MapEntry(Icons.home_outlined, 'Home'),
-    MapEntry(Icons.shield_outlined, 'SSHER'),
-    MapEntry(Icons.palette_outlined, 'Design'),
-    MapEntry(Icons.assignment_outlined, 'Execution Plan'),
-    MapEntry(Icons.computer_outlined, 'Technology'),
-    MapEntry(Icons.people_outline, 'Team Management'),
-    MapEntry(Icons.contact_mail_outlined, 'Contact'),
-    MapEntry(Icons.shopping_cart_outlined, 'Procurement'),
-    MapEntry(Icons.schedule_outlined, 'Schedule'),
-    MapEntry(Icons.attach_money_outlined, 'Cost Estimate'),
-    MapEntry(Icons.change_circle_outlined, 'Change Management'),
-    MapEntry(Icons.assessment_outlined, 'Project Plan'),
-    MapEntry(Icons.people_alt_outlined, 'Stakeholder Management'),
-    MapEntry(Icons.warning_outlined, 'Risk Assessment'),
-    MapEntry(Icons.bug_report_outlined, 'Issue Management'),
-    MapEntry(Icons.school_outlined, 'Lessons Learned'),
-    MapEntry(Icons.group_work_outlined, 'Team Training and Team Building'),
-  ];
+class _CostAnalysisScreenState extends State<CostAnalysisScreen>
+    with SingleTickerProviderStateMixin {
   static const List<_StepDefinition> _stepDefinitions = [
     _StepDefinition(
       shortLabel: 'Project Value',
@@ -104,19 +88,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     _QualitativeOption(
       label: 'Core programme team',
       detail: '6-10 FTEs incl. vendor support',
-      aiHint: 'Cross-functional programme team with 6-10 FTEs plus vendor support.',
+      aiHint:
+          'Cross-functional programme team with 6-10 FTEs plus vendor support.',
     ),
     _QualitativeOption(
       label: 'Enterprise delivery model',
       detail: '10+ FTEs across business & IT',
-      aiHint: 'Enterprise-scale delivery model spanning 10+ internal and external FTEs.',
+      aiHint:
+          'Enterprise-scale delivery model spanning 10+ internal and external FTEs.',
     ),
   ];
   static const List<_QualitativeOption> _timelineOptions = [
     _QualitativeOption(
       label: '0-6 months',
       detail: 'Accelerated delivery window',
-      aiHint: 'Aggressive implementation window under six months (parallelised sprints).',
+      aiHint:
+          'Aggressive implementation window under six months (parallelised sprints).',
     ),
     _QualitativeOption(
       label: '6-12 months',
@@ -126,24 +113,28 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     _QualitativeOption(
       label: '12+ months',
       detail: 'Multi-phase programme',
-      aiHint: 'Multi-phase programme extending beyond twelve months with staged deployments.',
+      aiHint:
+          'Multi-phase programme extending beyond twelve months with staged deployments.',
     ),
   ];
   static const List<_QualitativeOption> _complexityOptions = [
     _QualitativeOption(
       label: 'Foundational',
       detail: 'Limited integrations, low risk',
-      aiHint: 'Foundational complexity with limited integration and regulatory risk.',
+      aiHint:
+          'Foundational complexity with limited integration and regulatory risk.',
     ),
     _QualitativeOption(
       label: 'Moderate',
       detail: 'Cross-team coordination required',
-      aiHint: 'Moderate complexity requiring cross-team coordination and controlled change.',
+      aiHint:
+          'Moderate complexity requiring cross-team coordination and controlled change.',
     ),
     _QualitativeOption(
       label: 'High',
       detail: 'Heavy integration & governance',
-      aiHint: 'High complexity with heavy integration, governance checks, and dependencies.',
+      aiHint:
+          'High complexity with heavy integration, governance checks, and dependencies.',
     ),
   ];
   static const Map<String, String> _benefitMetrics = {
@@ -151,10 +142,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     'cost_saving': 'Cost avoidance, savings from not buying, making something',
     'ops_efficiency': 'Operational costs saved, equipment rental savings',
     'productivity': 'Manpower hours, salary rate, time savings',
-    'regulatory_compliance': 'Compliance fees, penalty avoidance, shutdown costs',
+    'regulatory_compliance':
+        'Compliance fees, penalty avoidance, shutdown costs',
     'process_improvement': 'Productivity gains, operational efficiency overlap',
     'brand_image': 'Market gains, revenue impact, cost savings from perception',
-    'stakeholder_commitment': 'Shareholder gains, loss avoidance from commitments',
+    'stakeholder_commitment':
+        'Shareholder gains, loss avoidance from commitments',
     'other': 'Custom category with flexible formulas',
   };
   static const List<MapEntry<String, String>> _projectValueFields = [
@@ -173,7 +166,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   late final TabController _benefitCategoryTabController;
   int _activeBenefitCategoryIndex = 0;
   int _activeTab = 0;
-  bool _viewAll = false;
   String _currency = 'USD';
   String _lastCurrency = 'USD';
   static const Map<String, double> _currencyRates = {
@@ -186,7 +178,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   bool _isGeneratingValue = false;
   // Basis frequency for multi-year benefit calculations
   String _basisFrequency = 'Monthly';
-  static const List<String> _frequencyOptions = ['Monthly', 'Quarterly', 'Yearly'];
+  static const List<String> _frequencyOptions = [
+    'Monthly',
+    'Quarterly',
+    'Yearly'
+  ];
   String? _error;
   String? _projectValueError;
   int _npvHorizon = 5;
@@ -195,7 +191,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   int _benefitTabIndex = 0;
   final Set<String> _selectedBenefitCategories = <String>{};
   final TextEditingController _savingsNotesController = TextEditingController();
-  final TextEditingController _savingsTargetController = TextEditingController(text: '10');
+  final TextEditingController _savingsTargetController =
+      TextEditingController(text: '10');
   bool _isSavingsGenerating = false;
   String? _savingsError;
   List<AiBenefitSavingsSuggestion> _savingsSuggestions = [];
@@ -208,9 +205,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     _notesController.addListener(_markDirty);
     _projectValueAmountController = TextEditingController();
     _projectValueBenefitControllers = {
-      for (final field in _projectValueFields) field.key: TextEditingController(),
+      for (final field in _projectValueFields)
+        field.key: TextEditingController(),
     };
-    _benefitCategoryTabController = TabController(length: _projectValueFields.length, vsync: this);
+    _benefitCategoryTabController =
+        TabController(length: _projectValueFields.length, vsync: this);
     _activeBenefitCategoryIndex = _benefitCategoryTabController.index;
     _benefitCategoryTabController.addListener(() {
       if (_benefitCategoryTabController.indexIsChanging) return;
@@ -219,15 +218,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         _activeBenefitCategoryIndex = _benefitCategoryTabController.index;
       });
     });
-    _rowsPerSolution = List.generate(widget.solutions.isEmpty ? 3 : widget.solutions.length, (i) {
+    _rowsPerSolution = List.generate(
+        widget.solutions.isEmpty ? 3 : widget.solutions.length, (i) {
       // Seed each tab with 3 placeholder rows to mirror the screenshot
-      return List.generate(3, (j) => _CostRow(currencyProvider: () => _currency));
+      return List.generate(
+          3, (j) => _CostRow(currencyProvider: () => _currency));
     });
-    _solutionContexts = List.generate(_rowsPerSolution.length, (_) => _SolutionCostContext());
+    _solutionContexts =
+        List.generate(_rowsPerSolution.length, (_) => _SolutionCostContext());
     _categoryCostsPerSolution = List.generate(_rowsPerSolution.length, (_) {
       return {
         for (final field in _projectValueFields)
-          field.key: _CategoryCostEntry(categoryKey: field.key)..bind(_markDirty),
+          field.key: _CategoryCostEntry(categoryKey: field.key)
+            ..bind(_markDirty),
       };
     });
     _categoryIdeasPerSolution = List.generate(_rowsPerSolution.length, (_) {
@@ -268,24 +271,25 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       }
     });
   }
-  
+
   void _loadExistingData() {
     try {
       final provider = ProjectDataInherited.of(context);
       final costAnalysisData = provider.projectData.costAnalysisData;
-      
+
       if (costAnalysisData == null) return;
-      
+
       // Load notes
       if (costAnalysisData.notes.isNotEmpty) {
         _notesController.text = costAnalysisData.notes;
       }
-      
+
       // Load Step 1: Project Value data
       if (costAnalysisData.projectValueAmount.isNotEmpty) {
-        _projectValueAmountController.text = costAnalysisData.projectValueAmount;
+        _projectValueAmountController.text =
+            costAnalysisData.projectValueAmount;
       }
-      
+
       // Load Project Value benefits
       for (final entry in costAnalysisData.projectValueBenefits.entries) {
         final controller = _projectValueBenefitControllers[entry.key];
@@ -293,13 +297,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           controller.text = entry.value;
         }
       }
-      
+
       // Load benefit line items
       _benefitLineItems.clear();
       for (final item in costAnalysisData.benefitLineItems) {
         final entry = _BenefitLineItemEntry(
           id: item.id,
-          categoryKey: item.categoryKey.isEmpty ? _projectValueFields.first.key : item.categoryKey,
+          categoryKey: item.categoryKey.isEmpty
+              ? _projectValueFields.first.key
+              : item.categoryKey,
           title: item.title,
           unitValue: double.tryParse(item.unitValue) ?? 0,
           units: double.tryParse(item.units) ?? 0,
@@ -308,7 +314,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         entry.bind(_onBenefitEntryEdited);
         _benefitLineItems.add(entry);
       }
-      
+
       // Load savings data
       if (costAnalysisData.savingsNotes.isNotEmpty) {
         _savingsNotesController.text = costAnalysisData.savingsNotes;
@@ -316,30 +322,35 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       if (costAnalysisData.savingsTarget.isNotEmpty) {
         _savingsTargetController.text = costAnalysisData.savingsTarget;
       }
-      
+
       // Load Step 2: Cost rows for each solution
-      for (int i = 0; i < costAnalysisData.solutionCosts.length && i < _rowsPerSolution.length; i++) {
+      for (int i = 0;
+          i < costAnalysisData.solutionCosts.length &&
+              i < _rowsPerSolution.length;
+          i++) {
         final solutionCost = costAnalysisData.solutionCosts[i];
         final rows = _rowsPerSolution[i];
-        
+
         // Ensure we have enough rows
         while (rows.length < solutionCost.costRows.length) {
           final newRow = _CostRow(currencyProvider: () => _currency);
           _attachRowDirtyListeners(newRow);
           rows.add(newRow);
         }
-        
-        for (int j = 0; j < solutionCost.costRows.length && j < rows.length; j++) {
+
+        for (int j = 0;
+            j < solutionCost.costRows.length && j < rows.length;
+            j++) {
           final costRow = solutionCost.costRows[j];
           final row = rows[j];
-          
+
           row.itemController.text = costRow.itemName;
           row.descriptionController.text = costRow.description;
           row.costController.text = costRow.cost;
           row.assumptionsController.text = costRow.assumptions;
         }
       }
-      
+
       if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Error loading existing cost analysis data: $e');
@@ -354,7 +365,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   String _solutionTitle(int index) {
     final solution = _solutionAt(index);
     final title = solution?.title.trim() ?? '';
-    return title.isNotEmpty ? solution!.title : 'Potential Solution ${index + 1}';
+    return title.isNotEmpty
+        ? solution!.title
+        : 'Potential Solution ${index + 1}';
   }
 
   @override
@@ -371,10 +384,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           children: [
             Column(children: [
               BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(child: Row(children: [
+              Expanded(
+                  child: Row(children: [
                 DraggableSidebar(
                   openWidth: sidebarWidth,
-                  child: const InitiationLikeSidebar(activeItemLabel: 'Cost Benefit Analysis & Financial Metrics'),
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel:
+                          'Cost Benefit Analysis & Financial Metrics'),
                 ),
                 Expanded(child: _buildMainContent()),
               ])),
@@ -415,7 +431,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           if (!isMobile)
             const Text(
               'Initiation Phase',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black),
             ),
           const Spacer(),
           Row(
@@ -423,7 +442,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               Container(
                 width: 40,
                 height: 40,
-                decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                    color: Colors.blue, shape: BoxShape.circle),
                 child: const Icon(Icons.person, color: Colors.white, size: 20),
               ),
               if (!isMobile) ...[
@@ -434,13 +454,18 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                   children: [
                     Text(
                       FirebaseAuthService.displayNameOrEmail(fallback: 'User'),
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black),
                     ),
-                    const Text('Product manager', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text('Product manager',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 20),
+                const Icon(Icons.keyboard_arrow_down,
+                    color: Colors.grey, size: 20),
               ],
             ],
           ),
@@ -468,7 +493,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFFFD700), width: 1)),
+              border: Border(
+                  bottom: BorderSide(color: Color(0xFFFFD700), width: 1)),
             ),
             child: const Row(
               children: [
@@ -481,7 +507,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('StackOne', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
+                    Text('StackOne',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black)),
                   ],
                 )
               ],
@@ -491,12 +521,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
-                _buildMenuItem(Icons.home_outlined, 'Home', onTap: () => HomeScreen.open(context)),
+                _buildMenuItem(Icons.home_outlined, 'Home',
+                    onTap: () => HomeScreen.open(context)),
                 _buildExpandableHeader(
                   Icons.flag_outlined,
                   'Initiation Phase',
                   expanded: _initiationExpanded,
-                  onTap: () => setState(() => _initiationExpanded = !_initiationExpanded),
+                  onTap: () => setState(
+                      () => _initiationExpanded = !_initiationExpanded),
                   isActive: true,
                 ),
                 if (_initiationExpanded) ...[
@@ -504,28 +536,41 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                     Icons.business_center_outlined,
                     'Business Case',
                     expanded: _businessCaseExpanded,
-                    onTap: () => setState(() => _businessCaseExpanded = !_businessCaseExpanded),
+                    onTap: () => setState(
+                        () => _businessCaseExpanded = !_businessCaseExpanded),
                     isActive: false,
                   ),
                   if (_businessCaseExpanded) ...[
-                    _buildNestedSubMenuItem('Business Case', onTap: _openBusinessCase),
-                    _buildNestedSubMenuItem('Potential Solutions', onTap: _openPotentialSolutions),
-                    _buildNestedSubMenuItem('Risk Identification', onTap: _openRiskIdentification),
-                    _buildNestedSubMenuItem('IT Considerations', onTap: _openITConsiderations),
-                    _buildNestedSubMenuItem('Infrastructure Considerations', onTap: _openInfrastructureConsiderations),
-                    _buildNestedSubMenuItem('Core Stakeholders', onTap: _openCoreStakeholders),
-                    _buildNestedSubMenuItem('Cost Benefit Analysis & Financial Metrics', isActive: true),
-                    _buildNestedSubMenuItem('Preferred Solution Analysis', onTap: _openPreferredSolutionAnalysis),
+                    _buildNestedSubMenuItem('Business Case',
+                        onTap: _openBusinessCase),
+                    _buildNestedSubMenuItem('Potential Solutions',
+                        onTap: _openPotentialSolutions),
+                    _buildNestedSubMenuItem('Risk Identification',
+                        onTap: _openRiskIdentification),
+                    _buildNestedSubMenuItem('IT Considerations',
+                        onTap: _openITConsiderations),
+                    _buildNestedSubMenuItem('Infrastructure Considerations',
+                        onTap: _openInfrastructureConsiderations),
+                    _buildNestedSubMenuItem('Core Stakeholders',
+                        onTap: _openCoreStakeholders),
+                    _buildNestedSubMenuItem(
+                        'Cost Benefit Analysis & Financial Metrics',
+                        isActive: true),
+                    _buildNestedSubMenuItem('Preferred Solution Analysis',
+                        onTap: _openPreferredSolutionAnalysis),
                   ],
                 ],
-                _buildMenuItem(Icons.timeline, 'Initiation: Front End Planning'),
+                _buildMenuItem(
+                    Icons.timeline, 'Initiation: Front End Planning'),
                 _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
                 _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
                 _buildMenuItem(Icons.description_outlined, 'Contracting'),
                 _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
                 const SizedBox(height: 20),
-                _buildMenuItem(Icons.settings_outlined, 'Settings', onTap: () => SettingsScreen.open(context)),
-                _buildMenuItem(Icons.logout_outlined, 'LogOut', onTap: () => AuthNav.signOutAndExit(context)),
+                _buildMenuItem(Icons.settings_outlined, 'Settings',
+                    onTap: () => SettingsScreen.open(context)),
+                _buildMenuItem(Icons.logout_outlined, 'LogOut',
+                    onTap: () => AuthNav.signOutAndExit(context)),
               ],
             ),
           ),
@@ -550,12 +595,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               title: Text('StackOne'),
             ),
             const Divider(height: 1),
-            _buildMenuItem(Icons.home_outlined, 'Home', onTap: () => HomeScreen.open(context)),
+            _buildMenuItem(Icons.home_outlined, 'Home',
+                onTap: () => HomeScreen.open(context)),
             _buildExpandableHeader(
               Icons.flag_outlined,
               'Initiation Phase',
               expanded: _initiationExpanded,
-              onTap: () => setState(() => _initiationExpanded = !_initiationExpanded),
+              onTap: () =>
+                  setState(() => _initiationExpanded = !_initiationExpanded),
               isActive: true,
             ),
             if (_initiationExpanded) ...[
@@ -563,7 +610,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 Icons.business_center_outlined,
                 'Business Case',
                 expanded: _businessCaseExpanded,
-                onTap: () => setState(() => _businessCaseExpanded = !_businessCaseExpanded),
+                onTap: () => setState(
+                    () => _businessCaseExpanded = !_businessCaseExpanded),
                 isActive: false,
               ),
               if (_businessCaseExpanded) ...[
@@ -583,7 +631,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                   Navigator.of(context).maybePop();
                   _openITConsiderations();
                 }),
-                _buildNestedSubMenuItem('Infrastructure Considerations', onTap: () {
+                _buildNestedSubMenuItem('Infrastructure Considerations',
+                    onTap: () {
                   Navigator.of(context).maybePop();
                   _openInfrastructureConsiderations();
                 }),
@@ -591,8 +640,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                   Navigator.of(context).maybePop();
                   _openCoreStakeholders();
                 }),
-                _buildNestedSubMenuItem('Cost Benefit Analysis & Financial Metrics', isActive: true),
-                _buildNestedSubMenuItem('Preferred Solution Analysis', onTap: () {
+                _buildNestedSubMenuItem(
+                    'Cost Benefit Analysis & Financial Metrics',
+                    isActive: true),
+                _buildNestedSubMenuItem('Preferred Solution Analysis',
+                    onTap: () {
                   Navigator.of(context).maybePop();
                   _openPreferredSolutionAnalysis();
                 }),
@@ -608,32 +660,44 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               Navigator.of(context).maybePop();
               SettingsScreen.open(context);
             }),
-            _buildMenuItem(Icons.logout_outlined, 'LogOut', onTap: () => AuthNav.signOutAndExit(context)),
+            _buildMenuItem(Icons.logout_outlined, 'LogOut',
+                onTap: () => AuthNav.signOutAndExit(context)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, {bool disabled = false, VoidCallback? onTap, bool isActive = false}) {
+  Widget _buildMenuItem(IconData icon, String title,
+      {bool disabled = false, VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     VoidCallback? handler;
     if (!disabled) {
-      handler = onTap ?? () {
-        if (title == 'Home') {
-          HomeScreen.open(context);
-        } else if (title == 'SSHER') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const SsherStackedScreen()));
-        } else if (title == 'LogOut') {
-          AuthNav.signOutAndExit(context);
-        } else if (title == 'Team Management') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const TeamManagementScreen()));
-        } else if (title == 'Change Management') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => ChangeManagementScreen()));
-        } else if (title == 'Lessons Learned') {
-          LessonsLearnedScreen.open(context);
-        }
-      };
+      handler = onTap ??
+          () {
+            if (title == 'Home') {
+              HomeScreen.open(context);
+            } else if (title == 'SSHER') {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SsherStackedScreen()));
+            } else if (title == 'LogOut') {
+              AuthNav.signOutAndExit(context);
+            } else if (title == 'Team Management') {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const TeamManagementScreen()));
+            } else if (title == 'Change Management') {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => ChangeManagementScreen()));
+            } else if (title == 'Lessons Learned') {
+              LessonsLearnedScreen.open(context);
+            }
+          };
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
@@ -642,19 +706,26 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: isActive ? primary : (disabled ? Colors.grey[400] : Colors.black87)),
+              Icon(icon,
+                  size: 20,
+                  color: isActive
+                      ? primary
+                      : (disabled ? Colors.grey[400] : Colors.black87)),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
                     fontSize: 14,
-                    color: isActive ? primary : (disabled ? Colors.grey[500] : Colors.black87),
+                    color: isActive
+                        ? primary
+                        : (disabled ? Colors.grey[500] : Colors.black87),
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                   ),
                   softWrap: true,
@@ -669,7 +740,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _buildSubMenuItem(String title, {VoidCallback? onTap, bool isActive = false}) {
+  Widget _buildSubMenuItem(String title,
+      {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
@@ -678,12 +750,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
-              Icon(Icons.circle, size: 8, color: isActive ? primary : Colors.grey[500]),
+              Icon(Icons.circle,
+                  size: 8, color: isActive ? primary : Colors.grey[500]),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -704,7 +778,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _buildExpandableHeaderLikeCost(IconData icon, String title, {required bool expanded, required VoidCallback onTap, bool isActive = false}) {
+  Widget _buildExpandableHeaderLikeCost(IconData icon, String title,
+      {required bool expanded,
+      required VoidCallback onTap,
+      bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
@@ -713,11 +790,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(Icons.circle, size: 8, color: isActive ? primary : Colors.grey[500]),
+            Icon(Icons.circle,
+                size: 8, color: isActive ? primary : Colors.grey[500]),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -731,14 +810,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey[600], size: 18),
+            Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                color: Colors.grey[600], size: 18),
           ]),
         ),
       ),
     );
   }
 
-  Widget _buildNestedSubMenuItem(String title, {VoidCallback? onTap, bool isActive = false}) {
+  Widget _buildNestedSubMenuItem(String title,
+      {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 72, right: 24, top: 2, bottom: 2),
@@ -747,11 +828,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(Icons.circle, size: 6, color: isActive ? primary : Colors.grey[400]),
+            Icon(Icons.circle,
+                size: 6, color: isActive ? primary : Colors.grey[400]),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -771,7 +854,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _buildExpandableHeader(IconData icon, String title, {required bool expanded, required VoidCallback onTap, bool isActive = false}) {
+  Widget _buildExpandableHeader(IconData icon, String title,
+      {required bool expanded,
+      required VoidCallback onTap,
+      bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
@@ -780,7 +866,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -800,7 +887,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey[700], size: 20),
+              Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: Colors.grey[700],
+                  size: 20),
             ],
           ),
         ),
@@ -891,7 +983,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     final isMobile = AppBreakpoints.isMobile(context);
     final horizonLabel = '$_npvHorizon-year';
     final horizontalPadding = AppBreakpoints.pagePadding(context);
-    final contentPadding = EdgeInsets.fromLTRB(horizontalPadding, 0, horizontalPadding, horizontalPadding);
+    final contentPadding = EdgeInsets.fromLTRB(
+        horizontalPadding, 0, horizontalPadding, horizontalPadding);
     return LayoutBuilder(
       builder: (context, constraints) {
         return Scrollbar(
@@ -905,17 +998,26 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: EdgeInsets.fromLTRB(horizontalPadding, horizontalPadding, horizontalPadding, 0),
+                    padding: EdgeInsets.fromLTRB(horizontalPadding,
+                        horizontalPadding, horizontalPadding, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const EditableContentText(contentKey: 'cost_analysis_heading', fallback: 'Cost Benefit Analysis & Financial Metrics', category: 'business_case', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        const EditableContentText(
+                            contentKey: 'cost_analysis_heading',
+                            fallback:
+                                'Cost Benefit Analysis & Financial Metrics',
+                            category: 'business_case',
+                            style: TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
                         EditableContentText(
                           contentKey: 'cost_analysis_description',
-                          fallback: 'Bring each potential solution\'s investment profile, project value, ROI and NPV into one consolidated workspace.',
+                          fallback:
+                              'Analyze the selected solution\'s investment profile, project value, ROI and NPV in a consolidated workspace.',
                           category: 'business_case',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[600]),
                         ),
                         const SizedBox(height: 20),
                         _buildStepProgressIndicator(),
@@ -930,11 +1032,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                     padding: contentPadding,
                   ),
                   _buildStepNavigationControls(),
-                  BusinessCaseNavigationButtons(
-                    currentScreen: 'Cost Benefit Analysis & Financial Metrics',
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                    onNext: _openPreferredSolution,
-                  ),
+                  // Removed duplicate BusinessCaseNavigationButtons - navigation is handled by _buildStepNavigationControls()
                 ],
               ),
             ),
@@ -946,7 +1044,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   Widget _buildStepProgressIndicator() {
     final totalSteps = _stepDefinitions.length;
-    final progress = totalSteps <= 1 ? 1.0 : (_currentStepIndex + 1) / totalSteps;
+    final progress =
+        totalSteps <= 1 ? 1.0 : (_currentStepIndex + 1) / totalSteps;
     final progressValue = progress.clamp(0.0, 1.0).toDouble();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,7 +1152,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                       definition.shortLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: resolvedTextColor),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: resolvedTextColor),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -1085,9 +1187,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     switch (index) {
       case 0:
         if (_projectValueError != null) {
-          children.add(_errorBanner(_projectValueError!, onRetry: _isGeneratingValue ? null : _generateProjectValue));
+          children.add(_errorBanner(_projectValueError!,
+              onRetry: _isGeneratingValue ? null : _generateProjectValue));
         }
-        children.add(_stepHeading(step: stepLabel, title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+        children.add(_stepHeading(
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
         children.add(_buildProjectValueSection());
         children.add(const SizedBox(height: 16));
         children.add(_buildFinancialBenefitsTrackerSection());
@@ -1095,9 +1201,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         break;
       case 1:
         // Initial Cost Estimate as Step 2
-        children.add(_stepHeading(step: stepLabel, title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+        children.add(_stepHeading(
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
         if (_error != null) {
-          children.add(_errorBanner(_error!, onRetry: _isGenerating ? null : _generateCostBreakdown));
+          children.add(_errorBanner(_error!,
+              onRetry: _isGenerating ? null : _generateCostBreakdown));
         }
         if (_isGenerating) {
           children.add(const LinearProgressIndicator(minHeight: 2));
@@ -1110,8 +1220,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         break;
       case 2:
         // Profitability Analysis as Step 3
-        children.add(_stepHeading(step: stepLabel, title: stepDefinition.title, subtitle: stepDefinition.subtitle));
-        children.add(_buildMetricToolbar(isMobile: isMobile, horizonLabel: horizonLabel));
+        children.add(_stepHeading(
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
+        children.add(_buildMetricToolbar(
+            isMobile: isMobile, horizonLabel: horizonLabel));
         children.add(const SizedBox(height: 16));
         children.add(_buildProfitabilitySummaryTable());
         children.add(const SizedBox(height: 16));
@@ -1123,14 +1237,20 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         children.add(const SizedBox(height: 24));
         break;
       case 3:
-        children.add(_stepHeading(step: stepLabel, title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+        children.add(_stepHeading(
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
         children.add(_buildNotesSection());
         children.add(const SizedBox(height: 16));
         children.add(_buildNotesCallout());
         children.add(const SizedBox(height: 24));
         break;
       default:
-        children.add(_stepHeading(step: stepLabel, title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+        children.add(_stepHeading(
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
         break;
     }
 
@@ -1151,12 +1271,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     final horizontalPadding = AppBreakpoints.pagePadding(context);
     final isFirst = _currentStepIndex == 0;
     final isLast = _currentStepIndex == _stepDefinitions.length - 1;
-    final stepStatus = 'Step ${_currentStepIndex + 1} of ${_stepDefinitions.length}';
-    final primaryLabel = isLast ? 'Continue to Preferred Solution' : 'Next Step';
+    final stepStatus =
+        'Step ${_currentStepIndex + 1} of ${_stepDefinitions.length}';
+    final primaryLabel =
+        isLast ? 'Continue to Preferred Solution' : 'Next Step';
     final primaryIcon = isLast ? Icons.check : Icons.arrow_forward_ios_rounded;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, horizontalPadding),
+      padding: EdgeInsets.fromLTRB(
+          horizontalPadding, 12, horizontalPadding, horizontalPadding),
       child: Row(
         children: [
           TextButton.icon(
@@ -1167,7 +1290,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           const SizedBox(width: 16),
           Text(
             stepStatus,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800]),
           ),
           const Spacer(),
           OutlinedButton.icon(
@@ -1178,7 +1304,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               foregroundColor: Colors.grey[800],
               side: BorderSide(color: Colors.grey.shade300),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
           const SizedBox(width: 12),
@@ -1191,7 +1318,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               foregroundColor: Colors.black,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -1213,8 +1341,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           Container(
             width: 40,
             height: 40,
-            decoration: const BoxDecoration(color: Color(0xFF87CEEB), shape: BoxShape.circle),
-            child: const Icon(Icons.info_outline, color: Colors.white, size: 20),
+            decoration: const BoxDecoration(
+                color: Color(0xFF87CEEB), shape: BoxShape.circle),
+            child:
+                const Icon(Icons.info_outline, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1255,7 +1385,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Future<void> _handleNextStep() async {
     // Save cost analysis data before navigating to next step
     await _saveCostAnalysisData();
-    
+
     // Show 3-second loading dialog
     if (!mounted) return;
     showDialog(
@@ -1277,12 +1407,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         ),
       ),
     );
-    
+
     await Future.delayed(const Duration(seconds: 3));
-    
+
     if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
-    
+
     final next = _currentStepIndex + 1;
     if (next < _stepDefinitions.length) {
       _goToStep(next);
@@ -1291,10 +1421,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   Future<void> _openPreferredSolution() async {
     FocusScope.of(context).unfocus();
-    
+
     // Save all cost analysis data
     await _saveCostAnalysisData();
-    
+
     // Show 3-second loading dialog
     if (!mounted) return;
     showDialog(
@@ -1316,35 +1446,46 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         ),
       ),
     );
-    
+
     await Future.delayed(const Duration(seconds: 3));
-    
+
     if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
-    
+
+    // Security check: Verify destination is not locked
+    if (ProjectDataHelper.isDestinationLocked(
+        context, 'preferred_solution_analysis')) {
+      ProjectDataHelper.showLockedDestinationMessage(
+          context, 'Preferred Solution Analysis');
+      return;
+    }
+
+    // Navigate to Front End Planning Summary (next item in sidebar order)
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PreferredSolutionAnalysisScreen(
-          notes: _notesController.text,
-          solutions: widget.solutions,
-        ),
+        builder: (context) => const FrontEndPlanningSummaryScreen(),
       ),
     );
   }
-  
+
   Future<void> _saveCostAnalysisData() async {
     try {
       final provider = ProjectDataInherited.of(context);
-      
-      // Collect all cost row data from all solutions (Step 2)
+
+      // Collect cost row data for single selected solution (Step 2)
+      // Use first solution or first available solution
       final solutionCosts = <SolutionCostData>[];
-      for (int i = 0; i < _rowsPerSolution.length; i++) {
-        final solutionTitle = i < widget.solutions.length 
-            ? widget.solutions[i].title 
-            : 'Solution ${i + 1}';
-        
-        final costRows = _rowsPerSolution[i].map((row) {
+      if (_rowsPerSolution.isNotEmpty) {
+        final solutionIndex =
+            0; // Single solution approach - use first solution
+        final solutionTitle = solutionIndex < widget.solutions.length
+            ? widget.solutions[solutionIndex].title
+            : (widget.solutions.isNotEmpty
+                ? widget.solutions.first.title
+                : 'Selected Solution');
+
+        final costRows = _rowsPerSolution[solutionIndex].map((row) {
           return CostRowData(
             itemName: row.itemController.text,
             description: row.descriptionController.text,
@@ -1352,13 +1493,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             assumptions: row.assumptionsController.text,
           );
         }).toList();
-        
+
         solutionCosts.add(SolutionCostData(
           solutionTitle: solutionTitle,
           costRows: costRows,
         ));
       }
-      
+
       // Collect Project Value data (Step 1)
       final projectValueBenefits = <String, String>{};
       for (final field in _projectValueFields) {
@@ -1367,7 +1508,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           projectValueBenefits[field.key] = controller.text;
         }
       }
-      
+
       // Collect benefit line items
       final benefitLineItems = _benefitLineItems.map((entry) {
         return BenefitLineItem(
@@ -1379,7 +1520,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           notes: entry.notesController.text,
         );
       }).toList();
-      
+
       final costAnalysisData = CostAnalysisData(
         notes: _notesController.text,
         solutionCosts: solutionCosts,
@@ -1389,11 +1530,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         savingsNotes: _savingsNotesController.text,
         savingsTarget: _savingsTargetController.text,
       );
-      
+
       provider.updateProjectData(
         provider.projectData.copyWith(costAnalysisData: costAnalysisData),
       );
-      
+
       // Save to Firebase with checkpoint
       await provider.saveToFirebase(checkpoint: 'cost_analysis');
       _hasUnsavedChanges = false;
@@ -1408,7 +1549,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       const SnackBar(
         content: Row(
           children: [
-            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white)),
             SizedBox(width: 12),
             Text('Saving...'),
           ],
@@ -1417,11 +1562,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         backgroundColor: Color(0xFF424242),
       ),
     );
-    
+
     await _saveCostAnalysisData();
-    
+
     if (!mounted) return;
-    
+
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -1462,7 +1607,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Discard changes?'),
-            content: const Text('You have unsaved updates on this screen. Leaving now will discard them.'),
+            content: const Text(
+                'You have unsaved updates on this screen. Leaving now will discard them.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -1506,25 +1652,32 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   }
 
   _ValueSetupInvestmentSnapshot? _valueSetupInvestmentSnapshot() {
-    final estimatedCost = _parseCurrencyInput(_projectValueAmountController.text.trim());
+    final estimatedCost =
+        _parseCurrencyInput(_projectValueAmountController.text.trim());
     if (estimatedCost <= 0) {
       return null;
     }
     final totalBenefits = _benefitTotalValue();
-    final activeBenefitCount = _benefitLineItems.where((entry) => entry.totalValue > 0 || entry.title.isNotEmpty).length;
-    final averageRoi = totalBenefits > 0 ? ((totalBenefits - estimatedCost) / estimatedCost) * 100 : null;
+    final activeBenefitCount = _benefitLineItems
+        .where((entry) => entry.totalValue > 0 || entry.title.isNotEmpty)
+        .length;
+    final averageRoi = totalBenefits > 0
+        ? ((totalBenefits - estimatedCost) / estimatedCost) * 100
+        : null;
     final npv = totalBenefits > 0 ? totalBenefits - estimatedCost : null;
     return _ValueSetupInvestmentSnapshot(
       estimatedCost: estimatedCost,
       averageRoi: averageRoi,
       npv: npv,
-      costRange: _CostRange(lower: estimatedCost * 0.85, upper: estimatedCost * 1.15),
+      costRange:
+          _CostRange(lower: estimatedCost * 0.85, upper: estimatedCost * 1.15),
       benefitLineItemCount: activeBenefitCount,
       totalBenefits: totalBenefits,
     );
   }
 
-  Widget _stepHeading({required String step, required String title, String? subtitle}) {
+  Widget _stepHeading(
+      {required String step, required String title, String? subtitle}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Container(
@@ -1534,10 +1687,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: const Color(0xFFFFD700)),
           ),
-          child: Text(step, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87)),
+          child: Text(step,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87)),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+        Expanded(
+            child: Text(title,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w700))),
       ]),
       if (subtitle != null) ...[
         const SizedBox(height: 6),
@@ -1559,7 +1719,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withOpacity(0.25)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1569,7 +1732,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Text('Project Benefit Calculation', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('Project Benefit Calculation',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   SizedBox(width: 8),
                   _AiTag(),
                 ]),
@@ -1582,7 +1747,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             ),
           ),
           const SizedBox(width: 12),
-          if (_isGeneratingValue) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2)),
+          if (_isGeneratingValue)
+            const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2.2)),
           const SizedBox(width: 8),
           OutlinedButton.icon(
             onPressed: _isGeneratingValue ? null : _generateProjectValue,
@@ -1595,40 +1764,59 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
             flex: 2,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Estimated Project Benefit Value', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Estimated Project Benefit Value',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
                 controller: _projectValueAmountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   hintText: 'e.g. 250000',
                   filled: true,
                   fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFFFD700))),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Colors.grey.withOpacity(0.3))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFFFD700))),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
             ]),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Basis Frequency', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Basis Frequency',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _basisFrequency,
-                items: _frequencyOptions.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
+                items: _frequencyOptions
+                    .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                    .toList(),
                 onChanged: (value) {
                   if (value != null) setState(() => _basisFrequency = value);
                 },
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFFFD700))),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Colors.grey.withOpacity(0.3))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFFFD700))),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
             ]),
@@ -1639,7 +1827,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         const SizedBox(height: 20),
         _buildMultiYearBenefitTable(),
         const SizedBox(height: 20),
-        Text('Project Benefits Value Summary', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        Text('Project Benefits Value Summary',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 10,
@@ -1683,7 +1872,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   }) {
     final IconData icon;
     const Color accentColor = Color(0xFFFFC812);
-    
+
     // Assign icons based on category
     switch (field.key) {
       case 'revenue':
@@ -1725,7 +1914,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           color: isSelected ? accentColor : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? accentColor : Colors.grey.withValues(alpha: 0.3),
+            color:
+                isSelected ? accentColor : Colors.grey.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
@@ -1767,20 +1957,24 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _buildBenefitCategoryTabContent({required MapEntry<String, String> field, required String descriptor}) {
+  Widget _buildBenefitCategoryTabContent(
+      {required MapEntry<String, String> field, required String descriptor}) {
     final controller = _projectValueBenefitControllers[field.key]!;
     final metricTags = _metricTagsFor(field.key);
 
     return KeyedSubtree(
       key: ValueKey(field.key),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(field.value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        Text(field.value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         if (descriptor.trim().isNotEmpty) ...[
           const SizedBox(height: 4),
-          Text(descriptor, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text(descriptor,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
         const SizedBox(height: 12),
-        const Text('Value narrative & measurable outcome', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Value narrative & measurable outcome',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         SizedBox(
           width: double.infinity,
@@ -1789,16 +1983,20 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             controller: controller,
             minLines: 3,
             decoration: InputDecoration(
-              hintText: 'Summarise the financial impact, core drivers, and how this benefit will be realised.',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              hintText:
+                  'Summarise the financial impact, core drivers, and how this benefit will be realised.',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
           ),
         ),
         if (metricTags.isNotEmpty) ...[
           const SizedBox(height: 14),
-          const Text('Project Benefits Highlights', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const Text('Project Benefits Highlights',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -1807,7 +2005,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               for (final tag in metricTags)
                 Chip(
                   avatar: const Icon(Icons.insights_outlined, size: 16),
-                  label: Text(tag, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                  label: Text(tag,
+                      style: const TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.w600)),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
             ],
@@ -1823,14 +2023,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             decoration: BoxDecoration(
               color: const Color(0xFFFFF7CC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+              border: Border.all(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.info_outline, color: Color(0xFFFF8F00), size: 18),
+              const Icon(Icons.info_outline,
+                  color: Color(0xFFFF8F00), size: 18),
               const SizedBox(width: 8),
               Text(
                 'Switch tabs as needed',
-                style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500),
               ),
             ]),
           ),
@@ -1842,7 +2047,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Widget _buildInlineYearBoxes() {
     final amountText = _projectValueAmountController.text.trim();
     final baseValue = _parseCurrencyInput(amountText);
-    
+
     // Calculate multiplier based on frequency
     int frequencyMultiplier;
     switch (_basisFrequency) {
@@ -1856,16 +2061,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       default:
         frequencyMultiplier = 1;
     }
-    
+
     // Annualized value
     final annualValue = baseValue * frequencyMultiplier;
-    
+
     // Multi-year calculations
     final year1 = annualValue;
     final year3 = annualValue * 3;
     final year5 = annualValue * 5;
     final year10 = annualValue * 10;
-    
+
     return Row(children: [
       _buildYearBox('in 1 year', year1, const Color(0xFFFFF59D)),
       const SizedBox(width: 8),
@@ -1906,7 +2111,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Widget _buildMultiYearBenefitTable() {
     final amountText = _projectValueAmountController.text.trim();
     final baseValue = _parseCurrencyInput(amountText);
-    
+
     // Calculate multiplier based on frequency
     int frequencyMultiplier;
     switch (_basisFrequency) {
@@ -1920,28 +2125,31 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       default:
         frequencyMultiplier = 1;
     }
-    
+
     // Annualized value
     final annualValue = baseValue * frequencyMultiplier;
-    
+
     // Multi-year calculations
     final year1 = annualValue;
     final year3 = annualValue * 3;
     final year5 = annualValue * 5;
     final year10 = annualValue * 10;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+        border:
+            Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.calculate_outlined, size: 20, color: Color(0xFFFF8F00)),
+          const Icon(Icons.calculate_outlined,
+              size: 20, color: Color(0xFFFF8F00)),
           const SizedBox(width: 8),
-          const Text('Multi-Year Project Benefit Estimation', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          const Text('Multi-Year Project Benefit Estimation',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 8),
         Text(
@@ -1954,18 +2162,31 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: Colors.grey.shade200,
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
+            borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8), topRight: Radius.circular(8)),
           ),
           child: Row(children: [
-            Expanded(flex: 2, child: Text('Time Horizon', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-            Expanded(flex: 3, child: Align(alignment: Alignment.centerRight, child: Text('Projected Benefit ($_currency)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+            Expanded(
+                flex: 2,
+                child: Text('Time Horizon',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600))),
+            Expanded(
+                flex: 3,
+                child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('Projected Benefit ($_currency)',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
           ]),
         ),
         // Table rows
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+            borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(8),
+                bottomRight: Radius.circular(8)),
             border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
           ),
           child: Column(children: [
@@ -1979,21 +2200,29 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _multiYearRow(String label, double value, {bool isFirst = false, bool isLast = false}) {
+  Widget _multiYearRow(String label, double value,
+      {bool isFirst = false, bool isLast = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        border: isFirst ? null : Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+        border: isFirst
+            ? null
+            : Border(
+                top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
       ),
       child: Row(children: [
-        Expanded(flex: 2, child: Text(label, style: const TextStyle(fontSize: 13))),
+        Expanded(
+            flex: 2, child: Text(label, style: const TextStyle(fontSize: 13))),
         Expanded(
           flex: 3,
           child: Align(
             alignment: Alignment.centerRight,
             child: Text(
               _formatCurrencyValue(value),
-              style: TextStyle(fontSize: 13, fontWeight: isLast ? FontWeight.w700 : FontWeight.w500, color: isLast ? const Color(0xFF1B5E20) : null),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+                  color: isLast ? const Color(0xFF1B5E20) : null),
             ),
           ),
         ),
@@ -2012,7 +2241,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       final text = _projectValueBenefitControllers[field.key]!.text.trim();
       final categoryLabel = field.value;
       final metrics = _benefitMetrics[field.key] ?? '';
-      if (text.isNotEmpty) definedBenefitLabels.add(categoryLabel.split('&').first.trim());
+      if (text.isNotEmpty)
+        definedBenefitLabels.add(categoryLabel.split('&').first.trim());
       benefitTiles.add(Container(
         width: 400,
         constraints: const BoxConstraints(minHeight: 72),
@@ -2020,14 +2250,24 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(8),
-           border: Border.all(color: Colors.grey.withOpacity(0.25)),
+          border: Border.all(color: Colors.grey.withOpacity(0.25)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(categoryLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(categoryLabel,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          Text(text.isNotEmpty ? text : 'Capture the value impact for this category.', style: TextStyle(fontSize: 12, color: text.isNotEmpty ? Colors.grey[700] : Colors.grey[500])),
+          Text(
+              text.isNotEmpty
+                  ? text
+                  : 'Capture the value impact for this category.',
+              style: TextStyle(
+                  fontSize: 12,
+                  color:
+                      text.isNotEmpty ? Colors.grey[700] : Colors.grey[500])),
           const SizedBox(height: 6),
-          Text('Metrics: $metrics', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+          Text('Metrics: $metrics',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
         ]),
       ));
     }
@@ -2040,7 +2280,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         : 'Benefit pillars captured: ${definedBenefitLabels.join(', ')}.';
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Finance-ready project value summary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const Text('Finance-ready project value summary',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       Container(
         width: double.infinity,
@@ -2049,10 +2290,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.grey.withOpacity(0.25)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 4))
+          ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('$statementPrefix $statementSuffix', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+          Text('$statementPrefix $statementSuffix',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700])),
           const SizedBox(height: 12),
           LayoutBuilder(builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 600;
@@ -2137,14 +2384,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Map<String, _BenefitCategorySummary> _benefitSummaries() {
     final map = <String, _BenefitCategorySummary>{};
     for (final entry in _benefitLineItems) {
-      final summary = map.putIfAbsent(entry.categoryKey, () => _BenefitCategorySummary());
+      final summary =
+          map.putIfAbsent(entry.categoryKey, () => _BenefitCategorySummary());
       summary.add(entry);
     }
     return map;
   }
 
   double _benefitTotalValue() {
-    return _benefitLineItems.fold<double>(0, (sum, entry) => sum + entry.totalValue);
+    return _benefitLineItems.fold<double>(
+        0, (sum, entry) => sum + entry.totalValue);
   }
 
   double _benefitTotalUnits() {
@@ -2164,11 +2413,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withOpacity(0.25)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Financial benefits tracker', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text('Financial benefits tracker',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           const _AiTag(),
           const SizedBox(width: 8),
@@ -2191,7 +2446,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           children: [
             for (int i = 0; i < tabs.length; i++)
               ChoiceChip(
-                label: Text(tabs[i], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                label: Text(tabs[i],
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
                 selected: _benefitTabIndex == i,
                 onSelected: (selected) {
                   if (!selected) return;
@@ -2201,7 +2458,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 },
                 selectedColor: const Color(0xFFFFD700),
                 backgroundColor: Colors.grey.shade200,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                labelPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               ),
           ],
         ),
@@ -2210,7 +2468,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           index: _benefitTabIndex,
           children: [
             _buildBenefitLineItemsTab(),
-            _buildProjectBenefitsReviewTab(summaries: summaries, totalValue: totalValue, totalUnits: totalUnits),
+            _buildProjectBenefitsReviewTab(
+                summaries: summaries,
+                totalValue: totalValue,
+                totalUnits: totalUnits),
           ],
         ),
       ]),
@@ -2247,19 +2508,53 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           border: Border.all(color: Colors.grey.withOpacity(0.35)),
         ),
         child: Row(children: [
-          SizedBox(width: 32, child: Text('#', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+          SizedBox(
+              width: 32,
+              child: Text('#',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
           const SizedBox(width: 12),
-          Expanded(flex: 3, child: Text('Category', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+          Expanded(
+              flex: 3,
+              child: Text('Category',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
           const SizedBox(width: 12),
-          Expanded(flex: 3, child: Text('Benefit title', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+          Expanded(
+              flex: 3,
+              child: Text('Benefit title',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
           const SizedBox(width: 12),
-          Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Unit value', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+          Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Unit value',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)))),
           const SizedBox(width: 12),
-          Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Total units', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+          Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Total units',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)))),
           const SizedBox(width: 12),
-          Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Total value', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+          Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Total value',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)))),
           const SizedBox(width: 12),
-          Expanded(flex: 3, child: Text('Notes', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+          Expanded(
+              flex: 3,
+              child: Text('Notes',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
           const SizedBox(width: 8),
           const SizedBox(width: 36),
         ]),
@@ -2286,9 +2581,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       ),
       const SizedBox(height: 12),
       Row(children: [
-        Text('Total monetised benefits: ${_formatCurrencyValue(_benefitTotalValue())}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(
+            'Total monetised benefits: ${_formatCurrencyValue(_benefitTotalValue())}',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(width: 12),
-        Text('Total units: ${_benefitTotalUnits().toStringAsFixed(1)}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text('Total units: ${_benefitTotalUnits().toStringAsFixed(1)}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const Spacer(),
         OutlinedButton.icon(
           onPressed: () => _addBenefitLineItem(),
@@ -2302,10 +2600,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Widget _benefitLineItemRow(int index, _BenefitLineItemEntry entry) {
     // Track selected category
     _selectedBenefitCategories.add(entry.categoryKey);
-    
+
     // Filter out selected categories except 'Others'
     final categoryItems = _projectValueFields
-        .where((e) => e.key == 'other' || e.key == entry.categoryKey || !_selectedBenefitCategories.contains(e.key))
+        .where((e) =>
+            e.key == 'other' ||
+            e.key == entry.categoryKey ||
+            !_selectedBenefitCategories.contains(e.key))
         .map((e) => DropdownMenuItem<String>(
               value: e.key,
               child: Text(e.value, style: const TextStyle(fontSize: 12)),
@@ -2318,7 +2619,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        SizedBox(width: 32, child: Text('${index + 1}.', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+        SizedBox(
+            width: 32,
+            child: Text('${index + 1}.',
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600))),
         const SizedBox(width: 12),
         Expanded(
           flex: 3,
@@ -2333,8 +2638,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             },
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
             isExpanded: true,
           ),
@@ -2347,8 +2654,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             decoration: InputDecoration(
               hintText: 'Benefit title',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
@@ -2363,8 +2672,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               hintText: '0.00',
               suffixText: _currency,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
@@ -2378,8 +2689,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             decoration: InputDecoration(
               hintText: '0',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
@@ -2404,8 +2717,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             decoration: InputDecoration(
               hintText: 'Realisation plan or assumptions',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
@@ -2426,7 +2741,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   }) {
     if (summaries.isEmpty) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('No estimates yet', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const Text('No estimates yet',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         Text(
           'Add benefit line items to see category-level rollups and ensure every initiative has a monetary estimate.',
@@ -2478,7 +2794,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         );
       }),
       const SizedBox(height: 16),
-      const Text('Project Benefits Value Summary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const Text('Project Benefits Value Summary',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       const SizedBox(height: 10),
       Wrap(
         spacing: 12,
@@ -2519,19 +2836,26 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(value,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text(helper, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            Text(helper,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
           ]),
         ),
       ]),
     );
   }
 
-  Widget _benefitCategoryCard({required String label, required _BenefitCategorySummary summary}) {
+  Widget _benefitCategoryCard(
+      {required String label, required _BenefitCategorySummary summary}) {
     return Container(
       width: 260,
       padding: const EdgeInsets.all(14),
@@ -2539,22 +2863,33 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.withOpacity(0.2)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 3))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 3))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        Text('Items: ${summary.itemCount}', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+        Text('Items: ${summary.itemCount}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700])),
         const SizedBox(height: 4),
-        Text('Total units: ${summary.unitTotal.toStringAsFixed(1)}', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+        Text('Total units: ${summary.unitTotal.toStringAsFixed(1)}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700])),
         const SizedBox(height: 4),
-        Text('Monetised value: ${_formatCurrencyValue(summary.valueTotal)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        Text('Monetised value: ${_formatCurrencyValue(summary.valueTotal)}',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       ]),
     );
   }
 
   Widget _buildBenefitSavingsTab({required double totalValue}) {
-    final items = _benefitLineItems.where((entry) => entry.totalValue > 0 && entry.title.isNotEmpty).toList();
+    final items = _benefitLineItems
+        .where((entry) => entry.totalValue > 0 && entry.title.isNotEmpty)
+        .toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Expanded(
@@ -2567,7 +2902,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         ElevatedButton.icon(
           onPressed: _isSavingsGenerating ? null : _generateSavingsSuggestions,
           icon: _isSavingsGenerating
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.auto_awesome),
           label: const Text('Generate savings scenarios'),
           style: ElevatedButton.styleFrom(
@@ -2588,7 +2926,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             height: 56,
             child: TextField(
               controller: _savingsTargetController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 labelText: 'Savings target (%)',
                 hintText: 'e.g. 10',
@@ -2613,7 +2952,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           ),
           Chip(
             avatar: const Icon(Icons.payments_outlined, size: 16),
-            label: Text('Total monetised benefits: ${_formatCurrencyValue(totalValue)}'),
+            label: Text(
+                'Total monetised benefits: ${_formatCurrencyValue(totalValue)}'),
           ),
           Chip(
             avatar: const Icon(Icons.fact_check_outlined, size: 16),
@@ -2631,7 +2971,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.red.withOpacity(0.3)),
           ),
-          child: Text(_savingsError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          child: Text(_savingsError!,
+              style: const TextStyle(color: Colors.red, fontSize: 12)),
         ),
       if (_savingsSuggestions.isEmpty && _savingsError == null)
         Padding(
@@ -2646,7 +2987,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       if (_savingsSuggestions.isNotEmpty)
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SizedBox(height: 12),
-          const Text('AI savings scenarios', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text('AI savings scenarios',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -2686,7 +3028,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
     if (summaries.isEmpty) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('No benefits tracked yet', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const Text('No benefits tracked yet',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         Text(
           'Add benefit line items in the "Line Items" tab to see a comprehensive review of project benefits across all categories.',
@@ -2739,9 +3082,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         );
       }),
       const SizedBox(height: 20),
-      
+
       // Project Benefits Highlights section (top 3 metrics)
-      const Text('Project Benefits Highlights', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const Text('Project Benefits Highlights',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       Text(
         'Top 3 most selected project benefits from the 9 categories for this project.',
@@ -2769,7 +3113,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           children: [
             for (final metric in top3Metrics)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -2785,11 +3130,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.stacked_line_chart, size: 18, color: const Color(0xFFFFD700)),
+                    Icon(Icons.stacked_line_chart,
+                        size: 18, color: const Color(0xFFFFD700)),
                     const SizedBox(width: 8),
                     Text(
                       metric,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -2799,7 +3146,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       const SizedBox(height: 24),
 
       // Project Benefits Value Summary section
-      const Text('Project Benefits Value Summary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const Text('Project Benefits Value Summary',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       Text(
         'Total currency value of each of the selected benefits for this project, ordered by highest amount.',
@@ -2869,15 +3217,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     }
 
     final hasValue = summary != null && summary.valueTotal > 0;
-    final Color bgColor = isHighest && hasValue 
-        ? const Color(0xFF2196F3)
-        : Colors.white;
-    final Color textColor = isHighest && hasValue 
-        ? Colors.white 
-        : Colors.grey.shade800;
-    final Color iconColor = isHighest && hasValue 
-        ? Colors.white 
-        : const Color(0xFFFFD700);
+    final Color bgColor =
+        isHighest && hasValue ? const Color(0xFF2196F3) : Colors.white;
+    final Color textColor =
+        isHighest && hasValue ? Colors.white : Colors.grey.shade800;
+    final Color iconColor =
+        isHighest && hasValue ? Colors.white : const Color(0xFFFFD700);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -2885,8 +3230,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isHighest && hasValue 
-              ? const Color(0xFF2196F3) 
+          color: isHighest && hasValue
+              ? const Color(0xFF2196F3)
               : Colors.grey.withValues(alpha: 0.3),
         ),
         boxShadow: [
@@ -2915,8 +3260,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: isHighest 
-                    ? Colors.white.withValues(alpha: 0.2) 
+                color: isHighest
+                    ? Colors.white.withValues(alpha: 0.2)
                     : const Color(0xFFFFF7CC),
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -2944,11 +3289,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withOpacity(0.25)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Initial itemized estimates by solution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text('Initial itemized estimates by solution',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           const _AiTag(),
           const SizedBox(width: 8),
@@ -2961,7 +3312,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         ]),
         const SizedBox(height: 12),
         if (_categoryCostsPerSolution.isEmpty)
-          Text('Add at least one potential solution to start estimating per-category costs.', style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+          Text(
+              'Add at least one potential solution to start estimating per-category costs.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]))
         else
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2987,29 +3340,53 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text(_solutionTitle(solutionIndex), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
+          Expanded(
+              child: Text(_solutionTitle(solutionIndex),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700))),
           Chip(
             avatar: const Icon(Icons.summarize_outlined, size: 16),
-            label: Text('Total: ${_formatCurrencyValue(_solutionTotalCost(solutionIndex))}'),
+            label: Text(
+                'Total: ${_formatCurrencyValue(_solutionTotalCost(solutionIndex))}'),
           )
         ]),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.35))),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.35))),
           child: Row(children: const [
-            Expanded(flex: 3, child: Text('Item', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+            Expanded(
+                flex: 3,
+                child: Text('Item',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
             SizedBox(width: 12),
-            Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Estimated cost', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+            Expanded(
+                flex: 2,
+                child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('Estimated cost',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
             SizedBox(width: 12),
-            Expanded(flex: 4, child: Text('Comments', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+            Expanded(
+                flex: 4,
+                child: Text('Comments',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
             SizedBox(width: 8),
             SizedBox(width: 36),
           ]),
         ),
         const SizedBox(height: 6),
         Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.25))),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.25))),
           child: Column(children: [
             for (final r in rows) _initialItemCostRow(r),
           ]),
@@ -3018,12 +3395,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _categoryCostRow(int solutionIndex, String categoryKey, String label, _CategoryCostEntry entry) {
+  Widget _categoryCostRow(int solutionIndex, String categoryKey, String label,
+      _CategoryCostEntry entry) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
+      decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(flex: 3, child: Text(label, style: const TextStyle(fontSize: 12))),
+        Expanded(
+            flex: 3, child: Text(label, style: const TextStyle(fontSize: 12))),
         const SizedBox(width: 12),
         Expanded(
           flex: 2,
@@ -3032,17 +3412,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             child: TextField(
               controller: entry.costController,
               textAlign: TextAlign.right,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 hintText: '0.00',
                 isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 prefixIcon: _costFieldAiPrefix(
                   loading: entry.aiLoading,
-                  onSuggest: () => _suggestCategoryCost(solutionIndex, categoryKey, label, entry),
+                  onSuggest: () => _suggestCategoryCost(
+                      solutionIndex, categoryKey, label, entry),
                 ),
-                prefixIconConstraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                prefixIconConstraints:
+                    const BoxConstraints.tightFor(width: 28, height: 28),
                 suffix: _currencySuffix(_currency),
               ),
             ),
@@ -3070,7 +3455,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Widget _initialItemCostRow(_CostRow row) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
+      decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
           flex: 3,
@@ -3094,17 +3480,21 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             child: TextField(
               controller: row.costController,
               textAlign: TextAlign.right,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 hintText: '0.00',
                 isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 prefixIcon: _costFieldAiPrefix(
                   loading: row.aiLoading,
                   onSuggest: () => _suggestCostForRow(row),
                 ),
-                prefixIconConstraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                prefixIconConstraints:
+                    const BoxConstraints.tightFor(width: 28, height: 28),
                 suffix: _currencySuffix(_currency),
               ),
             ),
@@ -3135,11 +3525,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   }
 
   // Compact controls moved: AI icon at the start (prefix), currency at the end (suffix)
-  Widget _costFieldAiPrefix({required bool loading, required VoidCallback onSuggest}) {
+  Widget _costFieldAiPrefix(
+      {required bool loading, required VoidCallback onSuggest}) {
     if (loading) {
       return const Padding(
         padding: EdgeInsets.only(left: 6),
-        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+        child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
     return IconButton(
@@ -3154,7 +3548,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Widget _currencySuffix(String currency) {
     return Padding(
       padding: const EdgeInsets.only(right: 4),
-      child: Text(currency, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+      child: Text(currency,
+          style: TextStyle(fontSize: 11, color: Colors.grey[700])),
     );
   }
 
@@ -3172,7 +3567,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       if (!mounted) return;
       setState(() {
         final v = cost.isFinite ? cost : 0;
-        row.costController.text = v == 0 ? '' : v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+        row.costController.text =
+            v == 0 ? '' : v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
       });
     } catch (e) {
       print('Error estimating cost: $e');
@@ -3181,7 +3577,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     }
   }
 
-  Future<void> _suggestCategoryCost(int solutionIndex, String categoryKey, String label, _CategoryCostEntry entry) async {
+  Future<void> _suggestCategoryCost(int solutionIndex, String categoryKey,
+      String label, _CategoryCostEntry entry) async {
     if (entry.aiLoading) return;
     setState(() => entry.aiLoading = true);
     try {
@@ -3195,7 +3592,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       if (!mounted) return;
       setState(() {
         final v = cost.isFinite ? cost : 0;
-        entry.costController.text = v == 0 ? '' : v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+        entry.costController.text =
+            v == 0 ? '' : v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
       });
     } catch (e) {
       print('Error estimating category cost: $e');
@@ -3222,21 +3620,30 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.withOpacity(0.25))),
-        child: Text('Add solutions to compare values gained in Profitability Analysis.', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.withOpacity(0.25))),
+        child: Text(
+            'Add solutions to compare values gained in Profitability Analysis.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Project Value per solution', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const Text('Project Value per solution',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       LayoutBuilder(builder: (context, constraints) {
         final width = constraints.maxWidth;
         final single = width < 760;
         final cards = [
-          for (int i = 0; i < _rowsPerSolution.length; i++) _valuesGainedCard(i, benefits),
+          for (int i = 0; i < _rowsPerSolution.length; i++)
+            _valuesGainedCard(i, benefits),
         ];
         if (single) {
-          return Column(children: [for (final c in cards) ...[c, const SizedBox(height: 12)]]);
+          return Column(children: [
+            for (final c in cards) ...[c, const SizedBox(height: 12)]
+          ]);
         }
         return Row(children: [
           for (int i = 0; i < cards.length; i++) ...[
@@ -3259,18 +3666,27 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withOpacity(0.25)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Initial cost estimate', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text('Initial cost estimate',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           const _AiTag(),
           const Spacer(),
           OutlinedButton.icon(
             onPressed: _isGenerating ? null : _populateCategoriesFromAi,
             icon: _isGenerating
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.auto_fix_high_outlined, size: 18),
             label: const Text('Populate categories (AI)'),
           ),
@@ -3279,14 +3695,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         ]),
         const SizedBox(height: 12),
         if (tabCount == 0)
-          Text('Add solutions to start estimating per-solution costs.', style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+          Text('Add solutions to start estimating per-solution costs.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]))
         else ...[
           Wrap(
             spacing: 8,
             children: [
               for (int i = 0; i < tabCount; i++)
                 ChoiceChip(
-                  label: Text(_solutionTitle(i), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  label: Text(_solutionTitle(i),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
                   selected: activeIndex == i,
                   onSelected: (_) => setState(() => _activeTab = i),
                   selectedColor: const Color(0xFFFFD700),
@@ -3307,18 +3726,20 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   // Shows savings that can be subtracted from total cost for identified opportunities
   Widget _buildOpportunitySavingsSection() {
     final totalValue = _benefitTotalValue();
-    final activeIndex = _boundedIndex(_activeTab, _rowsPerSolution.isEmpty ? 1 : _rowsPerSolution.length);
-    final currentSolutionTotal = _rowsPerSolution.isNotEmpty ? _solutionTotalCost(activeIndex) : 0.0;
-    
+    final activeIndex = _boundedIndex(
+        _activeTab, _rowsPerSolution.isEmpty ? 1 : _rowsPerSolution.length);
+    final currentSolutionTotal =
+        _rowsPerSolution.isNotEmpty ? _solutionTotalCost(activeIndex) : 0.0;
+
     // Calculate total savings from suggestions
     double totalSavings = 0.0;
     for (final suggestion in _savingsSuggestions) {
       totalSavings += suggestion.projectedSavings;
     }
-    
+
     // Net cost after savings
     final netCost = currentSolutionTotal - totalSavings;
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -3326,18 +3747,28 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Opportunity Savings Calculator', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text('Opportunity Savings Calculator',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           const _AiTag(),
           const Spacer(),
           ElevatedButton.icon(
-            onPressed: _isSavingsGenerating ? null : _generateSavingsSuggestions,
+            onPressed:
+                _isSavingsGenerating ? null : _generateSavingsSuggestions,
             icon: _isSavingsGenerating
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.auto_awesome),
             label: const Text('Generate savings scenarios'),
             style: ElevatedButton.styleFrom(
@@ -3363,7 +3794,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               height: 56,
               child: TextField(
                 controller: _savingsTargetController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Savings target (%)',
                   hintText: 'e.g. 10',
@@ -3394,9 +3826,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.payments_outlined, size: 18, color: Colors.grey),
+                const Icon(Icons.payments_outlined,
+                    size: 18, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text('Total benefits: ${_formatCurrencyValue(totalValue)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                Text('Total benefits: ${_formatCurrencyValue(totalValue)}',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w500)),
               ]),
             ),
           ],
@@ -3411,7 +3846,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
             ),
-            child: Text(_savingsError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+            child: Text(_savingsError!,
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
           ),
         if (_savingsSuggestions.isEmpty && _savingsError == null)
           Container(
@@ -3422,7 +3858,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
                 _benefitLineItems.isEmpty
                     ? 'Add benefit line items in Step 1 to enable AI savings analysis.'
@@ -3432,7 +3869,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             ]),
           ),
         if (_savingsSuggestions.isNotEmpty) ...[
-          const Text('Identified Savings Opportunities', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text('Identified Savings Opportunities',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -3452,40 +3890,71 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             decoration: BoxDecoration(
               color: const Color(0xFFFFF7CC),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
+              border: Border.all(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
             ),
             child: Row(children: [
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Cost Summary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Estimated Solution Cost:', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-                        Text(_formatCurrencyValue(currentSolutionTotal), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Cost Summary',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Estimated Solution Cost:',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[700])),
+                                Text(_formatCurrencyValue(currentSolutionTotal),
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600)),
+                              ]),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('−',
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Identified Savings:',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[700])),
+                                Text(_formatCurrencyValue(totalSavings),
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.green)),
+                              ]),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('=',
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Net Cost:',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[700])),
+                                Text(_formatCurrencyValue(netCost),
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700)),
+                              ]),
+                        ),
                       ]),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('−', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Identified Savings:', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-                        Text(_formatCurrencyValue(totalSavings), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green)),
-                      ]),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('=', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Net Cost:', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-                        Text(_formatCurrencyValue(netCost), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                  ]),
-                ]),
+                    ]),
               ),
             ]),
           ),
@@ -3504,20 +3973,23 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       ),
       child: Row(
         children: [
-          const Text('Contingency:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const Text('Contingency:',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(width: 12),
           ...[10, 20, 25, 30, 35, 40].map((percent) => Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: OutlinedButton(
-              onPressed: () => _applyContingency(solutionIndex, percent),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text('$percent%', style: const TextStyle(fontSize: 11)),
-            ),
-          )),
+                padding: const EdgeInsets.only(right: 8),
+                child: OutlinedButton(
+                  onPressed: () => _applyContingency(solutionIndex, percent),
+                  style: OutlinedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child:
+                      Text('$percent%', style: const TextStyle(fontSize: 11)),
+                ),
+              )),
         ],
       ),
     );
@@ -3530,27 +4002,53 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.35))),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.35))),
           child: Row(children: const [
-            Expanded(flex: 3, child: Text('Item', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+            Expanded(
+                flex: 3,
+                child: Text('Item',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
             SizedBox(width: 12),
-            Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Estimated cost', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+            Expanded(
+                flex: 2,
+                child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('Estimated cost',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
             SizedBox(width: 12),
-            Expanded(flex: 4, child: Text('Comments', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+            Expanded(
+                flex: 4,
+                child: Text('Comments',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
             SizedBox(width: 8),
             SizedBox(width: 36),
           ]),
         ),
         const SizedBox(height: 6),
         Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.25))),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.25))),
           child: Column(children: [
             for (final r in rows) _initialItemCostRow(r),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
+              decoration: BoxDecoration(
+                  border: Border(
+                      top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
               child: Row(children: [
-                const Expanded(flex: 3, child: Text('Total', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+                const Expanded(
+                    flex: 3,
+                    child: Text('Total',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700))),
                 const SizedBox(width: 12),
                 Expanded(
                   flex: 2,
@@ -3558,7 +4056,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                     alignment: Alignment.centerRight,
                     child: Text(
                       _formatCurrencyValue(_solutionTotalCost(solutionIndex)),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -3589,15 +4088,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     if (solutionIndex < 0 || solutionIndex >= _rowsPerSolution.length) return;
     final currentTotal = _solutionTotalCost(solutionIndex);
     final contingencyAmount = currentTotal * (percent / 100);
-    
+
     // Add a new row for contingency
     final row = _CostRow(currencyProvider: () => _currency);
     _attachRowDirtyListeners(row);
     row.setHorizon(_npvHorizon);
     row.itemController.text = 'Contingency ($percent%)';
-    row.costController.text = contingencyAmount.toStringAsFixed(contingencyAmount % 1 == 0 ? 0 : 2);
-    row.assumptionsController.text = '$percent% contingency applied to current estimated cost total of ${_formatCurrencyValue(currentTotal)}';
-    
+    row.costController.text =
+        contingencyAmount.toStringAsFixed(contingencyAmount % 1 == 0 ? 0 : 2);
+    row.assumptionsController.text =
+        '$percent% contingency applied to current estimated cost total of ${_formatCurrencyValue(currentTotal)}';
+
     setState(() {
       _rowsPerSolution[solutionIndex].add(row);
     });
@@ -3632,7 +4133,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       final assumptions = row.assumptionsController.text.trim();
       final cost = row.currentCost();
       final hasName = name.isNotEmpty && name.toLowerCase() != 'name';
-      final hasDesc = desc.isNotEmpty && !desc.toLowerCase().startsWith('lorem ipsum');
+      final hasDesc =
+          desc.isNotEmpty && !desc.toLowerCase().startsWith('lorem ipsum');
       final hasAssumptions = assumptions.isNotEmpty;
       return hasName || hasDesc || hasAssumptions || cost > 0;
     }
@@ -3643,10 +4145,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Delete row?'),
-              content: const Text('This will remove the selected cost row. This action cannot be undone.'),
+              content: const Text(
+                  'This will remove the selected cost row. This action cannot be undone.'),
               actions: [
-                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-                TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel')),
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Delete')),
               ],
             ),
           ) ??
@@ -3676,19 +4183,25 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('AI-generated Project Value category ideas', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text('AI-generated Project Value category ideas',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           const _AiTag(),
           const Spacer(),
           TextButton.icon(
-            onPressed: _isGenerating ? null : () => _populateCategoriesFromAi(targetSolution: solutionIndex),
+            onPressed: _isGenerating
+                ? null
+                : () =>
+                    _populateCategoriesFromAi(targetSolution: solutionIndex),
             icon: const Icon(Icons.refresh),
             label: const Text('Regenerate ideas'),
           ),
         ]),
         const SizedBox(height: 8),
         if (!hasIdeas)
-          Text('Use Populate categories (AI) to see tailored ideas derived from earlier steps.', style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+          Text(
+              'Use Populate categories (AI) to see tailored ideas derived from earlier steps.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]))
         else
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -3697,7 +4210,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                 if ((ideasMap[field.key] ?? const []).isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.only(top: 10, bottom: 6),
-                    child: Text(field.value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    child: Text(field.value,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
                   Wrap(
                     spacing: 8,
@@ -3705,9 +4220,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                     children: [
                       for (final item in ideasMap[field.key]!.take(20))
                         ActionChip(
-                          label: Text('${item.item}${item.estimatedCost > 0 ? ' • ${_formatCurrencyValue(item.estimatedCost)}' : ''}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                          label: Text(
+                              '${item.item}${item.estimatedCost > 0 ? ' • ${_formatCurrencyValue(item.estimatedCost)}' : ''}',
+                              style: const TextStyle(
+                                  fontSize: 11.5, fontWeight: FontWeight.w600)),
                           avatar: const Icon(Icons.add, size: 16),
-                          onPressed: () => _applyIdeaToCategory(solutionIndex, field.key, item),
+                          onPressed: () => _applyIdeaToCategory(
+                              solutionIndex, field.key, item),
                         ),
                     ],
                   ),
@@ -3726,8 +4245,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.withOpacity(0.2))),
-        child: const Text('Add one or more solutions to see ROI, NPV, IRR and DCFR results.'),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.withOpacity(0.2))),
+        child: const Text(
+            'Add one or more solutions to see ROI, NPV, IRR and DCFR results.'),
       );
     }
     final horizon = _npvHorizon;
@@ -3738,28 +4261,65 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withOpacity(0.25)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Profitability analysis', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        const Text('Profitability analysis',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.35))),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.35))),
           child: Row(children: [
-            const Expanded(flex: 4, child: Text('Solution', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-            const Expanded(flex: 2, child: Center(child: Text('ROI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+            const Expanded(
+                flex: 4,
+                child: Text('Solution',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+            const Expanded(
+                flex: 2,
+                child: Center(
+                    child: Text('ROI',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
             const SizedBox(width: 16),
-            Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('NPV ($horizon-yr)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+            Expanded(
+                flex: 2,
+                child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('NPV ($horizon-yr)',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
             const SizedBox(width: 16),
-            const Expanded(flex: 2, child: Center(child: Text('IRR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+            const Expanded(
+                flex: 2,
+                child: Center(
+                    child: Text('IRR',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
             const SizedBox(width: 16),
-            const Expanded(flex: 2, child: Center(child: Text('DCFR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+            const Expanded(
+                flex: 2,
+                child: Center(
+                    child: Text('DCFR',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
           ]),
         ),
         const SizedBox(height: 6),
         Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.25))),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.25))),
           child: Column(children: [
             for (int i = 0; i < count; i++) _profitabilityRow(i),
           ]),
@@ -3773,8 +4333,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     // Only use benefits if Initial Project Value is set in Step 1
     final snapshot = _valueSetupInvestmentSnapshot();
     final double benefits = snapshot != null ? snapshot.totalBenefits : 0;
-    final double cost = _initialCostEstimateTotalFor(index) > 0 ? _initialCostEstimateTotalFor(index) : _solutionTotalCost(index);
-    final double roiPct = (cost > 0 && benefits > 0) ? ((benefits - cost) / cost) * 100 : 0;
+    final double cost = _initialCostEstimateTotalFor(index) > 0
+        ? _initialCostEstimateTotalFor(index)
+        : _solutionTotalCost(index);
+    final double roiPct =
+        (cost > 0 && benefits > 0) ? ((benefits - cost) / cost) * 100 : 0;
     final double npv = benefits > 0 ? _solutionTotalNpv(index) : 0;
     // IRR using Finance utility with simplified cashflows [-cost, 0.., benefits]
     // Only calculate if Initial Project Value is set
@@ -3797,16 +4360,40 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withOpacity(index == 0 ? 0 : 0.2)))),
+      decoration: BoxDecoration(
+          border: Border(
+              top: BorderSide(
+                  color: Colors.grey.withOpacity(index == 0 ? 0 : 0.2)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(flex: 4, child: Text(solutionLabel, style: const TextStyle(fontSize: 13))),
-        Expanded(flex: 2, child: Align(alignment: Alignment.center, child: Text(_formatPercentValue(roiPct), textAlign: TextAlign.center))),
+        Expanded(
+            flex: 4,
+            child: Text(solutionLabel, style: const TextStyle(fontSize: 13))),
+        Expanded(
+            flex: 2,
+            child: Align(
+                alignment: Alignment.center,
+                child: Text(_formatPercentValue(roiPct),
+                    textAlign: TextAlign.center))),
         const SizedBox(width: 16),
-        Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text(_formatCurrencyValue(npv)))),
+        Expanded(
+            flex: 2,
+            child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(_formatCurrencyValue(npv)))),
         const SizedBox(width: 16),
-        Expanded(flex: 2, child: Align(alignment: Alignment.center, child: Text(_formatPercentValue(irr * 100), textAlign: TextAlign.center))),
+        Expanded(
+            flex: 2,
+            child: Align(
+                alignment: Alignment.center,
+                child: Text(_formatPercentValue(irr * 100),
+                    textAlign: TextAlign.center))),
         const SizedBox(width: 16),
-        Expanded(flex: 2, child: Align(alignment: Alignment.center, child: Text(_formatCurrencyValue(dcf), textAlign: TextAlign.center))),
+        Expanded(
+            flex: 2,
+            child: Align(
+                alignment: Alignment.center,
+                child: Text(_formatCurrencyValue(dcf),
+                    textAlign: TextAlign.center))),
       ]),
     );
   }
@@ -3823,32 +4410,49 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     final net = effectiveBenefits - cost;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.withOpacity(0.25))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.withOpacity(0.25))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(_solutionTitle(index), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(_solutionTitle(index),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Row(children: [
-          Expanded(child: _summaryMetric(label: 'Project Value', value: _formatCurrencyValue(effectiveBenefits))),
+          Expanded(
+              child: _summaryMetric(
+                  label: 'Project Value',
+                  value: _formatCurrencyValue(effectiveBenefits))),
           const SizedBox(width: 12),
-          Expanded(child: _summaryMetric(label: 'Initial cost', value: _formatCurrencyValue(cost))),
+          Expanded(
+              child: _summaryMetric(
+                  label: 'Initial cost', value: _formatCurrencyValue(cost))),
           const SizedBox(width: 12),
-          Expanded(child: _summaryMetric(label: 'Net value', value: _formatCurrencyValue(net))),
+          Expanded(
+              child: _summaryMetric(
+                  label: 'Net value', value: _formatCurrencyValue(net))),
         ]),
       ]),
     );
   }
 
-  Widget _savingsSuggestionTile(int index, AiBenefitSavingsSuggestion suggestion) {
+  Widget _savingsSuggestionTile(
+      int index, AiBenefitSavingsSuggestion suggestion) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.grey.withOpacity(index == 0 ? 0 : 0.2))),
+        border: Border(
+            top: BorderSide(
+                color: Colors.grey.withOpacity(index == 0 ? 0 : 0.2))),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text('${index + 1}. ${suggestion.lever}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          Text('${index + 1}. ${suggestion.lever}',
+              style:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
-          Text('${suggestion.confidence} confidence', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+          Text('${suggestion.confidence} confidence',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
         ]),
         const SizedBox(height: 4),
         Text(
@@ -3862,11 +4466,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           children: [
             Chip(
               avatar: const Icon(Icons.savings_outlined, size: 16),
-              label: Text('Projected savings: ${_formatCurrencyValue(suggestion.projectedSavings)}'),
+              label: Text(
+                  'Projected savings: ${_formatCurrencyValue(suggestion.projectedSavings)}'),
             ),
             Chip(
               avatar: const Icon(Icons.schedule_outlined, size: 16),
-              label: Text('Timeframe: ${suggestion.timeframe.isEmpty ? 'TBD' : suggestion.timeframe}'),
+              label: Text(
+                  'Timeframe: ${suggestion.timeframe.isEmpty ? 'TBD' : suggestion.timeframe}'),
             ),
           ],
         ),
@@ -3888,13 +4494,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-         border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        border: Border.all(color: Colors.grey.withOpacity(0.3)),
       ),
       child: ExpandingTextField(
         controller: _notesController,
         style: TextStyle(fontSize: 14, color: Colors.grey[700]),
         decoration: const InputDecoration(
-          hintText: 'Capture assumptions, discount rates, or stakeholder feedback here...',
+          hintText:
+              'Capture assumptions, discount rates, or stakeholder feedback here...',
           border: InputBorder.none,
           isDense: true,
           contentPadding: EdgeInsets.zero,
@@ -3904,7 +4511,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _buildMetricToolbar({required bool isMobile, required String horizonLabel}) {
+  Widget _buildMetricToolbar(
+      {required bool isMobile, required String horizonLabel}) {
     final horizons = [1, 3, 5, 10];
     final toggleButtons = ToggleButtons(
       isSelected: horizons.map((year) => _npvHorizon == year).toList(),
@@ -3923,7 +4531,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       selectedColor: Colors.black,
       fillColor: const Color(0xFFFFD700),
       constraints: const BoxConstraints(minHeight: 34, minWidth: 54),
-      children: horizons.map((year) => Text('$year yr', style: const TextStyle(fontSize: 13))).toList(),
+      children: horizons
+          .map((year) => Text('$year yr', style: const TextStyle(fontSize: 13)))
+          .toList(),
     );
 
     final generateButton = ElevatedButton.icon(
@@ -3942,38 +4552,44 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     if (isMobile) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Financial metric horizon', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text('Financial metric horizon',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(width: 12),
           toggleButtons,
         ]),
         const SizedBox(height: 12),
         Row(children: [
           const Tooltip(
-            message: 'NPV values update for the selected horizon so each solution compares on equal time frames.',
+            message:
+                'NPV values update for the selected horizon so each solution compares on equal time frames.',
             child: Icon(Icons.info_outline, size: 18, color: Colors.grey),
           ),
           const SizedBox(width: 12),
           generateButton,
         ]),
         const SizedBox(height: 6),
-        Text('Current view: $horizonLabel cashflows across every solution.', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text('Current view: $horizonLabel cashflows across every solution.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ]);
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        const Text('Financial metric horizon', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const Text('Financial metric horizon',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(width: 12),
         toggleButtons,
         const SizedBox(width: 12),
         const Tooltip(
-          message: 'NPV values update for the selected horizon so each solution compares on equal time frames.',
+          message:
+              'NPV values update for the selected horizon so each solution compares on equal time frames.',
           child: Icon(Icons.info_outline, size: 18, color: Colors.grey),
         ),
         const Spacer(),
         generateButton,
       ]),
       const SizedBox(height: 6),
-      Text('Current view: $horizonLabel cashflows across every solution.', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+      Text('Current view: $horizonLabel cashflows across every solution.',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600])),
     ]);
   }
 
@@ -3985,14 +4601,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-           border: Border.all(color: Colors.grey.withOpacity(0.2)),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
-        child: const Text('Add at least one potential solution to start modelling costs and benefits.'),
+        child: const Text(
+            'Add at least one potential solution to start modelling costs and benefits.'),
       );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        const Text('Solution cost snapshots', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        const Text('Solution cost snapshots',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         const SizedBox(width: 8),
         const _AiTag(),
         const SizedBox(width: 8),
@@ -4009,7 +4627,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         final viewportWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : MediaQuery.of(context).size.width;
-        final safeWidth = viewportWidth <= 0 ? MediaQuery.of(context).size.width : viewportWidth;
+        final safeWidth = viewportWidth <= 0
+            ? MediaQuery.of(context).size.width
+            : viewportWidth;
         final singleColumn = isMobile || safeWidth < 760;
         final computedColumns = (safeWidth / (340 + spacing)).floor();
         final int columns = singleColumn
@@ -4021,7 +4641,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
                     : computedColumns;
         final double tileWidth = singleColumn
             ? safeWidth
-            : ((safeWidth - (spacing * (columns - 1))) / columns).clamp(280.0, 400.0);
+            : ((safeWidth - (spacing * (columns - 1))) / columns)
+                .clamp(280.0, 400.0);
         return Align(
           alignment: Alignment.topLeft,
           child: Wrap(
@@ -4039,8 +4660,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   Widget _solutionSummaryCard(int index) {
     final hasSolutions = index < widget.solutions.length;
-    final AiSolutionItem? solution = hasSolutions ? widget.solutions[index] : null;
-    final title = (solution?.title ?? '').trim().isNotEmpty ? solution!.title : 'Potential Solution ${index + 1}';
+    final AiSolutionItem? solution =
+        hasSolutions ? widget.solutions[index] : null;
+    final title = (solution?.title ?? '').trim().isNotEmpty
+        ? solution!.title
+        : 'Potential Solution ${index + 1}';
     final description = (solution?.description ?? '').trim().isNotEmpty
         ? solution!.description
         : 'Describe how this solution creates value so ROI and NPV have clear context.';
@@ -4051,13 +4675,18 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     // any legacy/category totals.
     final double initialItemsTotal = _solutionTotalCost(index);
     final double fallbackCategoryTotal = _initialCostEstimateTotalFor(index);
-    final double totalCost = initialItemsTotal > 0 ? initialItemsTotal : fallbackCategoryTotal;
+    final double totalCost =
+        initialItemsTotal > 0 ? initialItemsTotal : fallbackCategoryTotal;
     // Only calculate NPV and ROI if Initial Project Value is set
-    final double totalNpv = valueSetupSnapshot != null ? (valueSetupSnapshot.npv ?? 0) : 0;
-    final double avgRoi = valueSetupSnapshot != null ? (valueSetupSnapshot.averageRoi ?? 0) : 0;
-    final int summaryCount = valueSetupSnapshot?.benefitLineItemCount ?? _solutionItemCount(index);
+    final double totalNpv =
+        valueSetupSnapshot != null ? (valueSetupSnapshot.npv ?? 0) : 0;
+    final double avgRoi =
+        valueSetupSnapshot != null ? (valueSetupSnapshot.averageRoi ?? 0) : 0;
+    final int summaryCount =
+        valueSetupSnapshot?.benefitLineItemCount ?? _solutionItemCount(index);
     final bool usesValueSetup = valueSetupSnapshot != null;
-    final bool hasValueSetupBenefits = valueSetupSnapshot?.hasBenefitSignals ?? false;
+    final bool hasValueSetupBenefits =
+        valueSetupSnapshot?.hasBenefitSignals ?? false;
     final helper = usesValueSetup
         ? (hasValueSetupBenefits
             ? 'Derived from Project Value baseline and monetised benefit entries. Adjust Step 1 to update this snapshot.'
@@ -4067,11 +4696,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             : 'Use AI or add cost items below to build this investment profile.';
     final isLoading = _solutionLoading.contains(index);
     final contextData = _contextFor(index);
-    final costRange = valueSetupSnapshot?.costRange ?? _solutionCostRange(index);
+    final costRange =
+        valueSetupSnapshot?.costRange ?? _solutionCostRange(index);
     final assumptionHighlights = _assumptionHighlights(index);
     final driverHighlights = _topCostDrivers(index);
     final justification = contextData.justificationController.text.trim();
-    final totalRows = index >= 0 && index < _rowsPerSolution.length ? _rowsPerSolution[index].length : 0;
+    final totalRows = index >= 0 && index < _rowsPerSolution.length
+        ? _rowsPerSolution[index].length
+        : 0;
     final summaryLine = usesValueSetup
         ? (hasValueSetupBenefits
             ? '$summaryCount benefit line items captured • Update Step 1 to recalc ROI/NPV automatically.'
@@ -4084,148 +4716,187 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-         border: Border.all(color: Colors.grey.withOpacity(0.25)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 4))],
+        border: Border.all(color: Colors.grey.withOpacity(0.25)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text(description, style: TextStyle(fontSize: 12, color: Colors.grey[600]), maxLines: 3, overflow: TextOverflow.ellipsis),
-              ]),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(description,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+          if (isLoading)
+            const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.4)),
+        ]),
+        const SizedBox(height: 14),
+        const Text('Estimated cost',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(_formatCurrencyValue(totalCost),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        if (costRange != null) ...[
+          const SizedBox(height: 4),
+          Text(
+              'Range: ${_formatCurrencyValue(costRange.lower)} – ${_formatCurrencyValue(costRange.upper)}',
+              style:
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        ],
+        const SizedBox(height: 4),
+        Text(helper, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(
+              child: _summaryMetric(
+                  label: 'NPV ($_npvHorizon-year)',
+                  value: _formatCurrencyValue(totalNpv))),
+          const SizedBox(width: 12),
+          Expanded(
+              child: _summaryMetric(
+                  label: 'Average ROI', value: _formatPercentValue(avgRoi))),
+        ]),
+        const SizedBox(height: 10),
+        Text(summaryLine,
+            style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+        const SizedBox(height: 16),
+        Divider(color: Colors.grey.withOpacity(0.2), height: 1),
+        const SizedBox(height: 12),
+        const Text('Cost assumptions',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        LayoutBuilder(builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 540;
+          final selectors = [
+            _assumptionSelector(
+              label: 'Resources',
+              value: contextData.resourceIndex,
+              options: _resourceOptions,
+              onChanged: (value) {
+                setState(() {
+                  contextData.resourceIndex = value;
+                  _refreshJustificationFor(index);
+                });
+                _markDirty();
+              },
             ),
-            if (isLoading)
-              const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4)),
-          ]),
-          const SizedBox(height: 14),
-          const Text('Estimated cost', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text(_formatCurrencyValue(totalCost), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-          if (costRange != null) ...[
-            const SizedBox(height: 4),
-            Text('Range: ${_formatCurrencyValue(costRange.lower)} – ${_formatCurrencyValue(costRange.upper)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 4),
-          Text(helper, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-          const SizedBox(height: 16),
-          Row(children: [
-            Expanded(child: _summaryMetric(label: 'NPV ($_npvHorizon-year)', value: _formatCurrencyValue(totalNpv))),
-            const SizedBox(width: 12),
-            Expanded(child: _summaryMetric(label: 'Average ROI', value: _formatPercentValue(avgRoi))),
-          ]),
-          const SizedBox(height: 10),
-          Text(summaryLine, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-          const SizedBox(height: 16),
-          Divider(color: Colors.grey.withOpacity(0.2), height: 1),
-          const SizedBox(height: 12),
-          const Text('Cost assumptions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          LayoutBuilder(builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 540;
-            final selectors = [
-              _assumptionSelector(
-                label: 'Resources',
-                value: contextData.resourceIndex,
-                options: _resourceOptions,
-                onChanged: (value) {
-                  setState(() {
-                    contextData.resourceIndex = value;
-                    _refreshJustificationFor(index);
-                  });
-                  _markDirty();
-                },
-              ),
-              _assumptionSelector(
-                label: 'Timeline',
-                value: contextData.timelineIndex,
-                options: _timelineOptions,
-                onChanged: (value) {
-                  setState(() {
-                    contextData.timelineIndex = value;
-                    _refreshJustificationFor(index);
-                  });
-                  _markDirty();
-                },
-              ),
-              _assumptionSelector(
-                label: 'Complexity',
-                value: contextData.complexityIndex,
-                options: _complexityOptions,
-                onChanged: (value) {
-                  setState(() {
-                    contextData.complexityIndex = value;
-                    _refreshJustificationFor(index);
-                  });
-                  _markDirty();
-                },
-              ),
-            ];
-            if (narrow) {
-              return Column(children: [
-                for (final selector in selectors) ...[
-                  selector,
-                  const SizedBox(height: 10),
-                ],
-              ]);
-            }
-            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              for (int i = 0; i < selectors.length; i++) ...[
-                Expanded(child: selectors[i]),
-                if (i != selectors.length - 1) const SizedBox(width: 12),
+            _assumptionSelector(
+              label: 'Timeline',
+              value: contextData.timelineIndex,
+              options: _timelineOptions,
+              onChanged: (value) {
+                setState(() {
+                  contextData.timelineIndex = value;
+                  _refreshJustificationFor(index);
+                });
+                _markDirty();
+              },
+            ),
+            _assumptionSelector(
+              label: 'Complexity',
+              value: contextData.complexityIndex,
+              options: _complexityOptions,
+              onChanged: (value) {
+                setState(() {
+                  contextData.complexityIndex = value;
+                  _refreshJustificationFor(index);
+                });
+                _markDirty();
+              },
+            ),
+          ];
+          if (narrow) {
+            return Column(children: [
+              for (final selector in selectors) ...[
+                selector,
+                const SizedBox(height: 10),
               ],
             ]);
-          }),
-          const SizedBox(height: 8),
-          Text('AI uses these assumptions when refreshing the estimate.', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-          const SizedBox(height: 12),
-          if (assumptionHighlights.isNotEmpty) ...[
-            const Text('Assumption snapshot', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            for (final highlight in assumptionHighlights) _costDriverBullet(highlight),
-            const SizedBox(height: 12),
-          ],
-          const Text('Drivers & justification', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          }
+          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (int i = 0; i < selectors.length; i++) ...[
+              Expanded(child: selectors[i]),
+              if (i != selectors.length - 1) const SizedBox(width: 12),
+            ],
+          ]);
+        }),
+        const SizedBox(height: 8),
+        Text('AI uses these assumptions when refreshing the estimate.',
+            style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+        const SizedBox(height: 12),
+        if (assumptionHighlights.isNotEmpty) ...[
+          const Text('Assumption snapshot',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          if (driverHighlights.isNotEmpty)
-            ...[
-              for (final driver in driverHighlights) _costDriverBullet(driver),
-              if (justification.isNotEmpty) const SizedBox(height: 6),
-            ]
-          else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text('Add or regenerate cost items to surface AI-driven cost drivers.', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-            ),
-          ExpandingTextField(
-            controller: contextData.justificationController,
-            minLines: 2,
-            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-            decoration: InputDecoration(
-              hintText: 'Explain why this investment level is appropriate (e.g., resourcing, integrations, governance).',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            ),
-          ),
+          for (final highlight in assumptionHighlights)
+            _costDriverBullet(highlight),
           const SizedBox(height: 12),
-          Row(children: [
-            OutlinedButton.icon(
-              onPressed: (!hasSolutions || isLoading) ? null : () => _generateCostBreakdownForSolution(index),
-              icon: isLoading
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.auto_fix_high_outlined, size: 18),
-              label: const Text('Refresh with AI'),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: () => _showBreakdownFor(index),
-              child: const Text('Open breakdown'),
-            ),
-          ]),
+        ],
+        const Text('Drivers & justification',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        if (driverHighlights.isNotEmpty) ...[
+          for (final driver in driverHighlights) _costDriverBullet(driver),
+          if (justification.isNotEmpty) const SizedBox(height: 6),
+        ] else
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+                'Add or regenerate cost items to surface AI-driven cost drivers.',
+                style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          ),
+        ExpandingTextField(
+          controller: contextData.justificationController,
+          minLines: 2,
+          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          decoration: InputDecoration(
+            hintText:
+                'Explain why this investment level is appropriate (e.g., resourcing, integrations, governance).',
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          OutlinedButton.icon(
+            onPressed: (!hasSolutions || isLoading)
+                ? null
+                : () => _generateCostBreakdownForSolution(index),
+            icon: isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.auto_fix_high_outlined, size: 18),
+            label: const Text('Refresh with AI'),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () => _showBreakdownFor(index),
+            child: const Text('Open breakdown'),
+          ),
         ]),
-      );
+      ]),
+    );
   }
 
   void _showBreakdownFor(int index) {
@@ -4236,7 +4907,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             ? _rowsPerSolution.length - 1
             : index;
     setState(() {
-      _viewAll = false;
       _activeTab = safeIndex;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -4251,11 +4921,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     });
   }
 
-  Widget _summaryMetric({required String label, required String value, String? helper}) {
+  Widget _summaryMetric(
+      {required String label, required String value, String? helper}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      Text(label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 4),
-      Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+      Text(value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
       if (helper != null) ...[
         const SizedBox(height: 2),
         Text(helper, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
@@ -4281,7 +4954,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     return value;
   }
 
-  Widget _assumptionSelector({required String label, required int value, required List<_QualitativeOption> options, required ValueChanged<int> onChanged}) {
+  Widget _assumptionSelector(
+      {required String label,
+      required int value,
+      required List<_QualitativeOption> options,
+      required ValueChanged<int> onChanged}) {
     final boundedValue = _boundedIndex(value, options.length);
     return DropdownButtonFormField<int>(
       initialValue: boundedValue,
@@ -4290,9 +4967,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       ),
       items: [
         for (int i = 0; i < options.length; i++)
@@ -4302,9 +4982,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Text(options[i].label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(options[i].detail, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                Text(options[i].label,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(options[i].detail,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600])),
               ],
             ),
           ),
@@ -4324,7 +5007,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           child: Icon(Icons.circle, size: 6, color: Colors.grey),
         ),
         const SizedBox(width: 6),
-        Expanded(child: Text(text, style: TextStyle(fontSize: 11.5, color: Colors.grey[700]))),
+        Expanded(
+            child: Text(text,
+                style: TextStyle(fontSize: 11.5, color: Colors.grey[700]))),
       ]),
     );
   }
@@ -4332,9 +5017,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   List<String> _assumptionHighlights(int index) {
     if (index < 0 || index >= _solutionContexts.length) return const [];
     final context = _solutionContexts[index];
-    final resource = _resourceOptions[_boundedIndex(context.resourceIndex, _resourceOptions.length)];
-    final timeline = _timelineOptions[_boundedIndex(context.timelineIndex, _timelineOptions.length)];
-    final complexity = _complexityOptions[_boundedIndex(context.complexityIndex, _complexityOptions.length)];
+    final resource = _resourceOptions[
+        _boundedIndex(context.resourceIndex, _resourceOptions.length)];
+    final timeline = _timelineOptions[
+        _boundedIndex(context.timelineIndex, _timelineOptions.length)];
+    final complexity = _complexityOptions[
+        _boundedIndex(context.complexityIndex, _complexityOptions.length)];
     return [
       'Resourcing: ${resource.label} — ${resource.detail}.',
       'Timeline: ${timeline.label} — ${timeline.detail}.',
@@ -4362,20 +5050,29 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       entries.add(MapEntry(label, cost));
     }
     entries.sort((a, b) => b.value.compareTo(a.value));
-    return entries.take(3).map((e) => '${e.key} • ${_formatCurrencyValue(e.value)}').toList();
+    return entries
+        .take(3)
+        .map((e) => '${e.key} • ${_formatCurrencyValue(e.value)}')
+        .toList();
   }
 
   void _refreshJustificationFor(int index, {bool force = false}) {
     if (index < 0 || index >= _solutionContexts.length) return;
     final context = _solutionContexts[index];
-    final resource = _resourceOptions[_boundedIndex(context.resourceIndex, _resourceOptions.length)];
-    final timeline = _timelineOptions[_boundedIndex(context.timelineIndex, _timelineOptions.length)];
-    final complexity = _complexityOptions[_boundedIndex(context.complexityIndex, _complexityOptions.length)];
+    final resource = _resourceOptions[
+        _boundedIndex(context.resourceIndex, _resourceOptions.length)];
+    final timeline = _timelineOptions[
+        _boundedIndex(context.timelineIndex, _timelineOptions.length)];
+    final complexity = _complexityOptions[
+        _boundedIndex(context.complexityIndex, _complexityOptions.length)];
     final drivers = _topCostDrivers(index);
     final buffer = StringBuffer()
-      ..write('Resourcing requires ${resource.detail.toLowerCase()} (${resource.label.toLowerCase()}). ')
-      ..write('Delivery timeline: ${timeline.detail.toLowerCase()} (${timeline.label}). ')
-      ..write('Complexity: ${complexity.detail.toLowerCase()} (${complexity.label}).');
+      ..write(
+          'Resourcing requires ${resource.detail.toLowerCase()} (${resource.label.toLowerCase()}). ')
+      ..write(
+          'Delivery timeline: ${timeline.detail.toLowerCase()} (${timeline.label}). ')
+      ..write(
+          'Complexity: ${complexity.detail.toLowerCase()} (${complexity.label}).');
     if (drivers.isNotEmpty) {
       buffer.write(' Major cost drivers: ${drivers.join('; ')}.');
     }
@@ -4386,7 +5083,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     }
   }
 
-  Widget _buildDetailedBreakdown({required bool isMobile, required String horizonLabel}) {
+  Widget _buildDetailedBreakdown(
+      {required bool isMobile, required String horizonLabel}) {
     final tabsCount = _rowsPerSolution.length;
     final int activeIndex;
     if (tabsCount == 0) {
@@ -4411,7 +5109,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         if (tabsCount > 0) ...[
           for (int i = 0; i < tabsCount; i++) ...[
             const SizedBox(height: 12),
-            Text(_solutionTitle(i), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(_solutionTitle(i),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             _tableForIndex(i, isMobile: isMobile, horizonLabel: horizonLabel),
           ]
@@ -4424,7 +5124,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey.withOpacity(0.2)),
             ),
-            child: const Text('Add a solution to unlock the ROI and NPV breakdown.'),
+            child: const Text(
+                'Add a solution to unlock the ROI and NPV breakdown.'),
           ),
         ],
       ]),
@@ -4444,9 +5145,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       child: Row(children: [
         const Icon(Icons.error_outline, color: Colors.red, size: 18),
         const SizedBox(width: 8),
-        Expanded(child: Text(message, style: const TextStyle(color: Colors.red, fontSize: 12))),
+        Expanded(
+            child: Text(message,
+                style: const TextStyle(color: Colors.red, fontSize: 12))),
         if (onRetry != null)
-          TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(fontSize: 12))),
+          TextButton(
+              onPressed: onRetry,
+              child: const Text('Retry', style: TextStyle(fontSize: 12))),
       ]),
     );
   }
@@ -4505,11 +5210,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     final pv = _projectValueAmountController.text.trim();
     if (pv.isNotEmpty) {
       final n = _parseCurrencyInput(pv) * factor;
-      _projectValueAmountController.text = n.toStringAsFixed(n % 1 == 0 ? 0 : 2);
+      _projectValueAmountController.text =
+          n.toStringAsFixed(n % 1 == 0 ? 0 : 2);
     }
     // Benefit line items (unit values only)
     for (final entry in _benefitLineItems) {
-      final uv = _BenefitLineItemEntry._readDouble(entry.unitValueController.text) * factor;
+      final uv =
+          _BenefitLineItemEntry._readDouble(entry.unitValueController.text) *
+              factor;
       entry.unitValueController.text = uv.toStringAsFixed(uv % 1 == 0 ? 0 : 2);
     }
     // Category estimate costs
@@ -4531,12 +5239,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   double _solutionTotalCost(int index) {
     if (index >= _rowsPerSolution.length) return 0;
-    return _rowsPerSolution[index].fold<double>(0, (sum, row) => sum + row.currentCost());
+    return _rowsPerSolution[index]
+        .fold<double>(0, (sum, row) => sum + row.currentCost());
   }
 
   double _solutionTotalNpv(int index) {
     if (index >= _rowsPerSolution.length) return 0;
-    return _rowsPerSolution[index].fold<double>(0, (sum, row) => sum + row.currentNpv());
+    return _rowsPerSolution[index]
+        .fold<double>(0, (sum, row) => sum + row.currentNpv());
   }
 
   double _solutionAverageRoi(int index) {
@@ -4558,7 +5268,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     if (index >= _rowsPerSolution.length) return 0;
     int count = 0;
     for (final row in _rowsPerSolution[index]) {
-      final hasName = row.itemController.text.trim().isNotEmpty && row.itemController.text.trim() != 'Name';
+      final hasName = row.itemController.text.trim().isNotEmpty &&
+          row.itemController.text.trim() != 'Name';
       final hasCost = row.currentCost() > 0;
       if (hasName || hasCost) count++;
     }
@@ -4567,17 +5278,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   String _buildCostContextNotes({int? forSolution}) {
     final buffer = StringBuffer();
-    
+
     // Get project data from provider
     final provider = ProjectDataInherited.maybeOf(context);
     final projectData = provider?.projectData;
-    
+
     // Add Business Case context
     if (projectData != null) {
       if (projectData.businessCase.isNotEmpty) {
         buffer.write('Business Case: ${projectData.businessCase}. ');
       }
-      
+
       // Add Solution Title and Description
       if (projectData.solutionTitle.isNotEmpty) {
         buffer.write('Project: ${projectData.solutionTitle}. ');
@@ -4585,12 +5296,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       if (projectData.solutionDescription.isNotEmpty) {
         buffer.write('Description: ${projectData.solutionDescription}. ');
       }
-      
+
       // Add Project Objective
       if (projectData.projectObjective.isNotEmpty) {
         buffer.write('Objective: ${projectData.projectObjective}. ');
       }
-      
+
       // Add Work Breakdown Structure items as potential cost categories
       final wbsItems = <String>[];
       for (final goalWorkList in projectData.goalWorkItems) {
@@ -4603,7 +5314,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       if (wbsItems.isNotEmpty) {
         buffer.write('Work breakdown items: ${wbsItems.take(15).join(', ')}. ');
       }
-      
+
       // Add Risks that might require mitigation costs
       final risks = <String>[];
       for (final solutionRisk in projectData.solutionRisks) {
@@ -4614,9 +5325,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         }
       }
       if (risks.isNotEmpty) {
-        buffer.write('Risk considerations (may require mitigation costs): ${risks.take(10).join('; ')}. ');
+        buffer.write(
+            'Risk considerations (may require mitigation costs): ${risks.take(10).join('; ')}. ');
       }
-      
+
       // Add IT Considerations
       if (projectData.itConsiderationsData != null) {
         final itData = projectData.itConsiderationsData!;
@@ -4625,11 +5337,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         }
         for (final solutionIT in itData.solutionITData) {
           if (solutionIT.coreTechnology.isNotEmpty) {
-            buffer.write('Technology for ${solutionIT.solutionTitle}: ${solutionIT.coreTechnology}. ');
+            buffer.write(
+                'Technology for ${solutionIT.solutionTitle}: ${solutionIT.coreTechnology}. ');
           }
         }
       }
-      
+
       // Add Infrastructure Considerations
       if (projectData.infrastructureConsiderationsData != null) {
         final infraData = projectData.infrastructureConsiderationsData!;
@@ -4638,47 +5351,60 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         }
         for (final solutionInfra in infraData.solutionInfrastructureData) {
           if (solutionInfra.majorInfrastructure.isNotEmpty) {
-            buffer.write('Infrastructure for ${solutionInfra.solutionTitle}: ${solutionInfra.majorInfrastructure}. ');
+            buffer.write(
+                'Infrastructure for ${solutionInfra.solutionTitle}: ${solutionInfra.majorInfrastructure}. ');
           }
         }
       }
-      
+
       // Add Core Stakeholders (external stakeholders may have associated costs)
       if (projectData.coreStakeholdersData != null) {
         final stakeholderData = projectData.coreStakeholdersData!;
         if (stakeholderData.notes.isNotEmpty) {
           buffer.write('Stakeholder notes: ${stakeholderData.notes}. ');
         }
-        for (final solutionStakeholder in stakeholderData.solutionStakeholderData) {
+        for (final solutionStakeholder
+            in stakeholderData.solutionStakeholderData) {
           if (solutionStakeholder.notableStakeholders.isNotEmpty) {
-            buffer.write('Stakeholders for ${solutionStakeholder.solutionTitle}: ${solutionStakeholder.notableStakeholders}. ');
+            buffer.write(
+                'Stakeholders for ${solutionStakeholder.solutionTitle}: ${solutionStakeholder.notableStakeholders}. ');
           }
         }
       }
-      
+
       // Add Team Members (personnel costs)
       if (projectData.teamMembers.isNotEmpty) {
-        final teamRoles = projectData.teamMembers.map((m) => m.role.isEmpty ? m.name : m.role).where((r) => r.isNotEmpty).toList();
+        final teamRoles = projectData.teamMembers
+            .map((m) => m.role.isEmpty ? m.name : m.role)
+            .where((r) => r.isNotEmpty)
+            .toList();
         if (teamRoles.isNotEmpty) {
           buffer.write('Team composition: ${teamRoles.take(15).join(', ')}. ');
         }
       }
-      
+
       // Add Front End Planning data
       final fepData = projectData.frontEndPlanning;
       final fepNotes = <String>[];
-      if (fepData.requirements.isNotEmpty) fepNotes.add('Requirements: ${fepData.requirements}');
-      if (fepData.risks.isNotEmpty) fepNotes.add('Planning risks: ${fepData.risks}');
-      if (fepData.opportunities.isNotEmpty) fepNotes.add('Opportunities: ${fepData.opportunities}');
-      if (fepData.technology.isNotEmpty) fepNotes.add('Technology: ${fepData.technology}');
-      if (fepData.infrastructure.isNotEmpty) fepNotes.add('Infrastructure: ${fepData.infrastructure}');
-      if (fepData.contracts.isNotEmpty) fepNotes.add('Contracts: ${fepData.contracts}');
-      if (fepData.procurement.isNotEmpty) fepNotes.add('Procurement: ${fepData.procurement}');
+      if (fepData.requirements.isNotEmpty)
+        fepNotes.add('Requirements: ${fepData.requirements}');
+      if (fepData.risks.isNotEmpty)
+        fepNotes.add('Planning risks: ${fepData.risks}');
+      if (fepData.opportunities.isNotEmpty)
+        fepNotes.add('Opportunities: ${fepData.opportunities}');
+      if (fepData.technology.isNotEmpty)
+        fepNotes.add('Technology: ${fepData.technology}');
+      if (fepData.infrastructure.isNotEmpty)
+        fepNotes.add('Infrastructure: ${fepData.infrastructure}');
+      if (fepData.contracts.isNotEmpty)
+        fepNotes.add('Contracts: ${fepData.contracts}');
+      if (fepData.procurement.isNotEmpty)
+        fepNotes.add('Procurement: ${fepData.procurement}');
       if (fepNotes.isNotEmpty) {
         buffer.write('Front-end planning: ${fepNotes.take(5).join('; ')}. ');
       }
     }
-    
+
     // Add current cost analysis notes
     final amount = _projectValueAmountController.text.trim();
     if (amount.isNotEmpty) {
@@ -4698,25 +5424,33 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     if (notes.isNotEmpty) {
       buffer.write('Analyst notes: $notes. ');
     }
-    
+
     // Add solution-specific context
     final indexes = <int>[];
     if (forSolution != null) {
-      if (forSolution >= 0 && forSolution < _solutionContexts.length && forSolution < widget.solutions.length) {
+      if (forSolution >= 0 &&
+          forSolution < _solutionContexts.length &&
+          forSolution < widget.solutions.length) {
         indexes.add(forSolution);
       }
     } else {
-      for (int i = 0; i < widget.solutions.length && i < _solutionContexts.length; i++) {
+      for (int i = 0;
+          i < widget.solutions.length && i < _solutionContexts.length;
+          i++) {
         indexes.add(i);
       }
     }
     for (final idx in indexes) {
       final context = _contextFor(idx);
-      final resource = _resourceOptions[_boundedIndex(context.resourceIndex, _resourceOptions.length)];
-      final timeline = _timelineOptions[_boundedIndex(context.timelineIndex, _timelineOptions.length)];
-      final complexity = _complexityOptions[_boundedIndex(context.complexityIndex, _complexityOptions.length)];
+      final resource = _resourceOptions[
+          _boundedIndex(context.resourceIndex, _resourceOptions.length)];
+      final timeline = _timelineOptions[
+          _boundedIndex(context.timelineIndex, _timelineOptions.length)];
+      final complexity = _complexityOptions[
+          _boundedIndex(context.complexityIndex, _complexityOptions.length)];
       final solutionTitle = _solutionTitle(idx);
-      buffer.write(' Solution "$solutionTitle": ${resource.aiHint} ${timeline.aiHint} ${complexity.aiHint}');
+      buffer.write(
+          ' Solution "$solutionTitle": ${resource.aiHint} ${timeline.aiHint} ${complexity.aiHint}');
       final narrative = context.justificationController.text.trim();
       if (narrative.isNotEmpty) {
         buffer.write(' Cost drivers: $narrative');
@@ -4740,7 +5474,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   void _applyCostItemsToRows(int index, List<AiCostItem> items) {
     if (index < 0 || index >= _rowsPerSolution.length) return;
     // Ensure we only place true cost items, not generic benefit pillar labels
-    final filtered = items.where((it) => !_isProjectValueCategoryLabel(it.item)).toList(growable: false);
+    final filtered = items
+        .where((it) => !_isProjectValueCategoryLabel(it.item))
+        .toList(growable: false);
     // Ensure capacity up to number of items (cap at 20 for usability)
     final targetLen = filtered.length.clamp(0, 20);
     while (_rowsPerSolution[index].length < targetLen) {
@@ -4757,10 +5493,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         row.descriptionController.text = it.description.isEmpty
             ? 'Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum...'
             : it.description;
-        row.applyBaseline(cost: it.estimatedCost, roiPercent: it.roiPercent, npvByYears: it.npvByYear);
+        row.applyBaseline(
+            cost: it.estimatedCost,
+            roiPercent: it.roiPercent,
+            npvByYears: it.npvByYear);
         row.setHorizon(_npvHorizon);
       } else if (filtered.isNotEmpty) {
-        row.applyBaseline(cost: 0, roiPercent: 0, npvByYears: const {3: 0.0, 5: 0.0, 10: 0.0});
+        row.applyBaseline(
+            cost: 0,
+            roiPercent: 0,
+            npvByYears: const {3: 0.0, 5: 0.0, 10: 0.0});
         row.setHorizon(_npvHorizon);
       }
     }
@@ -4771,25 +5513,67 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   String _categoryForItem(AiCostItem it) {
     final text = ('${it.item} ${it.description}').toLowerCase();
     bool hasAny(List<String> keys) => keys.any((k) => text.contains(k));
-    if (hasAny(['revenue', 'sales', 'uplift', 'growth', 'gross margin', 'pricing', 'income'])) {
+    if (hasAny([
+      'revenue',
+      'sales',
+      'uplift',
+      'growth',
+      'gross margin',
+      'pricing',
+      'income'
+    ])) {
       return 'revenue';
     }
     if (hasAny(['saving', 'cost avoid', 'not buying', 'reduction'])) {
       return 'cost_saving';
     }
-    if (hasAny(['efficien', 'automation', 'cycle', 'throughput', 'waste', 'rework', 'opex', 'maintenance', 'operational'])) {
+    if (hasAny([
+      'efficien',
+      'automation',
+      'cycle',
+      'throughput',
+      'waste',
+      'rework',
+      'opex',
+      'maintenance',
+      'operational'
+    ])) {
       return 'ops_efficiency';
     }
-    if (hasAny(['manpower', 'hours', 'salary', 'time sav', 'productive', 'headcount'])) {
+    if (hasAny([
+      'manpower',
+      'hours',
+      'salary',
+      'time sav',
+      'productive',
+      'headcount'
+    ])) {
       return 'productivity';
     }
-    if (hasAny(['regulator', 'compliance', 'audit', 'gdpr', 'hipaa', 'sox', 'policy', 'penalty'])) {
+    if (hasAny([
+      'regulator',
+      'compliance',
+      'audit',
+      'gdpr',
+      'hipaa',
+      'sox',
+      'policy',
+      'penalty'
+    ])) {
       return 'regulatory_compliance';
     }
-    if (hasAny(['process', 'workflow', 'time-to-market', 'quality', 'error', 'improvement'])) {
+    if (hasAny([
+      'process',
+      'workflow',
+      'time-to-market',
+      'quality',
+      'error',
+      'improvement'
+    ])) {
       return 'process_improvement';
     }
-    if (hasAny(['brand', 'reputation', 'marketing', 'nps', 'image', 'perception'])) {
+    if (hasAny(
+        ['brand', 'reputation', 'marketing', 'nps', 'image', 'perception'])) {
       return 'brand_image';
     }
     if (hasAny(['stakeholder', 'shareholder', 'commitment', 'investor'])) {
@@ -4798,12 +5582,18 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     return 'other';
   }
 
-  void _applyCategoryEstimatesFromItems(int solutionIndex, List<AiCostItem> items) {
-    if (solutionIndex < 0 || solutionIndex >= _categoryCostsPerSolution.length) return;
+  void _applyCategoryEstimatesFromItems(
+      int solutionIndex, List<AiCostItem> items) {
+    if (solutionIndex < 0 || solutionIndex >= _categoryCostsPerSolution.length)
+      return;
     final map = _categoryCostsPerSolution[solutionIndex];
     // reset existing estimates only if empty to not clobber user edits
-    final totals = <String, double>{ for (final f in _projectValueFields) f.key: 0 };
-    final notes = <String, List<String>>{ for (final f in _projectValueFields) f.key: [] };
+    final totals = <String, double>{
+      for (final f in _projectValueFields) f.key: 0
+    };
+    final notes = <String, List<String>>{
+      for (final f in _projectValueFields) f.key: []
+    };
     final ideas = _categoryIdeasPerSolution[solutionIndex];
     // clear and repopulate ideas
     for (final k in ideas.keys.toList()) {
@@ -4811,7 +5601,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     }
     for (final it in items) {
       final key = _categoryForItem(it);
-      totals[key] = (totals[key] ?? 0) + (it.estimatedCost.isFinite ? it.estimatedCost : 0);
+      totals[key] = (totals[key] ?? 0) +
+          (it.estimatedCost.isFinite ? it.estimatedCost : 0);
       notes[key] = [...(notes[key] ?? const []), it.item];
       ideas[key] = [...(ideas[key] ?? const []), it];
     }
@@ -4820,7 +5611,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       final key = entry.key;
       final costCtrl = entry.value.costController;
       final noteCtrl = entry.value.notesController;
-      final hasUserCost = (costCtrl.text.trim().isNotEmpty) && (_parseCurrencyInput(costCtrl.text.trim()) > 0);
+      final hasUserCost = (costCtrl.text.trim().isNotEmpty) &&
+          (_parseCurrencyInput(costCtrl.text.trim()) > 0);
       final hasUserNotes = noteCtrl.text.trim().isNotEmpty;
       final t = (totals[key] ?? 0);
       if (!hasUserCost && t > 0) {
@@ -4856,7 +5648,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           });
         }
       } else {
-        for (int i = 0; i < _rowsPerSolution.length && i < widget.solutions.length; i++) {
+        for (int i = 0;
+            i < _rowsPerSolution.length && i < widget.solutions.length;
+            i++) {
           final title = widget.solutions[i].title;
           final items = map[title] ?? <AiCostItem>[];
           _applyCostItemsToRows(i, items);
@@ -4874,7 +5668,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     }
   }
 
-  void _applyIdeaToCategory(int solutionIndex, String categoryKey, AiCostItem item) {
+  void _applyIdeaToCategory(
+      int solutionIndex, String categoryKey, AiCostItem item) {
     if (solutionIndex < 0 || solutionIndex >= _rowsPerSolution.length) return;
     // Ignore generic benefit pillar labels as cost items
     if (_isProjectValueCategoryLabel(item.item)) return;
@@ -4885,7 +5680,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     row.descriptionController.text = item.description.isEmpty
         ? 'Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum...'
         : item.description;
-    row.applyBaseline(cost: item.estimatedCost, roiPercent: item.roiPercent, npvByYears: item.npvByYear);
+    row.applyBaseline(
+        cost: item.estimatedCost,
+        roiPercent: item.roiPercent,
+        npvByYears: item.npvByYear);
     row.setHorizon(_npvHorizon);
     setState(() {
       _rowsPerSolution[solutionIndex].add(row);
@@ -4907,7 +5705,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     _markDirty();
   }
 
-  Widget _tabButton({required String label, required bool isActive, required VoidCallback onTap}) {
+  Widget _tabButton(
+      {required String label,
+      required bool isActive,
+      required VoidCallback onTap}) {
     return ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
@@ -4921,7 +5722,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         label,
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
-        style: TextStyle(fontSize: 13, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal),
+        style: TextStyle(
+            fontSize: 13,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal),
       ),
     );
   }
@@ -4929,7 +5732,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Widget _currencyDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.withOpacity(0.35))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.withOpacity(0.35))),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _currency,
@@ -4953,36 +5759,67 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     );
   }
 
-  Widget _tableForIndex(int index, {required bool isMobile, required String horizonLabel}) {
+  Widget _tableForIndex(int index,
+      {required bool isMobile, required String horizonLabel}) {
     final rows = _rowsPerSolution[index];
     if (isMobile) {
-      return Column(children: rows.map((r) => _mobileCard(r, horizonLabel)).toList());
+      return Column(
+          children: rows.map((r) => _mobileCard(r, horizonLabel)).toList());
     }
     return Column(children: [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.35))),
+        decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.grey.withOpacity(0.35))),
         child: Row(children: [
-          const Expanded(flex: 2, child: Text('Potential Solution', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-          const Expanded(flex: 5, child: Text('Description', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-          const Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Return On Investment', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)))),
+          const Expanded(
+              flex: 2,
+              child: Text('Potential Solution',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          const Expanded(
+              flex: 5,
+              child: Text('Description',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          const Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Return On Investment',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)))),
           const SizedBox(width: 16),
           Expanded(
             flex: 2,
             child: Align(
               alignment: Alignment.centerRight,
-              child: Text('Net Present Value ($horizonLabel)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Text('Net Present Value ($horizonLabel)',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Estimated Cost', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)))),
+          const Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Estimated Cost',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)))),
           const SizedBox(width: 16),
-          const Expanded(flex: 3, child: Text('Comments', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          const Expanded(
+              flex: 3,
+              child: Text('Comments',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
         ]),
       ),
       const SizedBox(height: 8),
-       Container(
-         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withOpacity(0.35))),
+      Container(
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.grey.withOpacity(0.35))),
         child: Column(children: rows.map((r) => _tableRow(r)).toList()),
       ),
     ]);
@@ -4991,13 +5828,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   Widget _tableRow(_CostRow row) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-       decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
+      decoration: BoxDecoration(
+          border:
+              Border(top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
           flex: 2,
           child: ExpandingTextField(
             controller: row.itemController,
-            decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero, hintText: 'Name'),
+            decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText: 'Name'),
             style: const TextStyle(fontSize: 13, color: Colors.black87),
             minLines: 1,
           ),
@@ -5007,7 +5850,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
           flex: 5,
           child: ExpandingTextField(
             controller: row.descriptionController,
-            decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero, hintText: 'Lorem ipsum  ...'),
+            decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText: 'Lorem ipsum  ...'),
             style: const TextStyle(fontSize: 12, color: Colors.grey),
             minLines: 1,
           ),
@@ -5021,7 +5868,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               controller: row.roiController,
               textAlign: TextAlign.right,
               readOnly: true,
-              decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero, hintText: '0%'),
+              decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: '0%'),
               style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ),
@@ -5035,7 +5886,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               controller: row.npvController,
               textAlign: TextAlign.right,
               readOnly: true,
-              decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero, hintText: '0.00'),
+              decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: '0.00'),
               style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ),
@@ -5048,7 +5903,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
             child: TextField(
               controller: row.costController,
               textAlign: TextAlign.right,
-              decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero, hintText: '0.00'),
+              decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: '0.00'),
               style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ),
@@ -5076,33 +5935,66 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
-       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.withOpacity(0.35))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.withOpacity(0.35))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Potential Solution', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Potential Solution',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        ExpandingTextField(controller: row.itemController, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: 'Name'), minLines: 1),
+        ExpandingTextField(
+            controller: row.itemController,
+            decoration: const InputDecoration(
+                border: OutlineInputBorder(), isDense: true, hintText: 'Name'),
+            minLines: 1),
         const SizedBox(height: 10),
-        const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Description',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        ExpandingTextField(controller: row.descriptionController, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: 'Lorem ipsum...'), minLines: 2),
+        ExpandingTextField(
+            controller: row.descriptionController,
+            decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                hintText: 'Lorem ipsum...'),
+            minLines: 2),
         const SizedBox(height: 10),
-        const Text('Return On Investment', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Return On Investment',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        TextField(controller: row.roiController, readOnly: true, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: '0%')),
+        TextField(
+            controller: row.roiController,
+            readOnly: true,
+            decoration: const InputDecoration(
+                border: OutlineInputBorder(), isDense: true, hintText: '0%')),
         const SizedBox(height: 10),
-        Text('Net Present Value ($horizonLabel)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        Text('Net Present Value ($horizonLabel)',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        TextField(controller: row.npvController, readOnly: true, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: '0.00')),
+        TextField(
+            controller: row.npvController,
+            readOnly: true,
+            decoration: const InputDecoration(
+                border: OutlineInputBorder(), isDense: true, hintText: '0.00')),
         const SizedBox(height: 10),
-        const Text('Estimated Cost', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Estimated Cost',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        TextField(controller: row.costController, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: '0.00')),
+        TextField(
+            controller: row.costController,
+            decoration: const InputDecoration(
+                border: OutlineInputBorder(), isDense: true, hintText: '0.00')),
         const SizedBox(height: 10),
-        const Text('Comments', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Comments',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         ExpandingTextField(
           controller: row.assumptionsController,
-          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: 'Assumptions or notes'),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
+              hintText: 'Assumptions or notes'),
           minLines: 2,
         ),
       ]),
@@ -5110,7 +6002,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
   }
 
   Widget _buildPhaseNavigation() {
-    final phases = ['Initiation Phase', 'Initiation: Front End Planning', 'Workflow Roadmap', 'Agile Roadmap', 'Contracting', 'Procurement'];
+    final phases = [
+      'Initiation Phase',
+      'Initiation: Front End Planning',
+      'Workflow Roadmap',
+      'Agile Roadmap',
+      'Contracting',
+      'Procurement'
+    ];
     return Container(
       height: 80,
       color: Colors.white,
@@ -5129,19 +6028,29 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
               final isActive = index == 0;
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(color: isActive ? const Color(0xFFFFD700) : Colors.transparent, borderRadius: BorderRadius.circular(20)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                    color:
+                        isActive ? const Color(0xFFFFD700) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20)),
                 child: Center(
                   child: Text(
                     phases[index],
-                    style: TextStyle(fontSize: 14, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal, color: isActive ? Colors.black : Colors.grey[600]),
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight:
+                            isActive ? FontWeight.w600 : FontWeight.normal,
+                        color: isActive ? Colors.black : Colors.grey[600]),
                   ),
                 ),
               );
             },
           ),
         ),
-        IconButton(icon: const Icon(Icons.arrow_forward_ios, size: 16), onPressed: () {}),
+        IconButton(
+            icon: const Icon(Icons.arrow_forward_ios, size: 16),
+            onPressed: () {}),
       ]),
     );
   }
@@ -5184,10 +6093,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
 
   Future<void> _generateSavingsSuggestions() async {
     if (_isSavingsGenerating) return;
-    final eligible = _benefitLineItems.where((entry) => entry.totalValue > 0 && entry.title.isNotEmpty).toList();
+    final eligible = _benefitLineItems
+        .where((entry) => entry.totalValue > 0 && entry.title.isNotEmpty)
+        .toList();
     if (eligible.isEmpty) {
       setState(() {
-        _savingsError = 'Add at least one benefit with unit value and units before generating savings scenarios.';
+        _savingsError =
+            'Add at least one benefit with unit value and units before generating savings scenarios.';
         _savingsSuggestions = [];
       });
       return;
@@ -5247,10 +6159,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
       if (!mounted) return;
       setState(() {
         if (insights.estimatedProjectValue > 0) {
-          _projectValueAmountController.text = insights.estimatedProjectValue.toStringAsFixed(0);
+          _projectValueAmountController.text =
+              insights.estimatedProjectValue.toStringAsFixed(0);
         }
         for (final field in _projectValueFields) {
-          final value = insights.benefits[field.key] ?? insights.benefits[field.key.replaceAll('_', ' ')] ?? '';
+          final value = insights.benefits[field.key] ??
+              insights.benefits[field.key.replaceAll('_', ' ')] ??
+              '';
           if (value.trim().isNotEmpty) {
             _projectValueBenefitControllers[field.key]!.text = value.trim();
           }
@@ -5312,7 +6227,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen> with SingleTick
         contextNotes: _buildCostContextNotes(),
         currency: _currency,
       );
-      for (int i = 0; i < _rowsPerSolution.length && i < widget.solutions.length; i++) {
+      for (int i = 0;
+          i < _rowsPerSolution.length && i < widget.solutions.length;
+          i++) {
         final title = widget.solutions[i].title;
         final items = map[title] ?? <AiCostItem>[];
         // Seed editable rows
@@ -5334,7 +6251,8 @@ class _StepDefinition {
   final String title;
   final String subtitle;
 
-  const _StepDefinition({required this.shortLabel, required this.title, required this.subtitle});
+  const _StepDefinition(
+      {required this.shortLabel, required this.title, required this.subtitle});
 }
 
 class _ValueSetupInvestmentSnapshot {
@@ -5375,7 +6293,9 @@ class _BenefitLineItemEntry {
     String notes = '',
   })  : titleController = TextEditingController(text: title),
         unitValueController = TextEditingController(
-          text: unitValue == 0 ? '' : unitValue.toStringAsFixed(unitValue % 1 == 0 ? 0 : 2),
+          text: unitValue == 0
+              ? ''
+              : unitValue.toStringAsFixed(unitValue % 1 == 0 ? 0 : 2),
         ),
         unitsController = TextEditingController(
           text: units == 0 ? '' : units.toStringAsFixed(units % 1 == 0 ? 0 : 2),
@@ -5444,8 +6364,11 @@ class _BenefitCategorySummary {
 }
 
 class _CostRow {
-  final TextEditingController itemController = TextEditingController(text: 'Name');
-  final TextEditingController descriptionController = TextEditingController(text: 'Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum...');
+  final TextEditingController itemController =
+      TextEditingController(text: 'Name');
+  final TextEditingController descriptionController = TextEditingController(
+      text:
+          'Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum  Lorem ipsum...');
   final TextEditingController costController = TextEditingController();
   final TextEditingController roiController = TextEditingController();
   final TextEditingController npvController = TextEditingController();
@@ -5464,11 +6387,15 @@ class _CostRow {
 
   _CostRow({required this.currencyProvider});
 
-  void applyBaseline({required double cost, required double roiPercent, required Map<int, double> npvByYears}) {
+  void applyBaseline(
+      {required double cost,
+      required double roiPercent,
+      required Map<int, double> npvByYears}) {
     _baseCost = cost;
     _baseRoiPct = roiPercent;
     _baseBenefit = _baseCost * (1 + _baseRoiPct / 100);
-    _baseNpvs = npvByYears.isEmpty ? const {5: 0} : Map<int, double>.from(npvByYears);
+    _baseNpvs =
+        npvByYears.isEmpty ? const {5: 0} : Map<int, double>.from(npvByYears);
     _selectedHorizon = _baseNpvs.containsKey(5) ? 5 : _baseNpvs.keys.first;
 
     costController.text = _num(cost);
@@ -5492,7 +6419,8 @@ class _CostRow {
 
   void refreshComputed() {
     final newCost = _parseCurrency(costController.text);
-    final baseNpv = _baseNpvs[_selectedHorizon] ?? (_baseNpvs.values.isNotEmpty ? _baseNpvs.values.first : 0);
+    final baseNpv = _baseNpvs[_selectedHorizon] ??
+        (_baseNpvs.values.isNotEmpty ? _baseNpvs.values.first : 0);
     if (newCost <= 0) {
       roiController.text = _formatPercent(0);
       npvController.text = _num(baseNpv);
@@ -5534,7 +6462,9 @@ class _CostRow {
 
   double currentRoi() => _parsePercent(roiController.text);
 
-  double baselineNpvFor(int years) => _baseNpvs[years] ?? (_baseNpvs.values.isNotEmpty ? _baseNpvs.values.first : 0);
+  double baselineNpvFor(int years) =>
+      _baseNpvs[years] ??
+      (_baseNpvs.values.isNotEmpty ? _baseNpvs.values.first : 0);
 
   double _parseCurrency(String v) {
     final s = v.replaceAll(RegExp(r'[^0-9\.-]'), '');
@@ -5632,7 +6562,8 @@ class _QualitativeOption {
   final String detail;
   final String aiHint;
 
-  const _QualitativeOption({required this.label, required this.detail, required this.aiHint});
+  const _QualitativeOption(
+      {required this.label, required this.detail, required this.aiHint});
 }
 
 class _CostRange {
@@ -5648,7 +6579,9 @@ class _AiTag extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: const BoxDecoration(color: Color(0xFFFFD700), borderRadius: BorderRadius.all(Radius.circular(4))),
+      decoration: const BoxDecoration(
+          color: Color(0xFFFFD700),
+          borderRadius: BorderRadius.all(Radius.circular(4))),
       child: const Text('AI', style: TextStyle(fontWeight: FontWeight.bold)),
     );
   }

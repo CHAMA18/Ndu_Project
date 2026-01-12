@@ -16,7 +16,6 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
-import 'package:ndu_project/widgets/select_project_kaz_button.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
 import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
@@ -919,102 +918,29 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     }
 
     if (_solutions.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: SelectProjectKazButton(
-              solutions: [
-                SolutionOption(title: 'Digital Transformation Platform', description: 'Modernize your infrastructure with cloud-native architecture.'),
-                SolutionOption(title: 'Cloud Migration & Optimization', description: 'Move to cloud-based systems for better scalability.'),
-                SolutionOption(title: 'AI-Powered Intelligence Layer', description: 'Implement ML and AI to automate decision-making.'),
-              ],
-              onSolutionSelected: (selected) async {
-                // Persist selection using ProjectDataHelper and navigate
-                await ProjectDataHelper.updateAndSave(
-                  context: context,
-                  checkpoint: 'potential_solutions',
-                  dataUpdater: (data) {
-                    data.potentialSolutions = [
-                      PotentialSolution(title: selected.title, description: selected.description)
-                    ];
-                    data.projectName = selected.projectName ?? data.projectName;
-                    return data;
-                  },
-                );
-
-                await ProjectDataHelper.saveAndNavigate(
-                  context: context,
-                  checkpoint: 'potential_solutions',
-                  nextScreenBuilder: () => PreferredSolutionAnalysisScreen(
-                    notes: '',
-                    solutions: [AiSolutionItem(title: selected.title, description: selected.description)],
-                    businessCase: _incomingBusinessCase,
-                  ),
-                );
-              },
-            ),
-          ),
-          _buildEmptyState(),
-        ],
-      );
+      return _buildEmptyState();
     }
 
     if (AppBreakpoints.isMobile(context)) {
       return Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: SelectProjectKazButton(
-              solutions: [
-                SolutionOption(title: 'Digital Transformation Platform', description: 'Modernize your infrastructure with cloud-native architecture.'),
-                SolutionOption(title: 'Cloud Migration & Optimization', description: 'Move to cloud-based systems for better scalability.'),
-                SolutionOption(title: 'AI-Powered Intelligence Layer', description: 'Implement ML and AI to automate decision-making.'),
-              ],
-              onSolutionSelected: (selected) async {
-                await ProjectDataHelper.updateAndSave(
-                  context: context,
-                  checkpoint: 'potential_solutions',
-                  dataUpdater: (data) {
-                    data.potentialSolutions = [
-                      PotentialSolution(title: selected.title, description: selected.description)
-                    ];
-                    data.projectName = selected.projectName ?? data.projectName;
-                    return data;
-                  },
-                );
-
-                await ProjectDataHelper.saveAndNavigate(
-                  context: context,
-                  checkpoint: 'potential_solutions',
-                  nextScreenBuilder: () => PreferredSolutionAnalysisScreen(
-                    notes: '',
-                    solutions: [AiSolutionItem(title: selected.title, description: selected.description)],
-                    businessCase: _incomingBusinessCase,
-                  ),
-                );
-              },
-            ),
-          ),
           for (int i = 0; i < _solutions.length; i++) _buildSolutionCardMobile(_solutions[i], i),
-          if (AccessPolicy.isRestrictedAdminHost())
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: ElevatedButton.icon(
-                onPressed: _isLoadingSolutions ? null : _addSolution,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Solution'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade400),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                ),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: ElevatedButton.icon(
+              onPressed: _isLoadingSolutions ? null : _addSolution,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Solution'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black87,
+                side: BorderSide(color: Colors.grey.shade400),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
               ),
             ),
+          ),
         ],
       );
     }
@@ -1026,38 +952,6 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Add quick-select KAZ button above the table for desktop
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: SelectProjectKazButton(
-            solutions: [
-              SolutionOption(title: 'Digital Transformation Platform', description: 'Modernize your infrastructure with cloud-native architecture.'),
-              SolutionOption(title: 'Cloud Migration & Optimization', description: 'Move to cloud-based systems for better scalability.'),
-              SolutionOption(title: 'AI-Powered Intelligence Layer', description: 'Implement ML and AI to automate decision-making.'),
-            ],
-            onSolutionSelected: (selected) async {
-              await ProjectDataHelper.updateAndSave(
-                context: context,
-                checkpoint: 'potential_solutions',
-                dataUpdater: (data) {
-                  data.potentialSolutions = [PotentialSolution(title: selected.title, description: selected.description)];
-                  data.projectName = selected.projectName ?? data.projectName;
-                  return data;
-                },
-              );
-
-              await ProjectDataHelper.saveAndNavigate(
-                context: context,
-                checkpoint: 'potential_solutions',
-                nextScreenBuilder: () => PreferredSolutionAnalysisScreen(
-                  notes: '',
-                  solutions: [AiSolutionItem(title: selected.title, description: selected.description)],
-                  businessCase: _incomingBusinessCase,
-                ),
-              );
-            },
-          ),
-        ),
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[200],
@@ -1114,30 +1008,29 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
             ],
           ),
         ),
-        if (AccessPolicy.isRestrictedAdminHost())
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Text('0/230', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                const SizedBox(width: 20),
-                ElevatedButton.icon(
-                  onPressed: _isLoadingSolutions ? null : _addSolution,
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Add Solution'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black87,
-                    side: BorderSide(color: Colors.grey.shade400),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                  ),
+        Container(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Text('0/230', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(width: 20),
+              ElevatedButton.icon(
+                onPressed: _isLoadingSolutions ? null : _addSolution,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Solution'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                  side: BorderSide(color: Colors.grey.shade400),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
       ],
     );
   }

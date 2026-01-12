@@ -30,6 +30,7 @@ class Subscription {
   final DateTime updatedAt;
   final bool isTrial;
   final DateTime? trialEndDate;
+  final DateTime? pausedUntil;
 
   Subscription({
     required this.id,
@@ -46,10 +47,17 @@ class Subscription {
     required this.updatedAt,
     this.isTrial = false,
     this.trialEndDate,
+    this.pausedUntil,
   });
 
-  bool get isActive => (status == SubscriptionStatus.active || status == SubscriptionStatus.trial) && 
-    (endDate == null || endDate!.isAfter(DateTime.now()));
+  bool get isActive {
+    // Check if subscription is paused
+    if (pausedUntil != null && pausedUntil!.isAfter(DateTime.now())) {
+      return false; // Subscription is paused
+    }
+    return (status == SubscriptionStatus.active || status == SubscriptionStatus.trial) && 
+      (endDate == null || endDate!.isAfter(DateTime.now()));
+  }
   
   bool get isTrialActive => isTrial && 
     status == SubscriptionStatus.trial && 
@@ -76,6 +84,7 @@ class Subscription {
     'updatedAt': Timestamp.fromDate(updatedAt),
     'isTrial': isTrial,
     'trialEndDate': trialEndDate != null ? Timestamp.fromDate(trialEndDate!) : null,
+    'pausedUntil': pausedUntil != null ? Timestamp.fromDate(pausedUntil!) : null,
   };
 
   factory Subscription.fromJson(Map<String, dynamic> json) {
@@ -103,6 +112,7 @@ class Subscription {
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isTrial: json['isTrial'] ?? false,
       trialEndDate: (json['trialEndDate'] as Timestamp?)?.toDate(),
+      pausedUntil: (json['pausedUntil'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -121,6 +131,7 @@ class Subscription {
     DateTime? updatedAt,
     bool? isTrial,
     DateTime? trialEndDate,
+    DateTime? pausedUntil,
   }) {
     return Subscription(
       id: id ?? this.id,
@@ -137,6 +148,7 @@ class Subscription {
       updatedAt: updatedAt ?? this.updatedAt,
       isTrial: isTrial ?? this.isTrial,
       trialEndDate: trialEndDate ?? this.trialEndDate,
+      pausedUntil: pausedUntil ?? this.pausedUntil,
     );
   }
 }
@@ -551,6 +563,74 @@ class SubscriptionService {
       return response.statusCode == 200 && data['success'] == true;
     } catch (e) {
       debugPrint('Error cancelling subscription: $e');
+      return false;
+    }
+  }
+
+  /// Pause subscription for a specified duration
+  /// Updates the user document in Firestore with paused_until timestamp
+  static Future<bool> pauseSubscription(int months) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final pausedUntil = DateTime.now().add(Duration(days: months * 30));
+      
+      // Update user document in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'pausedUntil': Timestamp.fromDate(pausedUntil),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('Subscription paused until: $pausedUntil');
+      return true;
+    } catch (e) {
+      debugPrint('Error pausing subscription: $e');
+      return false;
+    }
+  }
+
+  /// Resume subscription (clear paused_until)
+  static Future<bool> resumeSubscription() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      // Clear paused_until from user document
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'pausedUntil': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('Subscription resumed');
+      return true;
+    } catch (e) {
+      debugPrint('Error resuming subscription: $e');
+      return false;
+    }
+  }
+
+  /// Check if user's subscription is currently paused
+  static Future<bool> isSubscriptionPaused() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) return false;
+
+      final data = userDoc.data();
+      final pausedUntil = data?['pausedUntil'];
+      
+      if (pausedUntil == null) return false;
+      
+      if (pausedUntil is Timestamp) {
+        return pausedUntil.toDate().isAfter(DateTime.now());
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('Error checking subscription pause status: $e');
       return false;
     }
   }

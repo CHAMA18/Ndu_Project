@@ -23,6 +23,7 @@ import 'package:ndu_project/screens/it_considerations_screen.dart';
 import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class CoreStakeholdersScreen extends StatefulWidget {
   final String notes;
@@ -36,7 +37,8 @@ class CoreStakeholdersScreen extends StatefulWidget {
 class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late final TextEditingController _notesController;
-  late final List<TextEditingController> _stakeholderControllers;
+  late List<TextEditingController> _stakeholderControllers; // Made mutable for dynamic addition
+  late final List<AiSolutionItem> _solutions; // Local mutable list
   late final OpenAiServiceSecure _openAi;
   bool _isGenerating = false;
   String? _error;
@@ -59,13 +61,28 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   void initState() {
     super.initState();
     _notesController = TextEditingController(text: widget.notes);
-    _stakeholderControllers = List.generate(widget.solutions.length, (_) => TextEditingController());
+    _solutions = List.from(widget.solutions); // Create mutable copy
+    // Initialize with at least one empty item if solutions list is empty
+    if (_solutions.isEmpty) {
+      _solutions.add(AiSolutionItem(title: '', description: ''));
+    }
+    _stakeholderControllers = List.generate(_solutions.length, (_) => TextEditingController());
     ApiKeyManager.initializeApiKey();
     _openAi = OpenAiServiceSecure();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadExistingData();
-      if (widget.solutions.isNotEmpty) _generateStakeholders();
+      // Only auto-generate if we have actual solutions (not empty placeholder)
+      if (widget.solutions.isNotEmpty) {
+        _generateStakeholders();
+      }
+    });
+  }
+  
+  void _addNewItem() {
+    setState(() {
+      _solutions.add(AiSolutionItem(title: '', description: ''));
+      _stakeholderControllers.add(TextEditingController());
     });
   }
   
@@ -82,8 +99,19 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       }
       
       // Load stakeholder data for each solution
+      // Ensure we have enough controllers and solutions
+      while (_stakeholderControllers.length < stakeholdersData.solutionStakeholderData.length) {
+        _solutions.add(AiSolutionItem(title: '', description: ''));
+        _stakeholderControllers.add(TextEditingController());
+      }
       for (int i = 0; i < stakeholdersData.solutionStakeholderData.length && i < _stakeholderControllers.length; i++) {
         final solutionStakeholder = stakeholdersData.solutionStakeholderData[i];
+        if (i < _solutions.length) {
+          _solutions[i] = AiSolutionItem(
+            title: solutionStakeholder.solutionTitle,
+            description: '',
+          );
+        }
         _stakeholderControllers[i].text = solutionStakeholder.notableStakeholders;
       }
       
@@ -525,7 +553,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         const EditableContentText(contentKey: 'internal_stakeholders_heading', fallback: 'Internal Stakeholders', category: 'business_case', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
         const SizedBox(height: 12),
         if (isMobile) ...[
-          Column(children: List.generate(widget.solutions.length, (i) => _row(i))),
+          Column(children: List.generate(_solutions.length, (i) => _row(i))),
         ] else ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -538,9 +566,31 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: Column(children: List.generate(widget.solutions.length, (i) => _row(i))),
+            child: Column(children: List.generate(_solutions.length, (i) => _row(i))),
           ),
         ],
+        const SizedBox(height: 16),
+        // Add Item button
+        Row(children: [
+          Tooltip(
+            message: 'Add a new stakeholder entry manually',
+            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: _addNewItem,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Item'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(width: 12),
+        ]),
         const SizedBox(height: 24),
         if (isMobile) ...[
           Row(children: [
@@ -587,6 +637,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   }
 
   Future<void> _handleNextPressed() async {
+    // Security check: Verify destination is not locked
+    if (ProjectDataHelper.isDestinationLocked(context, 'cost_analysis')) {
+      ProjectDataHelper.showLockedDestinationMessage(context, 'Cost Benefit Analysis');
+      return;
+    }
+    
     await _saveCoreStakeholdersData();
 
     if (!mounted) return;
@@ -649,18 +705,21 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     try {
       final provider = ProjectDataInherited.of(context);
       
-      // Collect all stakeholder data from all solutions
+      // Collect all stakeholder data from all solutions (including manually added items)
       final solutionStakeholderData = <SolutionStakeholderData>[];
-      for (int i = 0; i < widget.solutions.length; i++) {
-        final solutionTitle = widget.solutions[i].title;
-        final notableStakeholders = i < _stakeholderControllers.length 
-            ? _stakeholderControllers[i].text 
-            : '';
+      for (int i = 0; i < _solutions.length && i < _stakeholderControllers.length; i++) {
+        final solutionTitle = _solutions[i].title.isNotEmpty 
+            ? _solutions[i].title 
+            : 'Stakeholder Entry ${i + 1}';
+        final notableStakeholders = _stakeholderControllers[i].text.trim();
         
-        solutionStakeholderData.add(SolutionStakeholderData(
-          solutionTitle: solutionTitle,
-          notableStakeholders: notableStakeholders,
-        ));
+        // Only add if there's actual content (name or stakeholders)
+        if (solutionTitle.isNotEmpty || notableStakeholders.isNotEmpty) {
+          solutionStakeholderData.add(SolutionStakeholderData(
+            solutionTitle: solutionTitle,
+            notableStakeholders: notableStakeholders,
+          ));
+        }
       }
       
       final coreStakeholdersData = CoreStakeholdersData(
@@ -681,7 +740,8 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   Widget _row(int index) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final s = widget.solutions[index];
+    // Handle cases where we have more controllers than initial solutions (user added items)
+    final s = index < _solutions.length ? _solutions[index] : AiSolutionItem(title: '', description: '');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.25)))),
@@ -828,12 +888,53 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       _error = null;
     });
     try {
+      // Get project context for fallback if solutions are empty
+      final provider = ProjectDataInherited.maybeOf(context);
+      final projectData = provider?.projectData;
+      final projectName = projectData?.projectName ?? '';
+      final projectDescription = projectData?.solutionDescription ?? projectData?.businessCase ?? '';
+      
+      // Use solutions if available, otherwise create a placeholder from project name
+      final solutionsToUse = _solutions.where((s) => s.title.isNotEmpty || s.description.isNotEmpty).toList();
+      if (solutionsToUse.isEmpty && projectName.isNotEmpty) {
+        solutionsToUse.add(AiSolutionItem(
+          title: projectName,
+          description: projectDescription,
+        ));
+        // Ensure we have a controller for this
+        if (_stakeholderControllers.isEmpty) {
+          _stakeholderControllers.add(TextEditingController());
+        }
+        if (_solutions.isEmpty) {
+          _solutions.addAll(solutionsToUse);
+        }
+      }
+      
+      if (solutionsToUse.isEmpty) {
+        setState(() {
+          _error = 'Please add at least one solution or project name to generate stakeholders.';
+          _isGenerating = false;
+        });
+        return;
+      }
+      
+      // Build context notes with project info if available
+      String contextNotes = _notesController.text.trim();
+      if (contextNotes.isEmpty && projectName.isNotEmpty) {
+        contextNotes = 'Project: $projectName';
+        if (projectDescription.isNotEmpty) {
+          contextNotes += '\nDescription: $projectDescription';
+        }
+      }
+      
       final map = await _openAi.generateStakeholdersForSolutions(
-        widget.solutions,
-        contextNotes: _notesController.text.trim(),
+        solutionsToUse,
+        contextNotes: contextNotes,
       );
-      for (int i = 0; i < widget.solutions.length; i++) {
-        final title = widget.solutions[i].title;
+      
+      // Apply generated data to controllers
+      for (int i = 0; i < solutionsToUse.length && i < _stakeholderControllers.length; i++) {
+        final title = solutionsToUse[i].title;
         final stakeholders = map[title] ?? const <String>[];
         _stakeholderControllers[i].text = stakeholders.isEmpty ? '' : stakeholders.map((e) => '- $e').join('\n');
       }

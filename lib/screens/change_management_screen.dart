@@ -715,7 +715,7 @@ class _TableRow extends StatelessWidget {
   final ChangeRequest? request;
   final void Function(ChangeRequest)? onEdit;
 
-  const _TableRow({
+  _TableRow({
     required this.cells,
     required this.isHeader,
     this.request,

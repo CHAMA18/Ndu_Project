@@ -40,13 +40,6 @@ import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/screens/front_end_planning_summary_end.dart';
 import 'package:ndu_project/screens/front_end_planning_security.dart';
 
-// New technology & AI workspace screens
-import 'package:ndu_project/screens/technology_inventory_screen.dart';
-import 'package:ndu_project/screens/ai_integrations_screen.dart';
-import 'package:ndu_project/screens/external_integrations_screen.dart';
-import 'package:ndu_project/screens/technology_definitions_screen.dart';
-import 'package:ndu_project/screens/ai_recommendations_screen.dart';
-
 // Project/Process cluster
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
@@ -217,11 +210,6 @@ class AppRoutes {
   static const longLeadEquipmentOrdering = 'long-lead-equipment-ordering';
   static const technicalDebtManagement = 'technical-debt-management';
   static const riskTracking = 'risk-tracking';
-  static const technologyInventory = 'technology-inventory';
-  static const aiIntegrations = 'ai-integrations';
-  static const externalIntegrations = 'external-integrations';
-  static const technologyDefinitions = 'technology-definitions';
-  static const aiRecommendations = 'ai-recommendations';
   static const identifyStaffOpsTeam = 'identify-staff-ops-team';
   static const contractsTracking = 'contracts-tracking';
   static const vendorTracking = 'vendor-tracking';
@@ -493,12 +481,6 @@ class AppRouter {
       GoRoute(name: AppRoutes.scopeCompletion, path: '/${AppRoutes.scopeCompletion}', builder: (c, s) => const ScopeCompletionScreen()),
       GoRoute(name: AppRoutes.technicalDebtManagement, path: '/${AppRoutes.technicalDebtManagement}', builder: (c, s) => const TechnicalDebtManagementScreen()),
       GoRoute(name: AppRoutes.riskTracking, path: '/${AppRoutes.riskTracking}', builder: (c, s) => const RiskTrackingScreen()),
-  // Technology & AI workspace screens
-  GoRoute(name: AppRoutes.technologyInventory, path: '/${AppRoutes.technologyInventory}', builder: (c, s) => const TechnologyInventoryScreen()),
-  GoRoute(name: AppRoutes.aiIntegrations, path: '/${AppRoutes.aiIntegrations}', builder: (c, s) => const AiIntegrationsScreen()),
-  GoRoute(name: AppRoutes.externalIntegrations, path: '/${AppRoutes.externalIntegrations}', builder: (c, s) => const ExternalIntegrationsScreen()),
-  GoRoute(name: AppRoutes.technologyDefinitions, path: '/${AppRoutes.technologyDefinitions}', builder: (c, s) => const TechnologyDefinitionsScreen()),
-  GoRoute(name: AppRoutes.aiRecommendations, path: '/${AppRoutes.aiRecommendations}', builder: (c, s) => const AiRecommendationsScreen()),
       GoRoute(name: AppRoutes.identifyStaffOpsTeam, path: '/${AppRoutes.identifyStaffOpsTeam}', builder: (c, s) => const IdentifyStaffOpsTeamScreen()),
       GoRoute(name: AppRoutes.contractsTracking, path: '/${AppRoutes.contractsTracking}', builder: (c, s) => const ContractsTrackingScreen()),
       GoRoute(name: AppRoutes.vendorTracking, path: '/${AppRoutes.vendorTracking}', builder: (c, s) => const VendorTrackingScreen()),
@@ -528,9 +510,10 @@ class AppRouter {
     initialLocation: '/',
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
-      // On admin domain, allow all authenticated users
+      final currentPath = state.uri.path;
+      
+      // On admin domain, handle routing specially
       if (AccessPolicy.isRestrictedAdminHost()) {
-        final currentPath = state.uri.path;
         // Redirect /landing to appropriate page (it doesn't exist in admin router)
         if (currentPath == '/${AppRoutes.landing}' || currentPath == '/landing') {
           final email = user?.email;
@@ -539,34 +522,75 @@ class AppRouter {
           }
           return '/${AppRoutes.signIn}';
         }
+        
         // If user is authenticated (has email), allow access
         final email = user?.email;
         if (email != null && email.isNotEmpty) {
           // If on root path and authenticated, redirect to admin home
-          if (currentPath == '/' || state.matchedLocation == '/') {
+          if (currentPath == '/' || currentPath.isEmpty) {
             return '/${AppRoutes.adminHome}';
           }
-          return null; // Allow access to other routes
+          // Allow access to other routes
+          return null;
         }
-        // If not authenticated, redirect to sign-in (not /landing which doesn't exist in admin router)
-        if (currentPath != '/${AppRoutes.signIn}' && state.matchedLocation != '/${AppRoutes.signIn}') {
+        
+        // If not authenticated, redirect to sign-in (unless already on sign-in)
+        if (currentPath != '/${AppRoutes.signIn}' && currentPath != '/sign-in') {
           return '/${AppRoutes.signIn}';
         }
         return null;
       }
+      
       // For non-admin domains, use the standard guard
       final block = _adminHostGuard(user);
       if (block != null) return block;
+      
+      // Default: if authenticated and on root, go to admin home
+      if (user != null && (currentPath == '/' || currentPath.isEmpty)) {
+        return '/${AppRoutes.adminHome}';
+      }
+      
       return null;
     },
     routes: [
-      GoRoute(path: '/', builder: (c, s) => const AdminAuthWrapper()),
+      // Root path - will be handled by redirect function above
+      GoRoute(
+        path: '/',
+        builder: (c, s) {
+          // This should never be reached due to redirect, but provide fallback
+          final user = FirebaseAuth.instance.currentUser;
+          if (user?.email != null && user!.email!.isNotEmpty) {
+            return const AdminAuthWrapper(child: AdminHomeScreen());
+          }
+          return const SignInScreen();
+        },
+      ),
       GoRoute(name: AppRoutes.signIn, path: '/${AppRoutes.signIn}', builder: (c, s) => const SignInScreen()),
-      GoRoute(name: AppRoutes.adminHome, path: '/${AppRoutes.adminHome}', builder: (c, s) => const AdminHomeScreen()),
-      GoRoute(name: AppRoutes.adminProjects, path: '/${AppRoutes.adminProjects}', builder: (c, s) => const AdminProjectsScreen()),
-      GoRoute(name: AppRoutes.adminUsers, path: '/${AppRoutes.adminUsers}', builder: (c, s) => const AdminUsersScreen()),
-      GoRoute(name: AppRoutes.adminCoupons, path: '/${AppRoutes.adminCoupons}', builder: (c, s) => const AdminCouponsScreen()),
-      GoRoute(name: AppRoutes.adminSubscriptionLookup, path: '/${AppRoutes.adminSubscriptionLookup}', builder: (c, s) => const AdminSubscriptionLookupScreen()),
+      GoRoute(
+        name: AppRoutes.adminHome,
+        path: '/${AppRoutes.adminHome}',
+        builder: (c, s) => const AdminAuthWrapper(child: AdminHomeScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminProjects,
+        path: '/${AppRoutes.adminProjects}',
+        builder: (c, s) => const AdminAuthWrapper(child: AdminProjectsScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminUsers,
+        path: '/${AppRoutes.adminUsers}',
+        builder: (c, s) => const AdminAuthWrapper(child: AdminUsersScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminCoupons,
+        path: '/${AppRoutes.adminCoupons}',
+        builder: (c, s) => const AdminAuthWrapper(child: AdminCouponsScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.adminSubscriptionLookup,
+        path: '/${AppRoutes.adminSubscriptionLookup}',
+        builder: (c, s) => const AdminAuthWrapper(child: AdminSubscriptionLookupScreen()),
+      ),
       GoRoute(
         name: AppRoutes.settings,
         path: '/${AppRoutes.settings}',

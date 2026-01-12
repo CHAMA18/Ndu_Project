@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+// AiSolutionItem is exported from openai_service_secure.dart
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/auth_nav.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -28,7 +29,8 @@ import 'package:ndu_project/screens/home_screen.dart';
 class ITConsiderationsScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
-  const ITConsiderationsScreen({super.key, required this.notes, required this.solutions});
+  const ITConsiderationsScreen(
+      {super.key, required this.notes, required this.solutions});
 
   @override
   State<ITConsiderationsScreen> createState() => _ITConsiderationsScreenState();
@@ -37,7 +39,9 @@ class ITConsiderationsScreen extends StatefulWidget {
 class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late final TextEditingController _notesController;
-  late final List<TextEditingController> _techControllers; // one per solution
+  late List<TextEditingController>
+      _techControllers; // one per solution (now mutable)
+  late final List<AiSolutionItem> _solutions; // Local mutable list
   final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
   bool _isGenerating = false;
   String? _error;
@@ -45,37 +49,67 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   bool _businessCaseExpanded = true;
   bool _frontEndExpanded = true;
 
+  void _addNewItem() {
+    setState(() {
+      _solutions.add(AiSolutionItem(
+          title: '', description: '')); // Add a new solution item
+      _techControllers.add(TextEditingController()); // Add a new controller
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _notesController = TextEditingController(text: widget.notes);
-    _techControllers = List.generate(widget.solutions.length, (_) => TextEditingController());
+    _solutions = List.from(widget.solutions); // Create mutable copy
+    // Initialize with at least one empty item if solutions list is empty
+    if (_solutions.isEmpty) {
+      _solutions.add(AiSolutionItem(title: '', description: ''));
+    }
+    _techControllers =
+        List.generate(_solutions.length, (_) => TextEditingController());
     ApiKeyManager.initializeApiKey();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadExistingData();
-      if (widget.solutions.isNotEmpty) _generateTechnologies();
+      // Only auto-generate if we have actual solutions (not empty placeholder)
+      if (widget.solutions.isNotEmpty) {
+        _generateTechnologies();
+      }
     });
   }
-  
+
   void _loadExistingData() {
     try {
       final provider = ProjectDataInherited.of(context);
       final itData = provider.projectData.itConsiderationsData;
-      
+
       if (itData == null) return;
-      
+
       // Load notes
       if (itData.notes.isNotEmpty) {
         _notesController.text = itData.notes;
       }
-      
+
       // Load IT data for each solution
-      for (int i = 0; i < itData.solutionITData.length && i < _techControllers.length; i++) {
+      // Ensure we have enough controllers and solutions
+      while (_techControllers.length < itData.solutionITData.length) {
+        _solutions.add(AiSolutionItem(title: '', description: ''));
+        _techControllers.add(TextEditingController());
+      }
+      for (int i = 0;
+          i < itData.solutionITData.length && i < _techControllers.length;
+          i++) {
         final solutionIT = itData.solutionITData[i];
+        if (i < _solutions.length) {
+          _solutions[i] = AiSolutionItem(
+            title: solutionIT.solutionTitle,
+            description: '',
+          );
+        }
         _techControllers[i].text = solutionIT.coreTechnology;
       }
-      
+
       if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Error loading existing IT considerations data: $e');
@@ -89,14 +123,62 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       _error = null;
     });
     try {
+      // Get project context for fallback if solutions are empty
+      final provider = ProjectDataInherited.maybeOf(context);
+      final projectData = provider?.projectData;
+      final projectName = projectData?.projectName ?? '';
+      final projectDescription =
+          projectData?.solutionDescription ?? projectData?.businessCase ?? '';
+
+      // Use solutions if available, otherwise create a placeholder from project name
+      final solutionsToUse = _solutions
+          .where((s) => s.title.isNotEmpty || s.description.isNotEmpty)
+          .toList();
+      if (solutionsToUse.isEmpty && projectName.isNotEmpty) {
+        solutionsToUse.add(AiSolutionItem(
+          title: projectName,
+          description: projectDescription,
+        ));
+        // Ensure we have a controller for this
+        if (_techControllers.isEmpty) {
+          _techControllers.add(TextEditingController());
+        }
+        if (_solutions.isEmpty) {
+          _solutions.addAll(solutionsToUse);
+        }
+      }
+
+      if (solutionsToUse.isEmpty) {
+        setState(() {
+          _error =
+              'Please add at least one solution or project name to generate IT considerations.';
+          _isGenerating = false;
+        });
+        return;
+      }
+
+      // Build context notes with project info if available
+      String contextNotes = _notesController.text.trim();
+      if (contextNotes.isEmpty && projectName.isNotEmpty) {
+        contextNotes = 'Project: $projectName';
+        if (projectDescription.isNotEmpty) {
+          contextNotes += '\nDescription: $projectDescription';
+        }
+      }
+
       final map = await _openAi.generateTechnologiesForSolutions(
-        widget.solutions,
-        contextNotes: _notesController.text.trim(),
+        solutionsToUse,
+        contextNotes: contextNotes,
       );
-      for (int i = 0; i < widget.solutions.length; i++) {
-        final title = widget.solutions[i].title;
+
+      // Apply generated data to controllers
+      for (int i = 0;
+          i < solutionsToUse.length && i < _techControllers.length;
+          i++) {
+        final title = solutionsToUse[i].title;
         final tech = map[title] ?? const <String>[];
-        _techControllers[i].text = tech.isEmpty ? '' : tech.map((e) => '- $e').join('\n');
+        _techControllers[i].text =
+            tech.isEmpty ? '' : tech.map((e) => '- $e').join('\n');
       }
     } catch (e) {
       _error = e.toString();
@@ -117,10 +199,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         children: [
           Column(children: [
             BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(child: Row(children: [
+            Expanded(
+                child: Row(children: [
               DraggableSidebar(
                 openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(activeItemLabel: 'IT Considerations'),
+                child: const InitiationLikeSidebar(
+                    activeItemLabel: 'IT Considerations'),
               ),
               Expanded(child: _buildMainContent()),
             ])),
@@ -141,21 +225,43 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       child: Row(children: [
         Row(children: [
           if (isMobile)
-            IconButton(icon: const Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
+            IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer()),
           if (!isMobile)
-            IconButton(icon: const Icon(Icons.arrow_back_ios, size: 16), onPressed: () => Navigator.pop(context)),
+            IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 16),
+                onPressed: () => Navigator.pop(context)),
         ]),
         const Spacer(),
-        if (!isMobile) const Text('Initiation Phase', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black)),
+        if (!isMobile)
+          const Text('Initiation Phase',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black)),
         const Spacer(),
         Row(children: [
-          Container(width: 40, height: 40, decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle), child: const Icon(Icons.person, color: Colors.white, size: 20)),
+          Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                  color: Colors.blue, shape: BoxShape.circle),
+              child: const Icon(Icons.person, color: Colors.white, size: 20)),
           if (!isMobile) ...[
             const SizedBox(width: 12),
-            Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(FirebaseAuthService.displayNameOrEmail(fallback: 'User'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black)),
-              const Text('Owner', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ]),
+            Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(FirebaseAuthService.displayNameOrEmail(fallback: 'User'),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black)),
+                  const Text('Owner',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ]),
             const SizedBox(width: 8),
             const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 20),
           ],
@@ -173,7 +279,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(color: Colors.grey.withValues(alpha: 0.25), width: 0.8),
+          right: BorderSide(
+              color: Colors.grey.withValues(alpha: 0.25), width: 0.8),
         ),
       ),
       child: Column(children: [
@@ -198,58 +305,76 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             ),
             SizedBox(width: 12),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('StackOne', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
+              Text('StackOne',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black)),
             ])
           ]),
         ),
         Expanded(
-          child: ListView(padding: const EdgeInsets.symmetric(vertical: 20), children: [
-            _buildMenuItem(Icons.home_outlined, 'Home', onTap: () => HomeScreen.open(context)),
-            _buildExpandableHeader(
-              Icons.flag_outlined,
-              'Initiation Phase',
-              expanded: _initiationExpanded,
-              onTap: () => setState(() => _initiationExpanded = !_initiationExpanded),
-              isActive: true,
-            ),
-            if (_initiationExpanded) ...[
-              _buildExpandableHeader(
-                Icons.business_center_outlined,
-                'Business Case',
-                expanded: _businessCaseExpanded,
-                onTap: () => setState(() => _businessCaseExpanded = !_businessCaseExpanded),
-                isActive: false,
-              ),
-              if (_businessCaseExpanded) ...[
-                _buildNestedSubMenuItem('Potential Solutions', onTap: _openPotentialSolutions),
-                _buildNestedSubMenuItem('Risk Identification', onTap: _openRiskIdentification),
-                _buildNestedSubMenuItem('IT Considerations', isActive: true),
-                _buildNestedSubMenuItem('Infrastructure Considerations', onTap: _openInfrastructureConsiderations),
-                _buildNestedSubMenuItem('Core Stakeholders', onTap: _openCoreStakeholders),
-                _buildNestedSubMenuItem('Cost Benefit Analysis & Financial Metrics', onTap: _openCostAnalysis),
-                _buildNestedSubMenuItem('Preferred Solution Analysis', onTap: _openPreferredSolutionAnalysis),
-              ],
-              _buildExpandableHeader(
-                Icons.timeline,
-                'Initiation: Front End Planning',
-                expanded: _frontEndExpanded,
-                onTap: () => setState(() => _frontEndExpanded = !_frontEndExpanded),
-                isActive: false,
-              ),
-              if (_frontEndExpanded) ...[
-                _buildNestedSubMenuItem('Project Requirements'),
-                _buildNestedSubMenuItem('Project Risks'),
-                _buildNestedSubMenuItem('Project Opportunities'),
-              ],
-            ],
-            _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
-            _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
-            _buildMenuItem(Icons.description_outlined, 'Contracting'),
-            _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
-            const SizedBox(height: 20),
-            _buildMenuItem(Icons.settings_outlined, 'Settings'),
-            _buildMenuItem(Icons.logout_outlined, 'LogOut'),
-          ]),
+          child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              children: [
+                _buildMenuItem(Icons.home_outlined, 'Home',
+                    onTap: () => HomeScreen.open(context)),
+                _buildExpandableHeader(
+                  Icons.flag_outlined,
+                  'Initiation Phase',
+                  expanded: _initiationExpanded,
+                  onTap: () => setState(
+                      () => _initiationExpanded = !_initiationExpanded),
+                  isActive: true,
+                ),
+                if (_initiationExpanded) ...[
+                  _buildExpandableHeader(
+                    Icons.business_center_outlined,
+                    'Business Case',
+                    expanded: _businessCaseExpanded,
+                    onTap: () => setState(
+                        () => _businessCaseExpanded = !_businessCaseExpanded),
+                    isActive: false,
+                  ),
+                  if (_businessCaseExpanded) ...[
+                    _buildNestedSubMenuItem('Potential Solutions',
+                        onTap: _openPotentialSolutions),
+                    _buildNestedSubMenuItem('Risk Identification',
+                        onTap: _openRiskIdentification),
+                    _buildNestedSubMenuItem('IT Considerations',
+                        isActive: true),
+                    _buildNestedSubMenuItem('Infrastructure Considerations',
+                        onTap: _openInfrastructureConsiderations),
+                    _buildNestedSubMenuItem('Core Stakeholders',
+                        onTap: _openCoreStakeholders),
+                    _buildNestedSubMenuItem(
+                        'Cost Benefit Analysis & Financial Metrics',
+                        onTap: _openCostAnalysis),
+                    _buildNestedSubMenuItem('Preferred Solution Analysis',
+                        onTap: _openPreferredSolutionAnalysis),
+                  ],
+                  _buildExpandableHeader(
+                    Icons.timeline,
+                    'Initiation: Front End Planning',
+                    expanded: _frontEndExpanded,
+                    onTap: () =>
+                        setState(() => _frontEndExpanded = !_frontEndExpanded),
+                    isActive: false,
+                  ),
+                  if (_frontEndExpanded) ...[
+                    _buildNestedSubMenuItem('Project Requirements'),
+                    _buildNestedSubMenuItem('Project Risks'),
+                    _buildNestedSubMenuItem('Project Opportunities'),
+                  ],
+                ],
+                _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
+                _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
+                _buildMenuItem(Icons.description_outlined, 'Contracting'),
+                _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
+                const SizedBox(height: 20),
+                _buildMenuItem(Icons.settings_outlined, 'Settings'),
+                _buildMenuItem(Icons.logout_outlined, 'LogOut'),
+              ]),
         ),
       ]),
     );
@@ -261,7 +386,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
-            const ListTile(leading: CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFD700), child: Icon(Icons.person_outline, color: Colors.black87)), title: Text('StackOne')),
+            const ListTile(
+                leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Color(0xFFFFD700),
+                    child: Icon(Icons.person_outline, color: Colors.black87)),
+                title: Text('StackOne')),
             const Divider(height: 1),
             _buildMenuItem(Icons.home_outlined, 'Home', onTap: () {
               Navigator.of(context).maybePop();
@@ -271,7 +401,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
               Icons.flag_outlined,
               'Initiation Phase',
               expanded: _initiationExpanded,
-              onTap: () => setState(() => _initiationExpanded = !_initiationExpanded),
+              onTap: () =>
+                  setState(() => _initiationExpanded = !_initiationExpanded),
               isActive: true,
             ),
             if (_initiationExpanded) ...[
@@ -279,7 +410,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                 Icons.business_center_outlined,
                 'Business Case',
                 expanded: _businessCaseExpanded,
-                onTap: () => setState(() => _businessCaseExpanded = !_businessCaseExpanded),
+                onTap: () => setState(
+                    () => _businessCaseExpanded = !_businessCaseExpanded),
                 isActive: false,
               ),
               if (_businessCaseExpanded) ...[
@@ -292,7 +424,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                   _openRiskIdentification();
                 }),
                 _buildNestedSubMenuItem('IT Considerations', isActive: true),
-                _buildNestedSubMenuItem('Infrastructure Considerations', onTap: () {
+                _buildNestedSubMenuItem('Infrastructure Considerations',
+                    onTap: () {
                   Navigator.of(context).maybePop();
                   _openInfrastructureConsiderations();
                 }),
@@ -300,11 +433,13 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                   Navigator.of(context).maybePop();
                   _openCoreStakeholders();
                 }),
-                _buildNestedSubMenuItem('Cost Benefit Analysis & Financial Metrics', onTap: () {
+                _buildNestedSubMenuItem(
+                    'Cost Benefit Analysis & Financial Metrics', onTap: () {
                   Navigator.of(context).maybePop();
                   _openCostAnalysis();
                 }),
-                _buildNestedSubMenuItem('Preferred Solution Analysis', onTap: () {
+                _buildNestedSubMenuItem('Preferred Solution Analysis',
+                    onTap: () {
                   Navigator.of(context).maybePop();
                   _openPreferredSolutionAnalysis();
                 }),
@@ -313,13 +448,17 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                 Icons.timeline,
                 'Initiation: Front End Planning',
                 expanded: _frontEndExpanded,
-                onTap: () => setState(() => _frontEndExpanded = !_frontEndExpanded),
+                onTap: () =>
+                    setState(() => _frontEndExpanded = !_frontEndExpanded),
                 isActive: false,
               ),
               if (_frontEndExpanded) ...[
-                _buildNestedSubMenuItem('Project Requirements', onTap: () => Navigator.of(context).maybePop()),
-                _buildNestedSubMenuItem('Project Risks', onTap: () => Navigator.of(context).maybePop()),
-                _buildNestedSubMenuItem('Project Opportunities', onTap: () => Navigator.of(context).maybePop()),
+                _buildNestedSubMenuItem('Project Requirements',
+                    onTap: () => Navigator.of(context).maybePop()),
+                _buildNestedSubMenuItem('Project Risks',
+                    onTap: () => Navigator.of(context).maybePop()),
+                _buildNestedSubMenuItem('Project Opportunities',
+                    onTap: () => Navigator.of(context).maybePop()),
               ],
             ],
             _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
@@ -341,18 +480,20 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, {VoidCallback? onTap, bool selected = false}) {
+  Widget _buildMenuItem(IconData icon, String title,
+      {VoidCallback? onTap, bool selected = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
       child: InkWell(
-        onTap: onTap ?? () {
-          if (title == 'LogOut') {
-            AuthNav.signOutAndExit(context);
-          } else if (title == 'Settings') {
-            SettingsScreen.open(context);
-          }
-        },
+        onTap: onTap ??
+            () {
+              if (title == 'LogOut') {
+                AuthNav.signOutAndExit(context);
+              } else if (title == 'Settings') {
+                SettingsScreen.open(context);
+              }
+            },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: selected
@@ -368,7 +509,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(fontSize: 14, color: selected ? primary : Colors.black87, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 14,
+                    color: selected ? primary : Colors.black87,
+                    fontWeight: FontWeight.w600),
                 softWrap: true,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -380,7 +524,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
-  Widget _buildSubMenuItem(String title, {VoidCallback? onTap, bool isActive = false}) {
+  Widget _buildSubMenuItem(String title,
+      {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
@@ -389,14 +534,23 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(Icons.circle, size: 8, color: isActive ? primary : Colors.grey[500]),
+            Icon(Icons.circle,
+                size: 8, color: isActive ? primary : Colors.grey[500]),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(title, style: TextStyle(fontSize: 13, color: isActive ? primary : Colors.black87, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal), maxLines: 2, overflow: TextOverflow.ellipsis),
+              child: Text(title,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: isActive ? primary : Colors.black87,
+                      fontWeight:
+                          isActive ? FontWeight.w600 : FontWeight.normal),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ),
           ]),
         ),
@@ -405,7 +559,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   }
 
   // Third-level nested menu item (under Business Case)
-  Widget _buildNestedSubMenuItem(String title, {VoidCallback? onTap, bool isActive = false}) {
+  Widget _buildNestedSubMenuItem(String title,
+      {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 72, right: 24, top: 2, bottom: 2),
@@ -414,14 +569,23 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(Icons.circle, size: 6, color: isActive ? primary : Colors.grey[400]),
+            Icon(Icons.circle,
+                size: 6, color: isActive ? primary : Colors.grey[400]),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(title, style: TextStyle(fontSize: 12, color: isActive ? primary : Colors.black87, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal), maxLines: 2, overflow: TextOverflow.ellipsis),
+              child: Text(title,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isActive ? primary : Colors.black87,
+                      fontWeight:
+                          isActive ? FontWeight.w600 : FontWeight.normal),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ),
           ]),
         ),
@@ -429,7 +593,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
-  Widget _buildExpandableHeader(IconData icon, String title, {required bool expanded, required VoidCallback onTap, bool isActive = false}) {
+  Widget _buildExpandableHeader(IconData icon, String title,
+      {required bool expanded,
+      required VoidCallback onTap,
+      bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
@@ -438,7 +605,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -458,7 +626,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey[700], size: 20),
+              Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: Colors.grey[700],
+                  size: 20),
             ],
           ),
         ),
@@ -474,7 +647,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       ),
     );
   }
-  
+
   void _openPotentialSolutions() {
     Navigator.push(
       context,
@@ -499,7 +672,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   Future<void> _openInfrastructureConsiderations() async {
     // Save IT considerations data
     await _saveITConsiderationsData();
-    
+
     // Show 3-second loading dialog
     if (!mounted) return;
     showDialog(
@@ -521,12 +694,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         ),
       ),
     );
-    
+
     await Future.delayed(const Duration(seconds: 3));
-    
+
     if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -537,34 +710,40 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       ),
     );
   }
-  
+
   Future<void> _saveITConsiderationsData() async {
     try {
       final provider = ProjectDataInherited.of(context);
-      
-      // Collect all IT data from all solutions
+
+      // Collect all IT data from all solutions (including manually added items)
       final solutionITData = <SolutionITData>[];
-      for (int i = 0; i < widget.solutions.length; i++) {
-        final solutionTitle = widget.solutions[i].title;
-        final coreTechnology = i < _techControllers.length 
-            ? _techControllers[i].text 
-            : '';
-        
-        solutionITData.add(SolutionITData(
-          solutionTitle: solutionTitle,
-          coreTechnology: coreTechnology,
-        ));
+      for (int i = 0;
+          i < _solutions.length && i < _techControllers.length;
+          i++) {
+        final solutionTitle = _solutions[i].title.isNotEmpty
+            ? _solutions[i].title
+            : 'IT Entry ${i + 1}';
+        final coreTechnology = _techControllers[i].text.trim();
+
+        // Only add if there's actual content (name or technology)
+        if (solutionTitle.isNotEmpty || coreTechnology.isNotEmpty) {
+          solutionITData.add(SolutionITData(
+            solutionTitle: solutionTitle,
+            coreTechnology: coreTechnology,
+          ));
+        }
       }
-      
+
       final itConsiderationsData = ITConsiderationsData(
         notes: _notesController.text,
         solutionITData: solutionITData,
       );
-      
+
       provider.updateProjectData(
-        provider.projectData.copyWith(itConsiderationsData: itConsiderationsData),
+        provider.projectData
+            .copyWith(itConsiderationsData: itConsiderationsData),
       );
-      
+
       // Save to Firebase with checkpoint
       await provider.saveToFirebase(checkpoint: 'it_considerations');
     } catch (e) {
@@ -611,30 +790,49 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
-    final firstLabel = widget.solutions.isNotEmpty ? _potentialSolutionLabel(0) : 'Potential Solution 1';
     return SingleChildScrollView(
       padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          const EditableContentText(contentKey: 'it_considerations_heading', fallback: 'IT Considerations ', category: 'business_case', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.black)),
-          EditableContentText(contentKey: 'it_considerations_description', fallback: '(List core IT considerations for each Potential Solution)', category: 'business_case', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          const EditableContentText(
+              contentKey: 'it_considerations_heading',
+              fallback: 'IT Considerations ',
+              category: 'business_case',
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black)),
+          EditableContentText(
+              contentKey: 'it_considerations_description',
+              fallback:
+                  '(List core IT considerations for each Potential Solution)',
+              category: 'business_case',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
         ]),
         SizedBox(height: AppBreakpoints.fieldGap(context)),
         const EditableContentText(
           contentKey: 'it_considerations_notes_heading',
           fallback: 'Notes',
           category: 'business_case',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
         ),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.withValues(alpha: 0.3))),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3))),
           child: TextField(
             controller: _notesController,
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            decoration: InputDecoration(hintText: 'Input your notes here...', hintStyle: TextStyle(color: Colors.grey[400]), border: InputBorder.none, contentPadding: EdgeInsets.zero),
+            decoration: InputDecoration(
+                hintText: 'Input your notes here...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero),
             minLines: 1,
             maxLines: null,
           ),
@@ -645,47 +843,88 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red.withValues(alpha: 0.3))),
+            decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3))),
             child: Row(children: [
               const Icon(Icons.error_outline, color: Colors.red, size: 18),
               const SizedBox(width: 8),
-              Expanded(child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis)),
-              TextButton(onPressed: _isGenerating ? null : _generateTechnologies, child: const Text('Retry')),
+              Expanded(
+                  child: Text(_error!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis)),
+              TextButton(
+                  onPressed: _isGenerating ? null : _generateTechnologies,
+                  child: const Text('Retry')),
             ]),
           ),
         const SizedBox(height: 8),
-        const Text('IT Considerations for each potential solution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
+        const Text('IT Considerations for each potential solution',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black)),
         const SizedBox(height: 12),
         if (isMobile) ...[
-          Column(children: List.generate(widget.solutions.length, (i) => _row(i))),
+          Column(
+              children: List.generate(_techControllers.length, (i) => _row(i))),
         ] else ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
+            decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
             child: const Row(children: [
-              Expanded(child: Text('Potential Solution', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-              Expanded(child: Text('Core Technology', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+              Expanded(
+                  child: Text('Potential Solution',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600))),
+              Expanded(
+                  child: Text('Core Technology',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600))),
             ]),
           ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: Column(children: List.generate(widget.solutions.length, (i) => _row(i))),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
+            child: Column(
+                children:
+                    List.generate(_techControllers.length, (i) => _row(i))),
           ),
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        // Add Item button
         Row(children: [
           Tooltip(
             message:
                 'While AI suggestions are helpful, we strongly encourage you to make the required adjustments for the best possible results',
-            child: Icon(Icons.lightbulb_outline, color: Colors.black87),
+            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
           ),
           const SizedBox(width: 8),
-          FilledButton.icon(onPressed: _isGenerating ? null : _generateTechnologies, icon: const Icon(Icons.auto_awesome), label: Text(_isGenerating ? 'Generating...' : 'Generate technologies')),
+          ElevatedButton.icon(
+            onPressed: _addNewItem,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Item'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
           const SizedBox(width: 12),
         ]),
         const SizedBox(height: 24),
-        
+
         // Navigation Buttons
         BusinessCaseNavigationButtons(
           currentScreen: 'IT Considerations',
@@ -698,10 +937,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   String _potentialSolutionLabel(int index) {
     final number = index + 1;
-    if (index < 0 || index >= widget.solutions.length) {
+    if (index < 0 || index >= _solutions.length) {
       return 'Potential Solution $number';
     }
-    final title = widget.solutions[index].title.trim();
+    final title = _solutions[index].title.trim();
     if (title.isEmpty) {
       return 'Potential Solution $number';
     }
@@ -710,20 +949,29 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Widget _row(int index) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final s = widget.solutions[index];
+    // Handle cases where we have more controllers than solutions (user added items)
+    final s = index < _solutions.length
+        ? _solutions[index]
+        : AiSolutionItem(title: '', description: '');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.25)))),
+      decoration: BoxDecoration(
+          border: Border(
+              top: BorderSide(color: Colors.grey.withValues(alpha: 0.25)))),
       child: isMobile
           ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _numberBadge(index + 1),
                 const SizedBox(width: 8),
-                Expanded(child: Text(_potentialSolutionLabel(index), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                Expanded(
+                    child: Text(_potentialSolutionLabel(index),
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600))),
               ]),
               if (s.description.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(s.description, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(s.description,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
               const SizedBox(height: 10),
               _techTextArea(_techControllers[index]),
@@ -732,22 +980,33 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
               Expanded(
                 child: Align(
                   alignment: Alignment.topLeft,
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _numberBadge(index + 1),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _potentialSolutionLabel(index),
-                          style: const TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ]),
-                    if (s.description.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(s.description, style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 3, overflow: TextOverflow.ellipsis),
-                    ]
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _numberBadge(index + 1),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _potentialSolutionLabel(index),
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.black87,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ]),
+                        if (s.description.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(s.description,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ]
+                      ]),
                 ),
               ),
               const SizedBox(width: 16),
@@ -767,14 +1026,19 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: primary.withValues(alpha: 0.6), width: 1),
       ),
-      child: Text('$number', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
+      child: Text('$number',
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
     );
   }
 
   Widget _techTextArea(TextEditingController controller) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
       child: TextField(
         controller: controller,
         minLines: 2,
@@ -783,7 +1047,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
           border: InputBorder.none,
           isDense: true,
           contentPadding: EdgeInsets.zero,
-          hintText: 'Enter core technologies specific to this solution (e.g., platforms, frameworks, databases, tools)...',
+          hintText:
+              'Enter core technologies specific to this solution (e.g., platforms, frameworks, databases, tools)...',
           hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
         ),
         style: const TextStyle(fontSize: 12, color: Colors.black87),

@@ -22,6 +22,8 @@ import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
+import 'package:ndu_project/screens/front_end_planning_summary.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
@@ -444,13 +446,152 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   Future<void> _handleSkipPressed() async {
     FocusScope.of(context).unfocus();
 
+    // Show modal explaining skip requirements
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Color(0xFFFFD700), size: 28),
+            SizedBox(width: 12),
+            Expanded(child: Text('Skip Business Case')),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'To skip the Business Case, you must provide essential information in the following sections:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 16),
+            _RequirementItem(icon: Icons.people_outline, text: 'Core Stakeholders'),
+            _RequirementItem(icon: Icons.computer_outlined, text: 'IT Considerations'),
+            _RequirementItem(icon: Icons.business_outlined, text: 'Infrastructure Considerations'),
+            SizedBox(height: 12),
+            Text(
+              'You will be directed to fill these fields before proceeding to Front End Planning.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldProceed != true || !mounted) return;
+
     final provider = ProjectDataHelper.getProvider(context);
+    final projectData = provider.projectData;
+
+    // Check which mandatory fields are missing
+    final missingFields = <String, String>{};
+    
+    // Check Core Stakeholders - validation: lists must not be empty (regardless of AI or manual entry)
+    final hasCoreStakeholders = projectData.coreStakeholdersData != null &&
+        projectData.coreStakeholdersData!.solutionStakeholderData.isNotEmpty &&
+        projectData.coreStakeholdersData!.solutionStakeholderData.any((item) => 
+          item.notableStakeholders.trim().isNotEmpty);
+    if (!hasCoreStakeholders) {
+      missingFields['Core Stakeholders'] = 'core_stakeholders';
+    }
+
+    // Check IT Considerations - validation: lists must not be empty (regardless of AI or manual entry)
+    final hasITConsiderations = projectData.itConsiderationsData != null &&
+        projectData.itConsiderationsData!.solutionITData.isNotEmpty &&
+        projectData.itConsiderationsData!.solutionITData.any((item) => 
+          item.coreTechnology.trim().isNotEmpty);
+    if (!hasITConsiderations) {
+      missingFields['IT Considerations'] = 'it_considerations';
+    }
+
+    // Check Infrastructure Considerations - validation: lists must not be empty (regardless of AI or manual entry)
+    final hasInfrastructure = projectData.infrastructureConsiderationsData != null &&
+        projectData.infrastructureConsiderationsData!.solutionInfrastructureData.isNotEmpty &&
+        projectData.infrastructureConsiderationsData!.solutionInfrastructureData.any((item) => 
+          item.majorInfrastructure.trim().isNotEmpty);
+    if (!hasInfrastructure) {
+      missingFields['Infrastructure Considerations'] = 'infrastructure_considerations';
+    }
+
+    // If fields are missing, route to the first missing screen
+    if (missingFields.isNotEmpty) {
+      if (!mounted) return;
+      
+      // Save current data first
+      provider.updateInitiationData(
+        notes: _notesController.text.trim(),
+        businessCase: _businessCaseController.text.trim(),
+      );
+      await provider.saveToFirebase(checkpoint: 'business_case');
+
+      // Show dialog indicating which fields need to be filled
+      await showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Required Information Missing'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Please complete the following sections:'),
+              const SizedBox(height: 12),
+              ...missingFields.keys.map((field) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, size: 8, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    Text(field, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              )),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                // Navigate to first missing field
+                final firstMissingCheckpoint = missingFields.values.first;
+                _navigateToRequiredField(firstMissingCheckpoint);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD700),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Fill Required Fields'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // All required fields are filled - proceed to Front End Planning
     provider.updateInitiationData(
       notes: _notesController.text.trim(),
       businessCase: _businessCaseController.text.trim(),
     );
 
-    await provider.saveToFirebase(checkpoint: 'project_framework');
+    await provider.saveToFirebase(checkpoint: 'fep_summary');
 
     final projectId = provider.projectData.projectId;
     if (projectId != null && projectId.isNotEmpty) {
@@ -458,7 +599,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         await FirebaseFirestore.instance.collection('projects').doc(projectId).update({
           'status': 'Planning',
           'milestone': 'planning',
-          'checkpointRoute': 'project_framework',
+          'checkpointRoute': 'fep_summary',
           'checkpointAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -472,11 +613,49 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     }
 
     if (!mounted) return;
+    // Navigate to Front End Planning Summary
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const ProjectFrameworkScreen(),
+        builder: (_) => const FrontEndPlanningSummaryScreen(),
       ),
     );
+  }
+
+  void _navigateToRequiredField(String checkpoint) {
+    final provider = ProjectDataHelper.getProvider(context);
+    final projectData = provider.projectData;
+
+    Widget? screen;
+    switch (checkpoint) {
+      case 'core_stakeholders':
+        screen = CoreStakeholdersScreen(
+          notes: projectData.coreStakeholdersData?.notes ?? projectData.notes ?? '',
+          solutions: projectData.potentialSolutions
+              .map((s) => AiSolutionItem(title: s.title, description: s.description))
+              .toList(),
+        );
+        break;
+      case 'it_considerations':
+        screen = ITConsiderationsScreen(
+          notes: projectData.itConsiderationsData?.notes ?? projectData.notes ?? '',
+          solutions: projectData.potentialSolutions
+              .map((s) => AiSolutionItem(title: s.title, description: s.description))
+              .toList(),
+        );
+        break;
+      case 'infrastructure_considerations':
+        screen = InfrastructureConsiderationsScreen(
+          notes: projectData.infrastructureConsiderationsData?.notes ?? projectData.notes ?? '',
+          solutions: projectData.potentialSolutions
+              .map((s) => AiSolutionItem(title: s.title, description: s.description))
+              .toList(),
+        );
+        break;
+    }
+
+    if (screen != null) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen!));
+    }
   }
 
   String _formatSuggestionError(Object error) {
@@ -1649,3 +1828,24 @@ class _RingPainter extends CustomPainter {
 // Simple wrappers since dart:math isn't imported at top of file
 double MathSin(double v) => Math.sin(v);
 double MathCos(double v) => Math.cos(v);
+
+class _RequirementItem extends StatelessWidget {
+  const _RequirementItem({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFFFFD700)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
+  }
+}

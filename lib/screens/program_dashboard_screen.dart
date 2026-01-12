@@ -11,6 +11,7 @@ import '../services/navigation_context_service.dart';
 import '../services/program_service.dart';
 import '../services/project_service.dart';
 import '../services/project_navigation_service.dart';
+import '../utils/navigation_route_resolver.dart';
 import '../providers/project_data_provider.dart';
 import '../screens/initiation_phase_screen.dart';
 import '../widgets/dashboard_stat_card.dart';
@@ -1118,16 +1119,23 @@ class _ProjectRow extends StatelessWidget {
       Navigator.of(context).pop(); // Close loading dialog
 
       if (success) {
-        // Get the last visited page for this project
-        final lastPage = await ProjectNavigationService.instance.getLastPage(projectId);
-        debugPrint('✅ Project loaded successfully, navigating to last page: $lastPage');
+        // Get checkpoint from Firestore (primary source) or fallback to SharedPreferences
+        final projectRecord = await ProjectService.getProjectById(projectId);
+        final checkpointRoute = projectRecord?.checkpointRoute.isNotEmpty == true
+            ? projectRecord!.checkpointRoute
+            : await ProjectNavigationService.instance.getLastPage(projectId);
+        debugPrint('✅ Project loaded successfully, navigating to checkpoint: $checkpointRoute');
         
-        // Navigate to the last visited page (default to initiation)
+        // Resolve checkpoint to screen widget
+        final screen = NavigationRouteResolver.resolveCheckpointToScreen(
+          checkpointRoute.isEmpty ? 'initiation' : checkpointRoute,
+          context,
+        );
+        
+        // Navigate to the resolved screen
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => const InitiationPhaseScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => screen ?? const InitiationPhaseScreen()),
         );
       } else {
         debugPrint('❌ Failed to load project: ${provider.lastError}');
