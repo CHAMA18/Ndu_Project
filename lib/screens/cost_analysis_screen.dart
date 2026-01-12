@@ -24,6 +24,7 @@ import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
+import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/widgets/expanding_text_field.dart';
 import 'package:ndu_project/screens/initiation_phase_screen.dart';
 import 'package:ndu_project/screens/potential_solutions_screen.dart';
@@ -33,6 +34,7 @@ import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+<<<<<<< HEAD
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
@@ -43,10 +45,13 @@ import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+=======
+>>>>>>> 1ee471ae (Merge codebases)
 
 class CostAnalysisScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
+<<<<<<< HEAD
   final int? initialStepIndex;
   final int? initialSolutionIndex;
   const CostAnalysisScreen(
@@ -55,6 +60,10 @@ class CostAnalysisScreen extends StatefulWidget {
       required this.solutions,
       this.initialStepIndex,
       this.initialSolutionIndex});
+=======
+  const CostAnalysisScreen(
+      {super.key, required this.notes, required this.solutions});
+>>>>>>> 1ee471ae (Merge codebases)
 
   @override
   State<CostAnalysisScreen> createState() => _CostAnalysisScreenState();
@@ -182,6 +191,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     ),
   ];
   static const Map<String, String> _benefitMetrics = {
+<<<<<<< HEAD
     'revenue':
         'A calculation of the income from the number of products/services that would come from the project multiplied by months/year for the number of years. Could be a lumpsum too.',
     'cost_saving':
@@ -211,6 +221,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     'brand_image': 'Brand Image',
     'stakeholder_commitment': 'SH Comm.',
     'other': 'Other',
+=======
+    'revenue': 'Revenue uplift, gross margin, payback period',
+    'cost_saving': 'Cost avoidance, savings from not buying, making something',
+    'ops_efficiency': 'Operational costs saved, equipment rental savings',
+    'productivity': 'Manpower hours, salary rate, time savings',
+    'regulatory_compliance':
+        'Compliance fees, penalty avoidance, shutdown costs',
+    'process_improvement': 'Productivity gains, operational efficiency overlap',
+    'brand_image': 'Market gains, revenue impact, cost savings from perception',
+    'stakeholder_commitment':
+        'Shareholder gains, loss avoidance from commitments',
+    'other': 'Custom category with flexible formulas',
+>>>>>>> 1ee471ae (Merge codebases)
   };
   static const List<MapEntry<String, String>> _projectValueFields = [
     MapEntry('revenue', 'Revenue'),
@@ -253,15 +276,23 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   late final OpenAiServiceSecure _openAi;
   bool _isGenerating = false;
   bool _isGeneratingValue = false;
+<<<<<<< HEAD
   // Basis frequency for multi-year benefit calculations (required selection)
   String? _basisFrequency;
+=======
+  // Basis frequency for multi-year benefit calculations
+  String _basisFrequency = 'Monthly';
+>>>>>>> 1ee471ae (Merge codebases)
   static const List<String> _frequencyOptions = [
     'Monthly',
     'Quarterly',
     'Yearly'
   ];
+<<<<<<< HEAD
   // Basis frequency for tracker table (Annual vs Monthly)
   String _trackerBasisFrequency = 'Annual';
+=======
+>>>>>>> 1ee471ae (Merge codebases)
   String? _error;
   String? _projectValueError;
   int _npvHorizon = 5;
@@ -340,6 +371,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       return List.generate(
           3, (j) => _CostRow(currencyProvider: () => _currency));
     });
+<<<<<<< HEAD
     _currentStepIndex = _boundedIndex(
       widget.initialStepIndex ?? _currentStepIndex,
       _stepDefinitions.length,
@@ -368,13 +400,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     );
     _savingsContextHashesBySolution =
         List<String>.filled(_rowsPerSolution.length, '');
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     _solutionContexts =
         List.generate(_rowsPerSolution.length, (_) => _SolutionCostContext());
     _categoryCostsPerSolution = List.generate(_rowsPerSolution.length, (_) {
       return {
         for (final field in _projectValueFields)
           field.key: _CategoryCostEntry(categoryKey: field.key)
+<<<<<<< HEAD
             ..bind(_markDirtyAndRecalc),
+=======
+            ..bind(_markDirty),
+>>>>>>> 1ee471ae (Merge codebases)
       };
     });
     _categoryIdeasPerSolution = List.generate(_rowsPerSolution.length, (_) {
@@ -419,6 +457,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     });
   }
 
+<<<<<<< HEAD
   List<_BenefitLineItemEntry> _benefitItemsForSolution(int index) {
     if (index < 0 || index >= _benefitLineItemsBySolution.length) {
       return const <_BenefitLineItemEntry>[];
@@ -583,10 +622,51 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           unitValue: unitValue,
           units: 12, // 12 months – standard annual basis
           notes: 'Auto-seeded estimate based on project context; refine assumptions.',
+=======
+  void _loadExistingData() {
+    try {
+      final provider = ProjectDataInherited.of(context);
+      final costAnalysisData = provider.projectData.costAnalysisData;
+
+      if (costAnalysisData == null) return;
+
+      // Load notes
+      if (costAnalysisData.notes.isNotEmpty) {
+        _notesController.text = costAnalysisData.notes;
+      }
+
+      // Load Step 1: Project Value data
+      if (costAnalysisData.projectValueAmount.isNotEmpty) {
+        _projectValueAmountController.text =
+            costAnalysisData.projectValueAmount;
+      }
+
+      // Load Project Value benefits
+      for (final entry in costAnalysisData.projectValueBenefits.entries) {
+        final controller = _projectValueBenefitControllers[entry.key];
+        if (controller != null) {
+          controller.text = entry.value;
+        }
+      }
+
+      // Load benefit line items
+      _benefitLineItems.clear();
+      for (final item in costAnalysisData.benefitLineItems) {
+        final entry = _BenefitLineItemEntry(
+          id: item.id,
+          categoryKey: item.categoryKey.isEmpty
+              ? _projectValueFields.first.key
+              : item.categoryKey,
+          title: item.title,
+          unitValue: double.tryParse(item.unitValue) ?? 0,
+          units: double.tryParse(item.units) ?? 0,
+          notes: item.notes,
+>>>>>>> 1ee471ae (Merge codebases)
         );
         entry.bind(_onBenefitEntryEdited);
         _benefitLineItems.add(entry);
       }
+<<<<<<< HEAD
     });
   }
 
@@ -943,6 +1023,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           }
         }
       }
+=======
+>>>>>>> 1ee471ae (Merge codebases)
 
       // Load savings data
       if (costAnalysisData.savingsNotes.isNotEmpty) {
@@ -951,6 +1033,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       if (costAnalysisData.savingsTarget.isNotEmpty) {
         _savingsTargetController.text = costAnalysisData.savingsTarget;
       }
+<<<<<<< HEAD
       if (costAnalysisData.basisFrequency != null &&
           _frequencyOptions.contains(costAnalysisData.basisFrequency)) {
         _basisFrequency = costAnalysisData.basisFrequency;
@@ -984,6 +1067,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         if (solutionCost == null) continue;
         _costBreakdownContextHashesBySolution[i] = solutionCost.contextHash;
 
+=======
+
+      // Load Step 2: Cost rows for each solution
+      for (int i = 0;
+          i < costAnalysisData.solutionCosts.length &&
+              i < _rowsPerSolution.length;
+          i++) {
+        final solutionCost = costAnalysisData.solutionCosts[i];
+>>>>>>> 1ee471ae (Merge codebases)
         final rows = _rowsPerSolution[i];
 
         // Ensure we have enough rows
@@ -1011,6 +1103,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         }
       }
 
+<<<<<<< HEAD
       // Load per-solution category estimate values and notes.
       for (int i = 0; i < _categoryCostsPerSolution.length; i++) {
         final expectedTitle = _solutionTitle(i);
@@ -1091,6 +1184,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         }
       }
 
+=======
+>>>>>>> 1ee471ae (Merge codebases)
       if (mounted) setState(() {});
       final hasSolutionRows = costAnalysisData.solutionCosts.any(
         (solution) => solution.costRows.any((row) {
@@ -1132,6 +1227,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return title.isNotEmpty
         ? solution!.title
         : 'Potential Solution ${index + 1}';
+<<<<<<< HEAD
   }
 
   int _activeSolutionIndex() {
@@ -1270,6 +1366,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     }
     final irr = (math.pow(ratio, 1 / _npvHorizon).toDouble() - 1) * 100;
     return irr.isFinite ? irr : 0;
+=======
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   @override
@@ -1282,6 +1380,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         key: _scaffoldKey,
         backgroundColor: Colors.white,
         drawer: isMobile ? _buildMobileDrawer() : null,
+<<<<<<< HEAD
         body: SafeArea(
           top: true,
           child: Stack(
@@ -1308,6 +1407,26 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               const AdminEditToggle(),
             ],
           ),
+=======
+        body: Stack(
+          children: [
+            Column(children: [
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+              Expanded(
+                  child: Row(children: [
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel:
+                          'Cost Benefit Analysis & Financial Metrics'),
+                ),
+                Expanded(child: _buildMainContent()),
+              ])),
+            ]),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+>>>>>>> 1ee471ae (Merge codebases)
         ),
       ),
     );
@@ -1358,6 +1477,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               ),
               if (!isMobile) ...[
                 const SizedBox(width: 12),
+<<<<<<< HEAD
                 StreamBuilder<bool>(
                   stream: UserService.watchAdminStatus(),
                   builder: (context, snapshot) {
@@ -1384,6 +1504,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                       ],
                     );
                   },
+=======
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      FirebaseAuthService.displayNameOrEmail(fallback: 'User'),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black),
+                    ),
+                    const Text('Product manager',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+>>>>>>> 1ee471ae (Merge codebases)
                 ),
                 const SizedBox(width: 8),
                 const Icon(Icons.keyboard_arrow_down,
@@ -1503,10 +1639,94 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Drawer _buildMobileDrawer() {
     return Drawer(
+<<<<<<< HEAD
       width: MediaQuery.sizeOf(context).width * 0.88,
       child: const SafeArea(
         child: InitiationLikeSidebar(
           activeItemLabel: 'Cost Benefit Analysis & Financial Metrics',
+=======
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            const ListTile(
+              leading: CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFFFD700),
+                child: Icon(Icons.person_outline, color: Colors.black87),
+              ),
+              title: Text('StackOne'),
+            ),
+            const Divider(height: 1),
+            _buildMenuItem(Icons.home_outlined, 'Home',
+                onTap: () => HomeScreen.open(context)),
+            _buildExpandableHeader(
+              Icons.flag_outlined,
+              'Initiation Phase',
+              expanded: _initiationExpanded,
+              onTap: () =>
+                  setState(() => _initiationExpanded = !_initiationExpanded),
+              isActive: true,
+            ),
+            if (_initiationExpanded) ...[
+              _buildExpandableHeaderLikeCost(
+                Icons.business_center_outlined,
+                'Business Case',
+                expanded: _businessCaseExpanded,
+                onTap: () => setState(
+                    () => _businessCaseExpanded = !_businessCaseExpanded),
+                isActive: false,
+              ),
+              if (_businessCaseExpanded) ...[
+                _buildNestedSubMenuItem('Business Case', onTap: () {
+                  Navigator.of(context).maybePop();
+                  _openBusinessCase();
+                }),
+                _buildNestedSubMenuItem('Potential Solutions', onTap: () {
+                  Navigator.of(context).maybePop();
+                  _openPotentialSolutions();
+                }),
+                _buildNestedSubMenuItem('Risk Identification', onTap: () {
+                  Navigator.of(context).maybePop();
+                  _openRiskIdentification();
+                }),
+                _buildNestedSubMenuItem('IT Considerations', onTap: () {
+                  Navigator.of(context).maybePop();
+                  _openITConsiderations();
+                }),
+                _buildNestedSubMenuItem('Infrastructure Considerations',
+                    onTap: () {
+                  Navigator.of(context).maybePop();
+                  _openInfrastructureConsiderations();
+                }),
+                _buildNestedSubMenuItem('Core Stakeholders', onTap: () {
+                  Navigator.of(context).maybePop();
+                  _openCoreStakeholders();
+                }),
+                _buildNestedSubMenuItem(
+                    'Cost Benefit Analysis & Financial Metrics',
+                    isActive: true),
+                _buildNestedSubMenuItem('Preferred Solution Analysis',
+                    onTap: () {
+                  Navigator.of(context).maybePop();
+                  _openPreferredSolutionAnalysis();
+                }),
+              ],
+            ],
+            _buildMenuItem(Icons.timeline, 'Initiation: Front End Planning'),
+            _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
+            _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
+            _buildMenuItem(Icons.description_outlined, 'Contracting'),
+            _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
+            const Divider(height: 1),
+            _buildMenuItem(Icons.settings_outlined, 'Settings', onTap: () {
+              Navigator.of(context).maybePop();
+              SettingsScreen.open(context);
+            }),
+            _buildMenuItem(Icons.logout_outlined, 'LogOut',
+                onTap: () => AuthNav.signOutAndExit(context)),
+          ],
+>>>>>>> 1ee471ae (Merge codebases)
         ),
       ),
     );
@@ -1550,7 +1770,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
+<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
+=======
+            color:
+                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+>>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1593,7 +1818,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
+<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
+=======
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+>>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1632,7 +1862,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
+<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
+=======
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+>>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1669,7 +1904,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
+<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
+=======
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+>>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1706,7 +1946,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
+<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
+=======
+            color:
+                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+>>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1821,9 +2066,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
     final horizonLabel = '$_npvHorizon-year';
+<<<<<<< HEAD
     final horizontalPadding = AppBreakpoints.isDesktop(context)
         ? 24.0
         : AppBreakpoints.pagePadding(context);
+=======
+    final horizontalPadding = AppBreakpoints.pagePadding(context);
+>>>>>>> 1ee471ae (Merge codebases)
     final contentPadding = EdgeInsets.fromLTRB(
         horizontalPadding, 0, horizontalPadding, horizontalPadding);
     return LayoutBuilder(
@@ -1852,6 +2101,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                             style: TextStyle(
                                 fontSize: 22, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
+<<<<<<< HEAD
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -1879,6 +2129,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                               tooltip: 'Regenerate all cost analysis content',
                             ),
                           ],
+=======
+                        EditableContentText(
+                          contentKey: 'cost_analysis_description',
+                          fallback:
+                              'Analyze the selected solution\'s investment profile, project value, ROI and NPV in a consolidated workspace.',
+                          category: 'business_case',
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[600]),
+>>>>>>> 1ee471ae (Merge codebases)
                         ),
                         const SizedBox(height: 20),
                         _buildStepProgressIndicator(),
@@ -1905,6 +2164,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Widget _buildStepProgressIndicator() {
     final totalSteps = _stepDefinitions.length;
+<<<<<<< HEAD
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -1935,6 +2195,35 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           );
         },
       ),
+=======
+    final progress =
+        totalSteps <= 1 ? 1.0 : (_currentStepIndex + 1) / totalSteps;
+    final progressValue = progress.clamp(0.0, 1.0).toDouble();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 72,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            itemCount: totalSteps,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) => _buildProgressChip(index),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: progressValue,
+            minHeight: 6,
+            backgroundColor: Colors.grey.withOpacity(0.18),
+            valueColor: const AlwaysStoppedAnimation(Color(0xFFFFD700)),
+          ),
+        ),
+      ],
+>>>>>>> 1ee471ae (Merge codebases)
     );
   }
 
@@ -1977,6 +2266,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   padding: EdgeInsets.only(right: 8),
                   child: Icon(Icons.check_circle, size: 16),
                 ),
+<<<<<<< HEAD
               Flexible(
                 child: Text(
                   definition.shortLabel,
@@ -1987,6 +2277,33 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                     fontWeight: FontWeight.w700,
                     color: textColor,
                   ),
+=======
+              ),
+              const SizedBox(width: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 200),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      definition.shortLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: resolvedTextColor),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      definition.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11.5, color: subtitleColor),
+                    ),
+                  ],
+>>>>>>> 1ee471ae (Merge codebases)
                 ),
               ),
             ],
@@ -2012,14 +2329,26 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               onRetry: _isGeneratingValue ? null : _generateProjectValue));
         }
         children.add(_stepHeading(
+<<<<<<< HEAD
             title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+=======
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
+>>>>>>> 1ee471ae (Merge codebases)
         children.add(_buildProjectValueSection());
         children.add(const SizedBox(height: 24));
         break;
       case 1:
         // Initial Cost Estimate as Step 2
         children.add(_stepHeading(
+<<<<<<< HEAD
             title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+=======
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
+>>>>>>> 1ee471ae (Merge codebases)
         if (_error != null) {
           children.add(_errorBanner(_error!,
               onRetry: _isGenerating ? null : _generateCostBreakdown));
@@ -2034,7 +2363,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       case 2:
         // Profitability Analysis as Step 3
         children.add(_stepHeading(
+<<<<<<< HEAD
             title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+=======
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
+>>>>>>> 1ee471ae (Merge codebases)
         children.add(_buildMetricToolbar(
             isMobile: isMobile, horizonLabel: horizonLabel));
         children.add(const SizedBox(height: 16));
@@ -2049,7 +2384,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         break;
       case 3:
         children.add(_stepHeading(
+<<<<<<< HEAD
             title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+=======
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
+>>>>>>> 1ee471ae (Merge codebases)
         children.add(_buildNotesSection());
         children.add(const SizedBox(height: 16));
         children.add(_buildNotesCallout());
@@ -2057,7 +2398,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         break;
       default:
         children.add(_stepHeading(
+<<<<<<< HEAD
             title: stepDefinition.title, subtitle: stepDefinition.subtitle));
+=======
+            step: stepLabel,
+            title: stepDefinition.title,
+            subtitle: stepDefinition.subtitle));
+>>>>>>> 1ee471ae (Merge codebases)
         break;
     }
 
@@ -2080,8 +2427,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     final isFirst = _currentStepIndex == 0;
     final isLast = _currentStepIndex == _stepDefinitions.length - 1;
     final stepStatus =
+<<<<<<< HEAD
         '${_stepDefinitions[_currentStepIndex].shortLabel} (${_currentStepIndex + 1}/${_stepDefinitions.length})';
     final primaryLabel = isLast ? 'Continue to Preferred Solution' : 'Next Tab';
+=======
+        'Step ${_currentStepIndex + 1} of ${_stepDefinitions.length}';
+    final primaryLabel =
+        isLast ? 'Continue to Preferred Solution' : 'Next Step';
+>>>>>>> 1ee471ae (Merge codebases)
     final primaryIcon = isLast ? Icons.check : Icons.arrow_forward_ios_rounded;
 
     final previousButton = TextButton.icon(
@@ -2137,8 +2490,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return Padding(
       padding: EdgeInsets.fromLTRB(
           horizontalPadding, 12, horizontalPadding, horizontalPadding),
+<<<<<<< HEAD
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+=======
+      child: Row(
+>>>>>>> 1ee471ae (Merge codebases)
         children: [
           ProceedConfirmationGate(
             value: _reviewConfirmed,
@@ -2148,6 +2505,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             scrollController: _mainScrollController,
             padding: const EdgeInsets.only(bottom: 16),
           ),
+<<<<<<< HEAD
           if (isMobile) ...[
             // Mobile: stack vertically to avoid overflow
             Row(
@@ -2161,6 +2519,41 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             SizedBox(
               width: double.infinity,
               child: saveButton,
+=======
+          const SizedBox(width: 16),
+          Text(
+            stepStatus,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800]),
+          ),
+          const Spacer(),
+          OutlinedButton.icon(
+            onPressed: _handleSave,
+            icon: const Icon(Icons.save_outlined, size: 16),
+            label: const Text('Save'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.grey[800],
+              side: BorderSide(color: Colors.grey.shade300),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: isLast ? _openPreferredSolution : _handleNextStep,
+            icon: Icon(primaryIcon, size: 16),
+            label: Text(primaryLabel),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+>>>>>>> 1ee471ae (Merge codebases)
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -2284,6 +2677,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   Future<void> _openPreferredSolution() async {
     FocusScope.of(context).unfocus();
 
+<<<<<<< HEAD
     // 1. Save data FIRST before validation
     await _saveCostAnalysisData();
     if (!mounted) return;
@@ -2319,6 +2713,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     }
 
     // Show loading dialog
+=======
+    // Save all cost analysis data
+    await _saveCostAnalysisData();
+
+    // Show 3-second loading dialog
+>>>>>>> 1ee471ae (Merge codebases)
     if (!mounted) return;
     showDialog(
       context: context,
@@ -2340,11 +2740,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       ),
     );
 
+<<<<<<< HEAD
     await Future.delayed(const Duration(seconds: 1)); // Reduced delay
+=======
+    await Future.delayed(const Duration(seconds: 3));
+>>>>>>> 1ee471ae (Merge codebases)
 
     if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
 
+<<<<<<< HEAD
     // Navigate to Preferred Solution Analysis
     Navigator.push(
       context,
@@ -2354,6 +2759,21 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           solutions: widget.solutions,
           businessCase: projectData.businessCase,
         ),
+=======
+    // Security check: Verify destination is not locked
+    if (ProjectDataHelper.isDestinationLocked(
+        context, 'preferred_solution_analysis')) {
+      ProjectDataHelper.showLockedDestinationMessage(
+          context, 'Preferred Solution Analysis');
+      return;
+    }
+
+    // Navigate to Front End Planning Summary (next item in sidebar order)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const FrontEndPlanningSummaryScreen(),
+>>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }
@@ -2361,6 +2781,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   Future<void> _saveCostAnalysisData() async {
     try {
       final provider = ProjectDataInherited.of(context);
+<<<<<<< HEAD
       final activeSolutionIndex = _activeSolutionIndex();
       _persistProjectValueEditorsForSolution(activeSolutionIndex);
 
@@ -2369,6 +2790,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       for (int i = 0; i < _rowsPerSolution.length; i++) {
         final solutionTitle = _solutionTitle(i);
         final costRows = _rowsPerSolution[i].map((row) {
+=======
+
+      // Collect cost row data for single selected solution (Step 2)
+      // Use first solution or first available solution
+      final solutionCosts = <SolutionCostData>[];
+      if (_rowsPerSolution.isNotEmpty) {
+        final solutionIndex =
+            0; // Single solution approach - use first solution
+        final solutionTitle = solutionIndex < widget.solutions.length
+            ? widget.solutions[solutionIndex].title
+            : (widget.solutions.isNotEmpty
+                ? widget.solutions.first.title
+                : 'Selected Solution');
+
+        final costRows = _rowsPerSolution[solutionIndex].map((row) {
+>>>>>>> 1ee471ae (Merge codebases)
           return CostRowData(
             itemName: row.itemController.text,
             description: row.descriptionController.text,
@@ -2384,8 +2821,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         ));
       }
 
+<<<<<<< HEAD
       // Collect global project benefits entries (legacy + display layer).
       final benefitLineItems = _allBenefitLineItems.map((entry) {
+=======
+      // Collect Project Value data (Step 1)
+      final projectValueBenefits = <String, String>{};
+      for (final field in _projectValueFields) {
+        final controller = _projectValueBenefitControllers[field.key];
+        if (controller != null && controller.text.isNotEmpty) {
+          projectValueBenefits[field.key] = controller.text;
+        }
+      }
+
+      // Collect benefit line items
+      final benefitLineItems = _benefitLineItems.map((entry) {
+>>>>>>> 1ee471ae (Merge codebases)
         return BenefitLineItem(
           id: entry.id,
           categoryKey: entry.categoryKey,
@@ -2396,6 +2847,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         );
       }).toList();
 
+<<<<<<< HEAD
       // Persist Step 1 project value inputs per solution.
       final solutionProjectBenefits = <SolutionProjectBenefitData>[];
       for (int i = 0; i < _rowsPerSolution.length; i++) {
@@ -2494,6 +2946,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       final legacyProjectValueBenefits = Map<String, String>.from(
           _projectValueBenefitsBySolution[legacyIndex]);
 
+=======
+>>>>>>> 1ee471ae (Merge codebases)
       final costAnalysisData = CostAnalysisData(
         notes: _notesController.text,
         solutionCosts: solutionCosts,
@@ -2620,9 +3074,37 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   Future<bool> _confirmExit() async {
     if (!mounted) return true;
     if (!_hasUnsavedChanges) return true;
+<<<<<<< HEAD
     _autosaveTimer?.cancel();
     await _saveCostAnalysisData();
     return true;
+=======
+    final shouldLeave = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text(
+                'You have unsaved updates on this screen. Leaving now will discard them.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Stay'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (shouldLeave && mounted) {
+      setState(() {
+        _hasUnsavedChanges = false;
+      });
+    }
+    return shouldLeave;
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   Future<void> _handleBackNavigation() async {
@@ -2661,6 +3143,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return double.tryParse(sanitized) ?? 0;
   }
 
+<<<<<<< HEAD
   _ValueSetupInvestmentSnapshot? _valueSetupInvestmentSnapshot(
       {int? solutionIndex}) {
     final index = solutionIndex ?? _activeSolutionIndex();
@@ -2681,6 +3164,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       annualProjectValue: annualProjectValue,
       initialCost: estimatedCost,
     );
+=======
+  _ValueSetupInvestmentSnapshot? _valueSetupInvestmentSnapshot() {
+    final estimatedCost =
+        _parseCurrencyInput(_projectValueAmountController.text.trim());
+    if (estimatedCost <= 0) {
+      return null;
+    }
+    final totalBenefits = _benefitTotalValue();
+    final activeBenefitCount = _benefitLineItems
+        .where((entry) => entry.totalValue > 0 || entry.title.isNotEmpty)
+        .length;
+    final averageRoi = totalBenefits > 0
+        ? ((totalBenefits - estimatedCost) / estimatedCost) * 100
+        : null;
+    final npv = totalBenefits > 0 ? totalBenefits - estimatedCost : null;
+>>>>>>> 1ee471ae (Merge codebases)
     return _ValueSetupInvestmentSnapshot(
       estimatedCost: estimatedCost,
       averageRoi: averageRoi,
@@ -2692,8 +3191,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     );
   }
 
+<<<<<<< HEAD
   Widget _stepHeading({String? step, required String title, String? subtitle}) {
     final hasStepLabel = step != null && step.trim().isNotEmpty;
+=======
+  Widget _stepHeading(
+      {required String step, required String title, String? subtitle}) {
+>>>>>>> 1ee471ae (Merge codebases)
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         if (hasStepLabel) ...[
@@ -2710,8 +3214,18 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                     fontWeight: FontWeight.w600,
                     color: Colors.black87)),
           ),
+<<<<<<< HEAD
           const SizedBox(width: 12),
         ],
+=======
+          child: Text(step,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87)),
+        ),
+        const SizedBox(width: 12),
+>>>>>>> 1ee471ae (Merge codebases)
         Expanded(
             child: Text(title,
                 style: const TextStyle(
@@ -2798,11 +3312,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
+<<<<<<< HEAD
                   const Text('Project Benefit Calculation',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 8),
                   const _AiTag(),
+=======
+                  Text('Project Benefit Calculation',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 8),
+                  _AiTag(),
+>>>>>>> 1ee471ae (Merge codebases)
                 ]),
                 const SizedBox(height: 4),
                 Text(
@@ -2810,6 +3332,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
+<<<<<<< HEAD
             );
             final aiButton = Row(
               mainAxisSize: MainAxisSize.min,
@@ -2848,6 +3371,93 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             );
           },
         ),
+=======
+            ),
+          ),
+          const SizedBox(width: 12),
+          if (_isGeneratingValue)
+            const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2.2)),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: _isGeneratingValue ? null : _generateProjectValue,
+            icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
+            label: const Text('Populate with AI'),
+          ),
+        ]),
+        const SizedBox(height: 16),
+        // Basis frequency dropdown and estimated value row
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            flex: 2,
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Estimated Project Benefit Value',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _projectValueAmountController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  hintText: 'e.g. 250000',
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Colors.grey.withOpacity(0.3))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFFFD700))),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Basis Frequency',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: _basisFrequency,
+                items: _frequencyOptions
+                    .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _basisFrequency = value);
+                },
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Colors.grey.withOpacity(0.3))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFFFD700))),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 16),
+        _buildInlineYearBoxes(),
+        const SizedBox(height: 20),
+        _buildMultiYearBenefitTable(),
+        const SizedBox(height: 20),
+        Text('Project Benefits Value Summary',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+>>>>>>> 1ee471ae (Merge codebases)
         const SizedBox(height: 12),
         if (_rowsPerSolution.length > 1) ...[
           const Text(
@@ -3139,7 +3749,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           color: isSelected ? accentColor : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
+<<<<<<< HEAD
             color: isSelected ? accentColor : Colors.grey.withOpacity(0.3),
+=======
+            color:
+                isSelected ? accentColor : Colors.grey.withValues(alpha: 0.3),
+>>>>>>> 1ee471ae (Merge codebases)
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
@@ -3181,6 +3796,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     );
   }
 
+<<<<<<< HEAD
   Widget _buildCategoryDetailsTab() {
     final selectedField = _projectValueFields[_activeBenefitCategoryIndex];
     final categoryDescriptor = _benefitMetrics[selectedField.key] ?? '';
@@ -3252,6 +3868,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     );
   }
 
+=======
+>>>>>>> 1ee471ae (Merge codebases)
   Widget _buildBenefitCategoryTabContent(
       {required MapEntry<String, String> field, required String descriptor}) {
     final controller = _projectValueBenefitControllers[field.key]!;
@@ -3262,7 +3880,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return KeyedSubtree(
       key: ValueKey(field.key),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+<<<<<<< HEAD
         Text(displayLabel,
+=======
+        Text(field.value,
+>>>>>>> 1ee471ae (Merge codebases)
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         if (descriptor.trim().isNotEmpty) ...[
           const SizedBox(height: 4),
@@ -3270,7 +3892,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
         const SizedBox(height: 12),
+<<<<<<< HEAD
         const Text('Project Benefit Details',
+=======
+        const Text('Value narrative & measurable outcome',
+>>>>>>> 1ee471ae (Merge codebases)
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         SizedBox(
@@ -3281,7 +3907,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             minLines: 3,
             decoration: InputDecoration(
               hintText:
+<<<<<<< HEAD
                   'Highlight primary project benefits, drivers, and realization strategy',
+=======
+                  'Summarise the financial impact, core drivers, and how this benefit will be realised.',
+>>>>>>> 1ee471ae (Merge codebases)
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               isDense: true,
@@ -3310,12 +3940,80 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             ],
           ),
         ],
+<<<<<<< HEAD
+=======
+        const SizedBox(height: 14),
+        Tooltip(
+          message: 'Switch tabs as needed',
+          preferBelow: false,
+          showDuration: const Duration(seconds: 3),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7CC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.info_outline,
+                  color: Color(0xFFFF8F00), size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Switch tabs as needed',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500),
+              ),
+            ]),
+          ),
+        ),
+>>>>>>> 1ee471ae (Merge codebases)
       ]),
     );
   }
 
   Widget _buildInlineYearBoxes() {
+<<<<<<< HEAD
     return const SizedBox.shrink();
+=======
+    final amountText = _projectValueAmountController.text.trim();
+    final baseValue = _parseCurrencyInput(amountText);
+
+    // Calculate multiplier based on frequency
+    int frequencyMultiplier;
+    switch (_basisFrequency) {
+      case 'Monthly':
+        frequencyMultiplier = 12;
+        break;
+      case 'Quarterly':
+        frequencyMultiplier = 4;
+        break;
+      case 'Yearly':
+      default:
+        frequencyMultiplier = 1;
+    }
+
+    // Annualized value
+    final annualValue = baseValue * frequencyMultiplier;
+
+    // Multi-year calculations
+    final year1 = annualValue;
+    final year3 = annualValue * 3;
+    final year5 = annualValue * 5;
+    final year10 = annualValue * 10;
+
+    return Row(children: [
+      _buildYearBox('in 1 year', year1, const Color(0xFFFFF59D)),
+      const SizedBox(width: 8),
+      _buildYearBox('in 3 years', year3, const Color(0xFFFFE082)),
+      const SizedBox(width: 8),
+      _buildYearBox('in 5 years', year5, const Color(0xFFFFCC80)),
+      const SizedBox(width: 8),
+      _buildYearBox('in 10 years', year10, const Color(0xFFFFAB40)),
+    ]);
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   Widget _buildYearBox(String label, double value, Color color) {
@@ -3346,11 +4044,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Widget _buildMultiYearBenefitTable() {
     final amountText = _projectValueAmountController.text.trim();
+<<<<<<< HEAD
     final explicitValue = _parseCurrencyInput(amountText);
 
     if (_basisFrequency == null) {
       return const SizedBox.shrink();
     }
+=======
+    final baseValue = _parseCurrencyInput(amountText);
+>>>>>>> 1ee471ae (Merge codebases)
 
     // Calculate multiplier based on frequency
     int frequencyMultiplier;
@@ -3366,12 +4068,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         frequencyMultiplier = 1;
     }
 
+<<<<<<< HEAD
     final bool usingLineItems = explicitValue <= 0;
     final trackerDescriptor =
         _trackerBasisFrequency == 'Monthly' ? 'annualized' : 'annual';
     final double annualValue = usingLineItems
         ? _benefitTotalValueForSolution(_activeSolutionIndex())
         : explicitValue * frequencyMultiplier;
+=======
+    // Annualized value
+    final annualValue = baseValue * frequencyMultiplier;
+>>>>>>> 1ee471ae (Merge codebases)
 
     // Multi-year calculations
     final year1 = annualValue;
@@ -3384,14 +4091,23 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(12),
+<<<<<<< HEAD
         border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.4)),
+=======
+        border:
+            Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+>>>>>>> 1ee471ae (Merge codebases)
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Icon(Icons.calculate_outlined,
               size: 20, color: Color(0xFFFF8F00)),
           const SizedBox(width: 8),
+<<<<<<< HEAD
           const Text('Projected Benefit Horizons',
+=======
+          const Text('Multi-Year Project Benefit Estimation',
+>>>>>>> 1ee471ae (Merge codebases)
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 8),
@@ -3413,6 +4129,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           child: Row(children: [
             Expanded(
                 flex: 2,
+<<<<<<< HEAD
                 child: Align(
                   alignment: Alignment.center,
                   child: Text('Time Horizon',
@@ -3423,6 +4140,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 flex: 3,
                 child: Align(
                     alignment: Alignment.center,
+=======
+                child: Text('Time Horizon',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600))),
+            Expanded(
+                flex: 3,
+                child: Align(
+                    alignment: Alignment.centerRight,
+>>>>>>> 1ee471ae (Merge codebases)
                     child: Text('Projected Benefit ($_currency)',
                         style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600)))),
@@ -3435,7 +4161,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(8),
                 bottomRight: Radius.circular(8)),
+<<<<<<< HEAD
             border: Border.all(color: Colors.grey.withOpacity(0.25)),
+=======
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+>>>>>>> 1ee471ae (Merge codebases)
           ),
           child: Column(children: [
             _multiYearRow('1 Year', year1, isFirst: true),
@@ -3455,7 +4185,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       decoration: BoxDecoration(
         border: isFirst
             ? null
+<<<<<<< HEAD
             : Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+=======
+            : Border(
+                top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+>>>>>>> 1ee471ae (Merge codebases)
       ),
       child: Row(children: [
         Expanded(
@@ -3477,6 +4212,101 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     );
   }
 
+<<<<<<< HEAD
+=======
+  Widget _buildProjectValueSummary() {
+    final amountText = _projectValueAmountController.text.trim();
+    final amountValue = _parseCurrencyInput(amountText);
+    final hasAmount = amountValue > 0;
+    final definedBenefitLabels = <String>[];
+    final benefitTiles = <Widget>[];
+
+    for (final field in _projectValueFields) {
+      final text = _projectValueBenefitControllers[field.key]!.text.trim();
+      final categoryLabel = field.value;
+      final metrics = _benefitMetrics[field.key] ?? '';
+      if (text.isNotEmpty)
+        definedBenefitLabels.add(categoryLabel.split('&').first.trim());
+      benefitTiles.add(Container(
+        width: 400,
+        constraints: const BoxConstraints(minHeight: 72),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.withOpacity(0.25)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(categoryLabel,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+              text.isNotEmpty
+                  ? text
+                  : 'Capture the value impact for this category.',
+              style: TextStyle(
+                  fontSize: 12,
+                  color:
+                      text.isNotEmpty ? Colors.grey[700] : Colors.grey[500])),
+          const SizedBox(height: 6),
+          Text('Metrics: $metrics',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        ]),
+      ));
+    }
+
+    final statementPrefix = hasAmount
+        ? 'Estimated project value: ${_formatCurrencyValue(amountValue)} to anchor ROI and NPV calculations.'
+        : 'Add an estimated project value to anchor ROI and NPV calculations.';
+    final statementSuffix = definedBenefitLabels.isEmpty
+        ? 'Capture benefit statements so finance can trace inputs to ROI metrics.'
+        : 'Benefit pillars captured: ${definedBenefitLabels.join(', ')}.';
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Finance-ready project value summary',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 8),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.withOpacity(0.25)),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 4))
+          ],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$statementPrefix $statementSuffix',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+          const SizedBox(height: 12),
+          LayoutBuilder(builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            if (isNarrow) {
+              return Column(children: [
+                for (final tile in benefitTiles) ...[
+                  tile,
+                  const SizedBox(height: 10),
+                ],
+              ]);
+            }
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: benefitTiles,
+            );
+          }),
+        ]),
+      ),
+    ]);
+  }
+
+>>>>>>> 1ee471ae (Merge codebases)
   List<String> _metricTagsFor(String categoryKey) {
     final raw = _benefitMetrics[categoryKey];
     if (raw == null || raw.isEmpty) {
@@ -3817,7 +4647,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     for (final entry in _benefitLineItems) {
       final summary =
           map.putIfAbsent(entry.categoryKey, () => _BenefitCategorySummary());
+<<<<<<< HEAD
       summary.add(entry, valueOverride: _effectiveBenefitValue(entry));
+=======
+      summary.add(entry);
+>>>>>>> 1ee471ae (Merge codebases)
     }
     return map;
   }
@@ -3837,12 +4671,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   }
 
   double _benefitTotalValue() {
+<<<<<<< HEAD
     return _benefitTotalValueForSolution(_activeSolutionIndex());
   }
 
   double _benefitTotalUnitsForSolution(int index) {
     return _benefitItemsForSolution(index)
         .fold<double>(0, (sum, entry) => sum + entry.units);
+=======
+    return _benefitLineItems.fold<double>(
+        0, (sum, entry) => sum + entry.totalValue);
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   double _benefitTotalUnits() {
@@ -3879,11 +4718,23 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+<<<<<<< HEAD
         LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 980;
             final helperText = Text(
               'Assign an estimated financial value to identified project benefits',
+=======
+        Row(children: [
+          const Text('Financial benefits tracker',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          const _AiTag(),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Monetise benefits across projects, programs, and portfolios with spreadsheet-style controls and AI savings insights.',
+>>>>>>> 1ee471ae (Merge codebases)
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             );
             final isVeryNarrow = constraints.maxWidth < 500;
@@ -3983,7 +4834,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 label: Text(tabs[i],
                     style: const TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w600)),
+<<<<<<< HEAD
                 selected: activeTabIndex == i,
+=======
+                selected: _benefitTabIndex == i,
+>>>>>>> 1ee471ae (Merge codebases)
                 onSelected: (selected) {
                   if (!selected) return;
                   if (activeTabIndex != i) {
@@ -3999,6 +4854,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               ),
           ],
         ),
+<<<<<<< HEAD
         const SizedBox(height: 8),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 180),
@@ -4013,17 +4869,290 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               totalUnits: totalUnits,
             ),
           ),
+=======
+        const SizedBox(height: 16),
+        IndexedStack(
+          index: _benefitTabIndex,
+          children: [
+            _buildBenefitLineItemsTab(),
+            _buildProjectBenefitsReviewTab(
+                summaries: summaries,
+                totalValue: totalValue,
+                totalUnits: totalUnits),
+          ],
+>>>>>>> 1ee471ae (Merge codebases)
         ),
       ]),
     );
   }
 
+<<<<<<< HEAD
   Widget _buildBenefitTrackerTabContent({
     required int activeTabIndex,
+=======
+  Widget _buildBenefitLineItemsTab() {
+    if (_benefitLineItems.isEmpty) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text(
+          'No benefit line items yet',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Add benefit records with unit value and quantity so each initiative converts directly into monetary impact.',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: () => _addBenefitLineItem(),
+          icon: const Icon(Icons.add_circle_outline),
+          label: const Text('Add first benefit line item'),
+        ),
+      ]);
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.grey.withOpacity(0.35)),
+        ),
+        child: Row(children: [
+          SizedBox(
+              width: 32,
+              child: Text('#',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 3,
+              child: Text('Category',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 3,
+              child: Text('Benefit title',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Unit value',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)))),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Total units',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)))),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 2,
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Total value',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)))),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 3,
+              child: Text('Notes',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600))),
+          const SizedBox(width: 8),
+          const SizedBox(width: 36),
+        ]),
+      ),
+      const SizedBox(height: 6),
+      Builder(
+        builder: (context) {
+          // Reset selected categories before building rows
+          _selectedBenefitCategories.clear();
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.25)),
+            ),
+            child: Column(
+              children: [
+                for (int i = 0; i < _benefitLineItems.length; i++)
+                  _benefitLineItemRow(i, _benefitLineItems[i]),
+              ],
+            ),
+          );
+        },
+      ),
+      const SizedBox(height: 12),
+      Row(children: [
+        Text(
+            'Total monetised benefits: ${_formatCurrencyValue(_benefitTotalValue())}',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 12),
+        Text('Total units: ${_benefitTotalUnits().toStringAsFixed(1)}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        const Spacer(),
+        OutlinedButton.icon(
+          onPressed: () => _addBenefitLineItem(),
+          icon: const Icon(Icons.add),
+          label: const Text('Add benefit item'),
+        ),
+      ]),
+    ]);
+  }
+
+  Widget _benefitLineItemRow(int index, _BenefitLineItemEntry entry) {
+    // Track selected category
+    _selectedBenefitCategories.add(entry.categoryKey);
+
+    // Filter out selected categories except 'Others'
+    final categoryItems = _projectValueFields
+        .where((e) =>
+            e.key == 'other' ||
+            e.key == entry.categoryKey ||
+            !_selectedBenefitCategories.contains(e.key))
+        .map((e) => DropdownMenuItem<String>(
+              value: e.key,
+              child: Text(e.value, style: const TextStyle(fontSize: 12)),
+            ))
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        SizedBox(
+            width: 32,
+            child: Text('${index + 1}.',
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600))),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 3,
+          child: DropdownButtonFormField<String>(
+            initialValue: entry.categoryKey,
+            items: categoryItems,
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                entry.categoryKey = value;
+              });
+            },
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            isExpanded: true,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 3,
+          child: TextField(
+            controller: entry.titleController,
+            decoration: InputDecoration(
+              hintText: 'Benefit title',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: entry.unitValueController,
+            textAlign: TextAlign.right,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              hintText: '0.00',
+              suffixText: _currency,
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: entry.unitsController,
+            textAlign: TextAlign.right,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              hintText: '0',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              _formatCurrencyValue(entry.totalValue),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 3,
+          child: TextField(
+            controller: entry.notesController,
+            minLines: 1,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Realisation plan or assumptions',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: 'Remove item',
+          onPressed: () => _removeBenefitLineItem(entry),
+          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+        )
+      ]),
+    );
+  }
+
+  Widget _buildBenefitEstimatesTab({
+>>>>>>> 1ee471ae (Merge codebases)
     required Map<String, _BenefitCategorySummary> summaries,
     required double totalValue,
     required double totalUnits,
   }) {
+<<<<<<< HEAD
     switch (activeTabIndex) {
       case 0:
         return _buildBenefitLineItemsTab();
@@ -4063,6 +5192,74 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               avatar: Icon(Icons.attach_money,
                   size: 16, color: Colors.blue.shade700),
               label: Text('Currency: $_currency'),
+=======
+    if (summaries.isEmpty) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('No estimates yet',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Text(
+          'Add benefit line items to see category-level rollups and ensure every initiative has a monetary estimate.',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+      ]);
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      LayoutBuilder(builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final singleColumn = maxWidth < 600;
+        final cards = [
+          _benefitSummaryCard(
+            title: 'Tracked line items',
+            value: '${_benefitLineItems.length}',
+            helper: 'With monetary values and unit drivers.',
+            icon: Icons.list_alt,
+          ),
+          _benefitSummaryCard(
+            title: 'Total monetised benefits',
+            value: _formatCurrencyValue(totalValue),
+            helper: 'Across all categories and portfolios.',
+            icon: Icons.attach_money,
+          ),
+          _benefitSummaryCard(
+            title: 'Total units',
+            value: totalUnits.toStringAsFixed(1),
+            helper: 'Sum of all unit drivers captured.',
+            icon: Icons.stacked_line_chart,
+          ),
+        ];
+
+        if (singleColumn) {
+          return Column(children: [
+            for (final card in cards) ...[
+              card,
+              const SizedBox(height: 12),
+            ],
+          ]);
+        }
+        return Row(
+          children: [
+            for (int i = 0; i < cards.length; i++) ...[
+              Expanded(child: cards[i]),
+              if (i != cards.length - 1) const SizedBox(width: 12),
+            ]
+          ],
+        );
+      }),
+      const SizedBox(height: 16),
+      const Text('Project Benefits Value Summary',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          for (final entry in summaries.entries)
+            _benefitCategoryCard(
+              label: _benefitCategoryLabel(entry.key),
+              summary: entry.value,
+>>>>>>> 1ee471ae (Merge codebases)
             ),
             Chip(
               avatar: Icon(Icons.calendar_today_outlined,
@@ -4583,6 +5780,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               color: Colors.black.withOpacity(0.02),
               blurRadius: 6,
               offset: const Offset(0, 3))
+<<<<<<< HEAD
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -4599,6 +5797,143 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       ]),
     );
+=======
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Text('Items: ${summary.itemCount}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+        const SizedBox(height: 4),
+        Text('Total units: ${summary.unitTotal.toStringAsFixed(1)}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+        const SizedBox(height: 4),
+        Text('Monetised value: ${_formatCurrencyValue(summary.valueTotal)}',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  Widget _buildBenefitSavingsTab({required double totalValue}) {
+    final items = _benefitLineItems
+        .where((entry) => entry.totalValue > 0 && entry.title.isNotEmpty)
+        .toList();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+          child: Text(
+            'Run an AI-assisted savings calculator to spot optimisation levers across the captured benefits. Provide a target percentage to calibrate recommendations.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton.icon(
+          onPressed: _isSavingsGenerating ? null : _generateSavingsSuggestions,
+          icon: _isSavingsGenerating
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.auto_awesome),
+          label: const Text('Generate savings scenarios'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFFD700),
+            foregroundColor: Colors.black,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 16,
+        runSpacing: 12,
+        children: [
+          SizedBox(
+            width: 280,
+            height: 56,
+            child: TextField(
+              controller: _savingsTargetController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Savings target (%)',
+                hintText: 'e.g. 10',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 280,
+            height: 56,
+            child: TextField(
+              controller: _savingsNotesController,
+              maxLines: 1,
+              decoration: const InputDecoration(
+                labelText: 'Context notes',
+                hintText: 'Add portfolio, budget, or timing constraints',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ),
+          Chip(
+            avatar: const Icon(Icons.payments_outlined, size: 16),
+            label: Text(
+                'Total monetised benefits: ${_formatCurrencyValue(totalValue)}'),
+          ),
+          Chip(
+            avatar: const Icon(Icons.fact_check_outlined, size: 16),
+            label: Text('${items.length} eligible items for AI'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      if (_savingsError != null)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.red.withOpacity(0.3)),
+          ),
+          child: Text(_savingsError!,
+              style: const TextStyle(color: Colors.red, fontSize: 12)),
+        ),
+      if (_savingsSuggestions.isEmpty && _savingsError == null)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            items.isEmpty
+                ? 'Add at least one monetised benefit (with unit cost and units) to run the savings calculator.'
+                : 'Generate AI scenarios to explore savings opportunities linked to the captured benefits.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ),
+      if (_savingsSuggestions.isNotEmpty)
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SizedBox(height: 12),
+          const Text('AI savings scenarios',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+            ),
+            child: Column(children: [
+              for (int i = 0; i < _savingsSuggestions.length; i++)
+                _savingsSuggestionTile(i, _savingsSuggestions[i]),
+            ]),
+          ),
+        ]),
+    ]);
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   Widget _buildProjectBenefitsReviewTab({
@@ -4622,9 +5957,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     final sortedCategories = summaries.entries.toList()
       ..sort((a, b) => b.value.valueTotal.compareTo(a.value.valueTotal));
 
+<<<<<<< HEAD
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // Only show summaries if there are benefit items
       if (summaries.isEmpty) ...[
+=======
+    if (summaries.isEmpty) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+>>>>>>> 1ee471ae (Merge codebases)
         const Text('No benefits tracked yet',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
@@ -4673,6 +6013,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 if (i != cards.length - 1) const SizedBox(width: 12),
               ]
             ],
+<<<<<<< HEAD
           );
         }),
         const SizedBox(height: 20),
@@ -4783,6 +6124,25 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       const Text('Value Calculation Formulas',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
+=======
+          ]);
+        }
+        return Row(
+          children: [
+            for (int i = 0; i < cards.length; i++) ...[
+              Expanded(child: cards[i]),
+              if (i != cards.length - 1) const SizedBox(width: 12),
+            ]
+          ],
+        );
+      }),
+      const SizedBox(height: 20),
+
+      // Project Benefits Highlights section (top 3 metrics)
+      const Text('Project Benefits Highlights',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+>>>>>>> 1ee471ae (Merge codebases)
       Text(
         'Each benefit category has a specific calculation method for determining financial impact.',
         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -4796,6 +6156,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         ),
         child: Column(
           children: [
+<<<<<<< HEAD
             // Table Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -4847,6 +6208,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               final formula = _benefitMetrics[field.key] ?? '';
               final isLast = index == _projectValueFields.length - 1;
               return Container(
+=======
+            for (final metric in top3Metrics)
+              Container(
+>>>>>>> 1ee471ae (Merge codebases)
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
@@ -4861,6 +6226,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+<<<<<<< HEAD
                     SizedBox(
                       width: 50,
                       child: Align(
@@ -4884,6 +6250,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                       child: Text(formula,
                           style:
                               TextStyle(fontSize: 12, color: Colors.grey[700])),
+=======
+                    Icon(Icons.stacked_line_chart,
+                        size: 18, color: const Color(0xFFFFD700)),
+                    const SizedBox(width: 8),
+                    Text(
+                      metric,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+>>>>>>> 1ee471ae (Merge codebases)
                     ),
                   ],
                 ),
@@ -4891,6 +6266,41 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             }),
           ],
         ),
+<<<<<<< HEAD
+=======
+      const SizedBox(height: 24),
+
+      // Project Benefits Value Summary section
+      const Text('Project Benefits Value Summary',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      Text(
+        'Total currency value of each of the selected benefits for this project, ordered by highest amount.',
+        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+      ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          for (final entry in sortedCategories)
+            _projectBenefitValueCard(
+              label: _benefitCategoryLabel(entry.key),
+              categoryKey: entry.key,
+              summary: entry.value,
+              isHighest: entry == sortedCategories.first,
+            ),
+          // Show remaining categories with zero values
+          for (final field in _projectValueFields)
+            if (!summaries.containsKey(field.key))
+              _projectBenefitValueCard(
+                label: field.value,
+                categoryKey: field.key,
+                summary: null,
+                isHighest: false,
+              ),
+        ],
+>>>>>>> 1ee471ae (Merge codebases)
       ),
     ]);
   }
@@ -4948,7 +6358,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         border: Border.all(
           color: isHighest && hasValue
               ? const Color(0xFF2196F3)
+<<<<<<< HEAD
               : Colors.grey.withOpacity(0.3),
+=======
+              : Colors.grey.withValues(alpha: 0.3),
+>>>>>>> 1ee471ae (Merge codebases)
         ),
         boxShadow: [
           BoxShadow(
@@ -4977,7 +6391,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: isHighest
+<<<<<<< HEAD
                     ? Colors.white.withOpacity(0.2)
+=======
+                    ? Colors.white.withValues(alpha: 0.2)
+>>>>>>> 1ee471ae (Merge codebases)
                     : const Color(0xFFFFF7CC),
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -5083,7 +6501,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             Expanded(
                 flex: 2,
                 child: Align(
+<<<<<<< HEAD
                     alignment: Alignment.center,
+=======
+                    alignment: Alignment.centerRight,
+>>>>>>> 1ee471ae (Merge codebases)
                     child: Text('Estimated cost',
                         style: TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600)))),
@@ -5190,11 +6612,35 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         SizedBox(
           width: 150,
           child: Align(
+<<<<<<< HEAD
             alignment: Alignment.centerLeft,
             child: Text(
               _formatCurrencyValue(row.currentCost()),
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               textAlign: TextAlign.left,
+=======
+            alignment: Alignment.topRight,
+            child: TextField(
+              controller: row.costController,
+              textAlign: TextAlign.right,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                hintText: '0.00',
+                isDense: true,
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                prefixIcon: _costFieldAiPrefix(
+                  loading: row.aiLoading,
+                  onSuggest: () => _suggestCostForRow(row),
+                ),
+                prefixIconConstraints:
+                    const BoxConstraints.tightFor(width: 28, height: 28),
+                suffix: _currencySuffix(_currency),
+              ),
+>>>>>>> 1ee471ae (Merge codebases)
             ),
           ),
         ),
@@ -5286,6 +6732,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           forSolution: solutionIndex,
         ),
       );
+<<<<<<< HEAD
+=======
+      if (!mounted) return;
+      setState(() {
+        final v = cost.isFinite ? cost : 0;
+        row.costController.text =
+            v == 0 ? '' : v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+      });
+>>>>>>> 1ee471ae (Merge codebases)
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -5357,7 +6812,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         final single = width < 760;
         final cards = [
           for (int i = 0; i < _rowsPerSolution.length; i++)
+<<<<<<< HEAD
             _valuesGainedCard(i),
+=======
+            _valuesGainedCard(i, benefits),
+>>>>>>> 1ee471ae (Merge codebases)
         ];
         if (single) {
           return Column(children: [
@@ -5393,6 +6852,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+<<<<<<< HEAD
         LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 600;
@@ -5441,6 +6901,27 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             ]);
           },
         ),
+=======
+        Row(children: [
+          const Text('Initial cost estimate',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          const _AiTag(),
+          const Spacer(),
+          OutlinedButton.icon(
+            onPressed: _isGenerating ? null : _populateCategoriesFromAi,
+            icon: _isGenerating
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.auto_fix_high_outlined, size: 18),
+            label: const Text('Populate categories (AI)'),
+          ),
+          const SizedBox(width: 8),
+          _currencyDropdown(),
+        ]),
+>>>>>>> 1ee471ae (Merge codebases)
         const SizedBox(height: 12),
         if (tabCount == 0)
           Text('Add solutions to start estimating per-solution costs.',
@@ -5473,9 +6954,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   // Opportunity Savings Section for Step 2 (Initial Cost Estimate)
   // Shows savings that can be subtracted from total cost for identified opportunities
   Widget _buildOpportunitySavingsSection() {
+<<<<<<< HEAD
     final activeIndex = _boundedIndex(
         _activeTab, _rowsPerSolution.isEmpty ? 1 : _rowsPerSolution.length);
     final totalValue = _projectBenefitTotalForSolution(activeIndex);
+=======
+    final totalValue = _benefitTotalValue();
+    final activeIndex = _boundedIndex(
+        _activeTab, _rowsPerSolution.isEmpty ? 1 : _rowsPerSolution.length);
+>>>>>>> 1ee471ae (Merge codebases)
     final currentSolutionTotal =
         _rowsPerSolution.isNotEmpty ? _solutionTotalCost(activeIndex) : 0.0;
 
@@ -5494,17 +6981,28 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+<<<<<<< HEAD
         border: Border.all(color: Colors.grey.withOpacity(0.25)),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withOpacity(0.02),
+=======
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+>>>>>>> 1ee471ae (Merge codebases)
               blurRadius: 8,
               offset: const Offset(0, 4))
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
+<<<<<<< HEAD
           const Text('Savings Calculator',
+=======
+          const Text('Opportunity Savings Calculator',
+>>>>>>> 1ee471ae (Merge codebases)
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           const _AiTag(),
@@ -5638,8 +7136,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             decoration: BoxDecoration(
               color: const Color(0xFFFFF7CC),
               borderRadius: BorderRadius.circular(10),
+<<<<<<< HEAD
               border:
                   Border.all(color: const Color(0xFFFFD700).withOpacity(0.5)),
+=======
+              border: Border.all(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
+>>>>>>> 1ee471ae (Merge codebases)
             ),
             child: Row(children: [
               Expanded(
@@ -5748,6 +7251,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+<<<<<<< HEAD
         LayoutBuilder(
           builder: (context, constraints) {
             const minTableWidth = 920.0;
@@ -5891,6 +7395,67 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                         ),
                       ),
                     ],
+=======
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.35))),
+          child: Row(children: const [
+            Expanded(
+                flex: 3,
+                child: Text('Item',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+            SizedBox(width: 12),
+            Expanded(
+                flex: 2,
+                child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('Estimated cost',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
+            SizedBox(width: 12),
+            Expanded(
+                flex: 4,
+                child: Text('Comments',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+            SizedBox(width: 8),
+            SizedBox(width: 36),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withOpacity(0.25))),
+          child: Column(children: [
+            for (final r in rows) _initialItemCostRow(r),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                  border: Border(
+                      top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
+              child: Row(children: [
+                const Expanded(
+                    flex: 3,
+                    child: Text('Total',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700))),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      _formatCurrencyValue(_solutionTotalCost(solutionIndex)),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+>>>>>>> 1ee471ae (Merge codebases)
                   ),
                 ),
               ),
@@ -6011,6 +7576,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
     bool proceed = true;
     if (hasMeaningfulData()) {
+<<<<<<< HEAD
       proceed = await showDeleteConfirmationDialog(
         context,
         title: 'Delete cost row',
@@ -6018,6 +7584,25 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         message:
             'Delete this initial cost estimate row? This action cannot be undone.',
       );
+=======
+      proceed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Delete row?'),
+              content: const Text(
+                  'This will remove the selected cost row. This action cannot be undone.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel')),
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Delete')),
+              ],
+            ),
+          ) ??
+          false;
+>>>>>>> 1ee471ae (Merge codebases)
     }
     if (!proceed) return;
 
@@ -6200,7 +7785,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
+<<<<<<< HEAD
           const Text('KAZ AI-generated Project Value category ideas',
+=======
+          const Text('AI-generated Project Value category ideas',
+>>>>>>> 1ee471ae (Merge codebases)
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           const _AiTag(),
@@ -6267,7 +7856,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey.withOpacity(0.2))),
         child: const Text(
+<<<<<<< HEAD
             'Add one or more solutions to see ROI, NPV, and IRR results.'),
+=======
+            'Add one or more solutions to see ROI, NPV, IRR and DCFR results.'),
+>>>>>>> 1ee471ae (Merge codebases)
       );
     }
     final horizon = _npvHorizon;
@@ -6298,10 +7891,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           child: Row(children: [
             const Expanded(
                 flex: 4,
+<<<<<<< HEAD
                 child: Center(
                     child: Text('Solution',
                         style: TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600)))),
+=======
+                child: Text('Solution',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+>>>>>>> 1ee471ae (Merge codebases)
             const Expanded(
                 flex: 2,
                 child: Center(
@@ -6312,7 +7911,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             Expanded(
                 flex: 2,
                 child: Align(
+<<<<<<< HEAD
                     alignment: Alignment.center,
+=======
+                    alignment: Alignment.centerRight,
+>>>>>>> 1ee471ae (Merge codebases)
                     child: Text('NPV ($horizon-yr)',
                         style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600)))),
@@ -6323,6 +7926,16 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                     child: Text('IRR',
                         style: TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600)))),
+<<<<<<< HEAD
+=======
+            const SizedBox(width: 16),
+            const Expanded(
+                flex: 2,
+                child: Center(
+                    child: Text('DCFR',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)))),
+>>>>>>> 1ee471ae (Merge codebases)
           ]),
         ),
         const SizedBox(height: 6),
@@ -6341,6 +7954,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Widget _profitabilityRow(int index) {
     final solutionLabel = _solutionTitle(index);
+<<<<<<< HEAD
     final annualProjectValue = _projectBenefitTotalForSolution(index);
     final currentProjectValue = _currentProjectValueForSolution(index);
     final initialCost = _initialCostForSolution(index);
@@ -6356,6 +7970,35 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       currentProjectValue: currentProjectValue,
       initialCost: initialCost,
     );
+=======
+    // Only use benefits if Initial Project Value is set in Step 1
+    final snapshot = _valueSetupInvestmentSnapshot();
+    final double benefits = snapshot != null ? snapshot.totalBenefits : 0;
+    final double cost = _initialCostEstimateTotalFor(index) > 0
+        ? _initialCostEstimateTotalFor(index)
+        : _solutionTotalCost(index);
+    final double roiPct =
+        (cost > 0 && benefits > 0) ? ((benefits - cost) / cost) * 100 : 0;
+    final double npv = benefits > 0 ? _solutionTotalNpv(index) : 0;
+    // IRR using Finance utility with simplified cashflows [-cost, 0.., benefits]
+    // Only calculate if Initial Project Value is set
+    double irr = 0;
+    if (snapshot != null && cost > 0 && benefits > 0 && _npvHorizon > 0) {
+      final flows = List<double>.filled(_npvHorizon + 1, 0);
+      flows[0] = -cost;
+      flows[_npvHorizon] = benefits;
+      final guess = benefits > cost ? 0.1 : -0.1;
+      final r = Finance.irr(flows, guess: guess);
+      if (r.isFinite) {
+        irr = r;
+      } else {
+        // Fallback to CAGR approximation if IRR didn't converge
+        irr = math.pow(benefits / cost, 1 / _npvHorizon) - 1;
+      }
+    }
+    // DCF is PV of benefits; with our inputs, approximate as NPV + upfront cost
+    final double dcf = npv + cost;
+>>>>>>> 1ee471ae (Merge codebases)
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -6370,22 +8013,45 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         Expanded(
             flex: 2,
             child: Align(
+<<<<<<< HEAD
                 alignment: Alignment.centerLeft,
                 child: Text(_formatPercentValue(roiPct),
                     textAlign: TextAlign.left))),
+=======
+                alignment: Alignment.center,
+                child: Text(_formatPercentValue(roiPct),
+                    textAlign: TextAlign.center))),
+>>>>>>> 1ee471ae (Merge codebases)
         const SizedBox(width: 16),
         Expanded(
             flex: 2,
             child: Align(
+<<<<<<< HEAD
                 alignment: Alignment.centerLeft,
+=======
+                alignment: Alignment.centerRight,
+>>>>>>> 1ee471ae (Merge codebases)
                 child: Text(_formatCurrencyValue(npv)))),
         const SizedBox(width: 16),
         Expanded(
             flex: 2,
             child: Align(
+<<<<<<< HEAD
                 alignment: Alignment.centerLeft,
                 child: Text(_formatPercentValue(irrPercent),
                     textAlign: TextAlign.left))),
+=======
+                alignment: Alignment.center,
+                child: Text(_formatPercentValue(irr * 100),
+                    textAlign: TextAlign.center))),
+        const SizedBox(width: 16),
+        Expanded(
+            flex: 2,
+            child: Align(
+                alignment: Alignment.center,
+                child: Text(_formatCurrencyValue(dcf),
+                    textAlign: TextAlign.center))),
+>>>>>>> 1ee471ae (Merge codebases)
       ]),
     );
   }
@@ -6530,6 +8196,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       children: horizons
           .map((year) => Text('$year yr', style: const TextStyle(fontSize: 13)))
           .toList(),
+<<<<<<< HEAD
     );
     final rateToggleButtons = ToggleButtons(
       isSelected: rateSelections,
@@ -6550,6 +8217,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 style: const TextStyle(fontSize: 13),
               ))
           .toList(growable: false),
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     );
 
     final generateButton = ElevatedButton.icon(
@@ -6567,6 +8236,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
     if (isMobile) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+<<<<<<< HEAD
         Wrap(
           spacing: 12,
           runSpacing: 8,
@@ -6588,6 +8258,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             rateToggleButtons,
           ],
         ),
+=======
+        Row(children: [
+          const Text('Financial metric horizon',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 12),
+          toggleButtons,
+        ]),
+>>>>>>> 1ee471ae (Merge codebases)
         const SizedBox(height: 12),
         Row(children: [
           const Tooltip(
@@ -6599,8 +8277,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           generateButton,
         ]),
         const SizedBox(height: 6),
+<<<<<<< HEAD
         Text(
             'Current view: $horizonLabel cashflows across every solution at ${(_discountRate * 100).round()}% discount rate.',
+=======
+        Text('Current view: $horizonLabel cashflows across every solution.',
+>>>>>>> 1ee471ae (Merge codebases)
             style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ]);
     }
@@ -6627,8 +8309,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         rateToggleButtons,
       ]),
       const SizedBox(height: 6),
+<<<<<<< HEAD
       Text(
           'Current view: $horizonLabel cashflows across every solution at ${(_discountRate * 100).round()}% discount rate.',
+=======
+      Text('Current view: $horizonLabel cashflows across every solution.',
+>>>>>>> 1ee471ae (Merge codebases)
           style: TextStyle(fontSize: 12, color: Colors.grey[600])),
     ]);
   }
@@ -6681,10 +8367,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                     : computedColumns;
         final double tileWidth = singleColumn
             ? safeWidth
+<<<<<<< HEAD
             : math.max(
                 280.0,
                 (safeWidth - (spacing * (columns - 1))) / columns,
               );
+=======
+            : ((safeWidth - (spacing * (columns - 1))) / columns)
+                .clamp(280.0, 400.0);
+>>>>>>> 1ee471ae (Merge codebases)
         return Align(
           alignment: Alignment.topLeft,
           child: Wrap(
@@ -6871,6 +8562,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               ],
             ]);
           }
+<<<<<<< HEAD
           // Use Flexible to prevent overflow in Row
           return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             for (int i = 0; i < selectors.length; i++) ...[
@@ -6878,6 +8570,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 flex: 1,
                 child: selectors[i],
               ),
+=======
+          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (int i = 0; i < selectors.length; i++) ...[
+              Expanded(child: selectors[i]),
+>>>>>>> 1ee471ae (Merge codebases)
               if (i != selectors.length - 1) const SizedBox(width: 12),
             ],
           ]);
@@ -6923,6 +8620,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           ),
         ),
         const SizedBox(height: 12),
+<<<<<<< HEAD
         // Wrap buttons in Flexible/Expanded to prevent overflow
         LayoutBuilder(builder: (context, constraints) {
           final isNarrow = constraints.maxWidth < 300;
@@ -6942,12 +8640,56 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             ),
           );
         }),
+=======
+        Row(children: [
+          OutlinedButton.icon(
+            onPressed: (!hasSolutions || isLoading)
+                ? null
+                : () => _generateCostBreakdownForSolution(index),
+            icon: isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.auto_fix_high_outlined, size: 18),
+            label: const Text('Refresh with AI'),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () => _showBreakdownFor(index),
+            child: const Text('Open breakdown'),
+          ),
+        ]),
+>>>>>>> 1ee471ae (Merge codebases)
       ]),
     );
   }
 
+<<<<<<< HEAD
   Future<void> _handleRefreshSolutionSnapshot(int index) async {
     await _generateCostBreakdownForSolution(index);
+=======
+  void _showBreakdownFor(int index) {
+    if (_rowsPerSolution.isEmpty) return;
+    final safeIndex = index < 0
+        ? 0
+        : index >= _rowsPerSolution.length
+            ? _rowsPerSolution.length - 1
+            : index;
+    setState(() {
+      _activeTab = safeIndex;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _tablesSectionKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   Widget _summaryMetric(
@@ -7014,6 +8756,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               children: [
                 Text(options[i].label,
                     style: const TextStyle(
+<<<<<<< HEAD
                         fontSize: 12, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1),
@@ -7022,6 +8765,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                     style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2),
+=======
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(options[i].detail,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+>>>>>>> 1ee471ae (Merge codebases)
               ],
             ),
           ),
@@ -7250,11 +8999,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       final pv = _projectValueAmountBySolution[i].trim();
       if (pv.isEmpty) continue;
       final n = _parseCurrencyInput(pv) * factor;
+<<<<<<< HEAD
       _projectValueAmountBySolution[i] = n.toStringAsFixed(n % 1 == 0 ? 0 : 2);
     }
     _loadProjectValueEditorsForSolution(_activeSolutionIndex());
     // Project benefits (unit values only)
     for (final entry in _allBenefitLineItems) {
+=======
+      _projectValueAmountController.text =
+          n.toStringAsFixed(n % 1 == 0 ? 0 : 2);
+    }
+    // Benefit line items (unit values only)
+    for (final entry in _benefitLineItems) {
+>>>>>>> 1ee471ae (Merge codebases)
       final uv =
           _BenefitLineItemEntry._readDouble(entry.unitValueController.text) *
               factor;
@@ -7427,6 +9184,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       // Add Front End Planning data
       final fepData = projectData.frontEndPlanning;
       final fepNotes = <String>[];
+<<<<<<< HEAD
       if (fepData.requirements.isNotEmpty) {
         fepNotes.add('Requirements: ${fepData.requirements}');
       }
@@ -7448,6 +9206,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       if (fepData.procurement.isNotEmpty) {
         fepNotes.add('Procurement: ${fepData.procurement}');
       }
+=======
+      if (fepData.requirements.isNotEmpty)
+        fepNotes.add('Requirements: ${fepData.requirements}');
+      if (fepData.risks.isNotEmpty)
+        fepNotes.add('Planning risks: ${fepData.risks}');
+      if (fepData.opportunities.isNotEmpty)
+        fepNotes.add('Opportunities: ${fepData.opportunities}');
+      if (fepData.technology.isNotEmpty)
+        fepNotes.add('Technology: ${fepData.technology}');
+      if (fepData.infrastructure.isNotEmpty)
+        fepNotes.add('Infrastructure: ${fepData.infrastructure}');
+      if (fepData.contracts.isNotEmpty)
+        fepNotes.add('Contracts: ${fepData.contracts}');
+      if (fepData.procurement.isNotEmpty)
+        fepNotes.add('Procurement: ${fepData.procurement}');
+>>>>>>> 1ee471ae (Merge codebases)
       if (fepNotes.isNotEmpty) {
         buffer.write('Front-end planning: ${fepNotes.take(5).join('; ')}. ');
       }
@@ -7675,6 +9449,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     if (index < 0 || index >= _rowsPerSolution.length) return;
     final enforcePhysical = _solutionLikelyPhysical(index);
     // Ensure we only place true cost items, not generic benefit pillar labels
+<<<<<<< HEAD
     List<AiCostItem> filtered = items.where((it) {
       if (_isProjectValueCategoryLabel(it.item)) return false;
       if (enforcePhysical &&
@@ -7688,6 +9463,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       filtered = _physicalFallbackCostItems(index);
     }
 
+=======
+    final filtered = items
+        .where((it) => !_isProjectValueCategoryLabel(it.item))
+        .toList(growable: false);
+>>>>>>> 1ee471ae (Merge codebases)
     // Ensure capacity up to number of items (cap at 20 for usability)
     final targetLen = filtered.length.clamp(0, 20);
     while (_rowsPerSolution[index].length < targetLen) {
@@ -7795,10 +9575,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   void _applyCategoryEstimatesFromItems(
       int solutionIndex, List<AiCostItem> items) {
+<<<<<<< HEAD
     if (solutionIndex < 0 ||
         solutionIndex >= _categoryCostsPerSolution.length) {
       return;
     }
+=======
+    if (solutionIndex < 0 || solutionIndex >= _categoryCostsPerSolution.length)
+      return;
+>>>>>>> 1ee471ae (Merge codebases)
     final map = _categoryCostsPerSolution[solutionIndex];
     // reset existing estimates only if empty to not clobber user edits
     final totals = <String, double>{
@@ -8011,7 +9796,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           const Expanded(
               flex: 2,
               child: Align(
+<<<<<<< HEAD
                   alignment: Alignment.center,
+=======
+                  alignment: Alignment.centerRight,
+>>>>>>> 1ee471ae (Merge codebases)
                   child: Text('Return On Investment',
                       style: TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600)))),
@@ -8019,7 +9808,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           Expanded(
             flex: 2,
             child: Align(
+<<<<<<< HEAD
               alignment: Alignment.center,
+=======
+              alignment: Alignment.centerRight,
+>>>>>>> 1ee471ae (Merge codebases)
               child: Text('Net Present Value ($horizonLabel)',
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600)),
@@ -8029,7 +9822,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           const Expanded(
               flex: 2,
               child: Align(
+<<<<<<< HEAD
                   alignment: Alignment.center,
+=======
+                  alignment: Alignment.centerRight,
+>>>>>>> 1ee471ae (Merge codebases)
                   child: Text('Estimated Cost',
                       style: TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600)))),
@@ -8189,7 +9986,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         const Text('Return On Investment',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
+<<<<<<< HEAD
         VoiceTextField(
+=======
+        TextField(
+>>>>>>> 1ee471ae (Merge codebases)
             controller: row.roiController,
             readOnly: true,
             decoration: const InputDecoration(
@@ -8198,7 +9999,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         Text('Net Present Value ($horizonLabel)',
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
+<<<<<<< HEAD
         VoiceTextField(
+=======
+        TextField(
+>>>>>>> 1ee471ae (Merge codebases)
             controller: row.npvController,
             readOnly: true,
             decoration: const InputDecoration(
@@ -8207,7 +10012,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         const Text('Estimated Cost',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
+<<<<<<< HEAD
         VoiceTextField(
+=======
+        TextField(
+>>>>>>> 1ee471ae (Merge codebases)
             controller: row.costController,
             decoration: const InputDecoration(
                 border: OutlineInputBorder(), isDense: true, hintText: '0.00')),
@@ -8323,7 +10132,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Future<void> _generateSavingsSuggestions({bool showFeedback = true}) async {
     if (_isSavingsGenerating) return;
+<<<<<<< HEAD
     final activeIndex = _activeSolutionIndex();
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     final eligible = _benefitLineItems
         .where((entry) => entry.totalValue > 0 && entry.title.isNotEmpty)
         .toList();
@@ -8331,7 +10143,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       setState(() {
         _savingsError =
             'Add at least one benefit with unit value and units before generating savings scenarios.';
+<<<<<<< HEAD
         _clearSavingsSuggestionsForSolution(activeIndex);
+=======
+        _savingsSuggestions = [];
+>>>>>>> 1ee471ae (Merge codebases)
       });
       return;
     }
@@ -8456,6 +10272,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           _normalizeProjectValueBenefitEntries(insights.benefits);
       setState(() {
         if (insights.estimatedProjectValue > 0) {
+<<<<<<< HEAD
           _projectValueAmountBySolution[targetIndex] =
               insights.estimatedProjectValue.toStringAsFixed(0);
         }
@@ -8465,6 +10282,18 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         for (final entry in _benefitItemsForSolution(targetIndex)) {
           entry.unbind();
           WidgetsBinding.instance.addPostFrameCallback((_) => entry.dispose());
+=======
+          _projectValueAmountController.text =
+              insights.estimatedProjectValue.toStringAsFixed(0);
+        }
+        for (final field in _projectValueFields) {
+          final value = insights.benefits[field.key] ??
+              insights.benefits[field.key.replaceAll('_', ' ')] ??
+              '';
+          if (value.trim().isNotEmpty) {
+            _projectValueBenefitControllers[field.key]!.text = value.trim();
+          }
+>>>>>>> 1ee471ae (Merge codebases)
         }
         _benefitItemsForSolution(targetIndex).clear();
 
@@ -8729,12 +10558,29 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       _error = null;
     });
     try {
+<<<<<<< HEAD
       for (int i = 0; i < _rowsPerSolution.length; i++) {
         await _generateCostBreakdownForSolution(
           i,
           showFeedback: false,
           persist: false,
         );
+=======
+      final map = await _openAi.generateCostBreakdownForSolutions(
+        widget.solutions,
+        contextNotes: _buildCostContextNotes(),
+        currency: _currency,
+      );
+      for (int i = 0;
+          i < _rowsPerSolution.length && i < widget.solutions.length;
+          i++) {
+        final title = widget.solutions[i].title;
+        final items = map[title] ?? <AiCostItem>[];
+        // Seed editable rows
+        _applyCostItemsToRows(i, items);
+        // Auto-fill Project Value category estimates from the same AI items
+        _applyCategoryEstimatesFromItems(i, items);
+>>>>>>> 1ee471ae (Merge codebases)
       }
       await _saveCostAnalysisData();
     } finally {

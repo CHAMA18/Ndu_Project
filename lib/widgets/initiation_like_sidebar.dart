@@ -123,9 +123,15 @@ import 'package:ndu_project/screens/detailed_design_screen.dart';
 import 'package:ndu_project/screens/scope_tracking_implementation_screen.dart';
 import 'package:ndu_project/screens/stakeholder_alignment_screen.dart';
 import 'package:ndu_project/screens/update_ops_maintenance_plans_screen.dart';
+<<<<<<< HEAD
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
+=======
+import 'package:ndu_project/services/project_service.dart';
+import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
+>>>>>>> 1ee471ae (Merge codebases)
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 /// Sidebar styled to match InitiationPhaseScreen's sidebar.
@@ -556,6 +562,34 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     return !_isCheckpointReached(checkpointName);
   }
 
+  /// Check if a checkpoint has been reached based on Firestore project progress
+  /// Returns false if the checkpoint is before the current checkpoint in sidebar order
+  bool _isCheckpointReached(String checkpointName) {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final currentCheckpoint = provider?.projectData.currentCheckpoint;
+    
+    if (currentCheckpoint == null || currentCheckpoint.isEmpty) {
+      return false; // No progress yet
+    }
+    
+    // Use SidebarNavigationService to check if checkpoint is reached
+    return SidebarNavigationService.instance.isCheckpointReached(
+      checkpointName,
+      currentCheckpoint,
+    );
+  }
+
+  /// Enhanced locking that checks both Basic Plan restrictions and checkpoint progress
+  bool _isItemLocked(String label, String checkpointName) {
+    // Check Basic Plan restrictions first
+    if (_isBasicPlanLocked(label)) {
+      return true;
+    }
+    
+    // Check if checkpoint has been reached
+    return !_isCheckpointReached(checkpointName);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -584,6 +618,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     super.dispose();
   }
 
+<<<<<<< HEAD
   /// Surface missing setup context without blocking navigation.
   void _notifyPlanningPhaseRequirements() {
     final provider = ProjectDataInherited.maybeOf(context);
@@ -595,6 +630,107 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     // Check projectGoals (at least 1 required)
     if (projectData.projectGoals.isEmpty) {
       missingFields.add('Project Goals');
+=======
+  /// Validate Planning Phase requirements before navigation
+  bool _validatePlanningPhaseRequirements() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (provider == null) return true; // Skip validation if no provider
+    
+    final projectData = provider.projectData;
+    final missingFields = <String>[];
+    
+    // Check projectGoals (at least 1 required)
+    if (projectData.projectGoals.isEmpty) {
+      missingFields.add('Project Goals');
+    }
+    
+    // Check overallFramework (not empty)
+    if (projectData.overallFramework == null || projectData.overallFramework!.isEmpty) {
+      missingFields.add('Overall Framework');
+    }
+    
+    if (missingFields.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please complete the following before proceeding: ${missingFields.join(', ')}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Go to Framework',
+              textColor: Colors.white,
+              onPressed: () {
+                _openProjectFramework();
+              },
+            ),
+          ),
+        );
+      }
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Navigation helper that saves checkpoint before navigating
+  Future<void> _navigateWithCheckpoint(String checkpoint, Widget screen) async {
+    // Validate Planning Phase requirements for Planning Phase checkpoints
+    final planningPhaseCheckpoints = [
+      'work_breakdown_structure',
+      'ssher',
+      'change_management',
+      'issue_management',
+      'cost_estimate',
+      'scope_tracking_plan',
+      'contracts',
+      'project_plan',
+      'execution_plan',
+      'schedule',
+      'design',
+      'technology',
+      'interface_management',
+      'startup_planning',
+      'deliverable_roadmap',
+      'agile_project_baseline',
+      'project_baseline',
+      'organization_roles_responsibilities',
+      'organization_staffing_plan',
+      'team_training',
+      'stakeholder_management',
+      'lessons_learned',
+      'team_management',
+      'risk_assessment',
+      'security_management',
+      'quality_management',
+    ];
+    
+    if (planningPhaseCheckpoints.contains(checkpoint) && !_validatePlanningPhaseRequirements()) {
+      return; // Block navigation if validation fails
+    }
+    
+    try {
+      final provider = ProjectDataInherited.maybeOf(context);
+      if (provider != null && provider.projectData.projectId != null) {
+        final projectId = provider.projectData.projectId!;
+        
+        // Save to Firebase via provider (includes all project data)
+        await provider.saveToFirebase(checkpoint: checkpoint);
+        
+        // Also update checkpoint via ProjectService (ensures checkpointRoute is set)
+        await ProjectService.updateCheckpoint(
+          projectId: projectId,
+          checkpointRoute: checkpoint,
+        );
+        
+        // Update ProjectNavigationService (writes to both Firestore and SharedPreferences)
+        await ProjectNavigationService.instance.saveLastPage(projectId, checkpoint);
+      }
+    } catch (e) {
+      debugPrint('Checkpoint save error: $e');
+>>>>>>> 1ee471ae (Merge codebases)
     }
 
     // Check overallFramework (not empty)
@@ -829,12 +965,20 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   void _openContractVendorQuotes() {
     // Security check: prevent navigation if item is locked
+<<<<<<< HEAD
     if (_isBasicPlanLocked('Contracting')) {
       _showLockedItemMessage('Contracting');
       return;
     }
     _navigateWithCheckpoint('fep_contract_vendor_quotes',
         const FrontEndPlanningContractVendorQuotesScreen());
+=======
+    if (_isBasicPlanLocked('Contract & Vendor Quotes')) {
+      _showLockedItemMessage('Contract & Vendor Quotes');
+      return;
+    }
+    _navigateWithCheckpoint('fep_contract_vendor_quotes', const FrontEndPlanningContractVendorQuotesScreen());
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   void _openSecurity() {
@@ -843,8 +987,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       _showLockedItemMessage('Security');
       return;
     }
+<<<<<<< HEAD
     _navigateWithCheckpoint(
         'fep_security', const FrontEndPlanningSecurityScreen());
+=======
+    _navigateWithCheckpoint('fep_security', const FrontEndPlanningSecurityScreen());
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   void _openAllowance() {
@@ -853,6 +1001,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       _showLockedItemMessage('Allowance');
       return;
     }
+<<<<<<< HEAD
     _navigateWithCheckpoint(
         'fep_allowance', const FrontEndPlanningAllowanceScreen());
   }
@@ -868,6 +1017,20 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       SnackBar(
         content: Text(
             '$itemName is not available in your current plan. Please upgrade to access this feature.'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+=======
+    _navigateWithCheckpoint('fep_allowance', const FrontEndPlanningAllowanceScreen());
+>>>>>>> 1ee471ae (Merge codebases)
+  }
+
+  void _showLockedItemMessage(String itemName) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$itemName is not available in your current plan. Please upgrade to access this feature.'),
         backgroundColor: Colors.orange,
         duration: const Duration(seconds: 3),
       ),
@@ -1264,8 +1427,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openSalvageDisposalTeam() {
+<<<<<<< HEAD
     _navigateWithCheckpoint(
         'salvage_disposal_team', const SalvageDisposalTeamScreen());
+=======
+    _navigateWithCheckpoint('salvage_disposal_team', const SalvageDisposalTeamScreen());
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   void _openDeliverProjectClosure() {
@@ -1785,6 +1952,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       child: AbsorbPointer(
         absorbing: !isInteractive,
         child: InkWell(
+<<<<<<< HEAD
           onTap: isInteractive
               ? onTap
               : (isDisabled ? () => _showLockedItemMessage(title) : null),
@@ -1798,6 +1966,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               border: isHighlighted
                   ? Border.all(color: activeColor.withOpacity(0.15))
                   : null,
+=======
+          onTap: isInteractive ? onTap : (isDisabled ? () => _showLockedItemMessage(title) : null),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: isHighlighted ? primary.withOpacity(0.08) : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+>>>>>>> 1ee471ae (Merge codebases)
             ),
             child: Row(
               children: [
@@ -1805,9 +1981,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(
+<<<<<<< HEAD
                     color: isDisabled
                         ? Colors.grey[300]
                         : (isHighlighted ? activeColor : Colors.grey[400]),
+=======
+                    color: isDisabled ? Colors.grey[300] : (isHighlighted ? primary : Colors.grey[400]),
+>>>>>>> 1ee471ae (Merge codebases)
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -1818,8 +1998,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                     style: TextStyle(
                       fontSize: 12,
                       color: textColor,
+<<<<<<< HEAD
                       fontWeight:
                           isHighlighted ? FontWeight.w600 : FontWeight.normal,
+=======
+                      fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
+>>>>>>> 1ee471ae (Merge codebases)
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -2026,6 +2210,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     final lockProjectFinancialReview =
         _isBasicPlanLocked('Project Financial Review');
     return [
+<<<<<<< HEAD
       _buildMenuItem(
         Icons.home_outlined,
         'Home',
@@ -2792,6 +2977,490 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           onTap: () => AuthNav.signOutAndExit(context),
           isActive: widget.activeItemLabel == 'LogOut'),
     ];
+=======
+                _buildMenuItem(
+                  Icons.home_outlined,
+                  'Home',
+                  onTap: () => HomeScreen.open(context),
+                  isActive: widget.activeItemLabel == 'Home',
+                ),
+                _buildExpandableHeader(
+                  Icons.flag_outlined,
+                  'Initiation Phase',
+                  expanded: _initiationExpanded,
+                  onTap: () => setState(() {
+                    _initiationExpanded = !_initiationExpanded;
+                    _sharedInitiationExpanded = _initiationExpanded;
+                  }),
+                  isActive: widget.activeItemLabel == 'Initiation Phase',
+                ),
+                if (_initiationExpanded) ...[
+                  _buildSubExpandableHeader(
+                    'Business Case',
+                    expanded: _businessCaseExpanded,
+                    onTap: () => setState(() {
+                      _businessCaseExpanded = !_businessCaseExpanded;
+                      _sharedBusinessCaseExpanded = _businessCaseExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Business Case',
+                  ),
+                  if (_businessCaseExpanded) ...[
+                    _buildSubSubMenuItem('Scope Statement', onTap: _openBusinessCase, isActive: widget.activeItemLabel == 'Business Case Detail'),
+                    _buildSubSubMenuItem('Potential Solutions', onTap: _openPotentialSolutions, isActive: widget.activeItemLabel == 'Potential Solutions'),
+                    _buildSubSubMenuItem('Risk Identification', onTap: _openRiskIdentification, isActive: widget.activeItemLabel == 'Risk Identification'),
+                    _buildSubSubMenuItem('IT Considerations', onTap: _openITConsiderations, isActive: widget.activeItemLabel == 'IT Considerations'),
+                    _buildSubSubMenuItem('Infrastructure Considerations', onTap: _openInfrastructureConsiderations, isActive: widget.activeItemLabel == 'Infrastructure Considerations'),
+                    _buildSubSubMenuItem('Core Stakeholders', onTap: _openCoreStakeholders, isActive: widget.activeItemLabel == 'Core Stakeholders'),
+                    _buildSubSubMenuItem('Cost Benefit Analysis & Financial Metrics', onTap: _openCostAnalysis, isActive: widget.activeItemLabel == 'Cost Benefit Analysis & Financial Metrics'),
+                    _buildSubExpandableHeader(
+                      'Executive Summary',
+                      expanded: _executiveSummaryExpanded,
+                      onTap: () => setState(() {
+                        _executiveSummaryExpanded = !_executiveSummaryExpanded;
+                        _sharedExecutiveSummaryExpanded = _executiveSummaryExpanded;
+                      }),
+                      isActive: widget.activeItemLabel == 'Executive Summary' || widget.activeItemLabel == 'Preferred Solution Analysis',
+                    ),
+                    if (_executiveSummaryExpanded) ...[
+                      _buildSubSubMenuItem('Preferred Solution Analysis', onTap: _openPreferredSolutionAnalysis, isActive: widget.activeItemLabel == 'Preferred Solution Analysis'),
+                    ],
+                  ],
+                  _buildSubExpandableHeader(
+                    'Front End Planning',
+                    expanded: _frontEndExpanded,
+                    onTap: () => setState(() {
+                      _frontEndExpanded = !_frontEndExpanded;
+                      _sharedFrontEndExpanded = _frontEndExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Front End Planning',
+                  ),
+                  if (_frontEndExpanded) ...[
+                    _buildSubSubMenuItem('Summary', onTap: _openSummary, isActive: widget.activeItemLabel == 'Summary'),
+                    _buildSubSubMenuItem('Project Requirements', onTap: _openFrontEndRequirements, isActive: widget.activeItemLabel == 'Project Requirements'),
+                    _buildSubSubMenuItem('Project Risks', onTap: _openFrontEndRisks, isActive: widget.activeItemLabel == 'Project Risks'),
+                    _buildSubSubMenuItem('Project Opportunities', onTap: _openFrontEndOpportunities, isActive: widget.activeItemLabel == 'Project Opportunities'),
+                    _buildSubSubMenuItem(
+                      'Contract & Vendor Quotes',
+                      onTap: lockContractVendorQuotes ? null : _openContractVendorQuotes,
+                      isActive: widget.activeItemLabel == 'Contract & Vendor Quotes',
+                      isDisabled: lockContractVendorQuotes,
+                    ),
+                    _buildSubSubMenuItem('Procurement', onTap: _openProcurement, isActive: widget.activeItemLabel == 'Procurement'),
+                    _buildSubSubMenuItem(
+                      'Security',
+                      onTap: lockSecurity ? null : _openSecurity,
+                      isActive: widget.activeItemLabel == 'Security',
+                      isDisabled: lockSecurity,
+                    ),
+                    _buildSubSubMenuItem(
+                      'Allowance',
+                      onTap: lockAllowance ? null : _openAllowance,
+                      isActive: widget.activeItemLabel == 'Allowance',
+                      isDisabled: lockAllowance,
+                    ),
+                    _buildSubSubMenuItem('Project Charter', onTap: _openProjectCharter, isActive: widget.activeItemLabel == 'Project Charter'),
+                  ],
+                ],
+                _buildExpandableHeader(
+                  Icons.lightbulb_outline,
+                  'Planning Phase',
+                  expanded: _planningPhaseExpanded,
+                  onTap: () => setState(() {
+                    _planningPhaseExpanded = !_planningPhaseExpanded;
+                    _sharedPlanningPhaseExpanded = _planningPhaseExpanded;
+                  }),
+                  isActive: widget.activeItemLabel == 'Planning Phase',
+                ),
+                if (_planningPhaseExpanded) ...[
+                  _buildSubMenuItem('Project Management Framework', onTap: _openProjectFramework, isActive: widget.activeItemLabel == 'Project Management Framework'),
+                  _buildSubMenuItem(
+                    'Work Breakdown Structure',
+                    onTap: lockWorkBreakdown ? null : _openWorkBreakdownStructure,
+                    isActive: widget.activeItemLabel == 'Work Breakdown Structure',
+                    isDisabled: lockWorkBreakdown,
+                  ),
+                  _buildSubMenuItem('SSHER', onTap: _openSSHER, isActive: widget.activeItemLabel == 'SSHER'),
+                  _buildSubMenuItem(
+                    'Change Management',
+                    onTap: lockChangeManagement ? null : _openChangeManagement,
+                    isActive: widget.activeItemLabel == 'Change Management',
+                    isDisabled: lockChangeManagement,
+                  ),
+                  _buildSubMenuItem('Issue Management', onTap: _openIssueManagement, isActive: widget.activeItemLabel == 'Issue Management'),
+                  _buildSubExpandableHeader(
+                    'Cost Estimate',
+                    expanded: _costEstimateExpanded,
+                    onTap: () => setState(() {
+                      _costEstimateExpanded = !_costEstimateExpanded;
+                      _sharedCostEstimateExpanded = _costEstimateExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Cost Estimate',
+                  ),
+                  if (_costEstimateExpanded) ...[
+                    _buildSubSubMenuItem('Cost Estimate Overview', onTap: _openCostEstimate, isActive: widget.activeItemLabel == 'Cost Estimate'),
+                  ],
+                  _buildSubExpandableHeader(
+                    'Project Services',
+                    expanded: _projectServicesExpanded,
+                    onTap: () => setState(() {
+                      _projectServicesExpanded = !_projectServicesExpanded;
+                      _sharedProjectServicesExpanded = _projectServicesExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Scope Tracking Plan',
+                  ),
+                  if (_projectServicesExpanded) ...[
+                    _buildSubSubMenuItem('Scope Tracking Plan', onTap: _openScopeTrackingPlan, isActive: widget.activeItemLabel == 'Scope Tracking Plan'),
+                  ],
+                  _buildSubMenuItem('Contract', onTap: _openContract, isActive: widget.activeItemLabel == 'Contract'),
+                  _buildSubMenuItem('Procurement', onTap: _openProcurement, isActive: widget.activeItemLabel == 'Procurement'),
+                  _buildSubExpandableHeader(
+                    'Project Plan',
+                    expanded: _projectPlanExpanded,
+                    onTap: () => setState(() {
+                      _projectPlanExpanded = !_projectPlanExpanded;
+                      _sharedProjectPlanExpanded = _projectPlanExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Project Plan' ||
+                        widget.activeItemLabel == 'Project Plan - Level 1 - Project Schedule' ||
+                        widget.activeItemLabel == 'Project Plan - Detailed Project Schedule' ||
+                        widget.activeItemLabel == 'Project Plan - Condensed Project Summary',
+                  ),
+                  if (_projectPlanExpanded) ...[
+                    _buildSubSubMenuItem('Project Plan Overview', onTap: _openProjectPlan, isActive: widget.activeItemLabel == 'Project Plan'),
+                    _buildSubSubMenuItem(
+                      'Level 1 - Project Schedule',
+                      onTap: lockProjectPlanLevel1 ? null : _openProjectPlanLevel1Schedule,
+                      isActive: widget.activeItemLabel == 'Project Plan - Level 1 - Project Schedule',
+                      isDisabled: lockProjectPlanLevel1,
+                    ),
+                    _buildSubSubMenuItem(
+                      'Detailed Project Schedule',
+                      onTap: lockProjectPlanDetailed ? null : _openProjectPlanDetailedSchedule,
+                      isActive: widget.activeItemLabel == 'Project Plan - Detailed Project Schedule',
+                      isDisabled: lockProjectPlanDetailed,
+                    ),
+                    _buildSubSubMenuItem(
+                      'Condensed Project Summary',
+                      onTap: lockProjectPlanCondensed ? null : _openProjectPlanCondensedSummary,
+                      isActive: widget.activeItemLabel == 'Project Plan - Condensed Project Summary',
+                      isDisabled: lockProjectPlanCondensed,
+                    ),
+                  ],
+                  _buildSubExpandableHeader(
+                    'Execution Plan',
+                    expanded: _executionPlanExpanded,
+                    onTap: () => setState(() {
+                      _executionPlanExpanded = !_executionPlanExpanded;
+                      _sharedExecutionPlanExpanded = _executionPlanExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Execution Plan' ||
+                        widget.activeItemLabel == 'Execution Plan - Construction Plan' ||
+                        widget.activeItemLabel == 'Execution Plan - Infrastructure Plan' ||
+                        widget.activeItemLabel == 'Execution Plan - Agile Delivery Plan',
+                  ),
+                  if (_executionPlanExpanded) ...[
+                    _buildSubSubMenuItem('Construction Plan', onTap: _openExecutionPlanConstructionPlan, isActive: widget.activeItemLabel == 'Execution Plan - Construction Plan'),
+                    _buildSubSubMenuItem('Infrastructure Plan', onTap: _openExecutionPlanInfrastructurePlan, isActive: widget.activeItemLabel == 'Execution Plan - Infrastructure Plan'),
+                    _buildSubSubMenuItem('Agile Delivery Plan', onTap: _openExecutionPlanAgileDeliveryPlan, isActive: widget.activeItemLabel == 'Execution Plan - Agile Delivery Plan'),
+                  ],
+                  _buildSubMenuItem('Schedule', onTap: _openSchedule, isActive: widget.activeItemLabel == 'Schedule'),
+                  _buildSubMenuItem('Design', onTap: _openDesign, isActive: widget.activeItemLabel == 'Design'),
+                  _buildSubMenuItem('Technology', onTap: _openTechnology, isActive: widget.activeItemLabel == 'Technology'),
+                  _buildSubMenuItem(
+                    'Interface Management',
+                    onTap: lockInterfaceManagement ? null : _openInterfaceManagement,
+                    isActive: widget.activeItemLabel == 'Interface Management',
+                    isDisabled: lockInterfaceManagement,
+                  ),
+                  _buildSubExpandableHeader(
+                    'Start-Up Planning',
+                    expanded: _startUpPlanningExpanded,
+                    onTap: () => setState(() {
+                      _startUpPlanningExpanded = !_startUpPlanningExpanded;
+                      _sharedStartUpPlanningExpanded = _startUpPlanningExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Start-Up Planning' ||
+                        widget.activeItemLabel == 'Start-Up Planning - Operations Plan and Manual' ||
+                        widget.activeItemLabel == 'Start-Up Planning - Hypercare Plan' ||
+                        widget.activeItemLabel == 'Start-Up Planning - DevOps' ||
+                        widget.activeItemLabel == 'Start-Up Planning - Close Out Plan',
+                  ),
+                  if (_startUpPlanningExpanded) ...[
+                    _buildSubSubMenuItem(
+                      'Operations Plan and Manual',
+                      onTap: _openStartUpPlanningOperations,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - Operations Plan and Manual',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Hypercare Plan',
+                      onTap: _openStartUpPlanningHypercare,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - Hypercare Plan',
+                    ),
+                    _buildSubSubMenuItem(
+                      'DevOps',
+                      onTap: _openStartUpPlanningDevOps,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - DevOps',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Close Out Plan',
+                      onTap: _openStartUpPlanningCloseOut,
+                      isActive: widget.activeItemLabel == 'Start-Up Planning - Close Out Plan',
+                    ),
+                  ],
+                  _buildSubExpandableHeader(
+                    'Deliverable Roadmap',
+                    expanded: _deliverableRoadmapExpanded,
+                    onTap: () => setState(() {
+                      _deliverableRoadmapExpanded = !_deliverableRoadmapExpanded;
+                      _sharedDeliverableRoadmapExpanded = _deliverableRoadmapExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Deliverable Roadmap' || widget.activeItemLabel == 'Deliverable Roadmap - Agile Map Out',
+                  ),
+                  if (_deliverableRoadmapExpanded) ...[
+                    _buildSubSubMenuItem('Roadmap Overview', onTap: _openDeliverableRoadmap, isActive: widget.activeItemLabel == 'Deliverable Roadmap'),
+                    _buildSubSubMenuItem('Agile Map Out', onTap: _openDeliverableRoadmapAgileMapOut, isActive: widget.activeItemLabel == 'Deliverable Roadmap - Agile Map Out'),
+                  ],
+                  _buildSubMenuItem('Agile Project Baseline', onTap: _openAgileProjectBaseline, isActive: widget.activeItemLabel == 'Agile Project Baseline'),
+                  _buildSubMenuItem(
+                    'Project Baseline',
+                    onTap: lockProjectBaseline ? null : _openProjectBaseline,
+                    isActive: widget.activeItemLabel == 'Project Baseline',
+                    isDisabled: lockProjectBaseline,
+                  ),
+                  _buildSubExpandableHeader(
+                    'Organization Plan',
+                    expanded: _organizationPlanExpanded,
+                    onTap: () => setState(() {
+                      _organizationPlanExpanded = !_organizationPlanExpanded;
+                      _sharedOrganizationPlanExpanded = _organizationPlanExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Organization Plan' ||
+                        widget.activeItemLabel == 'Organization Plan - Roles & Responsibilities' ||
+                        widget.activeItemLabel == 'Organization Plan - Staffing Plan' ||
+                        widget.activeItemLabel == 'Team Training and Team Building' ||
+                        widget.activeItemLabel == 'Stakeholder Management',
+                  ),
+                  if (_organizationPlanExpanded) ...[
+                    _buildSubSubMenuItem('Roles & Responsibilities', onTap: _openOrganizationRolesResponsibilities, isActive: widget.activeItemLabel == 'Organization Plan - Roles & Responsibilities'),
+                    _buildSubSubMenuItem('Staffing Plan', onTap: _openOrganizationStaffingPlan, isActive: widget.activeItemLabel == 'Organization Plan - Staffing Plan'),
+                    _buildSubSubMenuItem('Training & Team Building', onTap: _openTeamTraining, isActive: widget.activeItemLabel == 'Team Training and Team Building'),
+                    _buildSubSubMenuItem('Stakeholder Management', onTap: _openStakeholderManagement, isActive: widget.activeItemLabel == 'Stakeholder Management'),
+                  ],
+                  _buildSubMenuItem('Lessons Learned', onTap: _openLessonsLearned, isActive: widget.activeItemLabel == 'Lessons Learned'),
+                  _buildSubMenuItem(
+                    'Team Management',
+                    onTap: lockTeamManagement ? null : _openTeamManagement,
+                    isActive: widget.activeItemLabel == 'Team Management',
+                    isDisabled: lockTeamManagement,
+                  ),
+                  _buildSubMenuItem('Risk Assessment', onTap: _openRiskAssessment, isActive: widget.activeItemLabel == 'Risk Assessment'),
+                  _buildSubMenuItem('Security Management', onTap: _openSecurityManagement, isActive: widget.activeItemLabel == 'Security Management'),
+                  _buildSubMenuItem('Quality Management', onTap: _openQualityManagement, isActive: widget.activeItemLabel == 'Quality Management'),
+                ],
+                _buildExpandableHeader(
+                  Icons.design_services_outlined,
+                  'Design Phase',
+                  expanded: _designPhaseExpanded,
+                  onTap: () => setState(() {
+                    _designPhaseExpanded = !_designPhaseExpanded;
+                    _sharedDesignPhaseExpanded = _designPhaseExpanded;
+                  }),
+                  isActive: widget.activeItemLabel == 'Design Phase',
+                ),
+                if (_designPhaseExpanded) ...[
+                  _buildSubMenuItem('Design Management', onTap: _openDesignManagement, isActive: widget.activeItemLabel == 'Design Management'),
+                  _buildSubMenuItem('Requirements Implementation', onTap: _openRequirementsImplementation, isActive: widget.activeItemLabel == 'Requirements Implementation'),
+                  _buildSubMenuItem('Technical Alignment', onTap: _openTechnicalAlignment, isActive: widget.activeItemLabel == 'Technical Alignment'),
+                  _buildSubMenuItem('Development Set Up', onTap: _openDevelopmentSetUp, isActive: widget.activeItemLabel == 'Development Set Up'),
+                  _buildSubMenuItem('UI/UX Design', onTap: _openUiUxDesign, isActive: widget.activeItemLabel == 'UI/UX Design'),
+                  _buildSubMenuItem('Backend Design', onTap: _openBackendDesign, isActive: widget.activeItemLabel == 'Backend Design'),
+                  _buildSubMenuItem(
+                    'Engineering',
+                    onTap: lockEngineering ? null : _openEngineeringDesign,
+                    isActive: widget.activeItemLabel == 'Engineering',
+                    isDisabled: lockEngineering,
+                  ),
+                  _buildSubMenuItem(
+                    'Technical Development',
+                    onTap: lockTechnicalDevelopment ? null : _openTechnicalDevelopment,
+                    isActive: widget.activeItemLabel == 'Technical Development',
+                    isDisabled: lockTechnicalDevelopment,
+                  ),
+                  _buildSubMenuItem('Tools Integration', onTap: _openToolsIntegration, isActive: widget.activeItemLabel == 'Tools Integration'),
+                  _buildSubMenuItem('Long Lead Equipment Ordering', onTap: _openLongLeadEquipmentOrdering, isActive: widget.activeItemLabel == 'Long Lead Equipment Ordering'),
+                  _buildSubMenuItem(
+                    'Specialized Design',
+                    onTap: lockSpecializedDesign ? null : _openSpecializedDesign,
+                    isActive: widget.activeItemLabel == 'Specialized Design',
+                    isDisabled: lockSpecializedDesign,
+                  ),
+                  _buildSubMenuItem('Design Deliverables', onTap: _openDesignDeliverables, isActive: widget.activeItemLabel == 'Design Deliverables'),
+                ],
+                _buildExpandableHeader(
+                  Icons.play_circle_outline,
+                  'Execution Phase',
+                  expanded: _executionPhaseExpanded,
+                  onTap: () => setState(() {
+                    _executionPhaseExpanded = !_executionPhaseExpanded;
+                    _sharedExecutionPhaseExpanded = _executionPhaseExpanded;
+                  }),
+                  isActive: widget.activeItemLabel == 'Execution Phase',
+                ),
+                if (_executionPhaseExpanded) ...[
+                  _buildSubMenuItem(
+                    'Staff Team',
+                    onTap: lockStaffTeam ? null : _openStaffTeam,
+                    isActive: widget.activeItemLabel == 'Staff Team',
+                    isDisabled: lockStaffTeam,
+                  ),
+                  _buildSubMenuItem('Team Meetings', onTap: _openTeamMeetings, isActive: widget.activeItemLabel == 'Team Meetings'),
+                  _buildSubExpandableHeader(
+                    'Progress Tracking',
+                    expanded: _progressTrackingExpanded,
+                    onTap: () => setState(() {
+                      _progressTrackingExpanded = !_progressTrackingExpanded;
+                      _sharedProgressTrackingExpanded = _progressTrackingExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Progress Tracking' || widget.activeItemLabel == 'Deliverable Status Updates' || widget.activeItemLabel == 'Recurring Deliverables' || widget.activeItemLabel == 'Status Reports',
+                  ),
+                  if (_progressTrackingExpanded) ...[                    _buildSubSubMenuItem('Deliverable Status Updates', onTap: _openProgressTracking, isActive: widget.activeItemLabel == 'Deliverable Status Updates'),
+                    _buildSubSubMenuItem('Recurring Deliverables', onTap: _openProgressTracking, isActive: widget.activeItemLabel == 'Recurring Deliverables'),
+                    _buildSubSubMenuItem('Status Reports', onTap: _openProgressTracking, isActive: widget.activeItemLabel == 'Status Reports'),
+                  ],
+                  _buildSubMenuItem('Contracts Tracking', onTap: _openContractsTracking, isActive: widget.activeItemLabel == 'Contracts Tracking'),
+                  _buildSubMenuItem('Vendor Tracking', onTap: _openVendorTracking, isActive: widget.activeItemLabel == 'Vendor Tracking'),
+                  _buildSubMenuItem('Detailed Design', onTap: _openDetailedDesign, isActive: widget.activeItemLabel == 'Detailed Design'),
+                  _buildSubMenuItem('Agile Development Iterations', onTap: _openAgileDevelopmentIterations, isActive: widget.activeItemLabel == 'Agile Development Iterations'),
+                  _buildSubMenuItem('Scope Tracking Implementation', onTap: _openScopeTrackingImplementation, isActive: widget.activeItemLabel == 'Scope Tracking Implementation'),
+                  _buildSubMenuItem('Stakeholder Alignment', onTap: _openStakeholderAlignment, isActive: widget.activeItemLabel == 'Stakeholder Alignment'),
+                  _buildSubMenuItem(
+                    'Update Ops and Maintenance Plans',
+                    onTap: lockUpdateOps ? null : _openUpdateOpsMaintenancePlans,
+                    isActive: widget.activeItemLabel == 'Update Ops and Maintenance Plans',
+                    isDisabled: lockUpdateOps,
+                  ),
+                  _buildSubMenuItem('Start-up or Launch Checklist', onTap: _openLaunchChecklist, isActive: widget.activeItemLabel == 'Start-up or Launch Checklist'),
+                  _buildSubMenuItem('Risk Tracking', onTap: _openRiskTracking, isActive: widget.activeItemLabel == 'Risk Tracking'),
+                  _buildSubMenuItem('Scope Completion', onTap: _openScopeCompletion, isActive: widget.activeItemLabel == 'Scope Completion'),
+                  _buildSubMenuItem(
+                    'Gap Analysis and Scope Reconciliation',
+                    onTap: lockGapAnalysis ? null : _openGapAnalysisAndScopeReconcillation,
+                    isActive: widget.activeItemLabel == 'Gap Analysis and Scope Reconciliation',
+                    isDisabled: lockGapAnalysis,
+                  ),
+                  _buildSubExpandableHeader(
+                    'Punchlist Actions',
+                    expanded: _punchlistExpanded,
+                    onTap: () => setState(() {
+                      _punchlistExpanded = !_punchlistExpanded;
+                      _sharedPunchlistExpanded = _punchlistExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Punchlist Actions' || widget.activeItemLabel == 'Technical Debt Management',
+                    isDisabled: lockPunchlistActions,
+                  ),
+                  if (_punchlistExpanded) ...[
+                    _buildSubSubMenuItem(
+                      'Punchlist Overview',
+                      onTap: lockPunchlistActions ? null : _openPunchlistActions,
+                      isActive: widget.activeItemLabel == 'Punchlist Actions',
+                      isDisabled: lockPunchlistActions,
+                    ),
+                    _buildSubSubMenuItem(
+                      'Tech Debt Management',
+                      onTap: lockPunchlistActions ? null : _openTechnicalDebtManagement,
+                      isActive: widget.activeItemLabel == 'Technical Debt Management',
+                      isDisabled: lockPunchlistActions,
+                    ),
+                  ],
+                  _buildSubMenuItem('Identify and Staff Ops Team', onTap: _openIdentifyStaffOpsTeam, isActive: widget.activeItemLabel == 'Identify and Staff Ops Team'),
+                  _buildSubMenuItem(
+                    'Salvage and/or Disposal Plan',
+                    onTap: lockSalvageDisposal ? null : _openSalvageDisposalTeam,
+                    isActive: widget.activeItemLabel == 'Salvage and/or Disposal Plan',
+                    isDisabled: lockSalvageDisposal,
+                  ),
+                  _buildSubMenuItem('Finalize Project', isActive: widget.activeItemLabel == 'Finalize Project'),
+                ],
+                _buildExpandableHeader(
+                  Icons.rocket_launch_outlined,
+                  'Launch Phase',
+                  expanded: _launchPhaseExpanded,
+                  onTap: () => setState(() {
+                    _launchPhaseExpanded = !_launchPhaseExpanded;
+                    _sharedLaunchPhaseExpanded = _launchPhaseExpanded;
+                  }),
+                  isActive: widget.activeItemLabel == 'Launch Phase',
+                ),
+                if (_launchPhaseExpanded) ...[
+                  _buildSubMenuItem('Deliver Project', onTap: _openDeliverProjectClosure, isActive: widget.activeItemLabel == 'Deliver Project'),
+                  _buildSubMenuItem('Transition To Production Team', onTap: _openTransitionToProdTeam, isActive: widget.activeItemLabel == 'Transition To Production Team'),
+                  _buildSubMenuItem('Contract Close Out', onTap: _openContractCloseOut, isActive: widget.activeItemLabel == 'Contract Close Out'),
+                  _buildSubMenuItem('Vendor Account Close Out', onTap: _openVendorAccountCloseOut, isActive: widget.activeItemLabel == 'Vendor Account Close Out'),
+                  _buildSubMenuItem(
+                    'Project Summary',
+                    onTap: lockProjectSummary ? null : _openSummarizeAccountRisks,
+                    isActive: widget.activeItemLabel == 'Project Summary',
+                    isDisabled: lockProjectSummary,
+                  ),
+                  _buildSubMenuItem(
+                    'Warranties & Operations Support',
+                    onTap: lockWarrantiesSupport ? null : _openCommerceViability,
+                    isActive: widget.activeItemLabel == 'Warranties & Operations Support',
+                    isDisabled: lockWarrantiesSupport,
+                  ),
+                  _buildSubExpandableHeader(
+                    'Project Financial Review',
+                    expanded: _actualVsPlannedExpanded,
+                    onTap: () => setState(() {
+                      _actualVsPlannedExpanded = !_actualVsPlannedExpanded;
+                      _sharedActualVsPlannedExpanded = _actualVsPlannedExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Project Financial Review' ||
+                        widget.activeItemLabel == 'Project Financial Review - Scope Reconcillation',
+                    isDisabled: lockProjectFinancialReview,
+                  ),
+                  if (_actualVsPlannedExpanded) ...[
+                    _buildSubSubMenuItem(
+                      'Gap Analysis',
+                      onTap: _openActualVsPlannedGapAnalysis,
+                      isActive: widget.activeItemLabel == 'Project Financial Review',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Scope Reconcillation',
+                      onTap: _openActualVsPlannedScopeReconcillation,
+                      isActive: widget.activeItemLabel == 'Project Financial Review - Scope Reconcillation',
+                    ),
+                  ],
+                  _buildSubMenuItem('Demobilize Team', onTap: _openDemobilizeTeam, isActive: widget.activeItemLabel == 'Demobilize Team'),
+                  _buildSubExpandableHeader(
+                    'Project Close Out',
+                    expanded: _projectCloseOutExpanded,
+                    onTap: () => setState(() {
+                      _projectCloseOutExpanded = !_projectCloseOutExpanded;
+                      _sharedProjectCloseOutExpanded = _projectCloseOutExpanded;
+                    }),
+                    isActive: widget.activeItemLabel == 'Project Close Out' ||
+                        widget.activeItemLabel == 'Project Close Out - Long Form' ||
+                        widget.activeItemLabel == 'Project Close Out - Summarized Form',
+                  ),
+                  if (_projectCloseOutExpanded) ...[
+                    _buildSubSubMenuItem(
+                      'Long Form',
+                      onTap: _openProjectCloseOutLongForm,
+                      isActive: widget.activeItemLabel == 'Project Close Out - Long Form',
+                    ),
+                    _buildSubSubMenuItem(
+                      'Summarized Form',
+                      onTap: _openProjectCloseOutSummarized,
+                      isActive: widget.activeItemLabel == 'Project Close Out - Summarized Form',
+                    ),
+                  ],
+                ],
+                const SizedBox(height: 20),
+                _buildMenuItem(Icons.settings_outlined, 'Settings', onTap: () => SettingsScreen.open(context), isActive: widget.activeItemLabel == 'Settings'),
+                _buildMenuItem(Icons.logout_outlined, 'LogOut', onTap: () => AuthNav.signOutAndExit(context), isActive: widget.activeItemLabel == 'LogOut'),
+              ];
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   Widget _buildSearchResults() {

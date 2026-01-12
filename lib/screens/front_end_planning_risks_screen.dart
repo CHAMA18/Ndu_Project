@@ -306,6 +306,7 @@ bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
           : '\n\nPreferred solution risk seeds (${preferredTitle.isEmpty ? 'Selected Solution' : preferredTitle}):\n- ${preferredRiskSeeds.join('\n- ')}';
       final ctx = '$baseContext$preferredRiskContext'.trim();
       final aiService = OpenAiServiceSecure();
+<<<<<<< HEAD
 
       // Preferred solution risks should be the starting point when available.
       final seedCount = preferredRiskSeeds.isNotEmpty
@@ -404,16 +405,63 @@ bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
           }
           return riskItem;
         });
+=======
+      
+      // Generate risks with all fields (Title, Category, Probability, Impact)
+      final risks = await aiService.generateFepRisks(ctx);
+      
+      if (!mounted) return;
+      setState(() {
+        _rows = risks
+            .asMap()
+            .entries
+            .map((entry) {
+              final riskData = entry.value;
+              // Calculate risk level from probability and impact
+              final prob = riskData['probability']?.toLowerCase() ?? 'medium';
+              final impact = riskData['impact']?.toLowerCase() ?? 'medium';
+              String riskLevel = 'Medium';
+              if ((prob == 'high' && impact == 'high') || (prob == 'high' && impact == 'medium') || (prob == 'medium' && impact == 'high')) {
+                riskLevel = 'High';
+              } else if ((prob == 'low' && impact == 'low') || (prob == 'low' && impact == 'medium') || (prob == 'medium' && impact == 'low')) {
+                riskLevel = 'Low';
+              }
+              
+              return _RiskItem(
+                id: _generateId(entry.key + 1),
+                requirement: '',
+                requirementType: '',
+                risk: riskData['title'] ?? '',
+                description: riskData['title'] ?? '', // Use title as description initially
+                category: riskData['category'] ?? '',
+                probability: riskData['probability'] ?? '',
+                impact: riskData['impact'] ?? '',
+                riskValue: '',
+                riskLevel: riskLevel,
+                mitigation: '',
+                discipline: '',
+                owner: '',
+                status: 'Identified',
+              );
+            })
+            .toList();
+>>>>>>> 1ee471ae (Merge codebases)
         _isGeneratingRequirements = false;
       });
       _syncRisksToProvider();
       await _showDueDiligencePromptIfNeeded();
     } catch (e) {
       if (!mounted) return;
+<<<<<<< HEAD
       debugPrint('Risk generation failed: $e');
       final fallbackRows = _buildFallbackRows(
         requirements: requirements,
         preferredRiskSeeds: preferredRiskSeeds,
+=======
+      setState(() => _isGeneratingRequirements = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate risks: $e')),
+>>>>>>> 1ee471ae (Merge codebases)
       );
       if (fallbackRows.isNotEmpty) {
         setState(() {
@@ -2587,6 +2635,7 @@ class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
     required this.controller,
+    this.hintText,
     this.autofocus = false,
     this.enabled = true,
   });

@@ -266,8 +266,13 @@ class AiProjectValueInsights {
     } else if (benefitsRaw is List) {
       for (final item in benefitsRaw) {
         if (item is Map && item.containsKey('category')) {
+<<<<<<< HEAD
           parsedBenefits[item['category'].toString()] = _stripAsterisks(
               (item['details'] ?? item['value'] ?? '').toString());
+=======
+          parsedBenefits[item['category'].toString()] =
+              (item['details'] ?? item['value'] ?? '').toString();
+>>>>>>> 1ee471ae (Merge codebases)
         }
       }
     }
@@ -292,9 +297,15 @@ class AiProjectGoalRecommendation {
     final rawDesc = map['description'] ?? map['details'] ?? map['text'] ?? '';
     final rawFramework =
         map['framework'] ?? map['methodology'] ?? map['approach'] ?? '';
+<<<<<<< HEAD
     final name = _stripAsterisks(rawName.toString().trim());
     final description = _stripAsterisks(rawDesc.toString().trim());
     final framework = _stripAsterisks(rawFramework?.toString().trim() ?? '');
+=======
+    final name = rawName.toString().trim();
+    final description = rawDesc.toString().trim();
+    final framework = rawFramework?.toString().trim();
+>>>>>>> 1ee471ae (Merge codebases)
     return AiProjectGoalRecommendation(
       name: name,
       description: description,
@@ -327,7 +338,11 @@ class AiProjectFrameworkAndGoals {
   factory AiProjectFrameworkAndGoals.fromMap(Map<String, dynamic> map) {
     final rawFramework =
         map['framework'] ?? map['overallFramework'] ?? map['methodology'] ?? '';
+<<<<<<< HEAD
     final framework = _stripAsterisks(rawFramework.toString().trim());
+=======
+    final framework = rawFramework.toString().trim();
+>>>>>>> 1ee471ae (Merge codebases)
     final rawGoals = map['goals'];
     final parsedGoals = <AiProjectGoalRecommendation>[];
     if (rawGoals is List) {
@@ -440,6 +455,7 @@ class AiBenefitSavingsSuggestion {
     String parseString(dynamic value) => value?.toString().trim() ?? '';
 
     return AiBenefitSavingsSuggestion(
+<<<<<<< HEAD
       lever: _stripAsterisks(
           parseString(map['lever'] ?? map['title'] ?? map['scenario'])),
       recommendation: _stripAsterisks(parseString(
@@ -452,12 +468,26 @@ class AiBenefitSavingsSuggestion {
           map['confidence'] ?? map['certainty'] ?? map['confidence_level'])),
       rationale: _stripAsterisks(
           parseString(map['rationale'] ?? map['notes'] ?? map['summary'])),
+=======
+      lever: parseString(map['lever'] ?? map['title'] ?? map['scenario']),
+      recommendation: parseString(
+          map['recommendation'] ?? map['action'] ?? map['strategy']),
+      projectedSavings: parseDouble(
+          map['projected_savings'] ?? map['savings'] ?? map['projected_value']),
+      timeframe:
+          parseString(map['timeframe'] ?? map['horizon'] ?? map['period']),
+      confidence: parseString(
+          map['confidence'] ?? map['certainty'] ?? map['confidence_level']),
+      rationale:
+          parseString(map['rationale'] ?? map['notes'] ?? map['summary']),
+>>>>>>> 1ee471ae (Merge codebases)
     );
   }
 }
 
 class OpenAiServiceSecure {
   final http.Client _client;
+<<<<<<< HEAD
   static const int maxRetries = 1;
   static const Duration retryDelay = Duration(seconds: 1);
   static const Duration _interRequestDelay = Duration(milliseconds: 120);
@@ -528,6 +558,13 @@ class OpenAiServiceSecure {
       return content.trim();
     });
   }
+=======
+  static const int maxRetries = 2;
+  static const Duration retryDelay = Duration(seconds: 2);
+
+  OpenAiServiceSecure({http.Client? client})
+      : _client = client ?? http.Client();
+>>>>>>> 1ee471ae (Merge codebases)
 
   // Generate a concise section text for Front End Planning pages based on full project context.
   // Returns a rich paragraph suitable for a multi-line TextField. If API is not configured,
@@ -556,11 +593,16 @@ class OpenAiServiceSecure {
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'senior delivery planner drafting crisp, actionable section write-ups',
             strictJson: true,
           ),
+=======
+          'content':
+              'You are a senior delivery planner. For the requested section, draft a crisp, actionable write-up. Always return only a JSON object.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {
           'role': 'user',
@@ -582,14 +624,23 @@ class OpenAiServiceSecure {
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
       final text =
           (parsed['text'] ?? parsed['section'] ?? parsed['content'] ?? '')
               .toString()
               .trim();
+<<<<<<< HEAD
       final cleanText = _stripAsterisks(text);
       if (cleanText.isNotEmpty) return cleanText;
+=======
+      if (text.isNotEmpty) return text;
+>>>>>>> 1ee471ae (Merge codebases)
       // If missing expected key, try to flatten other fields to text
       if (parsed.isNotEmpty) {
         return parsed.values
@@ -2222,15 +2273,27 @@ Return JSON with:
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+<<<<<<< HEAD
       final content = OpenAiConfig.extractContent(data);
       if (content.isNotEmpty) {
+=======
+      final choices = data['choices'] as List<dynamic>? ?? [];
+      if (choices.isNotEmpty) {
+        final firstMessage =
+            choices.first['message'] as Map<String, dynamic>? ?? {};
+        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+>>>>>>> 1ee471ae (Merge codebases)
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final result = AiProjectFrameworkAndGoals.fromMap(parsed);
@@ -2252,8 +2315,12 @@ Return JSON with:
   // OPPORTUNITIES
   // Generates a structured list of project opportunities based on full project context.
   // Returns up to 12 rows suitable for the Opportunities table.
+<<<<<<< HEAD
   // Returns up to 12 rows suitable for the Opportunities table.
   Future<List<OpportunityItem>> generateOpportunitiesFromContext(
+=======
+  Future<List<Map<String, String>>> generateOpportunitiesFromContext(
+>>>>>>> 1ee471ae (Merge codebases)
       String context) async {
     final trimmed = context.trim();
     if (trimmed.isEmpty) throw Exception('No context provided');
@@ -2270,6 +2337,7 @@ Return JSON with:
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'program manager drafting tangible project opportunities from prior project context',
@@ -2277,6 +2345,10 @@ Return JSON with:
             extraRules:
                 'Draft practical, specific opportunities that fit the project type and current project context. Avoid generic business platitudes and include ownership, phase, and implementation detail when the context supports it.',
           )
+=======
+          'content':
+              'You are a program manager. From prior project inputs, draft tangible project opportunities. Always return a JSON object only.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {
           'role': 'user',
@@ -2298,13 +2370,19 @@ Return JSON with:
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
       final list = (parsed['opportunities'] as List? ?? []);
       final result = <OpportunityItem>[];
       for (final item in list) {
         if (item is! Map) continue;
         final map = item as Map<String, dynamic>;
+<<<<<<< HEAD
         final opp = _stripAsterisks(
             (map['opportunity'] ?? map['title'] ?? '').toString().trim());
         if (opp.isEmpty) continue;
@@ -2346,6 +2424,26 @@ Return JSON with:
           appliesTo: _phaseToOpportunityTags(applicablePhase),
           impact: (map['impact'] ?? 'Medium').toString().trim(),
         ));
+=======
+        final opp =
+            (map['opportunity'] ?? map['title'] ?? '').toString().trim();
+        if (opp.isEmpty) continue;
+        result.add({
+          'opportunity': opp,
+          'discipline': (map['discipline'] ?? '').toString().trim(),
+          'stakeholder':
+              (map['stakeholder'] ?? map['owner'] ?? '').toString().trim(),
+          'potentialCost1':
+              (map['potential_cost_savings'] ?? map['cost_savings'] ?? '')
+                  .toString()
+                  .trim(),
+          'potentialCost2': (map['potential_cost_schedule_savings'] ??
+                  map['schedule_savings'] ??
+                  '')
+              .toString()
+              .trim(),
+        });
+>>>>>>> 1ee471ae (Merge codebases)
       }
       if (result.isNotEmpty) return result.take(12).toList();
       throw Exception('OpenAI returned no opportunities');
@@ -2393,6 +2491,7 @@ $c
 ''';
   }
 
+<<<<<<< HEAD
   List<String> _phaseToOpportunityTags(String phase) {
     final normalized = phase.trim().toLowerCase();
     if (normalized.isEmpty) {
@@ -2413,6 +2512,8 @@ $c
     return const <String>[];
   }
 
+=======
+>>>>>>> 1ee471ae (Merge codebases)
   String _fepSectionPrompt({required String section, required String context}) {
     final s = _escape(section);
     final c = _escape(context);
@@ -2494,6 +2595,7 @@ $c
     if (trimmed.isEmpty) return 0;
 
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
+<<<<<<< HEAD
 
     final combinedContext = '$trimmed $description $assumptions $contextNotes';
     final projectType = _detectProjectType(combinedContext);
@@ -2503,6 +2605,8 @@ $c
       context: combinedContext,
     );
     final scaleConstraints = _scaleFinancialConstraints(projectScale);
+=======
+>>>>>>> 1ee471ae (Merge codebases)
 
     final uri = OpenAiConfig.chatUri();
     final headers = OpenAiConfig.headers();
@@ -2529,6 +2633,7 @@ $c
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'senior cost analyst estimating a single financial line item accurately for the detected project domain',
@@ -2536,6 +2641,10 @@ $c
             extraRules:
                 'Return JSON only with keys: estimated_cost (number), confidence (0..1), needs_more_context (boolean), rationale (string). Do not produce SaaS metrics for non-digital projects. Do not produce construction assumptions for purely digital projects.',
           )
+=======
+          'content':
+              'You are a senior cost analyst. Always return a JSON object only.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {
           'role': 'user',
@@ -2562,6 +2671,7 @@ $c
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final dynamic value =
@@ -2590,6 +2700,13 @@ $c
 
       // Post-processing: clamp to scale-appropriate maximum
       return _clampCostValue(estimated, projectScale);
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final dynamic value =
+          parsed['estimated_cost'] ?? parsed['cost'] ?? parsed['value'];
+      return _toDouble(value);
+>>>>>>> 1ee471ae (Merge codebases)
     } catch (e) {
       rethrow;
     }
@@ -3113,9 +3230,13 @@ $domainHints
 
   // SOLUTIONS
   Future<List<AiSolutionItem>> generateSolutionsFromBusinessCase(
+<<<<<<< HEAD
     String businessCase, {
     String contextNotes = '',
   }) async {
+=======
+      String businessCase) async {
+>>>>>>> 1ee471ae (Merge codebases)
     if (businessCase.trim().isEmpty) throw Exception('Business case is empty');
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
@@ -3135,12 +3256,22 @@ $domainHints
   }
 
   Future<List<AiSolutionItem>> _attemptSolutionsApiCall(
+<<<<<<< HEAD
     String businessCase, {
     String contextNotes = '',
   }) async {
     final uri = OpenAiConfig.chatUri();
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+      String businessCase) async {
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.7,
       'max_completion_tokens': 1000,
@@ -3148,6 +3279,7 @@ $domainHints
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'project initiation assistant creating concise, business-friendly solution options',
@@ -3162,12 +3294,17 @@ $domainHints
             businessCase,
             contextNotes: contextNotes,
           )
+=======
+          'content':
+              'You are a project initiation assistant. You write concise, business-friendly solution options. Always return strict JSON that matches the required schema.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
       ],
     }));
 
     final response = await _client
         .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
         .timeout(const Duration(seconds: 30));
     if (response.statusCode == 429) {
       throw Exception('API quota exceeded. Please check your OpenAI billing.');
@@ -3175,6 +3312,13 @@ $domainHints
     if (response.statusCode == 401) {
       throw Exception('Invalid API key. Please check your OpenAI API key.');
     }
+=======
+        .timeout(const Duration(seconds: 12));
+    if (response.statusCode == 429)
+      throw Exception('API quota exceeded. Please check your OpenAI billing.');
+    if (response.statusCode == 401)
+      throw Exception('Invalid API key. Please check your OpenAI API key.');
+>>>>>>> 1ee471ae (Merge codebases)
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'OpenAI API error ${response.statusCode}: ${response.body}');
@@ -3183,8 +3327,13 @@ $domainHints
     final data =
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     final content =
+<<<<<<< HEAD
         OpenAiConfig.extractContent(data);
     final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+        (data['choices'] as List).first['message']['content'] as String;
+    final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
     final items = (parsed['solutions'] as List? ?? [])
         .map((e) => AiSolutionItem.fromMap(e as Map<String, dynamic>))
         .where((e) => e.title.isNotEmpty && e.description.isNotEmpty)
@@ -3200,8 +3349,16 @@ $domainHints
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
+<<<<<<< HEAD
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.6,
       'max_completion_tokens': 1200,
@@ -3209,6 +3366,7 @@ $domainHints
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'risk analyst listing crisp, non-overlapping delivery risks per solution',
@@ -3216,6 +3374,10 @@ $domainHints
             extraRules:
                 'For each provided solution, list three explicit risks. Do not use vague categories, filler text, or duplicate the same concern across solutions.',
           )
+=======
+          'content':
+              'You are a risk analyst. For each provided solution, list three crisp, non-overlapping delivery risks. Return strict JSON only.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {'role': 'user', 'content': _risksPrompt(solutions, contextNotes)},
       ],
@@ -3224,7 +3386,11 @@ $domainHints
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -3232,16 +3398,27 @@ $domainHints
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
 
       final List list = (parsed['risks'] as List? ?? []);
       final Map<String, List<String>> result = {};
       for (final item in list) {
         final map = item as Map<String, dynamic>;
+<<<<<<< HEAD
         final title = _stripAsterisks((map['solution'] ?? '').toString());
         final items = (map['items'] as List? ?? [])
             .map((e) => _stripAsterisks(e.toString()))
+=======
+        final title = (map['solution'] ?? '').toString();
+        final items = (map['items'] as List? ?? [])
+            .map((e) => e.toString())
+>>>>>>> 1ee471ae (Merge codebases)
             .where((e) => e.trim().isNotEmpty)
             .take(3)
             .toList();
@@ -3325,6 +3502,7 @@ $domainHints
 
   Future<List<Map<String, String>>> _attemptRequirementsApiCall(
       String businessCase) async {
+<<<<<<< HEAD
     Map<String, dynamic> data;
     try {
       data = await _postRequirementsRequest(
@@ -3377,12 +3555,21 @@ $domainHints
     final uri = OpenAiConfig.chatUri();
     final headers = OpenAiConfig.headers();
     final payload = {
+=======
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.7,
       'max_completion_tokens': 2000,
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'business analyst generating requirements from project context',
@@ -3458,10 +3645,47 @@ $domainHints
                 item['implementationPhase'] ??
                 item['implementation_phase']),
             'requirementSource': requirementSource,
+=======
+          'content':
+              'You are a business analyst expert. Generate project requirements from business cases. Each requirement should be clear, specific, and categorized by type. Always return strict JSON that matches the required schema.'
+        },
+        {'role': 'user', 'content': _requirementsPrompt(businessCase)},
+      ],
+    });
+
+    final response = await _client
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode == 429)
+      throw Exception('API quota exceeded. Please check your OpenAI billing.');
+    if (response.statusCode == 401)
+      throw Exception('Invalid API key. Please check your OpenAI API key.');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+          'OpenAI API error ${response.statusCode}: ${response.body}');
+    }
+
+    final data =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final content =
+        (data['choices'] as List).first['message']['content'] as String;
+    final parsed = jsonDecode(content) as Map<String, dynamic>;
+    final items = (parsed['requirements'] as List? ?? [])
+        .map((e) {
+          final item = e as Map<String, dynamic>;
+          return {
+            'requirement': (item['requirement'] ?? '').toString().trim(),
+            'requirementType': (item['requirementType'] ??
+                    item['requirement_type'] ??
+                    'Functional')
+                .toString()
+                .trim(),
+>>>>>>> 1ee471ae (Merge codebases)
           };
         })
         .where((e) => e['requirement']!.isNotEmpty)
         .toList();
+<<<<<<< HEAD
   }
 
   List<Map<String, String>> _requirementsFromText(String content) {
@@ -3510,6 +3734,11 @@ $domainHints
       return null;
     }
     return null;
+=======
+
+    // Limit to 20 requirements as specified
+    return items.take(20).toList();
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   // Fallback requirements removed. OpenAI failures should surface to the UI.
@@ -3522,8 +3751,16 @@ $domainHints
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
+<<<<<<< HEAD
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.5,
       'max_completion_tokens': 1200,
@@ -3531,6 +3768,7 @@ $domainHints
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'solutions architect identifying the core technologies or tools each solution genuinely needs',
@@ -3538,6 +3776,10 @@ $domainHints
             extraRules:
                 'For each solution, list 3-6 concrete technologies, frameworks, services, or tools. If a solution is primarily physical and does not genuinely need a digital stack, return an empty list for that solution instead of generic IT filler.',
           )
+=======
+          'content':
+              'You are a solutions architect. For each solution, list 3-6 core technologies, frameworks, services, or tools needed to implement it. Be concrete and vendor-agnostic where reasonable. Return strict JSON only.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {
           'role': 'user',
@@ -3549,7 +3791,11 @@ $domainHints
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -3557,16 +3803,27 @@ $domainHints
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
 
       final List list = (parsed['technologies'] as List? ?? []);
       final Map<String, List<String>> result = {};
       for (final item in list) {
         final map = item as Map<String, dynamic>;
+<<<<<<< HEAD
         final title = _stripAsterisks((map['solution'] ?? '').toString());
         final items = (map['items'] as List? ?? [])
             .map((e) => _stripAsterisks(e.toString()))
+=======
+        final title = (map['solution'] ?? '').toString();
+        final items = (map['items'] as List? ?? [])
+            .map((e) => e.toString())
+>>>>>>> 1ee471ae (Merge codebases)
             .where((e) => e.trim().isNotEmpty)
             .take(6)
             .toList();
@@ -3612,8 +3869,16 @@ $domainHints
         _financialDomainHints(context: contextNotes, solutions: solutions);
 
     final uri = OpenAiConfig.chatUri();
+<<<<<<< HEAD
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.45,
       'max_completion_tokens': 1400,
@@ -3621,6 +3886,7 @@ $domainHints
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'cost analyst producing distinct, context-aware solution cost breakdowns',
@@ -3637,6 +3903,15 @@ $domainHints
             currency,
             domainHints: domainHints,
           )
+=======
+          'content':
+              'You are a cost analyst. For each solution, produce a concise cost breakdown: 8–20 project items with description, estimated cost ('
+                  '$currency), expected ROI% and NPV values for 3, 5, and 10-year horizons (same currency). Use realistic but round numbers. Keep descriptions under 18 words. Return strict JSON only.'
+        },
+        {
+          'role': 'user',
+          'content': _costBreakdownPrompt(solutions, contextNotes, currency)
+>>>>>>> 1ee471ae (Merge codebases)
         },
       ],
     }));
@@ -3652,8 +3927,13 @@ $domainHints
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
 
       final List list = (parsed['cost_breakdown'] as List? ?? []);
       final Map<String, List<AiCostItem>> result = {};
@@ -3691,6 +3971,7 @@ $domainHints
   }
 
   Map<String, List<AiCostItem>> _mergeWithFallbackCost(
+<<<<<<< HEAD
     List<AiSolutionItem> solutions,
     Map<String, List<AiCostItem>> generated, {
     String contextNotes = '',
@@ -3712,10 +3993,21 @@ $domainHints
                     index: i,
                     contextNotes: contextNotes,
                   ));
+=======
+      List<AiSolutionItem> solutions, Map<String, List<AiCostItem>> generated) {
+    final fallback = _fallbackCostBreakdown(solutions);
+    final merged = <String, List<AiCostItem>>{};
+    for (final s in solutions) {
+      final g = generated[s.title];
+      merged[s.title] = (g != null && g.isNotEmpty)
+          ? g.take(5).toList()
+          : (fallback[s.title] ?? []);
+>>>>>>> 1ee471ae (Merge codebases)
     }
     return merged;
   }
 
+<<<<<<< HEAD
   Map<String, List<AiCostItem>> _sanitizeGeneratedCostBreakdown({
     required List<AiSolutionItem> solutions,
     required Map<String, List<AiCostItem>> generated,
@@ -3821,6 +4113,10 @@ $domainHints
     List<AiSolutionItem> solutions, {
     String contextNotes = '',
   }) {
+=======
+  Map<String, List<AiCostItem>> _fallbackCostBreakdown(
+      List<AiSolutionItem> solutions) {
+>>>>>>> 1ee471ae (Merge codebases)
     final map = <String, List<AiCostItem>>{};
     for (int i = 0; i < solutions.length; i++) {
       final solution = solutions[i];
@@ -3833,6 +4129,7 @@ $domainHints
     return map;
   }
 
+<<<<<<< HEAD
   List<AiCostItem> _fallbackCostItemsForSolution(
     AiSolutionItem solution, {
     required int index,
@@ -4126,6 +4423,14 @@ $domainHints
       return '{"title": "${_escape(s.title)}", "description": "${_escape(s.description)}", "project_type_hint": "$typeHint"}';
     }).join(',');
     final currencyInstruction = _currencyConversionInstruction(currency);
+=======
+  String _costBreakdownPrompt(
+      List<AiSolutionItem> solutions, String notes, String currency) {
+    final list = solutions
+        .map((s) =>
+            '{"title": "${_escape(s.title)}", "description": "${_escape(s.description)}"}')
+        .join(',');
+>>>>>>> 1ee471ae (Merge codebases)
     return '''
 For each solution below, provide a cost breakdown with up to 20 items (aim for 8-20 when possible).
 Each item must include: item, description, estimated_cost (number in $currency), roi_percent (number), and npv_by_years (keys "3_years", "5_years", "10_years" with numeric values in $currency).
@@ -4884,6 +5189,7 @@ Domain guardrail: $guardrails
     List<AiSolutionItem> solutions, {
     String contextNotes = '',
   }) async {
+<<<<<<< HEAD
     final combinedText =
         '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
     final detectedType = _detectProjectType(combinedText);
@@ -4896,11 +5202,23 @@ Domain guardrail: $guardrails
         contextNotes: contextNotes,
       );
     }
+=======
+    if (!OpenAiConfig.isConfigured)
+      return _fallbackProjectValueInsights(solutions);
+>>>>>>> 1ee471ae (Merge codebases)
 
     final scaleHint = _projectScaleLabel(detectedScale);
     final uri = OpenAiConfig.chatUri();
+<<<<<<< HEAD
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.4,
       'max_completion_tokens': 900,
@@ -4908,6 +5226,7 @@ Domain guardrail: $guardrails
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'financial analyst preparing a solution-specific cost-benefit analysis',
@@ -4924,6 +5243,14 @@ Domain guardrail: $guardrails
             domainHints: domainHints,
             projectScale: detectedScale,
           )
+=======
+          'content':
+              'You are a financial analyst helping to prepare a cost-benefit analysis. Provide a clear project value estimate and articulate specific business benefits across financial gains, efficiencies, regulatory compliance, process improvements, and brand impact. Return strict JSON only.'
+        },
+        {
+          'role': 'user',
+          'content': _projectValuePrompt(solutions, contextNotes)
+>>>>>>> 1ee471ae (Merge codebases)
         },
       ],
     }));
@@ -4931,7 +5258,11 @@ Domain guardrail: $guardrails
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -4939,6 +5270,7 @@ Domain guardrail: $guardrails
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final valueMap =
@@ -4978,6 +5310,13 @@ Domain guardrail: $guardrails
       }
 
       return insights;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final valueMap =
+          (parsed['project_value'] ?? parsed) as Map<String, dynamic>;
+      return AiProjectValueInsights.fromMap(valueMap);
+>>>>>>> 1ee471ae (Merge codebases)
     } catch (e) {
       if (kDebugMode) debugPrint('generateProjectValueInsights failed: $e');
       return _fallbackProjectValueInsights(
@@ -4988,6 +5327,7 @@ Domain guardrail: $guardrails
   }
 
   AiProjectValueInsights _fallbackProjectValueInsights(
+<<<<<<< HEAD
     List<AiSolutionItem> solutions, {
     String contextNotes = '',
   }) {
@@ -5149,6 +5489,25 @@ Domain guardrail: $guardrails
     return AiProjectValueInsights(
       estimatedProjectValue: estimated > 0 ? estimated : floor,
       benefits: benefitNarrativesForType(),
+=======
+      List<AiSolutionItem> solutions) {
+    final firstSolution =
+        solutions.isNotEmpty ? solutions.first.title : 'Proposed initiative';
+    return AiProjectValueInsights(
+      estimatedProjectValue: 185000,
+      benefits: {
+        'financial_gains':
+            'Projected incremental revenue of 8-12% within the first year of launch.',
+        'operational_efficiencies':
+            'Automates manual reconciliation and reduces processing time by an estimated 35%.',
+        'regulatory_compliance':
+            'Strengthens audit trails and positions the initiative for upcoming regulatory milestones.',
+        'process_improvements':
+            'Streamlines cross-team workflows tied to $firstSolution delivery.',
+        'brand_image':
+            'Signals innovation leadership and improves partner confidence in programme execution.',
+      },
+>>>>>>> 1ee471ae (Merge codebases)
     );
   }
 
@@ -5686,8 +6045,16 @@ Return ONLY JSON.
     }
 
     final uri = OpenAiConfig.chatUri();
+<<<<<<< HEAD
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.4,
       'max_completion_tokens': 1200,
@@ -5706,6 +6073,7 @@ Return ONLY JSON.
         {
           'role': 'user',
           'content': _benefitSavingsPrompt(
+<<<<<<< HEAD
             items,
             currency,
             savingsTargetPercent,
@@ -5713,6 +6081,9 @@ Return ONLY JSON.
             domainHints: domainHints,
             scaleConstraints: scaleConstraints,
           ),
+=======
+              items, currency, savingsTargetPercent, contextNotes),
+>>>>>>> 1ee471ae (Merge codebases)
         },
       ],
     }));
@@ -5736,6 +6107,7 @@ Return ONLY JSON.
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final scenarios = (parsed['savings_scenarios'] as List? ?? [])
@@ -5765,6 +6137,15 @@ Return ONLY JSON.
         }
         return true;
       }).toList();
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final scenarios = (parsed['savings_scenarios'] as List? ?? [])
+          .map((e) => AiBenefitSavingsSuggestion.fromMap(
+              (e ?? {}) as Map<String, dynamic>))
+          .where((e) => e.lever.isNotEmpty)
+          .toList();
+>>>>>>> 1ee471ae (Merge codebases)
       if (scenarios.isEmpty) {
         return _fallbackSavingsSuggestions(
           items,
@@ -5795,7 +6176,10 @@ Return ONLY JSON.
     final notes = contextNotes.trim().isEmpty
         ? 'No additional context supplied.'
         : contextNotes.trim();
+<<<<<<< HEAD
     final currencyInstruction = _currencyConversionInstruction(currency);
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     return '''
 These are the financial benefit line items currently modelled (currency: $currency):
 $payload
@@ -5850,6 +6234,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
     }
 
     suggestions.add(AiBenefitSavingsSuggestion(
+<<<<<<< HEAD
       lever: 'Optimize $topCategoryLabel driver: ${top.title}',
       recommendation: topRecommendation(),
       projectedSavings: cappedSavings(top.total * 0.08),
@@ -5857,27 +6242,51 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
       confidence: 'Medium',
       rationale:
           'Largest monetised benefit category is $topCategoryLabel; a focused improvement here can protect value quickly.',
+=======
+      lever: 'Negotiate ${top.title}',
+      recommendation:
+          'Target a 10% reduction on unit value through vendor negotiations and alternative sourcing.',
+      projectedSavings: cappedSavings(top.total * 0.1),
+      timeframe: 'Next quarter',
+      confidence: 'Medium',
+      rationale:
+          'Largest monetised benefit in ${top.category}; small rate improvements yield immediate savings.',
+>>>>>>> 1ee471ae (Merge codebases)
     ));
 
     if (sorted.length > 1) {
       final runnerUp = sorted[1];
       final runnerUpLabel = _benefitCategoryDisplayLabel(runnerUp.category);
       suggestions.add(AiBenefitSavingsSuggestion(
+<<<<<<< HEAD
         lever: 'Volume and utilisation discipline for ${runnerUp.title}',
         recommendation:
             'Reduce avoidable volume by ~5% through tighter controls, scheduling, and performance tracking.',
+=======
+        lever: 'Volume discipline for ${runnerUp.title}',
+        recommendation:
+            'Reduce consumption by 5% via tighter controls and usage analytics.',
+>>>>>>> 1ee471ae (Merge codebases)
         projectedSavings: cappedSavings(runnerUp.total * 0.05),
         timeframe: '6 months',
         confidence: 'Medium',
         rationale:
+<<<<<<< HEAD
             'Second-largest monetised benefit ($runnerUpLabel) where volume adjustments improve realised savings.',
+=======
+            'Second-largest line item where volume adjustments protect realised benefits.',
+>>>>>>> 1ee471ae (Merge codebases)
       ));
     }
 
     suggestions.add(AiBenefitSavingsSuggestion(
       lever: 'Benefit realisation governance',
       recommendation:
+<<<<<<< HEAD
           'Embed monthly finance checkpoints and owner-level review to prevent benefit leakage across categories.',
+=======
+          'Embed monthly finance checkpoints to prevent benefit leakage across all categories.',
+>>>>>>> 1ee471ae (Merge codebases)
       projectedSavings: cappedSavings(total * 0.05),
       timeframe: '12 months',
       confidence: 'Medium',
@@ -5898,8 +6307,16 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
     if (!OpenAiConfig.isConfigured) return _fallbackInfrastructure(solutions);
 
     final uri = OpenAiConfig.chatUri();
+<<<<<<< HEAD
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.5,
       'max_completion_tokens': 1200,
@@ -5907,6 +6324,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'cloud and infrastructure architect identifying the infrastructure considerations each solution genuinely needs',
@@ -5914,6 +6332,10 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
             extraRules:
                 'For each solution, list the environments, facilities, utilities, networking, hosting, resiliency, observability, security, or operational infrastructure that solution specifically requires. If a solution has little or no infrastructure footprint in one dimension, do not fill it with generic placeholders.',
           )
+=======
+          'content':
+              'You are a cloud and infrastructure architect. For each solution, list the major infrastructure considerations required to operate it reliably and securely (e.g., environments, networking, security, observability, scaling, data, resiliency). Keep items concise. Return strict JSON only.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {
           'role': 'user',
@@ -5925,7 +6347,11 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -5933,8 +6359,13 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
 
       final List list = (parsed['infrastructure'] as List? ?? []);
       final Map<String, List<String>> result = {};
@@ -6046,6 +6477,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
       // If no solutions but we have project context, create a placeholder
       list = '{"title": "Project", "description": "${_escape(notes)}"}';
     }
+<<<<<<< HEAD
 
     return '''
 For each solution below, list ONLY physical infrastructure considerations required to support it - things that can be physically touched or installed.
@@ -6059,6 +6491,13 @@ CRITICAL REQUIREMENTS:
 IMPORTANT: Write clear, complete sentences. Each item should be a full, understandable statement (e.g., "Physical rack-mounted servers with redundant power supplies" not just "Servers"). Keep each item between 8-20 words and make it actionable and specific.
 IMPORTANT: Tailor items to EACH solution's title/description. Do NOT reuse the exact same list across different solutions.
 IMPORTANT: Be detailed and specific. Do not use "etc.", "and similar", or vague groupings. State each item explicitly.
+=======
+    
+    return '''
+For each solution below, list the major infrastructure considerations required to support it in production. Think in terms of environments, networking, security, observability, scaling, data, and resilience. 
+
+IMPORTANT: Write clear, complete sentences. Each item should be a full, understandable statement (e.g., "Production environment with automated deployment pipelines" not just "Environments"). Keep each item between 8-20 words and make it actionable and specific.
+>>>>>>> 1ee471ae (Merge codebases)
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -6074,6 +6513,7 @@ Context notes (optional): $notes
   }
 
   // STAKEHOLDERS
+<<<<<<< HEAD
   // Returns a map with 'internal' and 'external' keys, each containing Map<String, List<String>>
   Future<Map<String, Map<String, List<String>>>>
       generateStakeholdersForSolutions(List<AiSolutionItem> solutions,
@@ -6084,6 +6524,20 @@ Context notes (optional): $notes
     final uri = OpenAiConfig.chatUri();
     final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+  Future<Map<String, List<String>>> generateStakeholdersForSolutions(
+      List<AiSolutionItem> solutions,
+      {String contextNotes = ''}) async {
+    if (solutions.isEmpty) return {};
+    if (!OpenAiConfig.isConfigured) return _fallbackStakeholders(solutions);
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.5,
       'max_completion_tokens': 2000,
@@ -6092,7 +6546,11 @@ Context notes (optional): $notes
         {
           'role': 'system',
           'content':
+<<<<<<< HEAD
               'You are a stakeholder analyst. For each solution, separately list INTERNAL stakeholders (employees, departments, teams within the organization) and EXTERNAL stakeholders (regulatory bodies, vendors, government agencies, external partners). Be detailed and specific: do not use "etc.", "and similar", or vague groupings. State each stakeholder explicitly. Return strict JSON only.'
+=======
+              'You are a stakeholder analyst. For each solution, list the notable stakeholders that must be involved or consulted. Emphasize external, regulatory, government, and any critical third parties. Keep items concise. Return strict JSON only.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {
           'role': 'user',
@@ -6104,7 +6562,11 @@ Context notes (optional): $notes
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -6112,8 +6574,13 @@ Context notes (optional): $notes
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
 
       final Map<String, List<String>> internalResult = {};
       final Map<String, List<String>> externalResult = {};
@@ -6122,11 +6589,16 @@ Context notes (optional): $notes
       for (final item in stakeholderList) {
         final map = item as Map<String, dynamic>;
         final title = (map['solution'] ?? '').toString();
+<<<<<<< HEAD
         final internalItems = (map['internal'] as List? ?? [])
+=======
+        final items = (map['items'] as List? ?? [])
+>>>>>>> 1ee471ae (Merge codebases)
             .map((e) => e.toString())
             .where((e) => e.trim().isNotEmpty)
             .take(6)
             .toList();
+<<<<<<< HEAD
         final externalItems = (map['external'] as List? ?? [])
             .map((e) => e.toString())
             .where((e) => e.trim().isNotEmpty)
@@ -6136,6 +6608,9 @@ Context notes (optional): $notes
           if (internalItems.isNotEmpty) internalResult[title] = internalItems;
           if (externalItems.isNotEmpty) externalResult[title] = externalItems;
         }
+=======
+        if (title.isNotEmpty && items.isNotEmpty) result[title] = items;
+>>>>>>> 1ee471ae (Merge codebases)
       }
       return _mergeWithFallbackStakeholders(
           solutions, internalResult, externalResult);
@@ -6145,15 +6620,21 @@ Context notes (optional): $notes
     }
   }
 
+<<<<<<< HEAD
   Map<String, Map<String, List<String>>> _mergeWithFallbackStakeholders(
       List<AiSolutionItem> solutions,
       Map<String, List<String>> generatedInternal,
       Map<String, List<String>> generatedExternal) {
+=======
+  Map<String, List<String>> _mergeWithFallbackStakeholders(
+      List<AiSolutionItem> solutions, Map<String, List<String>> generated) {
+>>>>>>> 1ee471ae (Merge codebases)
     final fallback = _fallbackStakeholders(solutions);
     final mergedInternal = <String, List<String>>{};
     final mergedExternal = <String, List<String>>{};
 
     for (final s in solutions) {
+<<<<<<< HEAD
       final gInternal = generatedInternal[s.title];
       final gExternal = generatedExternal[s.title];
       mergedInternal[s.title] = (gInternal != null && gInternal.isNotEmpty)
@@ -6162,10 +6643,17 @@ Context notes (optional): $notes
       mergedExternal[s.title] = (gExternal != null && gExternal.isNotEmpty)
           ? gExternal.take(6).toList()
           : (fallback['external']![s.title] ?? []);
+=======
+      final g = generated[s.title];
+      merged[s.title] = (g != null && g.isNotEmpty)
+          ? g.take(6).toList()
+          : (fallback[s.title] ?? []);
+>>>>>>> 1ee471ae (Merge codebases)
     }
     return {'internal': mergedInternal, 'external': mergedExternal};
   }
 
+<<<<<<< HEAD
   Map<String, Map<String, List<String>>> _fallbackStakeholders(
       List<AiSolutionItem> solutions) {
     // Create distinct pools of stakeholders for variety
@@ -6214,6 +6702,13 @@ Context notes (optional): $notes
 
     const externalPools = <List<String>>[
       [
+=======
+  Map<String, List<String>> _fallbackStakeholders(
+      List<AiSolutionItem> solutions) {
+    final map = <String, List<String>>{};
+    for (final s in solutions) {
+      map[s.title] = [
+>>>>>>> 1ee471ae (Merge codebases)
         'Regulatory authority (industry-specific)',
         'Data protection authority / privacy office',
         'Government procurement or finance oversight',
@@ -6279,7 +6774,11 @@ Context notes (optional): $notes
       // If no solutions but we have project context, create a placeholder
       list = '{"title": "Project", "description": "${_escape(notes)}"}';
     }
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 1ee471ae (Merge codebases)
     return '''
 For each solution below, separately identify INTERNAL stakeholders (employees, departments, teams within your organization) and EXTERNAL stakeholders (regulatory bodies, vendors, government agencies, external partners, community groups).
 
@@ -6324,12 +6823,17 @@ Context notes (optional): $notes
     return normalized;
   }
 
+<<<<<<< HEAD
   String _solutionsPrompt(
     String businessCase, {
     String contextNotes = '',
   }) =>
       '''
 Generate 2-3 concrete, genuinely distinct solution options for this business case. Each solution should be practical, achievable, and directly address the project needs without being a minor variation of another option.
+=======
+  String _solutionsPrompt(String businessCase) => '''
+Generate exactly 5 concrete solution options for this business case. Each solution should be practical, achievable, and directly address the project needs.
+>>>>>>> 1ee471ae (Merge codebases)
 
 Return ONLY valid JSON in this exact structure:
 {
@@ -6454,13 +6958,24 @@ Context notes (optional): $notes
     }
 
     final uri = OpenAiConfig.chatUri();
+<<<<<<< HEAD
     final headers = OpenAiConfig.headers();
+=======
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
+    };
+>>>>>>> 1ee471ae (Merge codebases)
 
     final existingRisksText = existingRisks.isEmpty
         ? 'None yet'
         : existingRisks.map((r) => '- $r').join('\n');
 
+<<<<<<< HEAD
     final body = jsonEncode(OpenAiConfig.wrapBody({
+=======
+    final body = jsonEncode({
+>>>>>>> 1ee471ae (Merge codebases)
       'model': OpenAiConfig.model,
       'temperature': 0.7,
       'max_completion_tokens': 600,
@@ -6494,7 +7009,11 @@ Make each suggestion:
 '''
         }
       ],
+<<<<<<< HEAD
     }));
+=======
+    });
+>>>>>>> 1ee471ae (Merge codebases)
 
     try {
       final response = await _client
@@ -6507,8 +7026,13 @@ Make each suggestion:
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
 
       final suggestions = (parsed['suggestions'] as List? ?? [])
           .map((e) => e.toString().trim())
@@ -6607,15 +7131,27 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+<<<<<<< HEAD
       final content = OpenAiConfig.extractContent(data);
       if (content.isNotEmpty) {
+=======
+      final choices = data['choices'] as List<dynamic>? ?? [];
+      if (choices.isNotEmpty) {
+        final firstMessage =
+            choices.first['message'] as Map<String, dynamic>? ?? {};
+        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+>>>>>>> 1ee471ae (Merge codebases)
         final parsed = _decodeJsonSafely(content);
         final summary = parsed != null
             ? (parsed['summary'] ?? parsed['text'] ?? '').toString().trim()
@@ -6665,15 +7201,27 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+<<<<<<< HEAD
       final content = OpenAiConfig.extractContent(data);
       if (content.isNotEmpty) {
+=======
+      final choices = data['choices'] as List<dynamic>? ?? [];
+      if (choices.isNotEmpty) {
+        final firstMessage =
+            choices.first['message'] as Map<String, dynamic>? ?? {};
+        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+>>>>>>> 1ee471ae (Merge codebases)
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final entries = _parseSsherEntries(parsed, itemsPerCategory);
@@ -6711,6 +7259,7 @@ $escaped
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'launch-phase analyst generating concise and realistic table entries',
@@ -6718,6 +7267,10 @@ $escaped
             extraRules:
                 'Return only valid JSON matching the requested schema for each section key.',
           ),
+=======
+          'content':
+              'You are a launch-phase analyst. Generate concise, realistic table entries for each section key provided. Always return ONLY valid JSON matching the requested schema.'
+>>>>>>> 1ee471ae (Merge codebases)
         },
         {
           'role': 'user',
@@ -6730,15 +7283,27 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 12));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+<<<<<<< HEAD
       final content = OpenAiConfig.extractContent(data);
       if (content.isNotEmpty) {
+=======
+      final choices = data['choices'] as List<dynamic>? ?? [];
+      if (choices.isNotEmpty) {
+        final firstMessage =
+            choices.first['message'] as Map<String, dynamic>? ?? {};
+        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+>>>>>>> 1ee471ae (Merge codebases)
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final entries =
@@ -7626,6 +8191,7 @@ $escaped
   }
 
   String _fallbackSsherSummary(String context) {
+<<<<<<< HEAD
     final projectName = _extractProjectName(context);
     final assetName = projectName.isEmpty ? 'this project' : projectName;
     final highlights = _extractContextHighlights(
@@ -7689,6 +8255,16 @@ $escaped
     }
 
     return highlights;
+=======
+    final lines = context
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .take(5)
+        .join(' ');
+    return lines.isEmpty
+        ? 'SSHER plan is in progress.'
+        : 'SSHER plan summary: $lines';
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   String _ssherEntriesPrompt(String context, int itemsPerCategory) {
@@ -8792,6 +9368,19 @@ $escaped
     try {
       return jsonDecode(cleaned) as Map<String, dynamic>;
     } catch (_) {
+<<<<<<< HEAD
+=======
+      final start = trimmed.indexOf('{');
+      final end = trimmed.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        try {
+          return jsonDecode(trimmed.substring(start, end + 1))
+              as Map<String, dynamic>;
+        } catch (_) {
+          return null;
+        }
+      }
+>>>>>>> 1ee471ae (Merge codebases)
       return null;
     }
   }
@@ -8808,7 +9397,11 @@ $escaped
       // If no solutions but we have project context, create a placeholder
       list = '{"title": "Project", "description": "${_escape(notes)}"}';
     }
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 1ee471ae (Merge codebases)
     return '''
 For each solution below, list 3-6 core technologies/services/frameworks that would be SPECIFICALLY required to implement that particular solution.
 
@@ -8833,6 +9426,7 @@ Context notes (optional): $notes
   }
 
   // FEP RISKS GENERATION - Generate risks with all fields (Title, Category, Probability, Impact)
+<<<<<<< HEAD
   Future<List<Map<String, String>>> generateFepRisks(
     String context, {
     int minCount = 5,
@@ -8847,10 +9441,26 @@ Context notes (optional): $notes
       'model': OpenAiConfig.model,
       'temperature': 0.6,
       'max_completion_tokens': 2000,
+=======
+  Future<List<Map<String, String>>> generateFepRisks(String context) async {
+    if (context.trim().isEmpty) return [];
+    if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.6,
+      'max_tokens': 2000,
+>>>>>>> 1ee471ae (Merge codebases)
       'response_format': {'type': 'json_object'},
       'messages': [
         {
           'role': 'system',
+<<<<<<< HEAD
           'content': _nduProjectSystemPrompt(
             specialistRole:
                 'risk analyst generating realistic front-end planning risks from preferred-solution context',
@@ -8863,6 +9473,14 @@ Context notes (optional): $notes
           'role': 'user',
           'content':
               '''Generate at least $count project risks based on this context:
+=======
+          'content':
+              'You are a risk analyst. Generate project risks with Title, Category, Probability (Low/Medium/High), and Impact (Low/Medium/High). Return strict JSON only.'
+        },
+        {
+          'role': 'user',
+          'content': '''Generate 5-8 project risks based on this context:
+>>>>>>> 1ee471ae (Merge codebases)
 
 $context
 
@@ -8871,6 +9489,7 @@ Return JSON in this format:
   "risks": [
     {
       "title": "Risk title",
+<<<<<<< HEAD
       "description": "One-sentence risk description",
       "category": "Technical/Financial/Operational/Schedule/Resource",
       "probability": "Low/Medium/High",
@@ -8878,17 +9497,30 @@ Return JSON in this format:
       "mitigationStrategy": "Concise mitigation action",
       "discipline": "Owning discipline",
       "projectRole": "Responsible project role"
+=======
+      "category": "Technical/Financial/Operational/Schedule/Resource",
+      "probability": "Low/Medium/High",
+      "impact": "Low/Medium/High"
+>>>>>>> 1ee471ae (Merge codebases)
     }
   ]
 }'''
         },
       ],
+<<<<<<< HEAD
     }));
+=======
+    });
+>>>>>>> 1ee471ae (Merge codebases)
 
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
+<<<<<<< HEAD
           .timeout(const Duration(seconds: 30));
+=======
+          .timeout(const Duration(seconds: 15));
+>>>>>>> 1ee471ae (Merge codebases)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -8896,18 +9528,27 @@ Return JSON in this format:
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
+<<<<<<< HEAD
           OpenAiConfig.extractContent(data);
       final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+=======
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+>>>>>>> 1ee471ae (Merge codebases)
       final risks = (parsed['risks'] as List? ?? [])
           .map((e) {
             final item = e as Map<String, dynamic>;
             return {
               'title': (item['title'] ?? '').toString().trim(),
+<<<<<<< HEAD
               'description': (item['description'] ?? '').toString().trim(),
+=======
+>>>>>>> 1ee471ae (Merge codebases)
               'category': (item['category'] ?? 'Technical').toString().trim(),
               'probability':
                   (item['probability'] ?? 'Medium').toString().trim(),
               'impact': (item['impact'] ?? 'Medium').toString().trim(),
+<<<<<<< HEAD
               'mitigationStrategy':
                   (item['mitigationStrategy'] ?? item['mitigation'] ?? '')
                       .toString()
@@ -8920,6 +9561,8 @@ Return JSON in this format:
                       'Risk Owner')
                   .toString()
                   .trim(),
+=======
+>>>>>>> 1ee471ae (Merge codebases)
             };
           })
           .where((r) => r['title']!.isNotEmpty)
@@ -8930,6 +9573,7 @@ Return JSON in this format:
     }
   }
 
+<<<<<<< HEAD
   Future<List<WorkItem>> generateWbsStructure({
     required String projectName,
     required String projectObjective,
@@ -11597,4 +12241,7 @@ IMPORTANT RULES:
       'Procurement and contracts management',
     ];
   }
+=======
+  String _escape(String v) => v.replaceAll('"', '\\"').replaceAll('\n', ' ');
+>>>>>>> 1ee471ae (Merge codebases)
 }

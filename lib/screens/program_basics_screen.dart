@@ -337,7 +337,10 @@ class _CircularNavButton extends StatelessWidget {
     required this.background,
     required this.borderColor,
     required this.iconColor,
+<<<<<<< HEAD
     // ignore: unused_element_parameter
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     this.onTap,
   });
 

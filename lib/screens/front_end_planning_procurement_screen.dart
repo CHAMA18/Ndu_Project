@@ -1,6 +1,9 @@
+<<<<<<< HEAD
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+=======
+>>>>>>> 1ee471ae (Merge codebases)
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
@@ -66,6 +69,7 @@ class FrontEndPlanningProcurementScreen extends StatefulWidget {
       _FrontEndPlanningProcurementScreenState();
 }
 
+<<<<<<< HEAD
 class _FrontEndPlanningProcurementScreenState
     extends State<FrontEndPlanningProcurementScreen> {
   static const int _initialStreamLimit = 60;
@@ -112,6 +116,10 @@ class _FrontEndPlanningProcurementScreenState
   final Set<_ProcurementTab> _tabsWithErrors = <_ProcurementTab>{};
   bool _showPendingSecurityPrompt = false;
   List<ValidationIssue> _pendingSecurityIssues = const <ValidationIssue>[];
+=======
+class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProcurementScreen> {
+  final TextEditingController _notes = TextEditingController();
+>>>>>>> 1ee471ae (Merge codebases)
 
   bool _approvedOnly = false;
   bool _preferredOnly = false;
@@ -168,6 +176,7 @@ class _FrontEndPlanningProcurementScreenState
 
   final List<_ComplianceMetric> _complianceMetrics = [];
 
+<<<<<<< HEAD
   late final OpenAiServiceSecure _openAi;
   bool _isGeneratingData = false;
   bool _isSeedingFromInitiation = false;
@@ -1615,6 +1624,41 @@ class _FrontEndPlanningProcurementScreenState
       if (mounted) {
         setState(() => _isGeneratingData = false);
       }
+=======
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final data = ProjectDataHelper.getData(context);
+      _notes.text = data.frontEndPlanning.procurement;
+      if (_notes.text.trim().isEmpty) {
+        _generateAiSuggestion();
+      }
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _generateAiSuggestion() async {
+    try {
+      final data = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Procurement');
+      final ai = OpenAiServiceSecure();
+      // Increase token budget for richer guidance specific to Procurement
+      final suggestion = await ai.generateFepSectionText(
+        section: 'Procurement',
+        context: ctx,
+        maxTokens: 1400,
+        temperature: 0.5,
+      );
+      if (!mounted) return;
+      if (_notes.text.trim().isEmpty && suggestion.trim().isNotEmpty) {
+        setState(() {
+          _notes.text = suggestion.trim();
+        });
+      }
+    } catch (e) {
+      debugPrint('AI procurement suggestion failed: $e');
+>>>>>>> 1ee471ae (Merge codebases)
     }
   }
 
@@ -2137,7 +2181,11 @@ class _FrontEndPlanningProcurementScreenState
 
   @override
   void dispose() {
+<<<<<<< HEAD
     _cancelSubscriptions();
+=======
+    _notes.dispose();
+>>>>>>> 1ee471ae (Merge codebases)
     super.dispose();
   }
 
@@ -2363,9 +2411,12 @@ class _FrontEndPlanningProcurementScreenState
   }
 
   void _handleNotesChanged(String value) {
+<<<<<<< HEAD
     if (_validationErrors.containsKey('procurement_notes')) {
       _clearResolvedValidationErrors();
     }
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     final provider = ProjectDataHelper.getProvider(context);
     provider.updateField(
       (data) => data.copyWith(
@@ -2375,12 +2426,29 @@ class _FrontEndPlanningProcurementScreenState
         ),
       ),
     );
+<<<<<<< HEAD
     provider.saveToFirebase(checkpoint: _checkpointId);
   }
 
   bool get _isPlanningMode => widget.mode == ProcurementScreenMode.planning;
   String get _checkpointId =>
       _isPlanningMode ? 'procurement' : 'fep_procurement';
+=======
+  }
+
+  Future<bool> _persistProcurementNotes({bool showConfirmation = false}) async {
+    final success = await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'fep_procurement',
+      dataUpdater: (data) => data.copyWith(
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          procurement: _notes.text.trim(),
+        ),
+      ),
+      showSnackbar: false,
+    );
+>>>>>>> 1ee471ae (Merge codebases)
 
   String _nextFlowDestinationLabel() {
     if (!_isPlanningMode) return 'Security';
@@ -3432,6 +3500,7 @@ class _FrontEndPlanningProcurementScreenState
       }
       return;
     }
+<<<<<<< HEAD
     await _ensurePurchaseOrdersSeeded();
 
     final validation = _validateProcurementForNavigation();
@@ -3457,6 +3526,43 @@ class _FrontEndPlanningProcurementScreenState
           ),
           duration: Duration(seconds: 3),
           backgroundColor: Color(0xFFF59E0B),
+=======
+    
+    // Save all data before navigation to prevent data loss
+    final provider = ProjectDataHelper.getProvider(context);
+    try {
+      // Ensure all items are saved
+      await provider.saveToFirebase(checkpoint: 'fep_procurement');
+    } catch (e) {
+      debugPrint('Error saving before navigation: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error saving data. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return; // Don't navigate if save fails
+    }
+    
+    // Check if destination is locked
+    if (ProjectDataHelper.isDestinationLocked(context, 'fep_security')) {
+      ProjectDataHelper.showLockedDestinationMessage(context, 'Security');
+      return;
+    }
+    
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'fep_procurement',
+      destinationCheckpoint: 'fep_security',
+      destinationName: 'Security',
+      nextScreenBuilder: () => const FrontEndPlanningSecurityScreen(),
+      dataUpdater: (data) => data.copyWith(
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          procurement: _notes.text.trim(),
+>>>>>>> 1ee471ae (Merge codebases)
         ),
       );
       await _saveAndNavigateToSecurity(skippedValidation: true);
@@ -3798,6 +3904,7 @@ class _FrontEndPlanningProcurementScreenState
       key: key ?? const ValueKey('procurement_dashboard'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+<<<<<<< HEAD
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3813,6 +3920,20 @@ class _FrontEndPlanningProcurementScreenState
               tooltip: 'Generate starter procurement data',
             ),
           ],
+=======
+        _PlanHeader(onItemListTap: _handleItemListTap),
+        const SizedBox(height: 16),
+        _AiSuggestionCard(
+          onAccept: _handleAcceptSuggestion,
+          onEdit: _handleEditSuggestion,
+          onReject: _handleRejectSuggestion,
+        ),
+        const SizedBox(height: 32),
+        _StrategiesSection(
+          strategies: _strategies,
+          expandedStrategies: _expandedStrategies,
+          onToggle: _toggleStrategy,
+>>>>>>> 1ee471ae (Merge codebases)
         ),
         const SizedBox(height: 10),
         const Text(
@@ -3953,6 +4074,7 @@ class _FrontEndPlanningProcurementScreenState
     final needs = <_ProcurementNeed>[];
     final seen = <String>{};
 
+<<<<<<< HEAD
     void addNeed({
       required String name,
       required String source,
@@ -3977,6 +4099,28 @@ class _FrontEndPlanningProcurementScreenState
           priority: priority,
         ),
       );
+=======
+  void _handleRejectSuggestion() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Suggestion dismissed.')),
+    );
+  }
+
+  int _parseCurrency(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(cleaned) ?? 0;
+  }
+
+  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
+
+  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
+
+  String _deriveInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'NA';
+    if (parts.length == 1) {
+      return parts.first.substring(0, parts.first.length >= 2 ? 2 : 1).toUpperCase();
+>>>>>>> 1ee471ae (Merge codebases)
     }
 
     if (data.frontEndPlanning.requirementItems.isNotEmpty) {
@@ -4304,7 +4448,11 @@ class _FrontEndPlanningProcurementScreenState
     final result = await showDialog<ProcurementItemModel>(
       context: context,
       barrierDismissible: true,
+<<<<<<< HEAD
       barrierColor: Colors.black.withOpacity(0.45),
+=======
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+>>>>>>> 1ee471ae (Merge codebases)
       builder: (dialogContext) {
         return AddItemDialog(
           contextChips: _buildDialogContextChips(),
@@ -4317,6 +4465,7 @@ class _FrontEndPlanningProcurementScreenState
     );
 
     if (result != null) {
+<<<<<<< HEAD
       try {
         final projectId = _resolveProjectId();
         if (projectId.isEmpty) {
@@ -4474,6 +4623,25 @@ class _FrontEndPlanningProcurementScreenState
             backgroundColor: Colors.red,
           ),
         );
+=======
+      // Save items to provider before updating local state
+      final provider = ProjectDataHelper.getProvider(context);
+      final currentItems = List<_ProcurementItem>.from(_items)..add(result);
+      
+      // Update provider with new items (convert to format suitable for storage)
+      // Note: This assumes procurement items need to be stored in project data
+      // If items are only local state, this prevents the crash by ensuring state consistency
+      
+      setState(() {
+        _items.add(result);
+      });
+      
+      // Save to Firebase to prevent data loss
+      try {
+        await provider.saveToFirebase(checkpoint: 'fep_procurement');
+      } catch (e) {
+        debugPrint('Error saving procurement items: $e');
+>>>>>>> 1ee471ae (Merge codebases)
       }
     }
   }
@@ -4493,7 +4661,11 @@ class _FrontEndPlanningProcurementScreenState
     final result = await showDialog<VendorModel>(
       context: context,
       barrierDismissible: true,
+<<<<<<< HEAD
       barrierColor: Colors.black.withOpacity(0.45),
+=======
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+>>>>>>> 1ee471ae (Merge codebases)
       builder: (dialogContext) {
         return AddVendorDialog(
           contextChips: _buildDialogContextChips(),
@@ -4508,6 +4680,7 @@ class _FrontEndPlanningProcurementScreenState
     );
 
     if (result != null) {
+<<<<<<< HEAD
       try {
         final projectId = _resolveProjectId();
         if (projectId.isEmpty) {
@@ -4573,6 +4746,9 @@ class _FrontEndPlanningProcurementScreenState
           );
         }
       }
+=======
+      setState(() => _vendors.add(result));
+>>>>>>> 1ee471ae (Merge codebases)
     }
   }
 
@@ -4590,7 +4766,11 @@ class _FrontEndPlanningProcurementScreenState
     final result = await showDialog<RfqModel>(
       context: context,
       barrierDismissible: true,
+<<<<<<< HEAD
       barrierColor: Colors.black.withOpacity(0.45),
+=======
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+>>>>>>> 1ee471ae (Merge codebases)
       builder: (dialogContext) {
         return CreateRfqDialog(
           contextChips: _buildDialogContextChips(),
@@ -4600,6 +4780,7 @@ class _FrontEndPlanningProcurementScreenState
     );
 
     if (result != null) {
+<<<<<<< HEAD
       try {
         final projectId = _resolveProjectId();
         if (projectId.isEmpty) {
@@ -4639,6 +4820,9 @@ class _FrontEndPlanningProcurementScreenState
           );
         }
       }
+=======
+      setState(() => _rfqs.add(result));
+>>>>>>> 1ee471ae (Merge codebases)
     }
   }
 
@@ -4656,7 +4840,11 @@ class _FrontEndPlanningProcurementScreenState
     final result = await showDialog<RfqModel>(
       context: context,
       barrierDismissible: true,
+<<<<<<< HEAD
       barrierColor: Colors.black.withOpacity(0.45),
+=======
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+>>>>>>> 1ee471ae (Merge codebases)
       builder: (dialogContext) {
         return CreateRfqDialog(
           contextChips: _buildDialogContextChips(),
@@ -4884,6 +5072,7 @@ class _FrontEndPlanningProcurementScreenState
     );
 
     if (result != null) {
+<<<<<<< HEAD
       try {
         final projectId = _resolveProjectId();
         if (projectId.isEmpty) {
@@ -4925,6 +5114,9 @@ class _FrontEndPlanningProcurementScreenState
           );
         }
       }
+=======
+      setState(() => _purchaseOrders.add(result));
+>>>>>>> 1ee471ae (Merge codebases)
     }
   }
 
@@ -6245,6 +6437,71 @@ class _PlanHeader extends StatelessWidget {
   }
 }
 
+<<<<<<< HEAD
+=======
+class _AiSuggestionCard extends StatelessWidget {
+  const _AiSuggestionCard({required this.onAccept, required this.onEdit, required this.onReject});
+
+  final VoidCallback onAccept;
+  final VoidCallback onEdit;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFCCF0E6)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.lightbulb_circle_rounded, color: Color(0xFF0EA5E9)),
+              SizedBox(width: 12),
+              Text(
+                'AI Suggestion',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Based on your scope, group items by category and delivery window to streamline sourcing and approvals.',
+            style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(onPressed: onReject, child: const Text('Reject')),
+              const SizedBox(width: 12),
+              TextButton(onPressed: onEdit, child: const Text('Edit')),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: onAccept,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: const Text('Accept'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+>>>>>>> 1ee471ae (Merge codebases)
 class _ItemsListView extends StatelessWidget {
   const _ItemsListView({
     required this.items,
@@ -11813,6 +12070,218 @@ class _ComplianceSnapshotCard extends StatelessWidget {
   }
 }
 
+<<<<<<< HEAD
+=======
+class _ProcurementDialogShell extends StatelessWidget {
+  const _ProcurementDialogShell({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.contextChips,
+    required this.primaryLabel,
+    required this.secondaryLabel,
+    required this.onPrimary,
+    required this.onSecondary,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Widget> contextChips;
+  final String primaryLabel;
+  final String secondaryLabel;
+  final VoidCallback onPrimary;
+  final VoidCallback onSecondary;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: 720, maxHeight: media.size.height * 0.88),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(color: Color(0x1F0F172A), blurRadius: 30, offset: Offset(0, 18)),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFF8FAFF), Color(0xFFEFF6FF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    top: -30,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDBEAFE).withValues(alpha: 0.4),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x140F172A), blurRadius: 10, offset: Offset(0, 6)),
+                          ],
+                        ),
+                        child: Icon(icon, color: const Color(0xFF2563EB)),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                            ),
+                            if (contextChips.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: contextChips,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: onSecondary,
+                        icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                child: child,
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              child: Row(
+                children: [
+                  const Text(
+                    'Saved to this workspace only.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: onSecondary,
+                    child: Text(secondaryLabel),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: onPrimary,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: Text(primaryLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogSectionTitle extends StatelessWidget {
+  const _DialogSectionTitle({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+      ],
+    );
+  }
+}
+
+class _ContextChip extends StatelessWidget {
+  const _ContextChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          const SizedBox(width: 6),
+          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+        ],
+      ),
+    );
+  }
+}
+
+>>>>>>> 1ee471ae (Merge codebases)
 class _EmptyStateBody extends StatelessWidget {
   const _EmptyStateBody({
     required this.icon,

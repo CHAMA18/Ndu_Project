@@ -206,6 +206,171 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
     );
   }
 
+<<<<<<< HEAD
+=======
+  Widget _primaryButton(String label) {
+    return ElevatedButton.icon(
+      onPressed: () {},
+      icon: const Icon(Icons.play_arrow, size: 18),
+      label: Text(label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF0EA5E9),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    const filters = ['All vendors', 'At risk', 'Watchlist', 'Strategic', 'New'];
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: filters.map((filter) {
+        final selected = _selectedFilters.contains(filter);
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (selected) {
+                _selectedFilters.remove(filter);
+              } else {
+                _selectedFilters.add(filter);
+              }
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? const Color(0xFF111827) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Text(
+              filter,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : const Color(0xFF475569),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildStatsRow(bool isNarrow) {
+    if (_projectId == null || _projectId!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<List<VendorModel>>(
+      stream: VendorService.streamVendors(_projectId!),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _buildPermissionError(snapshot.error);
+        }
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final vendors = snapshot.data!;
+        final activeVendors = vendors.where((v) => v.status == 'Active').length;
+        final onTimeAvg = vendors.isEmpty
+            ? 0.0
+            : vendors.map((v) => v.onTimeDelivery).reduce((a, b) => a + b) /
+                vendors.length;
+        final atRiskCount = vendors.where((v) => v.status == 'At risk').length;
+        final avgRating = _calculateAverageRating(vendors);
+
+        final stats = [
+          _StatCardData('Active vendors', '$activeVendors',
+              '${vendors.length} total', const Color(0xFF0EA5E9)),
+          _StatCardData('On-time delivery', '${(onTimeAvg * 100).round()}%',
+              '${vendors.length} vendors tracked', const Color(0xFF10B981)),
+          _StatCardData(
+              'Risk rating',
+              avgRating,
+              atRiskCount > 0 ? '$atRiskCount at risk' : 'All stable',
+              const Color(0xFFF59E0B)),
+          _StatCardData('Total vendors', '${vendors.length}',
+              'Across all categories', const Color(0xFF6366F1)),
+        ];
+
+        if (isNarrow) {
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: stats.map((stat) => _buildStatCard(stat)).toList(),
+          );
+        }
+
+        return Row(
+          children: stats
+              .map((stat) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: _buildStatCard(stat),
+                    ),
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+
+  String _calculateAverageRating(List<VendorModel> vendors) {
+    if (vendors.isEmpty) return 'N/A';
+    int total = 0;
+    for (var vendor in vendors) {
+      if (vendor.rating == 'A')
+        total += 4;
+      else if (vendor.rating == 'B')
+        total += 3;
+      else if (vendor.rating == 'C')
+        total += 2;
+      else if (vendor.rating == 'D') total += 1;
+    }
+    final avg = total / vendors.length;
+    if (avg >= 3.5) return 'A';
+    if (avg >= 2.5) return 'B';
+    if (avg >= 1.5) return 'C';
+    return 'D';
+  }
+
+  Widget _buildStatCard(_StatCardData data) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(data.value,
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: data.color)),
+          const SizedBox(height: 6),
+          Text(data.label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          const SizedBox(height: 6),
+          Text(data.supporting,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: data.color)),
+        ],
+      ),
+    );
+  }
+
+>>>>>>> 1ee471ae (Merge codebases)
   Widget _buildVendorRegister() {
     final policy = _crudPolicy;
     if (_projectId == null || _projectId!.isEmpty) {
@@ -305,6 +470,24 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
     );
   }
 
+<<<<<<< HEAD
+=======
+  List<VendorModel> _filterVendors(List<VendorModel> vendors) {
+    if (_selectedFilters.contains('All vendors')) return vendors;
+    return vendors.where((v) {
+      if (_selectedFilters.contains('At risk') && v.status == 'At risk')
+        return true;
+      if (_selectedFilters.contains('Watchlist') && v.status == 'Watch')
+        return true;
+      if (_selectedFilters.contains('Strategic') && v.rating == 'A')
+        return true;
+      if (_selectedFilters.contains('New') && v.status == 'Onboard')
+        return true;
+      return false;
+    }).toList();
+  }
+
+>>>>>>> 1ee471ae (Merge codebases)
   Widget _buildPerformancePanel() {
     if (_projectId == null) {
       return _PanelShell(
@@ -1190,6 +1373,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(isEdit ? 'Edit Vendor' : 'Add New Vendor'),
+<<<<<<< HEAD
         content: StatefulBuilder(
           builder: (context, setDialogState) => SingleChildScrollView(
             child: Column(
@@ -1349,6 +1533,74 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                     maxLines: 3),
               ],
             ),
+=======
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                  controller: nameController,
+                  decoration:
+                      const InputDecoration(labelText: 'Vendor Name *')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(labelText: 'Category *')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: slaController,
+                  decoration: const InputDecoration(
+                      labelText: 'SLA % *', hintText: 'e.g., 92%')),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: ratingController.text,
+                decoration: const InputDecoration(labelText: 'Rating *'),
+                items: ['A', 'B', 'C', 'D']
+                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                    .toList(),
+                onChanged: (v) => ratingController.text = v ?? 'B',
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: statusController.text,
+                decoration: const InputDecoration(labelText: 'Status *'),
+                items: ['Active', 'Watch', 'At risk', 'Onboard']
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: (v) => statusController.text = v ?? 'Active',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: nextReviewController,
+                  decoration: const InputDecoration(
+                      labelText: 'Next Review *', hintText: 'e.g., Oct 28')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: onTimeController,
+                  decoration: const InputDecoration(
+                      labelText: 'On-time Delivery (0.0-1.0) *')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: incidentController,
+                  decoration: const InputDecoration(
+                      labelText: 'Incident Response (0.0-1.0) *')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: qualityController,
+                  decoration: const InputDecoration(
+                      labelText: 'Quality Score (0.0-1.0) *')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: costController,
+                  decoration: const InputDecoration(
+                      labelText: 'Cost Adherence (0.0-1.0) *')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 3),
+            ],
+>>>>>>> 1ee471ae (Merge codebases)
           ),
         ),
         actions: [
@@ -1375,7 +1627,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 final slaPerformance =
                     double.tryParse(slaPerformanceController.text) ?? 0.0;
 
-                if (isEdit) {
+                if (isEdit && vendor != null) {
                   await VendorService.updateVendor(
                     projectId: projectId,
                     vendorId: vendor.id,

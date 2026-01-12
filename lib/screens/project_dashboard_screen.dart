@@ -484,7 +484,54 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
 
   Future<void> _processDuplicateCheck(
       String trimmed, BuildContext dialogContext) async {
+<<<<<<< HEAD
     Navigator.of(dialogContext).pop(trimmed);
+=======
+    showDialog(
+      context: dialogContext,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    final duplicate = await _isProjectNameDuplicate(trimmed);
+
+    if (Navigator.canPop(dialogContext)) {
+      Navigator.of(dialogContext).pop();
+    }
+
+    if (duplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'A project named "$trimmed" already exists. Please choose another.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } else {
+      Navigator.of(dialogContext).pop(trimmed);
+    }
+  }
+
+  Future<bool> _isProjectNameDuplicate(String projectName) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('projects')
+          .where('ownerId', isEqualTo: user.uid)
+          .where('projectName', isEqualTo: projectName.trim())
+          .limit(1)
+          .get();
+
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   @override
@@ -1071,12 +1118,50 @@ class _StatusStrip extends StatelessWidget {
               builder: (context, programSnapshot) {
                 final programCount =
                     programSnapshot.hasData ? programSnapshot.data!.length : 0;
+<<<<<<< HEAD
                 return StreamBuilder<List<PortfolioModel>>(
                   stream: PortfolioService.streamPortfolios(ownerId: user.uid),
                   builder: (context, portfolioSnapshot) {
                     final portfolioCount = portfolioSnapshot.hasData
                         ? portfolioSnapshot.data!.length
                         : 0;
+=======
+
+                final metrics = [
+                  DashboardStatCard(
+                    label: 'Single Projects',
+                    value: '$projectCount',
+                    subLabel: 'Active workspaces',
+                    icon: Icons.folder_open_rounded,
+                    color: Colors.blue.shade600,
+                    onTap: openProjectDashboard,
+                  ),
+                  DashboardStatCard(
+                    label: 'Basic Projects',
+                    value: '$basicProjectCount',
+                    subLabel: 'Basic plan workspaces',
+                    icon: Icons.folder_special_rounded,
+                    color: Colors.teal.shade600,
+                    onTap: openBasicDashboard,
+                  ),
+                  DashboardStatCard(
+                    label: 'Programs',
+                    value: '$programCount',
+                    subLabel: 'Grouped projects',
+                    icon: Icons.layers_outlined,
+                    color: Colors.purple.shade600,
+                    onTap: openProgramDashboard,
+                  ),
+                  DashboardStatCard(
+                    label: 'Portfolios',
+                    value: '0',
+                    subLabel: 'Executive views',
+                    icon: Icons.pie_chart_outline_rounded,
+                    color: Colors.green.shade600,
+                    onTap: openPortfolioDashboard,
+                  ),
+                ];
+>>>>>>> 1ee471ae (Merge codebases)
 
                     final metrics = [
                       DashboardStatCard(
@@ -1433,7 +1518,13 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                     ? widget.projects
                         .where((project) => project.isBasicPlanProject)
                         .toList()
+<<<<<<< HEAD
                     : List<ProjectRecord>.from(widget.projects);
+=======
+                    : widget.projects
+                        .where((project) => !project.isBasicPlanProject)
+                        .toList();
+>>>>>>> 1ee471ae (Merge codebases)
 
                 // Apply search filter
                 final firebaseProjects = _searchQuery.isEmpty
@@ -1538,6 +1629,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                             padding: const EdgeInsets.fromLTRB(28, 20, 28, 18),
                             child: Row(
                               children: const [
+<<<<<<< HEAD
                                 Expanded(
                                   flex: 32,
                                   child: _TableHeaderLabel('Project'),
@@ -1577,6 +1669,21 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                                     alignment: Alignment.center,
                                   ),
                                 ),
+=======
+                                Expanded(child: _TableHeaderLabel('Project')),
+                                Expanded(
+                                    child: _TableHeaderLabel('Stage',
+                                        alignment: Alignment.center)),
+                                Expanded(
+                                    child: _TableHeaderLabel('Owner',
+                                        alignment: Alignment.center)),
+                                Expanded(
+                                    child: _TableHeaderLabel('Investment',
+                                        alignment: Alignment.center)),
+                                Expanded(
+                                    child: _TableHeaderLabel('Actions',
+                                        alignment: Alignment.center)),
+>>>>>>> 1ee471ae (Merge codebases)
                               ],
                             ),
                           ),
@@ -1628,8 +1735,14 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                     if (constraints.maxWidth < 1180) {
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
+<<<<<<< HEAD
                         child: SizedBox(
                           width: 1180,
+=======
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                              minWidth: 900, maxWidth: 900),
+>>>>>>> 1ee471ae (Merge codebases)
                           child: table,
                         ),
                       );
@@ -1755,6 +1868,7 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                         borderRadius: BorderRadius.circular(12)),
                     filled: true,
                     fillColor:
+<<<<<<< HEAD
                         scheme.surfaceContainerHighest.withOpacity(0.3),
                   ),
                   validator: (value) {
@@ -1764,6 +1878,15 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                     if (value.trim().length < 3) {
                       return 'Name must be at least 3 characters';
                     }
+=======
+                        scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty)
+                      return 'Please enter a name';
+                    if (value.trim().length < 3)
+                      return 'Name must be at least 3 characters';
+>>>>>>> 1ee471ae (Merge codebases)
                     return null;
                   },
                 ),
@@ -2107,7 +2230,11 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                         : firebaseProjects.length);
 
                 // Use ValueListenableBuilder to react to selection changes
+<<<<<<< HEAD
                 if (widget.selectedIdsListenable != null) {
+=======
+                if (widget.selectedIdsListenable != null)
+>>>>>>> 1ee471ae (Merge codebases)
                   return ValueListenableBuilder<Set<String>>(
                     valueListenable: widget.selectedIdsListenable!,
                     builder: (context, selectedIds, _) {
@@ -2157,7 +2284,10 @@ class _GroupProjectsCardState extends State<_GroupProjectsCard> {
                       );
                     },
                   );
+<<<<<<< HEAD
                 }
+=======
+>>>>>>> 1ee471ae (Merge codebases)
 
                 // Fallback if no ValueListenable provided
                 return Column(
@@ -2349,12 +2479,17 @@ class _ProgramsSummaryCard extends StatelessWidget {
               builder: (context, programSnapshot) {
                 final programCount =
                     programSnapshot.hasData ? programSnapshot.data!.length : 0;
+<<<<<<< HEAD
                 return StreamBuilder<List<PortfolioModel>>(
                   stream: PortfolioService.streamPortfolios(ownerId: user.uid),
                   builder: (context, portfolioSnapshot) {
                     final portfolioCount = portfolioSnapshot.hasData
                         ? portfolioSnapshot.data!.length
                         : 0;
+=======
+                // Portfolios are not yet implemented, so we show 0
+                const portfolioCount = 0;
+>>>>>>> 1ee471ae (Merge codebases)
 
                     final stats = [
                       _SummaryStat(
@@ -2378,11 +2513,17 @@ class _ProgramsSummaryCard extends StatelessWidget {
                       ),
                     ];
 
+<<<<<<< HEAD
                     return LayoutBuilder(
                       builder: (context, constraints) =>
                           _buildStatsLayout(constraints, stats),
                     );
                   },
+=======
+                return LayoutBuilder(
+                  builder: (context, constraints) =>
+                      _buildStatsLayout(constraints, stats),
+>>>>>>> 1ee471ae (Merge codebases)
                 );
               },
             ),
@@ -2583,12 +2724,17 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     if (normalized.contains('planning')) return const Color(0xFFFFF1CC);
     if (normalized.contains('front end')) return const Color(0xFFFFF8E1);
     if (normalized.contains('design')) return const Color(0xFFE8E6FF);
+<<<<<<< HEAD
     if (normalized.contains('launch')) return const Color(0xFFE0F2FE);
     if (normalized.contains('close')) return const Color(0xFFEFF6FF);
     if (normalized.contains('completed')) return const Color(0xFFE8F0FF);
     if (normalized.contains('initiation') || normalized.contains('idea')) {
       return const Color(0xFFF3F4F8);
     }
+=======
+    if (normalized.contains('initiation') || normalized.contains('idea'))
+      return const Color(0xFFF3F4F8);
+>>>>>>> 1ee471ae (Merge codebases)
     return const Color(0xFFF3F4F8);
   }
 
@@ -2598,12 +2744,17 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     if (normalized.contains('planning')) return const Color(0xFF875900);
     if (normalized.contains('front end')) return const Color(0xFF9A6700);
     if (normalized.contains('design')) return const Color(0xFF5941C6);
+<<<<<<< HEAD
     if (normalized.contains('launch')) return const Color(0xFF075985);
     if (normalized.contains('close')) return const Color(0xFF1D4ED8);
     if (normalized.contains('completed')) return const Color(0xFF1D4ED8);
     if (normalized.contains('initiation') || normalized.contains('idea')) {
       return const Color(0xFF4A4D57);
     }
+=======
+    if (normalized.contains('initiation') || normalized.contains('idea'))
+      return const Color(0xFF4A4D57);
+>>>>>>> 1ee471ae (Merge codebases)
     return const Color(0xFF4A4D57);
   }
 
@@ -2705,8 +2856,15 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     loadingDialogVisible = true;
 
     try {
+<<<<<<< HEAD
       final provider = ProjectDataInherited.read(context);
       debugPrint('Calling loadFromFirebase for project: ${project.id}');
+=======
+      final provider = ProjectDataInherited.of(context);
+      debugPrint('📥 Calling loadFromFirebase for project: ${project.id}');
+
+      final success = await provider.loadFromFirebase(project.id);
+>>>>>>> 1ee471ae (Merge codebases)
 
       final success = await provider
           .loadFromFirebase(project.id)
@@ -2718,6 +2876,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
       dismissLoadingDialog();
 
       if (success) {
+<<<<<<< HEAD
         final checkpointRoute = project.checkpointRoute.isNotEmpty
             ? project.checkpointRoute
             : await ProjectNavigationService.instance.getLastPage(project.id);
@@ -2727,13 +2886,34 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
 
         final screen = NavigationRouteResolver.resolveCheckpointToScreen(
           checkpointRoute.isEmpty ? 'initiation' : checkpointRoute,
+=======
+        // Get checkpoint from Firestore (primary source) or fallback to SharedPreferences
+        final checkpointRoute = project.checkpointRoute.isNotEmpty
+            ? project.checkpointRoute
+            : await ProjectNavigationService.instance.getLastPage(project.id);
+        debugPrint(
+            '✅ Project loaded successfully, navigating to checkpoint: $checkpointRoute');
+
+        // Resolve checkpoint to screen widget
+        final screen = NavigationRouteResolver.resolveCheckpointToScreen(
+          checkpointRoute.isEmpty ? 'initiation' : checkpointRoute,
+          context,
+        );
+
+        // Navigate to the resolved screen
+        Navigator.push(
+>>>>>>> 1ee471ae (Merge codebases)
           context,
         );
 
         Navigator.of(context).push(
           MaterialPageRoute(
+<<<<<<< HEAD
             builder: (_) => screen ?? const InitiationPhaseScreen(),
           ),
+=======
+              builder: (_) => screen ?? const InitiationPhaseScreen()),
+>>>>>>> 1ee471ae (Merge codebases)
         );
       } else {
         debugPrint('Failed to load project: ${provider.lastError}');
@@ -2750,11 +2930,16 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
+<<<<<<< HEAD
                   child: Icon(
                     Icons.error_outline,
                     color: Colors.red.shade700,
                     size: 24,
                   ),
+=======
+                  child: Icon(Icons.error_outline,
+                      color: Colors.red.shade700, size: 24),
+>>>>>>> 1ee471ae (Merge codebases)
                 ),
                 const SizedBox(width: 12),
                 const Expanded(child: Text('Failed to Load Project')),
@@ -2767,9 +2952,13 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                 Text(
                   'Project: ${project.name}',
                   style: const TextStyle(
+<<<<<<< HEAD
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
                   ),
+=======
+                      fontWeight: FontWeight.w600, fontSize: 15),
+>>>>>>> 1ee471ae (Merge codebases)
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -2797,6 +2986,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A4DB3),
                   foregroundColor: Colors.white,
+<<<<<<< HEAD
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 12,
@@ -2804,6 +2994,12 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+=======
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+>>>>>>> 1ee471ae (Merge codebases)
                 ),
                 child: const Text('Retry'),
               ),
@@ -2815,6 +3011,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
       debugPrint('Timeout opening project: $e');
       debugPrint('Stack trace: $stackTrace');
 
+<<<<<<< HEAD
       if (!context.mounted) return;
       dismissLoadingDialog();
       showDialog(
@@ -2829,6 +3026,27 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(10),
+=======
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.error_outline,
+                      color: Colors.red.shade700, size: 24),
+>>>>>>> 1ee471ae (Merge codebases)
                 ),
                 child: Icon(Icons.timer_off_outlined,
                     color: Colors.orange.shade700, size: 24),
@@ -2845,12 +3063,41 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Close'),
             ),
+<<<<<<< HEAD
             ElevatedButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
                 _openProject(context);
               },
               child: const Text('Retry'),
+=======
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'An unexpected error occurred:',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 15),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    e.toString(),
+                    style: TextStyle(
+                      color: Colors.grey.shade800,
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ],
+>>>>>>> 1ee471ae (Merge codebases)
             ),
           ],
         ),
@@ -2972,7 +3219,11 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                     ),
                     filled: true,
                     fillColor:
+<<<<<<< HEAD
                         scheme.surfaceContainerHighest.withOpacity(0.3),
+=======
+                        scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+>>>>>>> 1ee471ae (Merge codebases)
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -3165,6 +3416,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayName =
         project.name.isNotEmpty ? project.name : 'Untitled Project';
+<<<<<<< HEAD
     final phaseLabel = project.progressSnapshot.currentPhase.trim().isEmpty
         ? (project.status.isNotEmpty ? project.status : 'Initiation')
         : project.progressSnapshot.currentPhase.trim();
@@ -3177,6 +3429,12 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
         : project.progressSnapshot.totalMilestones > 0
             ? '${project.progressSnapshot.achievedMilestones}/${project.progressSnapshot.totalMilestones} milestones'
             : 'Awaiting activity data';
+=======
+    final statusLabel =
+        project.status.isNotEmpty ? project.status : 'Initiation';
+    final milestoneLabel =
+        project.milestone.isNotEmpty ? project.milestone : 'Starting up';
+>>>>>>> 1ee471ae (Merge codebases)
     final investment = project.investmentMillions > 0
         ? '\$${project.investmentMillions.toStringAsFixed(1)}M'
         : 'Not set';
@@ -3187,7 +3445,10 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
+<<<<<<< HEAD
             flex: 32,
+=======
+>>>>>>> 1ee471ae (Merge codebases)
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -3209,15 +3470,24 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                 Text(
                   milestoneLabel,
                   style: TextStyle(
+<<<<<<< HEAD
                     fontSize: 14,
                     color: Colors.grey.shade600,
                     letterSpacing: 0.2,
                   ),
                   maxLines: 2,
+=======
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.2,
+                  ),
+                  maxLines: 1,
+>>>>>>> 1ee471ae (Merge codebases)
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
                 Text(
+<<<<<<< HEAD
                   'Last edited by ${_lastEditorName()} - ${_relativeTimeString(project.updatedAt)}',
                   style: TextStyle(
                     fontSize: 12,
@@ -3225,6 +3495,10 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+=======
+                  'Last edited by ${_lastEditorName()} · ${_relativeTimeString(project.updatedAt)}',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+>>>>>>> 1ee471ae (Merge codebases)
                 ),
               ],
             ),
@@ -3390,6 +3664,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFF1A4DB3),
                         padding: const EdgeInsets.symmetric(
+<<<<<<< HEAD
                           horizontal: 10,
                           vertical: 10,
                         ),
@@ -3400,6 +3675,13 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
+=======
+                            horizontal: 14, vertical: 12),
+                        textStyle: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+>>>>>>> 1ee471ae (Merge codebases)
                       ),
                     ),
                   ),
@@ -3828,6 +4110,7 @@ class _FrostedSurface extends StatelessWidget {
     );
   }
 }
+<<<<<<< HEAD
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Desktop Premium User Greeting Widget – world‑class personalised greeting
@@ -4194,3 +4477,5 @@ class _CompactActionButtonState extends State<_CompactActionButton> {
     );
   }
 }
+=======
+>>>>>>> 1ee471ae (Merge codebases)

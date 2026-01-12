@@ -921,11 +921,15 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
 
 class _AiLimitBanner extends StatelessWidget {
   const _AiLimitBanner({
+<<<<<<< HEAD
+=======
+    Key? key,
+>>>>>>> 1ee471ae (Merge codebases)
     required this.message,
     required this.background,
     required this.border,
     required this.textColor,
-  });
+  }) : super(key: key);
 
   final String message;
   final Color background;

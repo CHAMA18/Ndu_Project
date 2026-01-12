@@ -1,7 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:firebase_auth/firebase_auth.dart';
+=======
+>>>>>>> 1ee471ae (Merge codebases)
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -31,10 +34,23 @@ class LessonsLearnedScreen extends StatefulWidget {
 }
 
 class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
+<<<<<<< HEAD
   final TextEditingController _searchController = TextEditingController();
   @override
   void initState() {
     super.initState();
+=======
+
+  final TextEditingController _searchController = TextEditingController();
+  static const List<_LessonEntry> _seedEntries = [];
+
+  late final List<_LessonEntry> _entries;
+
+  @override
+  void initState() {
+    super.initState();
+    _entries = List<_LessonEntry>.of(_seedEntries);
+>>>>>>> 1ee471ae (Merge codebases)
     _searchController.addListener(_handleSearchChanged);
   }
 
@@ -49,8 +65,13 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
     setState(() {});
   }
 
+<<<<<<< HEAD
   Future<void> _openLessonDialog([_LessonEntry? existing]) async {
     final result = await showDialog<_LessonEntry>(
+=======
+  Future<void> _openAddLessonDialog() async {
+    final newEntry = await showDialog<_LessonEntry>(
+>>>>>>> 1ee471ae (Merge codebases)
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => _LessonDialog(existing: existing),
@@ -143,6 +164,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
       ),
     );
 
+<<<<<<< HEAD
     if (confirmed != true || !mounted) return;
 
     try {
@@ -177,6 +199,11 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
       }
     } catch (e) { debugPrint('Error: $e'); }
     return null;
+=======
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Lesson added to Project Tasks.')),
+    );
+>>>>>>> 1ee471ae (Merge codebases)
   }
 
   List<_LessonEntry> get _filteredEntries {
@@ -467,7 +494,11 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
     );
   }
 
+<<<<<<< HEAD
   Widget _summaryRightColumn(int successes, int challenges, int insights) {
+=======
+  Widget _summaryRightColumn() {
+>>>>>>> 1ee471ae (Merge codebases)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -487,6 +518,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
         _benefitRow('Reduces risk in similar future projects'),
         const SizedBox(height: 24),
         Row(
+<<<<<<< HEAD
           children: [
             _SummaryStat(
                 label: 'Successes',
@@ -502,6 +534,14 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                 label: 'Insights',
                 value: '$insights',
                 color: const Color(0xFF5C6BC0)),
+=======
+          children: const [
+            _SummaryStat(label: 'Successes', value: '4', color: Color(0xFF36C275)),
+            SizedBox(width: 16),
+            _SummaryStat(label: 'Challenges', value: '4', color: Color(0xFFFFB74D)),
+            SizedBox(width: 16),
+            _SummaryStat(label: 'Insights', value: '4', color: Color(0xFF5C6BC0)),
+>>>>>>> 1ee471ae (Merge codebases)
           ],
         ),
       ],
@@ -741,6 +781,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
     const headerStyle = TextStyle(
         fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87);
     const cellStyle = TextStyle(fontSize: 13, color: Colors.black87);
+    const subStyle = TextStyle(fontSize: 12, color: Colors.black54);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -862,8 +903,13 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+<<<<<<< HEAD
                                     Text(entries[i].submittedBy,
                                         style: cellStyle),
+=======
+                                    Text(entries[i].submittedBy, style: cellStyle),
+                                    Text('Product manager', style: subStyle),
+>>>>>>> 1ee471ae (Merge codebases)
                                   ],
                                 ),
                               ),

@@ -10,11 +10,16 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+<<<<<<< HEAD
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 class ContractDetailsDashboardScreen extends StatefulWidget {
   const ContractDetailsDashboardScreen({super.key});
+=======
+class ContractDetailsDashboardScreen extends StatelessWidget {
+  ContractDetailsDashboardScreen({super.key});
+>>>>>>> 1ee471ae (Merge codebases)
 
   @override
   State<ContractDetailsDashboardScreen> createState() => _ContractDetailsDashboardScreenState();
@@ -243,7 +248,7 @@ class _CircularIconButton extends StatelessWidget {
 }
 
 class _UserChip extends StatelessWidget {
-  const _UserChip({required this.name, required this.subtitle});
+  _UserChip({required this.name, required this.subtitle});
 
   final String name;
   final String subtitle;

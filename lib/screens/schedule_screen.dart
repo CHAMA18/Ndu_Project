@@ -5746,12 +5746,58 @@ class _CostVsScheduleTab extends StatelessWidget {
   }
 }
 
+<<<<<<< HEAD
 class _CostStatCard extends StatelessWidget {
   const _CostStatCard({
     required this.title,
     required this.amount,
     required this.color,
     this.subtitle,
+=======
+class _ScheduleMetric {
+  const _ScheduleMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.caption,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String caption;
+}
+
+class _TeamUtilization {
+  const _TeamUtilization({required this.label, required this.percent, required this.color});
+
+  final String label;
+  final double percent;
+  final Color color;
+}
+
+class _BadgeStyle {
+  const _BadgeStyle({
+    required this.label,
+    required this.textColor,
+    required this.backgroundColor,
+    this.borderColor,
+  });
+
+  final String label;
+  final Color textColor;
+  final Color backgroundColor;
+  final Color? borderColor;
+}
+
+class _WbsNode {
+  const _WbsNode({
+    required this.title,
+    this.duration,
+    this.badges = const [],
+    this.children = const [],
+    this.highlight = false,
+>>>>>>> 1ee471ae (Merge codebases)
   });
 
   final String title;
@@ -5806,12 +5852,25 @@ class _CostStatCard extends StatelessWidget {
   }
 }
 
+<<<<<<< HEAD
 class _NotesCard extends StatelessWidget {
   const _NotesCard({
     required this.controller,
     required this.savedAt,
     required this.expanded,
     required this.onToggleExpanded,
+=======
+class _TimelineItem {
+  const _TimelineItem({
+    required this.label,
+    required this.progressLabel,
+    required this.startWeek,
+    required this.durationWeeks,
+    required this.color,
+    this.progress = 0.0,
+    this.isCritical = false,
+    this.isMilestone = false,
+>>>>>>> 1ee471ae (Merge codebases)
   });
 
   final TextEditingController controller;

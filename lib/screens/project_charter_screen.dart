@@ -458,3 +458,340 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     );
   }
 }
+<<<<<<< HEAD
+=======
+
+class _CardRow extends StatelessWidget {
+  const _CardRow({required this.projectData});
+
+  final ProjectDataModel? projectData;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final cards = _extractCardData(projectData);
+
+    if (isMobile) {
+      return Column(
+        children: [
+          for (final data in cards)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 18),
+              child: _InfoCard(data: data),
+            ),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < cards.length; i++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i == cards.length - 1 ? 0 : 18),
+              child: _InfoCard(data: cards[i]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static List<_CardData> _extractCardData(ProjectDataModel? data) {
+    if (data == null) {
+      return const [
+        _CardData(title: 'Assumptions', bullets: ['Complete business case to populate']),
+        _CardData(title: 'Constraints', bullets: ['Complete business case to populate']),
+        _CardData(title: 'Risks', bullets: ['Complete business case to populate']),
+      ];
+    }
+
+    // Extract assumptions (from cost analysis or notes)
+    final assumptions = <String>[];
+    if (data.costAnalysisData != null) {
+      for (final solution in data.costAnalysisData!.solutionCosts) {
+        for (final row in solution.costRows) {
+          if (row.assumptions.isNotEmpty) {
+            assumptions.add(row.assumptions);
+          }
+        }
+      }
+    }
+    if (assumptions.isEmpty) {
+      assumptions.add('No specific assumptions documented');
+    }
+
+    // Extract constraints (from infrastructure, IT, or general notes)
+    final constraints = <String>[];
+    if (data.infrastructureConsiderationsData != null) {
+      for (final infra in data.infrastructureConsiderationsData!.solutionInfrastructureData) {
+        if (infra.majorInfrastructure.isNotEmpty) {
+          constraints.add('Infrastructure: ${infra.majorInfrastructure}');
+        }
+      }
+    }
+    if (data.itConsiderationsData != null) {
+      for (final it in data.itConsiderationsData!.solutionITData) {
+        if (it.coreTechnology.isNotEmpty) {
+          constraints.add('Technology: ${it.coreTechnology}');
+        }
+      }
+    }
+    if (constraints.isEmpty) {
+      constraints.add('No specific constraints documented');
+    }
+
+    // Extract risks
+    final risks = <String>[];
+    if (data.preferredSolutionAnalysis != null) {
+      for (final analysis in data.preferredSolutionAnalysis!.solutionAnalyses) {
+        risks.addAll(analysis.risks.where((r) => r.isNotEmpty));
+      }
+    }
+    for (final risk in data.solutionRisks) {
+      risks.addAll(risk.risks.where((r) => r.isNotEmpty));
+    }
+    if (risks.isEmpty) {
+      risks.add('No specific risks identified');
+    }
+
+    return [
+      _CardData(title: 'Assumptions', bullets: assumptions.take(5).toList()),
+      _CardData(title: 'Constraints', bullets: constraints.take(5).toList()),
+      _CardData(title: 'Risks', bullets: risks.take(5).toList()),
+    ];
+  }
+}
+
+class _CardData {
+  const _CardData({required this.title, required this.bullets});
+
+  final String title;
+  final List<String> bullets;
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({required this.data});
+
+  final _CardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppSemanticColors.subtle,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            data.title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+          ),
+          const SizedBox(height: 12),
+          _BulletList(items: data.bullets),
+        ],
+      ),
+    );
+  }
+}
+
+class _MilestoneGrid extends StatelessWidget {
+  const _MilestoneGrid({required this.projectData});
+
+  final ProjectDataModel? projectData;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final milestones = _extractMilestones(projectData);
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final milestone in milestones)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: _MilestoneTile(milestone: milestone),
+            ),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < milestones.length; i++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i == milestones.length - 1 ? 0 : 18),
+              child: _MilestoneTile(milestone: milestones[i]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static List<_MilestoneData> _extractMilestones(ProjectDataModel? data) {
+    if (data == null) {
+      return const [
+        _MilestoneData(title: 'Milestone 1', description: 'Define milestones in the planning phase'),
+        _MilestoneData(title: 'Milestone 2', description: 'Define milestones in the planning phase'),
+        _MilestoneData(title: 'Milestone 3', description: 'Define milestones in the planning phase'),
+        _MilestoneData(title: 'Milestone 4', description: 'Define milestones in the planning phase'),
+      ];
+    }
+
+    final milestones = <_MilestoneData>[];
+    
+    // Extract from key milestones
+    for (final milestone in data.keyMilestones) {
+      if (milestone.name.isNotEmpty) {
+        final description = [
+          if (milestone.discipline.isNotEmpty) 'Discipline: ${milestone.discipline}',
+          if (milestone.dueDate.isNotEmpty) 'Due: ${milestone.dueDate}',
+          if (milestone.comments.isNotEmpty) milestone.comments,
+        ].join(' • ');
+        
+        milestones.add(_MilestoneData(
+          title: milestone.name,
+          description: description.isNotEmpty ? description : 'No description available',
+        ));
+      }
+    }
+    
+    // Extract from planning goals milestones
+    for (final goal in data.planningGoals) {
+      for (final milestone in goal.milestones) {
+        if (milestone.title.isNotEmpty) {
+          final description = milestone.deadline.isNotEmpty 
+            ? 'Due: ${milestone.deadline}' 
+            : 'No deadline specified';
+          
+          milestones.add(_MilestoneData(
+            title: milestone.title,
+            description: description,
+          ));
+        }
+      }
+    }
+    
+    if (milestones.isEmpty) {
+      return const [
+        _MilestoneData(title: 'Milestone 1', description: 'Define milestones in the planning phase'),
+        _MilestoneData(title: 'Milestone 2', description: 'Define milestones in the planning phase'),
+        _MilestoneData(title: 'Milestone 3', description: 'Define milestones in the planning phase'),
+        _MilestoneData(title: 'Milestone 4', description: 'Define milestones in the planning phase'),
+      ];
+    }
+    
+    return milestones.take(8).toList();
+  }
+}
+
+class _MilestoneData {
+  const _MilestoneData({required this.title, required this.description});
+
+  final String title;
+  final String description;
+}
+
+class _MilestoneTile extends StatelessWidget {
+  const _MilestoneTile({required this.milestone});
+
+  final _MilestoneData milestone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          milestone.title,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          milestone.description,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontSize: 14,
+                height: 1.6,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChartSlice {
+  const _ChartSlice({required this.color, required this.value, required this.label});
+
+  final Color color;
+  final double value;
+  final String label;
+}
+
+class _DonutChartPainter extends CustomPainter {
+  const _DonutChartPainter({
+    required this.slices,
+    required this.innerColor,
+    required this.palette,
+  });
+
+  final List<_ChartSlice> slices;
+  final Color innerColor;
+  final List<Color> palette;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = slices.fold<double>(0, (sum, slice) => sum + slice.value);
+    if (total == 0) {
+      return;
+    }
+
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2;
+    final strokeWidth = radius * 0.48;
+    final arcRect = Rect.fromCircle(center: center, radius: radius * 0.8);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    double startAngle = -math.pi / 2;
+
+    for (int i = 0; i < slices.length; i++) {
+      final slice = slices[i];
+      final sweepAngle = (slice.value / total) * math.pi * 2;
+      // If slice color is transparent (placeholder), rotate through a pleasant palette
+      paint.color = slice.color == Colors.transparent
+          ? palette[i % palette.length]
+          : slice.color;
+      canvas.drawArc(arcRect, startAngle, sweepAngle, false, paint);
+      startAngle += sweepAngle;
+    }
+
+    final innerPaint = Paint()
+      ..color = innerColor
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius * 0.42, innerPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+
+}
+>>>>>>> 1ee471ae (Merge codebases)

@@ -4,6 +4,7 @@ class SidebarNavigationService {
   SidebarNavigationService._();
   static final SidebarNavigationService instance = SidebarNavigationService._();
 
+<<<<<<< HEAD
   static const List<_PhaseRange> _phaseRanges = [
     _PhaseRange(
       label: 'Initiation Phase',
@@ -86,6 +87,8 @@ class SidebarNavigationService {
     return null; // Reached end or all remaining are locked
   }
 
+=======
+>>>>>>> 1ee471ae (Merge codebases)
   /// Flat, ordered list of all sidebar items with their checkpoint names.
   /// This order determines the project flow chronology.
   static const List<SidebarItem> _sidebarOrder = [
@@ -113,6 +116,7 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'fep_risks', label: 'Project Risks'),
     SidebarItem(
         checkpoint: 'fep_opportunities', label: 'Project Opportunities'),
+<<<<<<< HEAD
     SidebarItem(checkpoint: 'fep_contract_vendor_quotes', label: 'Contracting'),
     SidebarItem(checkpoint: 'fep_procurement', label: 'Procurement'),
     SidebarItem(checkpoint: 'fep_security', label: 'Security'),
@@ -131,6 +135,46 @@ class SidebarNavigationService {
         checkpoint: 'project_goals_milestones',
         label: 'Project Goals & Milestones'),
     SidebarItem(checkpoint: 'requirements', label: 'Requirements'),
+=======
+    SidebarItem(
+        checkpoint: 'fep_contract_vendor_quotes',
+        label: 'Contract & Vendor Quotes'),
+    SidebarItem(checkpoint: 'fep_procurement', label: 'Procurement'),
+    SidebarItem(checkpoint: 'fep_security', label: 'Security'),
+    SidebarItem(checkpoint: 'fep_allowance', label: 'Allowance'),
+    SidebarItem(checkpoint: 'project_charter', label: 'Project Charter'),
+
+    // Planning Phase
+    SidebarItem(
+        checkpoint: 'project_framework', label: 'Project Management Framework'),
+    SidebarItem(
+        checkpoint: 'work_breakdown_structure',
+        label: 'Work Breakdown Structure'),
+    SidebarItem(checkpoint: 'ssher', label: 'SSHER'),
+    SidebarItem(checkpoint: 'change_management', label: 'Change Management'),
+    SidebarItem(checkpoint: 'issue_management', label: 'Issue Management'),
+    SidebarItem(checkpoint: 'cost_estimate', label: 'Cost Estimate Overview'),
+    SidebarItem(
+        checkpoint: 'scope_tracking_plan', label: 'Scope Tracking Plan'),
+    SidebarItem(checkpoint: 'contracts', label: 'Contract'),
+    SidebarItem(checkpoint: 'fep_procurement', label: 'Procurement'),
+    // Project Plan sub-items
+    SidebarItem(checkpoint: 'project_plan', label: 'Project Plan Overview'),
+    // Execution Plan sub-items
+    SidebarItem(checkpoint: 'execution_plan', label: 'Execution Plan'),
+    SidebarItem(checkpoint: 'schedule', label: 'Schedule'),
+    SidebarItem(checkpoint: 'design', label: 'Design'),
+    SidebarItem(checkpoint: 'technology', label: 'Technology'),
+    SidebarItem(
+        checkpoint: 'interface_management', label: 'Interface Management'),
+    // Start-Up Planning sub-items
+    SidebarItem(checkpoint: 'startup_planning', label: 'Start-Up Planning'),
+    // Deliverable Roadmap sub-items
+    SidebarItem(checkpoint: 'deliverable_roadmap', label: 'Roadmap Overview'),
+    SidebarItem(
+        checkpoint: 'agile_project_baseline', label: 'Agile Project Baseline'),
+    SidebarItem(checkpoint: 'project_baseline', label: 'Project Baseline'),
+>>>>>>> 1ee471ae (Merge codebases)
     // Organization Plan sub-items
     SidebarItem(
         checkpoint: 'organization_roles_responsibilities',
@@ -140,6 +184,7 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'team_training', label: 'Training & Team Building'),
     SidebarItem(
         checkpoint: 'stakeholder_management', label: 'Stakeholder Management'),
+<<<<<<< HEAD
     SidebarItem(checkpoint: 'team_management', label: 'Team Management'),
     SidebarItem(checkpoint: 'ssher', label: 'SSHER'),
     SidebarItem(checkpoint: 'quality_management', label: 'Quality Management'),
@@ -262,6 +307,14 @@ class SidebarNavigationService {
         checkpoint: 'project_plan_condensed_summary',
         label: 'Condensed Project Summary'),
     SidebarItem(checkpoint: 'project_baseline', label: 'Project Baseline'),
+=======
+    SidebarItem(checkpoint: 'lessons_learned', label: 'Lessons Learned'),
+    SidebarItem(checkpoint: 'team_management', label: 'Team Management'),
+    SidebarItem(checkpoint: 'risk_assessment', label: 'Risk Assessment'),
+    SidebarItem(
+        checkpoint: 'security_management', label: 'Security Management'),
+    SidebarItem(checkpoint: 'quality_management', label: 'Quality Management'),
+>>>>>>> 1ee471ae (Merge codebases)
 
     // Design Phase
     SidebarItem(checkpoint: 'design_management', label: 'Design Management'),
@@ -288,12 +341,15 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'staff_team', label: 'Staff Team'),
     SidebarItem(checkpoint: 'team_meetings', label: 'Team Meetings'),
     SidebarItem(checkpoint: 'progress_tracking', label: 'Progress Tracking'),
+<<<<<<< HEAD
     SidebarItem(
         checkpoint: 'deliverable_status_updates',
         label: 'Deliverable Status Updates'),
     SidebarItem(
         checkpoint: 'recurring_deliverables', label: 'Recurring Deliverables'),
     SidebarItem(checkpoint: 'status_reports', label: 'Status Reports'),
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     SidebarItem(checkpoint: 'contracts_tracking', label: 'Contracts Tracking'),
     SidebarItem(checkpoint: 'vendor_tracking', label: 'Vendor Tracking'),
     SidebarItem(checkpoint: 'detailed_design', label: 'Detailed Design'),
@@ -337,20 +393,26 @@ class SidebarNavigationService {
         label: 'Vendor Account Close Out'),
     SidebarItem(
         checkpoint: 'summarize_account_risks', label: 'Project Summary'),
+<<<<<<< HEAD
     SidebarItem(
         checkpoint: 'commerce_viability',
         label: 'Warranties & Operations Support'),
     SidebarItem(
         checkpoint: 'actual_vs_planned_gap_analysis',
         label: 'Actual vs Planned Gap Analysis'),
+=======
+>>>>>>> 1ee471ae (Merge codebases)
     SidebarItem(checkpoint: 'project_close_out', label: 'Project Close Out'),
     SidebarItem(checkpoint: 'demobilize_team', label: 'Demobilize Team'),
   ];
 
+<<<<<<< HEAD
   /// Ordered, read-only sidebar catalog for admin surfaces that need to mirror
   /// the complete project navigation model.
   static List<SidebarItem> get allItems => List.unmodifiable(_sidebarOrder);
 
+=======
+>>>>>>> 1ee471ae (Merge codebases)
   /// Get the next item in the sidebar order after the current checkpoint
   SidebarItem? getNextItem(String? currentCheckpoint) {
     if (currentCheckpoint == null || currentCheckpoint.isEmpty) {
@@ -366,6 +428,7 @@ class SidebarNavigationService {
     return _sidebarOrder[currentIndex + 1];
   }
 
+<<<<<<< HEAD
   /// Find a sidebar item by its display label (case-insensitive).
   SidebarItem? findItemByLabel(String label) {
     final normalized = label.trim().toLowerCase();
@@ -415,6 +478,8 @@ class SidebarNavigationService {
     return _sidebarOrder.sublist(startIndex, destinationIndex + 1);
   }
 
+=======
+>>>>>>> 1ee471ae (Merge codebases)
   /// Get the previous item in the sidebar order before the current checkpoint
   SidebarItem? getPreviousItem(String? currentCheckpoint) {
     if (currentCheckpoint == null || currentCheckpoint.isEmpty) {
@@ -466,6 +531,7 @@ class SidebarNavigationService {
         .map((item) => item.checkpoint)
         .toList();
   }
+<<<<<<< HEAD
 
   /// Resolve a checkpoint to its phase label (based on sidebar order).
   static String? phaseForCheckpoint(String? checkpoint) {
@@ -500,6 +566,8 @@ class SidebarNavigationService {
     if (checkpoint == null || checkpoint.isEmpty) return false;
     return _phaseRanges.any((range) => range.startCheckpoint == checkpoint);
   }
+=======
+>>>>>>> 1ee471ae (Merge codebases)
 }
 
 /// Represents a single item in the sidebar navigation
@@ -512,6 +580,7 @@ class SidebarItem {
     required this.label,
   });
 }
+<<<<<<< HEAD
 
 class _PhaseRange {
   final String label;
@@ -524,3 +593,5 @@ class _PhaseRange {
     required this.endCheckpoint,
   });
 }
+=======
+>>>>>>> 1ee471ae (Merge codebases)

@@ -1112,7 +1112,14 @@ class _MetricsWrap extends StatelessWidget {
 class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.title,
+<<<<<<< HEAD
     required this.value,
+=======
+    required this.subtitle,
+    this.height,
+    this.badges = const [],
+    this.progress,
+>>>>>>> 1ee471ae (Merge codebases)
     this.footer,
     this.footerIcon,
   });

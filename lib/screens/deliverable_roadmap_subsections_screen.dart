@@ -27,8 +27,25 @@ class DeliverableRoadmapAgileMapOutScreen extends StatefulWidget {
   const DeliverableRoadmapAgileMapOutScreen({super.key});
 
   @override
+<<<<<<< HEAD
   State<DeliverableRoadmapAgileMapOutScreen> createState() =>
       _DeliverableRoadmapAgileMapOutScreenState();
+=======
+  Widget build(BuildContext context) {
+    return _PlanningSubsectionScreen(
+      config: _PlanningSubsectionConfig(
+        title: 'Agile Map Out',
+        subtitle:
+            'Outline iterative delivery waves, sprint objectives, and cadence.',
+        noteKey: 'planning_deliverable_roadmap_agile_map_out',
+        checkpoint: 'deliverable_roadmap_agile_map_out',
+        activeItemLabel: 'Deliverable Roadmap - Agile Map Out',
+        metrics: const [],
+        sections: const [],
+      ),
+    );
+  }
+>>>>>>> 1ee471ae (Merge codebases)
 }
 
 class _DeliverableRoadmapAgileMapOutScreenState
@@ -174,8 +191,13 @@ class _DeliverableRoadmapAgileMapOutScreenState
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
+<<<<<<< HEAD
               child: const InitiationLikeSidebar(
                   activeItemLabel: 'Agile Wireframe - Agile Map Out'),
+=======
+              child: InitiationLikeSidebar(
+                  activeItemLabel: config.activeItemLabel),
+>>>>>>> 1ee471ae (Merge codebases)
             ),
             Expanded(
               child: Stack(
@@ -186,14 +208,20 @@ class _DeliverableRoadmapAgileMapOutScreenState
                       ),
                     ),
                   SingleChildScrollView(
+<<<<<<< HEAD
                     padding:
                         EdgeInsets.symmetric(horizontal: hPad, vertical: 24),
+=======
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 24),
+>>>>>>> 1ee471ae (Merge codebases)
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final width = constraints.maxWidth;
                         const gap = 24.0;
                         final twoCol = width >= 980;
                         final halfWidth = twoCol ? (width - gap) / 2 : width;
+<<<<<<< HEAD
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -218,6 +246,28 @@ class _DeliverableRoadmapAgileMapOutScreenState
                               noteKey:
                                   'planning_deliverable_roadmap_agile_map_out',
                               checkpoint: 'agile_map_out',
+=======
+                        final hasContent = config.metrics.isNotEmpty ||
+                            config.sections.isNotEmpty;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _TopHeader(
+                                title: config.title,
+                                onBack: () => Navigator.maybePop(context)),
+                            const SizedBox(height: 12),
+                            Text(
+                              config.subtitle,
+                              style: const TextStyle(
+                                  fontSize: 14, color: Color(0xFF6B7280)),
+                            ),
+                            const SizedBox(height: 20),
+                            PlanningAiNotesCard(
+                              title: 'AI Notes',
+                              sectionLabel: config.title,
+                              noteKey: config.noteKey,
+                              checkpoint: config.checkpoint,
+>>>>>>> 1ee471ae (Merge codebases)
                               description:
                                   'Capture sprint priorities, dependencies, and release sequencing.',
                             ),
@@ -234,6 +284,7 @@ class _DeliverableRoadmapAgileMapOutScreenState
                               Wrap(
                                 spacing: gap,
                                 runSpacing: gap,
+<<<<<<< HEAD
                                 children: [
                                   SizedBox(
                                     width: halfWidth,
@@ -259,6 +310,20 @@ class _DeliverableRoadmapAgileMapOutScreenState
                                     child: _buildMilestonesCard(),
                                   ),
                                 ],
+=======
+                                children: config.sections
+                                    .map((section) => SizedBox(
+                                        width: halfWidth,
+                                        child: _SectionCard(data: section)))
+                                    .toList(),
+                              ),
+                            ] else
+                              const _SectionEmptyState(
+                                title: 'No roadmap details yet',
+                                message:
+                                    'Add sprint scope and delivery notes to populate this view.',
+                                icon: Icons.view_kanban_outlined,
+>>>>>>> 1ee471ae (Merge codebases)
                               ),
                             ],
                             const SizedBox(height: 24),
@@ -280,9 +345,13 @@ class _DeliverableRoadmapAgileMapOutScreenState
                     ),
                   ),
                   const Positioned(
+<<<<<<< HEAD
                       right: 24,
                       bottom: 24,
                       child: KazAiChatBubble(positioned: false)),
+=======
+                      right: 24, bottom: 24, child: KazAiChatBubble()),
+>>>>>>> 1ee471ae (Merge codebases)
                 ],
               ),
             ),
@@ -476,13 +545,28 @@ class _TopHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+<<<<<<< HEAD
         _CircleBtn(icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
+=======
+        _CircleIconButton(
+            icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
+>>>>>>> 1ee471ae (Merge codebases)
         const SizedBox(width: 12),
         _CircleBtn(icon: Icons.arrow_forward_ios_rounded, onTap: onForward),
         const SizedBox(width: 16),
+<<<<<<< HEAD
         const Text('Agile Map Out',
             style: TextStyle(
                 fontSize: 22, fontWeight: FontWeight.w700, color: _kHeadline)),
+=======
+        Text(
+          title,
+          style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827)),
+        ),
+>>>>>>> 1ee471ae (Merge codebases)
         const Spacer(),
         const SizedBox(width: 12),
         const _UserChip(),
@@ -525,6 +609,7 @@ class _UserChip extends StatelessWidget {
         FirebaseAuthService.displayNameOrEmail(fallback: 'User');
     final email = user?.email ?? '';
 
+<<<<<<< HEAD
     return StreamBuilder<bool>(
       stream: UserService.watchAdminStatus(),
       builder: (context, snapshot) {
@@ -536,10 +621,37 @@ class _UserChip extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: const Color(0xFFE5E7EB)),
+=======
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: const Color(0xFFE5E7EB),
+            backgroundImage:
+                user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+            child: user?.photoURL == null
+                ? Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF374151)),
+                  )
+                : null,
+>>>>>>> 1ee471ae (Merge codebases)
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+<<<<<<< HEAD
               CircleAvatar(
                 radius: 16,
                 backgroundColor: const Color(0xFFE5E7EB),
@@ -578,13 +690,60 @@ class _UserChip extends StatelessWidget {
           ),
         );
       },
+=======
+              Text(displayName,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600)),
+              const Text('Product manager',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+            ],
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.keyboard_arrow_down,
+              size: 18, color: Color(0xFF9CA3AF)),
+        ],
+      ),
+>>>>>>> 1ee471ae (Merge codebases)
     );
   }
+}
+
+<<<<<<< HEAD
+class _MetricCard extends StatelessWidget {
+  const _MetricCard(
+      {required this.label, required this.value, required this.accent});
+=======
+class _MetricsRow extends StatelessWidget {
+  const _MetricsRow({required this.metrics});
+
+  final List<_MetricData> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: metrics
+          .map((metric) => _MetricCard(
+              label: metric.label, value: metric.value, accent: metric.color))
+          .toList(),
+    );
+  }
+}
+
+class _MetricData {
+  const _MetricData(this.label, this.value, this.color);
+
+  final String label;
+  final String value;
+  final Color color;
 }
 
 class _MetricCard extends StatelessWidget {
   const _MetricCard(
       {required this.label, required this.value, required this.accent});
+
+>>>>>>> 1ee471ae (Merge codebases)
   final String label;
   final String value;
   final Color accent;
@@ -606,20 +765,42 @@ class _MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+<<<<<<< HEAD
           Text(label, style: const TextStyle(fontSize: 12, color: _kMuted)),
           const SizedBox(height: 6),
           Text(value,
               style: TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w700, color: accent)),
+=======
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w700, color: accent),
+          ),
+>>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
     );
   }
 }
 
+<<<<<<< HEAD
 class _SectionCard extends StatelessWidget {
   const _SectionCard(
       {required this.title, required this.subtitle, required this.child});
+=======
+class _SectionData {
+  const _SectionData({
+    required this.title,
+    required this.subtitle,
+    this.bullets = const [],
+    this.statusRows = const [],
+  });
+
+>>>>>>> 1ee471ae (Merge codebases)
   final String title;
   final String subtitle;
   final Widget child;
@@ -640,6 +821,7 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+<<<<<<< HEAD
           Text(title,
               style: const TextStyle(
                   fontSize: 14,
@@ -649,6 +831,17 @@ class _SectionCard extends StatelessWidget {
           Text(subtitle,
               style:
                   const TextStyle(fontSize: 12, color: _kMuted, height: 1.4)),
+=======
+          Text(data.title,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827))),
+          const SizedBox(height: 6),
+          Text(data.subtitle,
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF6B7280), height: 1.4)),
+>>>>>>> 1ee471ae (Merge codebases)
           const SizedBox(height: 16),
           child,
         ],
@@ -701,6 +894,7 @@ class _WaveRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+<<<<<<< HEAD
           Row(
             children: [
               Container(
@@ -744,6 +938,21 @@ class _WaveRow extends StatelessWidget {
               valueColor:
                   const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
               minHeight: 6,
+=======
+          Icon(
+            data.isCheck ? Icons.check_circle_outline : Icons.circle,
+            size: data.isCheck ? 16 : 8,
+            color: data.isCheck
+                ? const Color(0xFF10B981)
+                : const Color(0xFF9CA3AF),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              data.text,
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF374151), height: 1.4),
+>>>>>>> 1ee471ae (Merge codebases)
             ),
           ),
           const SizedBox(height: 6),
@@ -891,21 +1100,51 @@ class _VelocityRow extends StatelessWidget {
                   style: const TextStyle(fontSize: 12, color: _kMuted),
                   textAlign: TextAlign.center)),
           Expanded(
+<<<<<<< HEAD
               child: Text(deltaLabel,
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: deltaColor),
                   textAlign: TextAlign.center)),
+=======
+            child: Text(
+              data.label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: data.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              data.value,
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: data.color),
+            ),
+          ),
+>>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
     );
   }
 }
 
+<<<<<<< HEAD
 class _DependencyRow extends StatelessWidget {
   const _DependencyRow({required this.link});
   final _DependencyLink link;
+=======
+class _SectionEmptyState extends StatelessWidget {
+  const _SectionEmptyState(
+      {required this.title, required this.message, required this.icon});
+
+  final String title;
+  final String message;
+  final IconData icon;
+>>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -932,6 +1171,7 @@ class _DependencyRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
+<<<<<<< HEAD
             child: RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 11, color: _kHeadline),
@@ -965,6 +1205,21 @@ class _DependencyRow extends StatelessWidget {
                     ? const Color(0xFFEF4444)
                     : const Color(0xFF10B981),
               ),
+=======
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827))),
+                const SizedBox(height: 6),
+                Text(message,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF6B7280))),
+              ],
+>>>>>>> 1ee471ae (Merge codebases)
             ),
           ),
         ],

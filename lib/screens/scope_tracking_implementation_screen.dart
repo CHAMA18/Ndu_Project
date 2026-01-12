@@ -533,6 +533,613 @@ class _ScopeTrackingImplementationScreenState
       return _selectedFilters.contains(item.implementationStatus);
     }).toList();
 
+<<<<<<< HEAD
+=======
+  Widget _buildVariancePanel() {
+    return _PanelShell(
+      title: 'Variance signals',
+      subtitle: 'Scope drift and dependency impacts',
+      trailing: _panelIconButton(
+        icon: Icons.add,
+        tooltip: 'Add variance signal',
+        onPressed: () => _showVarianceDialog(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _varianceSignals.map((signal) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(signal.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(signal.subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    ],
+                  ),
+                ),
+                _cardIconButton(
+                  icon: Icons.edit,
+                  tooltip: 'Edit variance signal',
+                  onPressed: () => _showVarianceDialog(existing: signal),
+                ),
+                _cardIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete variance signal',
+                  onPressed: () => _confirmDelete(
+                    label: 'variance signal "${signal.title}"',
+                    onDelete: () => setState(() => _varianceSignals.remove(signal)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildChangeLogPanel() {
+    return _PanelShell(
+      title: 'Change log',
+      subtitle: 'Recent scope change requests',
+      trailing: _panelIconButton(
+        icon: Icons.add,
+        tooltip: 'Add change request',
+        onPressed: () => _showChangeDialog(),
+      ),
+      child: Column(
+        children: _changeItems.map((change) {
+          final color = change.status == 'Approved' ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(change.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(change.date, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(change.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+                ),
+                const SizedBox(width: 8),
+                _cardIconButton(
+                  icon: Icons.edit,
+                  tooltip: 'Edit change request',
+                  onPressed: () => _showChangeDialog(existing: change),
+                ),
+                _cardIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete change request',
+                  onPressed: () => _confirmDelete(
+                    label: 'change request "${change.id}"',
+                    onDelete: () => setState(() => _changeItems.remove(change)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildBaselinePanel() {
+    return _PanelShell(
+      title: 'Baseline alignment',
+      subtitle: 'Scope checkpoints for sign-off',
+      trailing: _panelIconButton(
+        icon: Icons.add,
+        tooltip: 'Add baseline checkpoint',
+        onPressed: () => _showBaselineDialog(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _baselineItems.map((item) {
+          return _BaselineItem(
+            item.title,
+            item.status,
+            item.complete,
+            onEdit: () => _showBaselineDialog(existing: item),
+            onDelete: () => _confirmDelete(
+              label: 'baseline checkpoint "${item.title}"',
+              onDelete: () => setState(() => _baselineItems.remove(item)),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _statusChip(String label) {
+    Color color;
+    switch (label) {
+      case 'On track':
+        color = const Color(0xFF10B981);
+        break;
+      case 'Variance':
+        color = const Color(0xFFF59E0B);
+        break;
+      case 'At risk':
+        color = const Color(0xFFEF4444);
+        break;
+      default:
+        color = const Color(0xFF6366F1);
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+
+  Future<void> _confirmDelete({required String label, required VoidCallback onDelete}) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete item'),
+        content: Text('Delete $label? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              onDelete();
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showScopeItemDialog({_ScopeItem? existing}) async {
+    final idController = TextEditingController(text: existing?.id ?? '');
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final varianceController = TextEditingController(text: existing?.variance ?? '');
+    final ownerController = TextEditingController(text: existing?.owner ?? '');
+    final reviewController = TextEditingController(text: existing?.reviewDate ?? '');
+    var status = existing?.status ?? _scopeStatusOptions.first;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add scope item' : 'Edit scope item'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: idController,
+                    decoration: const InputDecoration(labelText: 'ID'),
+                  ),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Scope item'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: _scopeStatusOptions
+                        .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => status = value);
+                    },
+                  ),
+                  TextField(
+                    controller: varianceController,
+                    decoration: const InputDecoration(labelText: 'Variance'),
+                  ),
+                  TextField(
+                    controller: ownerController,
+                    decoration: const InputDecoration(labelText: 'Owner'),
+                  ),
+                  TextField(
+                    controller: reviewController,
+                    decoration: const InputDecoration(labelText: 'Next review'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final id = idController.text.trim();
+                  final title = titleController.text.trim();
+                  if (id.isEmpty || title.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ID and Scope item are required.')),
+                    );
+                    return;
+                  }
+                  final updated = _ScopeItem(
+                    id,
+                    title,
+                    status,
+                    varianceController.text.trim(),
+                    ownerController.text.trim(),
+                    reviewController.text.trim(),
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _scopeItems.add(updated);
+                    } else {
+                      final index = _scopeItems.indexOf(existing);
+                      if (index >= 0) {
+                        _scopeItems[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showVarianceDialog({_VarianceSignal? existing}) async {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final subtitleController = TextEditingController(text: existing?.subtitle ?? '');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(existing == null ? 'Add variance signal' : 'Edit variance signal'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              TextField(
+                controller: subtitleController,
+                decoration: const InputDecoration(labelText: 'Detail'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final title = titleController.text.trim();
+              if (title.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Title is required.')),
+                );
+                return;
+              }
+              final updated = _VarianceSignal(title, subtitleController.text.trim());
+              setState(() {
+                if (existing == null) {
+                  _varianceSignals.add(updated);
+                } else {
+                  final index = _varianceSignals.indexOf(existing);
+                  if (index >= 0) {
+                    _varianceSignals[index] = updated;
+                  }
+                }
+              });
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showChangeDialog({_ChangeItem? existing}) async {
+    final idController = TextEditingController(text: existing?.id ?? '');
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final dateController = TextEditingController(text: existing?.date ?? '');
+    var status = existing?.status ?? _changeStatusOptions.first;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add change request' : 'Edit change request'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: idController,
+                    decoration: const InputDecoration(labelText: 'ID'),
+                  ),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Title'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: _changeStatusOptions
+                        .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => status = value);
+                    },
+                  ),
+                  TextField(
+                    controller: dateController,
+                    decoration: const InputDecoration(labelText: 'Date'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final id = idController.text.trim();
+                  final title = titleController.text.trim();
+                  if (id.isEmpty || title.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ID and Title are required.')),
+                    );
+                    return;
+                  }
+                  final updated = _ChangeItem(
+                    id,
+                    title,
+                    status,
+                    dateController.text.trim(),
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _changeItems.add(updated);
+                    } else {
+                      final index = _changeItems.indexOf(existing);
+                      if (index >= 0) {
+                        _changeItems[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showBaselineDialog({_BaselineCheckpoint? existing}) async {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final statusController = TextEditingController(text: existing?.status ?? '');
+    var complete = existing?.complete ?? false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add baseline checkpoint' : 'Edit baseline checkpoint'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Title'),
+                  ),
+                  TextField(
+                    controller: statusController,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Complete'),
+                    value: complete,
+                    onChanged: (value) => setDialogState(() => complete = value),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final title = titleController.text.trim();
+                  if (title.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Title is required.')),
+                    );
+                    return;
+                  }
+                  final updated = _BaselineCheckpoint(
+                    title,
+                    statusController.text.trim(),
+                    complete,
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _baselineItems.add(updated);
+                    } else {
+                      final index = _baselineItems.indexOf(existing);
+                      if (index >= 0) {
+                        _baselineItems[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showStatDialog({_StatCardData? existing}) async {
+    final labelController = TextEditingController(text: existing?.label ?? '');
+    final valueController = TextEditingController(text: existing?.value ?? '');
+    final supportingController = TextEditingController(text: existing?.supporting ?? '');
+    var selectedColorName = _statColors.entries.firstWhere(
+      (entry) => entry.value == existing?.color,
+      orElse: () => _statColors.entries.first,
+    ).key;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'Add stat' : 'Edit stat'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: labelController,
+                    decoration: const InputDecoration(labelText: 'Label'),
+                  ),
+                  TextField(
+                    controller: valueController,
+                    decoration: const InputDecoration(labelText: 'Value'),
+                  ),
+                  TextField(
+                    controller: supportingController,
+                    decoration: const InputDecoration(labelText: 'Supporting text'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: selectedColorName,
+                    decoration: const InputDecoration(labelText: 'Accent color'),
+                    items: _statColors.keys
+                        .map((name) => DropdownMenuItem(value: name, child: Text(name)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedColorName = value);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final label = labelController.text.trim();
+                  final value = valueController.text.trim();
+                  if (label.isEmpty || value.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Label and Value are required.')),
+                    );
+                    return;
+                  }
+                  final updated = _StatCardData(
+                    label,
+                    value,
+                    supportingController.text.trim(),
+                    _statColors[selectedColorName] ?? const Color(0xFF64748B),
+                  );
+                  setState(() {
+                    if (existing == null) {
+                      _stats.add(updated);
+                    } else {
+                      final index = _stats.indexOf(existing);
+                      if (index >= 0) {
+                        _stats[index] = updated;
+                      }
+                    }
+                  });
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PanelShell extends StatelessWidget {
+  const _PanelShell({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+>>>>>>> 1ee471ae (Merge codebases)
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

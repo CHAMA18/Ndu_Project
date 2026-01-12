@@ -1032,9 +1032,15 @@ class _CloseOutData {
 class _ChecklistEntry {
   const _ChecklistEntry({
     required this.title,
+<<<<<<< HEAD
     required this.done,
     this.owner = '',
     this.notes = '',
+=======
+    required this.subtitle,
+    this.bullets = const [],
+    this.statusRows = const [],
+>>>>>>> 1ee471ae (Merge codebases)
   });
 
   final String title;

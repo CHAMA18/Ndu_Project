@@ -342,8 +342,12 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _Debouncer {
+<<<<<<< HEAD
   _Debouncer({Duration? delay})
       : delay = delay ?? const Duration(milliseconds: 700);
+=======
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 700);
+>>>>>>> 1ee471ae (Merge codebases)
 
   final Duration delay;
   Timer? _timer;
