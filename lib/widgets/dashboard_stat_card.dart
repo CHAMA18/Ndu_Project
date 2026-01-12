@@ -8,8 +8,8 @@ class DashboardStatCard extends StatelessWidget {
     required this.icon,
     required this.color,
     this.onTap,
-    super.key,
-  });
+    Key? key,
+  }) : super(key: key);
 
   final String label;
   final String value;
@@ -108,8 +108,8 @@ class DashboardStatLayout extends StatelessWidget {
     required this.isStacked,
     this.horizontalSpacing = 20,
     this.verticalSpacing = 16,
-    super.key,
-  });
+    Key? key,
+  }) : super(key: key);
 
   final List<Widget> cards;
   final bool isStacked;

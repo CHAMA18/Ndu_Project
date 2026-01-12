@@ -145,11 +145,34 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
   }
 
   Future<void> _handleNextPressed() async {
+    // Validate required fields before proceeding
+    if (_selectedOverallFramework == null || _selectedOverallFramework!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an Overall Framework before proceeding.'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     final projectGoals = _goals.map((g) => ProjectGoal(
       name: g.name,
       description: g.controller.text.trim(),
       framework: g.framework,
     )).toList();
+
+    if (projectGoals.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add at least one Project Goal before proceeding.'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     await ProjectDataHelper.saveAndNavigate(
       context: context,

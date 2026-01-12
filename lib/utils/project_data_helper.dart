@@ -1,17 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 /// Helper functions for easy integration of ProjectDataProvider across screens
 class ProjectDataHelper {
+  /// Check if a destination checkpoint is locked/not accessible
+  /// Returns true if the destination is locked, false if accessible
+  static bool isDestinationLocked(BuildContext context, String destinationCheckpoint) {
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (provider == null) return true; // Lock if no provider
+    
+    final projectData = provider.projectData;
+    final currentCheckpoint = projectData.currentCheckpoint ?? '';
+    
+    // Check if it's a Basic Plan locked item
+    const basicPlanLockedCheckpoints = {
+      'fep_contract_vendor_quotes',
+      'fep_security',
+      'fep_allowance',
+      'work_breakdown_structure',
+      'interface_management',
+      'project_baseline',
+      'project_plan_level1_schedule',
+      'project_plan_detailed_schedule',
+      'project_plan_condensed_summary',
+      'team_management',
+      'staff_team',
+      'update_ops_maintenance_plans',
+      'gap_analysis_scope_reconcillation',
+      'punchlist_actions',
+      'salvage_disposal_team',
+      'engineering_design',
+      'specialized_design',
+      'technical_development',
+      'project_summary',
+      'warranties_operations_support',
+      'project_financial_review',
+    };
+    
+    if (projectData.isBasicPlanProject && basicPlanLockedCheckpoints.contains(destinationCheckpoint)) {
+      return true;
+    }
+    
+    // Check if checkpoint has been reached
+    if (currentCheckpoint.isEmpty) {
+      // Only allow first checkpoint if no progress
+      return destinationCheckpoint != SidebarNavigationService.instance.getNextItem(null)?.checkpoint;
+    }
+    
+    return !SidebarNavigationService.instance.isCheckpointReached(destinationCheckpoint, currentCheckpoint);
+  }
+  
+  /// Show a message when user tries to navigate to a locked destination
+  static void showLockedDestinationMessage(BuildContext context, String destinationName) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Please complete the current requirements before accessing $destinationName.'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
   /// Save current screen data and navigate to next screen with automatic Firebase sync
+  /// Includes security check to prevent navigation to locked destinations
   static Future<void> saveAndNavigate({
     required BuildContext context,
     required String checkpoint,
     required Widget Function() nextScreenBuilder,
     ProjectDataModel Function(ProjectDataModel)? dataUpdater,
+    String? destinationCheckpoint, // Optional: checkpoint of destination screen for lock checking
+    String? destinationName, // Optional: human-readable name for error messages
   }) async {
     final provider = ProjectDataInherited.of(context);
+    
+    // Security check: Verify destination is not locked
+    if (destinationCheckpoint != null && isDestinationLocked(context, destinationCheckpoint)) {
+      showLockedDestinationMessage(context, destinationName ?? 'the next page');
+      return; // Block navigation
+    }
     
     // Update data if updater is provided
     if (dataUpdater != null) {
@@ -482,7 +555,6 @@ class ProjectDataHelper {
     String? infrastructure,
     String? contracts,
     List<RequirementItem>? requirementItems,
-    ProcurementWorkspaceData? procurementWorkspace,
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? current.requirements,
@@ -499,7 +571,6 @@ class ProjectDataHelper {
       infrastructure: infrastructure ?? current.infrastructure,
       contracts: contracts ?? current.contracts,
       requirementItems: requirementItems ?? current.requirementItems,
-      procurementWorkspace: procurementWorkspace ?? current.procurementWorkspace,
     );
   }
 }

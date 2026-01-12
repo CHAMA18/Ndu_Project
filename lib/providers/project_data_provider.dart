@@ -62,16 +62,28 @@ class ProjectDataProvider extends ChangeNotifier {
       } else {
         // Create new project
         dataPayload['createdAt'] = now;
-        dataPayload['status'] = 'In Progress';
-        dataPayload['progress'] = 0.1;
-        dataPayload['investmentMillions'] = 0.0;
+        dataPayload['status'] = dataPayload['status'] ?? 'Initiation'; // Use Initiation instead of 'In Progress' to match query expectations
+        dataPayload['progress'] = dataPayload['progress'] ?? 0.1;
+        dataPayload['investmentMillions'] = dataPayload['investmentMillions'] ?? 0.0;
         dataPayload['milestone'] = checkpoint ?? 'initiation';
+        
+        // Ensure both 'name' and 'projectName' are set for query compatibility
+        final projectName = dataPayload['projectName'] ?? dataPayload['name'] ?? '';
+        if (projectName.isNotEmpty) {
+          dataPayload['name'] = projectName;
+          dataPayload['projectName'] = projectName;
+        }
+        
+        // Ensure isBasicPlanProject is set
+        dataPayload['isBasicPlanProject'] = dataPayload['isBasicPlanProject'] ?? false;
         
         final ref = await projectsCol.add(dataPayload);
         _projectData = _projectData.copyWith(
           projectId: ref.id,
           createdAt: DateTime.now(),
         );
+        
+        debugPrint('✅ Project created with ID: ${ref.id}, name: $projectName, ownerId: ${user.uid}');
       }
 
       _projectData = _projectData.copyWith(
@@ -92,9 +104,21 @@ class ProjectDataProvider extends ChangeNotifier {
 
   /// Load project data from Firebase by ID
   Future<bool> loadFromFirebase(String projectId) async {
-    // Skip if already loaded and cached
-    if (_cachedProjectId == projectId && _projectData.projectId == projectId) {
-      return true;
+    // Skip if already loaded and cached, but only if data is valid
+    if (_cachedProjectId == projectId && 
+        _projectData.projectId == projectId && 
+        _projectData.projectId != null &&
+        _projectData.projectId!.isNotEmpty) {
+      // Verify the cached data is still valid by checking if project exists
+      try {
+        final doc = await FirebaseFirestore.instance.collection('projects').doc(projectId).get();
+        if (doc.exists) {
+          return true; // Cached data is valid
+        }
+      } catch (e) {
+        debugPrint('Error validating cached project: $e');
+        // Continue to reload if validation fails
+      }
     }
 
     try {
@@ -118,31 +142,8 @@ class ProjectDataProvider extends ChangeNotifier {
       debugPrint('📦 Loading project data for: $projectId');
       debugPrint('Raw data keys: ${data.keys.toList()}');
 
-      // Convert Firestore Timestamps to ISO8601 strings for compatibility
-      final sanitizedData = <String, dynamic>{};
-      data.forEach((key, value) {
-        if (value is Timestamp) {
-          sanitizedData[key] = value.toDate().toIso8601String();
-        } else if (value is List) {
-          // Handle lists that might contain Timestamps
-          sanitizedData[key] = value.map((item) {
-            if (item is Timestamp) {
-              return item.toDate().toIso8601String();
-            } else if (item is Map) {
-              final itemMap = Map<String, dynamic>.from(item);
-              itemMap.forEach((k, v) {
-                if (v is Timestamp) {
-                  itemMap[k] = v.toDate().toIso8601String();
-                }
-              });
-              return itemMap;
-            }
-            return item;
-          }).toList();
-        } else {
-          sanitizedData[key] = value;
-        }
-      });
+      // Convert Firestore Timestamps to ISO8601 strings for compatibility (recursive)
+      final sanitizedData = _sanitizeTimestampsRecursive(data) as Map<String, dynamic>;
 
       try {
         _projectData = ProjectDataModel.fromJson(sanitizedData);
@@ -165,6 +166,22 @@ class ProjectDataProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Recursively sanitize Timestamp objects in nested data structures
+  static dynamic _sanitizeTimestampsRecursive(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate().toIso8601String();
+    } else if (value is List) {
+      return value.map((item) => _sanitizeTimestampsRecursive(item)).toList();
+    } else if (value is Map) {
+      final sanitizedMap = <String, dynamic>{};
+      value.forEach((key, val) {
+        sanitizedMap[key.toString()] = _sanitizeTimestampsRecursive(val);
+      });
+      return sanitizedMap;
+    }
+    return value;
   }
 
   /// Reset project data to initial state

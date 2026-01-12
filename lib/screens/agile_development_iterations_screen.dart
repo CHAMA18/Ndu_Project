@@ -15,19 +15,22 @@ class AgileDevelopmentIterationsScreen extends StatefulWidget {
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AgileDevelopmentIterationsScreen()),
+      MaterialPageRoute(
+          builder: (_) => const AgileDevelopmentIterationsScreen()),
     );
   }
 
   @override
-  State<AgileDevelopmentIterationsScreen> createState() => _AgileDevelopmentIterationsScreenState();
+  State<AgileDevelopmentIterationsScreen> createState() =>
+      _AgileDevelopmentIterationsScreenState();
 }
 
-class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentIterationsScreen> {
+class _AgileDevelopmentIterationsScreenState
+    extends State<AgileDevelopmentIterationsScreen> {
   final Set<String> _selectedFilters = {'Single view of iteration health'};
   final TextEditingController _notesController = TextEditingController();
   bool _expandAllStories = false;
-  
+
   String? _getProjectId() {
     try {
       final provider = ProjectDataInherited.maybeOf(context);
@@ -36,14 +39,15 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
       return null;
     }
   }
-  
-  Map<_BoardStatus, List<AgileStoryModel>> _groupStoriesByStatus(List<AgileStoryModel> stories) {
+
+  Map<_BoardStatus, List<AgileStoryModel>> _groupStoriesByStatus(
+      List<AgileStoryModel> stories) {
     final grouped = <_BoardStatus, List<AgileStoryModel>>{
       _BoardStatus.planned: [],
       _BoardStatus.inProgress: [],
       _BoardStatus.readyToDemo: [],
     };
-    
+
     for (final story in stories) {
       switch (story.status.toLowerCase()) {
         case 'planned':
@@ -59,7 +63,7 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           break;
       }
     }
-    
+
     return grouped;
   }
 
@@ -82,13 +86,15 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Agile Development Iterations'),
+              child: const InitiationLikeSidebar(
+                  activeItemLabel: 'Agile Development Iterations'),
             ),
             Expanded(
               child: Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 28),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 28),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -143,20 +149,20 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
         Text(
           'Agile Development Iterations',
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF111827),
-          ),
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF111827),
+              ),
         ),
         const SizedBox(height: 8),
         Text(
           'See what is planned, what is moving, and what is at risk in the current and upcoming iterations.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF6B7280),
-            fontWeight: FontWeight.w400,
-            height: 1.5,
-            fontSize: 14,
-          ),
+                color: const Color(0xFF6B7280),
+                fontWeight: FontWeight.w400,
+                height: 1.5,
+                fontSize: 14,
+              ),
         ),
       ],
     );
@@ -210,12 +216,16 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
         children: [
           const Text(
             'Overview',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827)),
           ),
           const SizedBox(height: 8),
           Text(
             'Use this page during stand-ups, iteration kick-offs, and demos to ground the team on what must land this cycle, how confident you are, and which dependencies could slow you down.',
-            style: TextStyle(fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
+            style: TextStyle(
+                fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
           ),
         ],
       ),
@@ -227,7 +237,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
       _MetricData(
         badgeLabel: 'Sprint window',
         title: 'Sprint 8 · 10 days',
-        subtitle: 'Mar 4 – Mar 15 · Focus on core launch-critical stories only.',
+        subtitle:
+            'Mar 4 – Mar 15 · Focus on core launch-critical stories only.',
         header: 'Current iteration',
       ),
       _MetricData(
@@ -239,7 +250,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
       _MetricData(
         badgeLabel: 'Confidence',
         title: 'Amber · 78%',
-        subtitle: 'Blocked on environment stability and one external integration dependency.',
+        subtitle:
+            'Blocked on environment stability and one external integration dependency.',
         header: 'Delivery health',
         titleColor: const Color(0xFFD97706),
       ),
@@ -247,21 +259,25 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
 
     if (isMobile) {
       return Column(
-        children: metrics.map((m) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildMetricCard(m),
-        )).toList(),
+        children: metrics
+            .map((m) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildMetricCard(m),
+                ))
+            .toList(),
       );
     }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: metrics.map((m) => Expanded(
-        child: Padding(
-          padding: EdgeInsets.only(right: m == metrics.last ? 0 : 12),
-          child: _buildMetricCard(m),
-        ),
-      )).toList(),
+      children: metrics
+          .map((m) => Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: m == metrics.last ? 0 : 12),
+                  child: _buildMetricCard(m),
+                ),
+              ))
+          .toList(),
     );
   }
 
@@ -275,10 +291,14 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
             children: [
               Text(
                 data.header,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -286,7 +306,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                 ),
                 child: Text(
                   data.badgeLabel,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF374151)),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF374151)),
                 ),
               ),
             ],
@@ -303,7 +326,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           const SizedBox(height: 6),
           Text(
             data.subtitle,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
+            style: const TextStyle(
+                fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
           ),
         ],
       ),
@@ -332,7 +356,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
               const Expanded(
                 child: Text(
                   'Iteration board snapshot',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827)),
                 ),
               ),
               Wrap(
@@ -340,13 +367,20 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => setState(() => _expandAllStories = !_expandAllStories),
-                    icon: Icon(_expandAllStories ? Icons.unfold_less : Icons.unfold_more, size: 16),
-                    label: Text(_expandAllStories ? 'Collapse all' : 'Expand all'),
+                    onPressed: () =>
+                        setState(() => _expandAllStories = !_expandAllStories),
+                    icon: Icon(
+                        _expandAllStories
+                            ? Icons.unfold_less
+                            : Icons.unfold_more,
+                        size: 16),
+                    label:
+                        Text(_expandAllStories ? 'Collapse all' : 'Expand all'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF374151),
                       side: const BorderSide(color: Color(0xFFE5E7EB)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
                   ),
                   _buildOutlineBadge('Stand-up view'),
@@ -357,7 +391,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           const SizedBox(height: 8),
           Text(
             'A compressed view of the board focusing only on launch-critical work. Use this to steer conversations away from noise.',
-            style: TextStyle(fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
+            style: TextStyle(
+                fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
           _buildKanbanBoard(),
@@ -377,7 +412,7 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
         ),
       );
     }
-    
+
     return StreamBuilder<List<AgileStoryModel>>(
       stream: AgileService.streamStories(projectId),
       builder: (context, snapshot) {
@@ -400,7 +435,7 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
 
         final stories = snapshot.data ?? [];
         final groupedStories = _groupStoriesByStatus(stories);
-        
+
         final columns = [
           _BoardStatus.planned,
           _BoardStatus.inProgress,
@@ -410,7 +445,9 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (int i = 0; i < columns.length; i++) ...[
-              Expanded(child: _buildKanbanColumn(columns[i], groupedStories[columns[i]] ?? [])),
+              Expanded(
+                  child: _buildKanbanColumn(
+                      columns[i], groupedStories[columns[i]] ?? [])),
               if (i != columns.length - 1) const SizedBox(width: 12),
             ],
           ],
@@ -419,10 +456,16 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
     );
   }
 
-  Widget _buildKanbanColumn(_BoardStatus status, List<AgileStoryModel> stories) {
+  Widget _buildKanbanColumn(
+      _BoardStatus status, List<AgileStoryModel> stories) {
     return DragTarget<_StoryDragData>(
-      onWillAcceptWithDetails: (data) => data != null && data.from != status,
-      onAcceptWithDetails: (data) => _moveStory(data, status),
+      onWillAcceptWithDetails: (DragTargetDetails<_StoryDragData> details) {
+        final dragData = details.data;
+        return dragData.from != status;
+      },
+      onAcceptWithDetails: (DragTargetDetails<_StoryDragData> details) {
+        _moveStory(details.data, status);
+      },
       builder: (context, candidateData, _) {
         final isActive = candidateData.isNotEmpty;
         final header = _statusLabel(status);
@@ -435,14 +478,19 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           decoration: BoxDecoration(
             color: isActive ? badgeColors.highlight : const Color(0xFFF9FAFB),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isActive ? badgeColors.border : const Color(0xFFE5E7EB)),
+            border: Border.all(
+                color: isActive ? badgeColors.border : const Color(0xFFE5E7EB)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 header,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280), letterSpacing: 0.5),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                    letterSpacing: 0.5),
               ),
               const SizedBox(height: 4),
               Container(
@@ -453,14 +501,17 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                 ),
                 child: Text(
                   count,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: badgeColors.foreground),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: badgeColors.foreground),
                 ),
               ),
               const SizedBox(height: 12),
               ...stories.map((story) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _buildDraggableStory(status, story),
-              )),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _buildDraggableStory(status, story),
+                  )),
               if (stories.isEmpty)
                 Container(
                   width: double.infinity,
@@ -484,7 +535,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF374151),
                   side: const BorderSide(color: Color(0xFFE5E7EB)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
               ),
             ],
@@ -495,14 +547,18 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
   }
 
   Widget _buildDraggableStory(_BoardStatus status, AgileStoryModel story) {
-    final card = _buildStoryCard(story, isExpanded: _expandAllStories, status: status);
+    final card =
+        _buildStoryCard(story, isExpanded: _expandAllStories, status: status);
     return Draggable<_StoryDragData>(
       data: _StoryDragData(from: status, story: story),
       feedback: Material(
         color: Colors.transparent,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 240),
-          child: Opacity(opacity: 0.95, child: _buildStoryCard(story, isExpanded: true, isDragging: true, status: status)),
+          child: Opacity(
+              opacity: 0.95,
+              child: _buildStoryCard(story,
+                  isExpanded: true, isDragging: true, status: status)),
         ),
       ),
       childWhenDragging: Opacity(opacity: 0.45, child: card),
@@ -510,7 +566,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
     );
   }
 
-  Widget _buildStoryCard(AgileStoryModel story, {required bool isExpanded, bool isDragging = false, required _BoardStatus status}) {
+  Widget _buildStoryCard(AgileStoryModel story,
+      {required bool isExpanded,
+      bool isDragging = false,
+      required _BoardStatus status}) {
     return GestureDetector(
       onTap: () => _showEditStoryDialog(context, story),
       child: Container(
@@ -518,7 +577,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: isDragging ? const Color(0xFF93C5FD) : const Color(0xFFE5E7EB)),
+          border: Border.all(
+              color: isDragging
+                  ? const Color(0xFF93C5FD)
+                  : const Color(0xFFE5E7EB)),
           boxShadow: isDragging
               ? [
                   BoxShadow(
@@ -538,19 +600,26 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                 Expanded(
                   child: Text(
                     story.title,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827)),
                   ),
                 ),
                 PopupMenuButton(
-                  icon: const Icon(Icons.more_vert, size: 16, color: Color(0xFF6B7280)),
+                  icon: const Icon(Icons.more_vert,
+                      size: 16, color: Color(0xFF6B7280)),
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       child: const Text('Edit'),
-                      onTap: () => Future.delayed(Duration.zero, () => _showEditStoryDialog(context, story)),
+                      onTap: () => Future.delayed(Duration.zero,
+                          () => _showEditStoryDialog(context, story)),
                     ),
                     PopupMenuItem(
-                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                      onTap: () => Future.delayed(Duration.zero, () => _showDeleteStoryDialog(context, story)),
+                      child: const Text('Delete',
+                          style: TextStyle(color: Colors.red)),
+                      onTap: () => Future.delayed(Duration.zero,
+                          () => _showDeleteStoryDialog(context, story)),
                     ),
                   ],
                 ),
@@ -562,11 +631,15 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
               children: [
                 Text(
                   'Owner: ${story.owner}',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
                 ),
                 Text(
                   story.points,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151)),
                 ),
               ],
             ),
@@ -574,24 +647,27 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
             Text(
               story.notes,
               maxLines: isExpanded ? null : 2,
-              overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF), height: 1.3),
+              overflow:
+                  isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 11, color: Color(0xFF9CA3AF), height: 1.3),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   void _showAddStoryDialog(BuildContext context, _BoardStatus status) {
     final projectId = _getProjectId();
     if (projectId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No project selected. Please open a project first.')),
+        const SnackBar(
+            content: Text('No project selected. Please open a project first.')),
       );
       return;
     }
-    
+
     String statusString;
     switch (status) {
       case _BoardStatus.planned:
@@ -604,12 +680,12 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
         statusString = 'readyToDemo';
         break;
     }
-    
+
     final titleController = TextEditingController();
     final ownerController = TextEditingController();
     final pointsController = TextEditingController();
     final notesController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -618,13 +694,22 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title *')),
+              TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Title *')),
               const SizedBox(height: 12),
-              TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner *')),
+              TextField(
+                  controller: ownerController,
+                  decoration: const InputDecoration(labelText: 'Owner *')),
               const SizedBox(height: 12),
-              TextField(controller: pointsController, decoration: const InputDecoration(labelText: 'Points *')),
+              TextField(
+                  controller: pointsController,
+                  decoration: const InputDecoration(labelText: 'Points *')),
               const SizedBox(height: 12),
-              TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notes *'), maxLines: 3),
+              TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Notes *'),
+                  maxLines: 3),
             ],
           ),
         ),
@@ -635,13 +720,17 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           ),
           ElevatedButton(
             onPressed: () async {
-              if (titleController.text.isEmpty || ownerController.text.isEmpty || pointsController.text.isEmpty || notesController.text.isEmpty) {
+              if (titleController.text.isEmpty ||
+                  ownerController.text.isEmpty ||
+                  pointsController.text.isEmpty ||
+                  notesController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill in all required fields')),
+                  const SnackBar(
+                      content: Text('Please fill in all required fields')),
                 );
                 return;
               }
-              
+
               try {
                 await AgileService.createStory(
                   projectId: projectId,
@@ -651,7 +740,7 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                   notes: notesController.text,
                   status: statusString,
                 );
-                
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -672,21 +761,22 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
       ),
     );
   }
-  
+
   void _showEditStoryDialog(BuildContext context, AgileStoryModel story) {
     final projectId = _getProjectId();
     if (projectId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No project selected. Please open a project first.')),
+        const SnackBar(
+            content: Text('No project selected. Please open a project first.')),
       );
       return;
     }
-    
+
     final titleController = TextEditingController(text: story.title);
     final ownerController = TextEditingController(text: story.owner);
     final pointsController = TextEditingController(text: story.points);
     final notesController = TextEditingController(text: story.notes);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -695,13 +785,22 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title *')),
+              TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Title *')),
               const SizedBox(height: 12),
-              TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner *')),
+              TextField(
+                  controller: ownerController,
+                  decoration: const InputDecoration(labelText: 'Owner *')),
               const SizedBox(height: 12),
-              TextField(controller: pointsController, decoration: const InputDecoration(labelText: 'Points *')),
+              TextField(
+                  controller: pointsController,
+                  decoration: const InputDecoration(labelText: 'Points *')),
               const SizedBox(height: 12),
-              TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notes *'), maxLines: 3),
+              TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Notes *'),
+                  maxLines: 3),
             ],
           ),
         ),
@@ -712,13 +811,17 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           ),
           ElevatedButton(
             onPressed: () async {
-              if (titleController.text.isEmpty || ownerController.text.isEmpty || pointsController.text.isEmpty || notesController.text.isEmpty) {
+              if (titleController.text.isEmpty ||
+                  ownerController.text.isEmpty ||
+                  pointsController.text.isEmpty ||
+                  notesController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill in all required fields')),
+                  const SnackBar(
+                      content: Text('Please fill in all required fields')),
                 );
                 return;
               }
-              
+
               try {
                 await AgileService.updateStory(
                   projectId: projectId,
@@ -728,7 +831,7 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                   points: pointsController.text,
                   notes: notesController.text,
                 );
-                
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -749,21 +852,23 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
       ),
     );
   }
-  
+
   void _showDeleteStoryDialog(BuildContext context, AgileStoryModel story) {
     final projectId = _getProjectId();
     if (projectId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No project selected. Please open a project first.')),
+        const SnackBar(
+            content: Text('No project selected. Please open a project first.')),
       );
       return;
     }
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Story'),
-        content: Text('Are you sure you want to delete "${story.title}"? This action cannot be undone.'),
+        content: Text(
+            'Are you sure you want to delete "${story.title}"? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -772,7 +877,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           ElevatedButton(
             onPressed: () async {
               try {
-                await AgileService.deleteStory(projectId: projectId, storyId: story.id);
+                await AgileService.deleteStory(
+                    projectId: projectId, storyId: story.id);
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -806,7 +912,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
             children: [
               const Text(
                 'Iteration rhythm',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827)),
               ),
               _buildOutlineBadge('10-day cadence'),
             ],
@@ -814,12 +923,16 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           const SizedBox(height: 8),
           Text(
             'Keep a lightweight but disciplined rhythm so that every iteration produces visible, reviewable progress.',
-            style: TextStyle(fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
+            style: TextStyle(
+                fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
           const Text(
             'Burndown trend',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151)),
           ),
           const SizedBox(height: 8),
           _buildBurndownBar(),
@@ -829,9 +942,12 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
             style: TextStyle(fontSize: 12, color: const Color(0xFF6B7280)),
           ),
           const SizedBox(height: 16),
-          _buildRhythmBullet('Align scope for the next sprint while there are still 3–4 days left in the current one.'),
-          _buildRhythmBullet('Reserve capacity every iteration for technical debt and stabilization work.'),
-          _buildRhythmBullet('Capture 3–5 key learnings in each retrospective and link them to concrete actions.'),
+          _buildRhythmBullet(
+              'Align scope for the next sprint while there are still 3–4 days left in the current one.'),
+          _buildRhythmBullet(
+              'Reserve capacity every iteration for technical debt and stabilization work.'),
+          _buildRhythmBullet(
+              'Capture 3–5 key learnings in each retrospective and link them to concrete actions.'),
         ],
       ),
     );
@@ -875,7 +991,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF374151), height: 1.4),
+              style: const TextStyle(
+                  fontSize: 13, color: Color(0xFF374151), height: 1.4),
             ),
           ),
         ],
@@ -910,7 +1027,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
             children: [
               const Text(
                 'Upcoming milestones',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827)),
               ),
               _buildOutlineBadge('Next 30 days'),
             ],
@@ -918,25 +1038,30 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           const SizedBox(height: 8),
           Text(
             'Anchor the team on the few milestones that really matter for this execution phase.',
-            style: TextStyle(fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
+            style: TextStyle(
+                fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
           ...milestones.map((m) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  m.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      m.title,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF111827)),
+                    ),
+                    Text(
+                      m.date,
+                      style: const TextStyle(
+                          fontSize: 13, color: Color(0xFF6B7280)),
+                    ),
+                  ],
                 ),
-                Text(
-                  m.date,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-                ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -958,17 +1083,24 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
             children: [
               const Text(
                 'Dependency & risk watch',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
                   'Exec focus',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white),
                 ),
               ),
             ],
@@ -976,7 +1108,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
           const SizedBox(height: 8),
           Text(
             'Only track items that can move dates or compromise launch quality.',
-            style: TextStyle(fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
+            style: TextStyle(
+                fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
           ...risks.map((r) => _buildRhythmBullet(r)),
@@ -1005,7 +1138,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF374151)),
+        style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF374151)),
       ),
     );
   }
@@ -1020,7 +1156,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF374151)),
+        style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF374151)),
       ),
     );
   }
@@ -1042,7 +1181,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF374151),
                 side: const BorderSide(color: Color(0xFFE5E7EB)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
             Text(
@@ -1056,7 +1196,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF374151),
                 side: const BorderSide(color: Color(0xFFE5E7EB)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
             ElevatedButton.icon(
@@ -1067,7 +1208,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                 backgroundColor: const Color(0xFFFFC812),
                 foregroundColor: Colors.black,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               ),
             ),
             ElevatedButton(
@@ -1076,7 +1218,8 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
                 backgroundColor: const Color(0xFFFFC812),
                 foregroundColor: Colors.black,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1092,12 +1235,16 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
         const SizedBox(height: 16),
         Row(
           children: [
-            Icon(Icons.lightbulb_outline, size: 16, color: const Color(0xFFFFC812)),
+            Icon(Icons.lightbulb_outline,
+                size: 16, color: const Color(0xFFFFC812)),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Use this page as the single answer to: what we promised this iteration, where we stand today, and which decisions we need from leadership.',
-                style: TextStyle(fontSize: 12, color: const Color(0xFF6B7280), fontStyle: FontStyle.italic),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: const Color(0xFF6B7280),
+                    fontStyle: FontStyle.italic),
               ),
             ),
           ],
@@ -1113,10 +1260,10 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
     );
   }
 
-  Future<void> _moveStory(_StoryDragData data, _BoardStatus target) async {
+  Future<void> _moveStory(_StoryDragData dragData, _BoardStatus target) async {
     final projectId = _getProjectId();
     if (projectId == null) return;
-    
+
     String statusString;
     switch (target) {
       case _BoardStatus.planned:
@@ -1129,11 +1276,11 @@ class _AgileDevelopmentIterationsScreenState extends State<AgileDevelopmentItera
         statusString = 'readyToDemo';
         break;
     }
-    
+
     try {
       await AgileService.updateStory(
         projectId: projectId,
-        storyId: data.story.id,
+        storyId: dragData.story.id,
         status: statusString,
       );
     } catch (e) {

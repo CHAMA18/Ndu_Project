@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/header_banner_image.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
@@ -75,7 +77,118 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
               costs: const [],
             ))
         .toList(growable: false);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadExistingDataAndAnalysis());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFeasibilityStudy();
+      _loadExistingDataAndAnalysis();
+    });
+  }
+
+  /// Check if user already has a feasibility study and offer fast track
+  Future<void> _checkFeasibilityStudy() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final projectData = provider.projectData;
+    final projectId = projectData.projectId;
+
+    // Check if already marked as having feasibility study
+    if (projectId != null) {
+      try {
+        final projectRecord = await ProjectService.getProjectById(projectId);
+        // Check if there's a custom field indicating feasibility study exists
+        // For now, we'll show the dialog on first visit
+      } catch (e) {
+        debugPrint('Error checking feasibility study status: $e');
+      }
+    }
+
+    // Show dialog asking about feasibility study
+    if (!mounted) return;
+    
+    final hasFeasibility = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.assignment_outlined, color: Color(0xFFFFD700), size: 28),
+            SizedBox(width: 12),
+            Expanded(child: Text('Feasibility Study')),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Do you already have a Feasibility Study for this project?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'If yes, you can skip the Preferred Solution Analysis and proceed directly to Risk Identification.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('No, I need to create one'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Yes, I have one'),
+          ),
+        ],
+      ),
+    );
+
+    if (hasFeasibility == true && mounted) {
+      // Update Firestore and skip to Risk Identification
+      final provider = ProjectDataHelper.getProvider(context);
+      final projectId = provider.projectData.projectId;
+      
+      if (projectId != null) {
+        try {
+          await FirebaseFirestore.instance.collection('projects').doc(projectId).update({
+            'hasFeasibilityStudy': true,
+            'checkpointRoute': 'risk_identification',
+            'checkpointAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          
+          // Update provider
+          provider.updateField((data) => data.copyWith(
+            currentCheckpoint: 'risk_identification',
+          ));
+          
+          // Navigate to Risk Identification
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => RiskIdentificationScreen(
+                  notes: projectData.notes ?? '',
+                  solutions: widget.solutions,
+                  businessCase: projectData.businessCase ?? '',
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('Error updating feasibility study status: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: ${e.toString()}')),
+            );
+          }
+        }
+      }
+    }
+    // If false, continue with normal Preferred Solution Analysis flow
   }
 
   Future<void> _loadExistingDataAndAnalysis() async {

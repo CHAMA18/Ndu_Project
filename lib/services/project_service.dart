@@ -98,6 +98,7 @@ class ProjectService {
 
   /// Check if a project name already exists for the given owner.
   /// Case-sensitive match on the stored `name` field.
+  /// Throws StateError if check fails to prevent duplicate names.
   static Future<bool> projectNameExists({
     required String ownerId,
     required String name,
@@ -109,9 +110,10 @@ class ProjectService {
           .limit(1)
           .get();
       return query.docs.isNotEmpty;
-    } catch (_) {
-      // If the check fails for any reason, do not block save due to transient errors.
-      return false;
+    } catch (e) {
+      // Log error and throw exception to block save
+      debugPrint('Error checking duplicate project name: $e');
+      throw StateError('Unable to verify project name uniqueness. Please try again.');
     }
   }
 
@@ -170,14 +172,19 @@ class ProjectService {
 
   static Stream<List<ProjectRecord>> streamProjects({
     String? ownerId,
-    int limit = 25,
+    int limit = 200, // Increased limit to ensure all projects are visible
     bool filterByOwner = true,
   }) {
+    // Start with base query - NO status filter to show ALL projects (Draft, Initiation, In Progress, etc.)
     Query<Map<String, dynamic>> query = _projectsCol.orderBy('createdAt', descending: true).limit(limit);
-    if (filterByOwner && ownerId != null) {
+    if (filterByOwner && ownerId != null && ownerId.isNotEmpty) {
       query = query.where('ownerId', isEqualTo: ownerId);
     }
-    return query.snapshots().map((snapshot) => snapshot.docs.map(ProjectRecord.fromDoc).toList());
+    return query.snapshots().map((snapshot) {
+      final projects = snapshot.docs.map(ProjectRecord.fromDoc).toList();
+      debugPrint('📊 StreamProjects: Found ${projects.length} projects for ownerId: $ownerId');
+      return projects;
+    });
   }
 
   /// Stream projects by a list of project IDs (for program dashboard)

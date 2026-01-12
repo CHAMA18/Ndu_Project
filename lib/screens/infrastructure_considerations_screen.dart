@@ -36,23 +36,39 @@ class InfrastructureConsiderationsScreen extends StatefulWidget {
 class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsiderationsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late final TextEditingController _notesController;
-  late final List<TextEditingController> _infraControllers;
+  late List<TextEditingController> _infraControllers; // Made mutable for dynamic addition
+  late final List<AiSolutionItem> _solutions; // Local mutable list
   final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
   bool _isGenerating = false;
   String? _error;
   bool _initiationExpanded = true;
   bool _businessCaseExpanded = true;
+  
+  void _addNewItem() {
+    setState(() {
+      _solutions.add(AiSolutionItem(title: '', description: ''));
+      _infraControllers.add(TextEditingController());
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _notesController = TextEditingController(text: widget.notes);
-    _infraControllers = List.generate(widget.solutions.length, (_) => TextEditingController());
+    _solutions = List.from(widget.solutions); // Create mutable copy
+    // Initialize with at least one empty item if solutions list is empty
+    if (_solutions.isEmpty) {
+      _solutions.add(AiSolutionItem(title: '', description: ''));
+    }
+    _infraControllers = List.generate(_solutions.length, (_) => TextEditingController());
     ApiKeyManager.initializeApiKey();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadExistingData();
-      if (widget.solutions.isNotEmpty) _generateInfrastructure();
+      // Only auto-generate if we have actual solutions (not empty placeholder)
+      if (widget.solutions.isNotEmpty) {
+        _generateInfrastructure();
+      }
     });
   }
   
@@ -69,8 +85,19 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
       }
       
       // Load infrastructure data for each solution
+      // Ensure we have enough controllers and solutions
+      while (_infraControllers.length < infraData.solutionInfrastructureData.length) {
+        _solutions.add(AiSolutionItem(title: '', description: ''));
+        _infraControllers.add(TextEditingController());
+      }
       for (int i = 0; i < infraData.solutionInfrastructureData.length && i < _infraControllers.length; i++) {
         final solutionInfra = infraData.solutionInfrastructureData[i];
+        if (i < _solutions.length) {
+          _solutions[i] = AiSolutionItem(
+            title: solutionInfra.solutionTitle,
+            description: '',
+          );
+        }
         _infraControllers[i].text = solutionInfra.majorInfrastructure;
       }
       
@@ -581,7 +608,7 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
         ],
         const SizedBox(height: 24),
         if (isMobile) ...[
-          Column(children: List.generate(widget.solutions.length, (i) => _row(i))),
+          Column(children: List.generate(_solutions.length, (i) => _row(i))),
         ] else ...[
           const Text('Potential Solution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
           const SizedBox(height: 12),
@@ -596,9 +623,31 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: Column(children: List.generate(widget.solutions.length, (i) => _row(i))),
+            child: Column(children: List.generate(_solutions.length, (i) => _row(i))),
           ),
         ],
+        const SizedBox(height: 16),
+        // Add Item button
+        Row(children: [
+          Tooltip(
+            message: 'Add a new infrastructure consideration entry manually',
+            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: _addNewItem,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Item'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(width: 12),
+        ]),
         const SizedBox(height: 24),
         if (isMobile) ...[
           Row(children: [
@@ -707,18 +756,21 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
     try {
       final provider = ProjectDataInherited.of(context);
       
-      // Collect all infrastructure data from all solutions
+      // Collect all infrastructure data from all solutions (including manually added items)
       final solutionInfrastructureData = <SolutionInfrastructureData>[];
-      for (int i = 0; i < widget.solutions.length; i++) {
-        final solutionTitle = widget.solutions[i].title;
-        final majorInfrastructure = i < _infraControllers.length 
-            ? _infraControllers[i].text 
-            : '';
+      for (int i = 0; i < _solutions.length && i < _infraControllers.length; i++) {
+        final solutionTitle = _solutions[i].title.isNotEmpty 
+            ? _solutions[i].title 
+            : 'Infrastructure Entry ${i + 1}';
+        final majorInfrastructure = _infraControllers[i].text.trim();
         
-        solutionInfrastructureData.add(SolutionInfrastructureData(
-          solutionTitle: solutionTitle,
-          majorInfrastructure: majorInfrastructure,
-        ));
+        // Only add if there's actual content (name or infrastructure)
+        if (solutionTitle.isNotEmpty || majorInfrastructure.isNotEmpty) {
+          solutionInfrastructureData.add(SolutionInfrastructureData(
+            solutionTitle: solutionTitle,
+            majorInfrastructure: majorInfrastructure,
+          ));
+        }
       }
       
       final infrastructureConsiderationsData = InfrastructureConsiderationsData(
@@ -739,7 +791,8 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
 
   Widget _row(int index) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final s = widget.solutions[index];
+    // Handle cases where we have more controllers than initial solutions (user added items)
+    final s = index < _solutions.length ? _solutions[index] : AiSolutionItem(title: '', description: '');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.25)))),
@@ -824,17 +877,58 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
       _error = null;
     });
     try {
+      // Get project context for fallback if solutions are empty
+      final provider = ProjectDataInherited.maybeOf(context);
+      final projectData = provider?.projectData;
+      final projectName = projectData?.projectName ?? '';
+      final projectDescription = projectData?.solutionDescription ?? projectData?.businessCase ?? '';
+      
+      // Use solutions if available, otherwise create a placeholder from project name
+      final solutionsToUse = _solutions.where((s) => s.title.isNotEmpty || s.description.isNotEmpty).toList();
+      if (solutionsToUse.isEmpty && projectName.isNotEmpty) {
+        solutionsToUse.add(AiSolutionItem(
+          title: projectName,
+          description: projectDescription,
+        ));
+        // Ensure we have a controller for this
+        if (_infraControllers.isEmpty) {
+          _infraControllers.add(TextEditingController());
+        }
+        if (_solutions.isEmpty) {
+          _solutions.addAll(solutionsToUse);
+        }
+      }
+      
+      if (solutionsToUse.isEmpty) {
+        setState(() {
+          _error = 'Please add at least one solution or project name to generate infrastructure considerations.';
+          _isGenerating = false;
+        });
+        return;
+      }
+      
       // Combine notes with additional infrastructure info
-      final contextNotes = _notesController.text.trim().isEmpty 
-          ? additionalInfo 
-          : '${_notesController.text.trim()}\n\nAdditional Infrastructure Info: $additionalInfo';
+      String contextNotes = _notesController.text.trim();
+      if (contextNotes.isEmpty && projectName.isNotEmpty) {
+        contextNotes = 'Project: $projectName';
+        if (projectDescription.isNotEmpty) {
+          contextNotes += '\nDescription: $projectDescription';
+        }
+      }
+      if (additionalInfo.isNotEmpty) {
+        contextNotes = contextNotes.isEmpty 
+            ? additionalInfo 
+            : '$contextNotes\n\nAdditional Infrastructure Info: $additionalInfo';
+      }
           
       final map = await _openAi.generateInfrastructureForSolutions(
-        widget.solutions,
+        solutionsToUse,
         contextNotes: contextNotes,
       );
-      for (int i = 0; i < widget.solutions.length; i++) {
-        final title = widget.solutions[i].title;
+      
+      // Apply generated data to controllers
+      for (int i = 0; i < solutionsToUse.length && i < _infraControllers.length; i++) {
+        final title = solutionsToUse[i].title;
         final infra = map[title] ?? const <String>[];
         _infraControllers[i].text = infra.isEmpty ? '' : infra.map((e) => '- $e').join('\n');
       }

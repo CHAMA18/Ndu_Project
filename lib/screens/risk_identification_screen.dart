@@ -195,6 +195,19 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     }
   }
 
+  void _addNewRisk() {
+    // Add a new solution row with empty risk fields
+    setState(() {
+      _solutions.add(AiSolutionItem(title: '', description: ''));
+      _riskControllers.add(List.generate(3, (_) {
+        final controller = TextEditingController();
+        controller.addListener(_onDataChanged);
+        return controller;
+      }));
+    });
+    _onDataChanged(); // Trigger auto-save
+  }
+
   Future<void> _generateRisks() async {
     if (_isGenerating) return;
     setState(() {
@@ -795,14 +808,21 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         _buildAutoSaveIndicator(),
         const SizedBox(height: 16),
         
-        // Info + AI + Next
+        // Info + Add Risk + Next
         Row(children: [
           Container(width: 44, height: 44, decoration: const BoxDecoration(color: Color(0xFFB3D9FF), shape: BoxShape.circle), child: const Icon(Icons.info_outline, color: Colors.white)),
           const SizedBox(width: 24),
-          FilledButton.icon(
-            onPressed: _isGenerating || _solutions.isEmpty ? null : _generateRisks,
-            icon: const Icon(Icons.auto_awesome),
-            label: Text(_isGenerating ? 'Generating...' : 'Generate risks'),
+          ElevatedButton.icon(
+            onPressed: _addNewRisk,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Risk'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           ),
         ]),
         const SizedBox(height: 24),

@@ -14,7 +14,8 @@ class DeliverableRoadmapAgileMapOutScreen extends StatelessWidget {
     return _PlanningSubsectionScreen(
       config: _PlanningSubsectionConfig(
         title: 'Agile Map Out',
-        subtitle: 'Outline iterative delivery waves, sprint objectives, and cadence.',
+        subtitle:
+            'Outline iterative delivery waves, sprint objectives, and cadence.',
         noteKey: 'planning_deliverable_roadmap_agile_map_out',
         checkpoint: 'deliverable_roadmap_agile_map_out',
         activeItemLabel: 'Deliverable Roadmap - Agile Map Out',
@@ -43,28 +44,34 @@ class _PlanningSubsectionScreen extends StatelessWidget {
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: InitiationLikeSidebar(activeItemLabel: config.activeItemLabel),
+              child: InitiationLikeSidebar(
+                  activeItemLabel: config.activeItemLabel),
             ),
             Expanded(
               child: Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 24),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 24),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final width = constraints.maxWidth;
                         const gap = 24.0;
                         final twoCol = width >= 980;
                         final halfWidth = twoCol ? (width - gap) / 2 : width;
-                        final hasContent = config.metrics.isNotEmpty || config.sections.isNotEmpty;
+                        final hasContent = config.metrics.isNotEmpty ||
+                            config.sections.isNotEmpty;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _TopHeader(title: config.title, onBack: () => Navigator.maybePop(context)),
+                            _TopHeader(
+                                title: config.title,
+                                onBack: () => Navigator.maybePop(context)),
                             const SizedBox(height: 12),
                             Text(
                               config.subtitle,
-                              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                              style: const TextStyle(
+                                  fontSize: 14, color: Color(0xFF6B7280)),
                             ),
                             const SizedBox(height: 20),
                             PlanningAiNotesCard(
@@ -72,7 +79,8 @@ class _PlanningSubsectionScreen extends StatelessWidget {
                               sectionLabel: config.title,
                               noteKey: config.noteKey,
                               checkpoint: config.checkpoint,
-                              description: 'Capture sprint priorities, dependencies, and release sequencing.',
+                              description:
+                                  'Capture sprint priorities, dependencies, and release sequencing.',
                             ),
                             const SizedBox(height: 24),
                             if (hasContent) ...[
@@ -82,13 +90,16 @@ class _PlanningSubsectionScreen extends StatelessWidget {
                                 spacing: gap,
                                 runSpacing: gap,
                                 children: config.sections
-                                    .map((section) => SizedBox(width: halfWidth, child: _SectionCard(data: section)))
+                                    .map((section) => SizedBox(
+                                        width: halfWidth,
+                                        child: _SectionCard(data: section)))
                                     .toList(),
                               ),
                             ] else
                               const _SectionEmptyState(
                                 title: 'No roadmap details yet',
-                                message: 'Add sprint scope and delivery notes to populate this view.',
+                                message:
+                                    'Add sprint scope and delivery notes to populate this view.',
                                 icon: Icons.view_kanban_outlined,
                               ),
                             const SizedBox(height: 40),
@@ -97,7 +108,8 @@ class _PlanningSubsectionScreen extends StatelessWidget {
                       },
                     ),
                   ),
-                  const Positioned(right: 24, bottom: 24, child: KazAiChatBubble()),
+                  const Positioned(
+                      right: 24, bottom: 24, child: KazAiChatBubble()),
                 ],
               ),
             ),
@@ -138,13 +150,17 @@ class _TopHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _CircleIconButton(icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
+        _CircleIconButton(
+            icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
         const SizedBox(width: 12),
         const _CircleIconButton(icon: Icons.arrow_forward_ios_rounded),
         const SizedBox(width: 16),
         Text(
           title,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827)),
         ),
         const Spacer(),
         const _UserChip(),
@@ -199,11 +215,15 @@ class _UserChip extends StatelessWidget {
           CircleAvatar(
             radius: 16,
             backgroundColor: const Color(0xFFE5E7EB),
-            backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+            backgroundImage:
+                user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
             child: user?.photoURL == null
                 ? Text(
                     displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF374151)),
                   )
                 : null,
           ),
@@ -212,12 +232,16 @@ class _UserChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(displayName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              const Text('Product manager', style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+              Text(displayName,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600)),
+              const Text('Product manager',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
             ],
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF9CA3AF)),
+          const Icon(Icons.keyboard_arrow_down,
+              size: 18, color: Color(0xFF9CA3AF)),
         ],
       ),
     );
@@ -235,7 +259,8 @@ class _MetricsRow extends StatelessWidget {
       spacing: 16,
       runSpacing: 16,
       children: metrics
-          .map((metric) => _MetricCard(label: metric.label, value: metric.value, accent: metric.color))
+          .map((metric) => _MetricCard(
+              label: metric.label, value: metric.value, accent: metric.color))
           .toList(),
     );
   }
@@ -250,7 +275,8 @@ class _MetricData {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value, required this.accent});
+  const _MetricCard(
+      {required this.label, required this.value, required this.accent});
 
   final String label;
   final String value;
@@ -269,11 +295,13 @@ class _MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: accent),
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w700, color: accent),
           ),
         ],
       ),
@@ -285,6 +313,8 @@ class _SectionData {
   const _SectionData({
     required this.title,
     required this.subtitle,
+    this.bullets = const [],
+    this.statusRows = const [],
   });
 
   final String title;
@@ -325,15 +355,22 @@ class _SectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 6)),
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 6)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(data.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+          Text(data.title,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827))),
           const SizedBox(height: 6),
-          Text(data.subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280), height: 1.4)),
+          Text(data.subtitle,
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF6B7280), height: 1.4)),
           const SizedBox(height: 16),
           if (showBullets)
             ...data.bullets.map((bullet) => _BulletRow(data: bullet)),
@@ -360,13 +397,16 @@ class _BulletRow extends StatelessWidget {
           Icon(
             data.isCheck ? Icons.check_circle_outline : Icons.circle,
             size: data.isCheck ? 16 : 8,
-            color: data.isCheck ? const Color(0xFF10B981) : const Color(0xFF9CA3AF),
+            color: data.isCheck
+                ? const Color(0xFF10B981)
+                : const Color(0xFF9CA3AF),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               data.text,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF374151), height: 1.4),
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF374151), height: 1.4),
             ),
           ),
         ],
@@ -400,7 +440,8 @@ class _StatusRow extends StatelessWidget {
             ),
             child: Text(
               data.value,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: data.color),
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: data.color),
             ),
           ),
         ],
@@ -410,7 +451,8 @@ class _StatusRow extends StatelessWidget {
 }
 
 class _SectionEmptyState extends StatelessWidget {
-  const _SectionEmptyState({required this.title, required this.message, required this.icon});
+  const _SectionEmptyState(
+      {required this.title, required this.message, required this.icon});
 
   final String title;
   final String message;
@@ -442,9 +484,15 @@ class _SectionEmptyState extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827))),
                 const SizedBox(height: 6),
-                Text(message, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                Text(message,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF6B7280))),
               ],
             ),
           ),

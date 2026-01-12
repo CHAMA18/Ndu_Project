@@ -1,27 +1,46 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-admin.initializeApp();
+// Initialize admin only if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 const db = admin.firestore();
-const runtimeConfig = typeof functions.config === 'function' ? functions.config() : {};
-const appConfig = runtimeConfig.app || {};
-const configuredBaseUrl = appConfig.base_url || appConfig.baseUrl || '';
-const configAllowedOrigins = appConfig.allowed_origins || appConfig.allowedOrigins || '';
-const envAllowedOrigins = process.env.APP_ALLOWED_ORIGINS || '';
-const APP_BASE_URL = process.env.APP_BASE_URL || configuredBaseUrl || 'https://ndu-d3f60.web.app';
-const EXTRA_ALLOWED_ORIGINS = [configAllowedOrigins, envAllowedOrigins]
-  .flatMap((value) => value.split(','))
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const CORS_ALLOWED_ORIGINS = [
-  /^(http|https):\/\/localhost(:\d+)?$/,
-  /^(http|https):\/\/127\.0\.0\.1(:\d+)?$/,
-  /\.web\.app$/,
-  /\.firebaseapp\.com$/,
-  APP_BASE_URL,
-  ...EXTRA_ALLOWED_ORIGINS
-];
+
+// Lazy-load config to avoid deployment timeouts
+function getRuntimeConfig() {
+  try {
+    return typeof functions.config === 'function' ? functions.config() : {};
+  } catch (e) {
+    console.warn('Failed to load runtime config:', e);
+    return {};
+  }
+}
+
+function getCorsAllowedOrigins() {
+  const runtimeConfig = getRuntimeConfig();
+  const appConfig = runtimeConfig.app || {};
+  const configuredBaseUrl = appConfig.base_url || appConfig.baseUrl || '';
+  const configAllowedOrigins = appConfig.allowed_origins || appConfig.allowedOrigins || '';
+  const envAllowedOrigins = process.env.APP_ALLOWED_ORIGINS || '';
+  const APP_BASE_URL = process.env.APP_BASE_URL || configuredBaseUrl || 'https://ndu-d3f60.web.app';
+  const EXTRA_ALLOWED_ORIGINS = [configAllowedOrigins, envAllowedOrigins]
+    .flatMap((value) => value.split(','))
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return [
+    /^(http|https):\/\/localhost(:\d+)?$/,
+    /^(http|https):\/\/127\.0\.0\.1(:\d+)?$/,
+    /\.web\.app$/,
+    /\.firebaseapp\.com$/,
+    /^https:\/\/staging\.admin\.nduproject\.com$/,
+    /^https:\/\/.*\.nduproject\.com$/, // Allow all nduproject.com subdomains
+    APP_BASE_URL,
+    ...EXTRA_ALLOWED_ORIGINS
+  ];
+}
+
 const FX_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const fxCache = { usdToNgn: null, fetchedAt: 0 };
 
@@ -51,6 +70,7 @@ async function verifyAuthToken(req) {
  */
 function setCorsHeaders(req, res) {
   const origin = req.headers.origin;
+  const CORS_ALLOWED_ORIGINS = getCorsAllowedOrigins();
   const isAllowed = origin && CORS_ALLOWED_ORIGINS.some((allowed) =>
     typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
   );
@@ -203,20 +223,8 @@ exports.openaiProxy = functions
     memory: '256MB'
   })
   .https.onRequest(async (req, res) => {
-    // CORS configuration - restrict to your domain in production
-    const allowedOrigins = [
-      'https://your-app-domain.web.app',
-      'https://your-app-domain.firebaseapp.com'
-    ];
-    
-    const origin = req.headers.origin;
-    const isLocalhost = typeof origin === 'string' && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'));
-    if (isLocalhost || allowedOrigins.includes(origin)) {
-      res.set('Access-Control-Allow-Origin', origin);
-    }
-    
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Use the centralized CORS helper function
+    setCorsHeaders(req, res);
     
     // Handle preflight requests
     if (req.method === 'OPTIONS') {

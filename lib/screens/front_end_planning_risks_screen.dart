@@ -59,28 +59,44 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
       final data = ProjectDataHelper.getData(context);
       final ctx = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Project Risks');
       final aiService = OpenAiServiceSecure();
-      final requirements = await aiService.generateRequirementsFromBusinessCase(ctx);
+      
+      // Generate risks with all fields (Title, Category, Probability, Impact)
+      final risks = await aiService.generateFepRisks(ctx);
+      
       if (!mounted) return;
       setState(() {
-        _rows = requirements
+        _rows = risks
             .asMap()
             .entries
-            .map((entry) => _RiskItem(
-                  id: _generateId(entry.key + 1),
-                  requirement: entry.value['requirement'] ?? '',
-                  requirementType: entry.value['requirementType'] ?? '',
-                  risk: '',
-                  description: '',
-                  category: '',
-                  probability: '',
-                  impact: '',
-                  riskValue: '',
-                  riskLevel: '',
-                  mitigation: '',
-                  discipline: '',
-                  owner: '',
-                  status: '',
-                ))
+            .map((entry) {
+              final riskData = entry.value;
+              // Calculate risk level from probability and impact
+              final prob = riskData['probability']?.toLowerCase() ?? 'medium';
+              final impact = riskData['impact']?.toLowerCase() ?? 'medium';
+              String riskLevel = 'Medium';
+              if ((prob == 'high' && impact == 'high') || (prob == 'high' && impact == 'medium') || (prob == 'medium' && impact == 'high')) {
+                riskLevel = 'High';
+              } else if ((prob == 'low' && impact == 'low') || (prob == 'low' && impact == 'medium') || (prob == 'medium' && impact == 'low')) {
+                riskLevel = 'Low';
+              }
+              
+              return _RiskItem(
+                id: _generateId(entry.key + 1),
+                requirement: '',
+                requirementType: '',
+                risk: riskData['title'] ?? '',
+                description: riskData['title'] ?? '', // Use title as description initially
+                category: riskData['category'] ?? '',
+                probability: riskData['probability'] ?? '',
+                impact: riskData['impact'] ?? '',
+                riskValue: '',
+                riskLevel: riskLevel,
+                mitigation: '',
+                discipline: '',
+                owner: '',
+                status: 'Identified',
+              );
+            })
             .toList();
         _isGeneratingRequirements = false;
       });
@@ -89,7 +105,7 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
       if (!mounted) return;
       setState(() => _isGeneratingRequirements = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate requirements: $e')),
+        SnackBar(content: Text('Failed to generate risks: $e')),
       );
     }
   }
@@ -840,6 +856,7 @@ class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
     required this.controller,
+    this.hintText,
     this.autofocus = false,
     this.enabled = true,
   });
