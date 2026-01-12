@@ -1,0 +1,237 @@
+/// Service that maintains the sidebar as the source of truth for project flow.
+/// The order of items in this list determines the chronological flow of the project.
+class SidebarNavigationService {
+  SidebarNavigationService._();
+  static final SidebarNavigationService instance = SidebarNavigationService._();
+
+  /// Flat, ordered list of all sidebar items with their checkpoint names.
+  /// This order determines the project flow chronology.
+  static const List<SidebarItem> _sidebarOrder = [
+    // Initiation Phase - Business Case
+    SidebarItem(checkpoint: 'business_case', label: 'Scope Statement'),
+    SidebarItem(
+        checkpoint: 'potential_solutions', label: 'Potential Solutions'),
+    SidebarItem(
+        checkpoint: 'risk_identification', label: 'Risk Identification'),
+    SidebarItem(checkpoint: 'it_considerations', label: 'IT Considerations'),
+    SidebarItem(
+        checkpoint: 'infrastructure_considerations',
+        label: 'Infrastructure Considerations'),
+    SidebarItem(checkpoint: 'core_stakeholders', label: 'Core Stakeholders'),
+    SidebarItem(
+        checkpoint: 'cost_analysis',
+        label: 'Cost Benefit Analysis & Financial Metrics'),
+    SidebarItem(
+        checkpoint: 'preferred_solution_analysis',
+        label: 'Preferred Solution Analysis'),
+
+    // Front End Planning
+    SidebarItem(checkpoint: 'fep_summary', label: 'Summary'),
+    SidebarItem(checkpoint: 'fep_requirements', label: 'Project Requirements'),
+    SidebarItem(checkpoint: 'fep_risks', label: 'Project Risks'),
+    SidebarItem(
+        checkpoint: 'fep_opportunities', label: 'Project Opportunities'),
+    SidebarItem(
+        checkpoint: 'fep_contract_vendor_quotes',
+        label: 'Contract & Vendor Quotes'),
+    SidebarItem(checkpoint: 'fep_procurement', label: 'Procurement'),
+    SidebarItem(checkpoint: 'fep_security', label: 'Security'),
+    SidebarItem(checkpoint: 'fep_allowance', label: 'Allowance'),
+    SidebarItem(checkpoint: 'project_charter', label: 'Project Charter'),
+
+    // Planning Phase
+    SidebarItem(
+        checkpoint: 'project_framework', label: 'Project Management Framework'),
+    SidebarItem(
+        checkpoint: 'work_breakdown_structure',
+        label: 'Work Breakdown Structure'),
+    SidebarItem(checkpoint: 'ssher', label: 'SSHER'),
+    SidebarItem(checkpoint: 'change_management', label: 'Change Management'),
+    SidebarItem(checkpoint: 'issue_management', label: 'Issue Management'),
+    SidebarItem(checkpoint: 'cost_estimate', label: 'Cost Estimate Overview'),
+    SidebarItem(
+        checkpoint: 'scope_tracking_plan', label: 'Scope Tracking Plan'),
+    SidebarItem(checkpoint: 'contracts', label: 'Contract'),
+    SidebarItem(checkpoint: 'fep_procurement', label: 'Procurement'),
+    // Project Plan sub-items
+    SidebarItem(checkpoint: 'project_plan', label: 'Project Plan Overview'),
+    // Execution Plan sub-items
+    SidebarItem(checkpoint: 'execution_plan', label: 'Execution Plan'),
+    SidebarItem(checkpoint: 'schedule', label: 'Schedule'),
+    SidebarItem(checkpoint: 'design', label: 'Design'),
+    SidebarItem(checkpoint: 'technology', label: 'Technology'),
+    SidebarItem(
+        checkpoint: 'interface_management', label: 'Interface Management'),
+    // Start-Up Planning sub-items
+    SidebarItem(checkpoint: 'startup_planning', label: 'Start-Up Planning'),
+    // Deliverable Roadmap sub-items
+    SidebarItem(checkpoint: 'deliverable_roadmap', label: 'Roadmap Overview'),
+    SidebarItem(
+        checkpoint: 'agile_project_baseline', label: 'Agile Project Baseline'),
+    SidebarItem(checkpoint: 'project_baseline', label: 'Project Baseline'),
+    // Organization Plan sub-items
+    SidebarItem(
+        checkpoint: 'organization_roles_responsibilities',
+        label: 'Roles & Responsibilities'),
+    SidebarItem(
+        checkpoint: 'organization_staffing_plan', label: 'Staffing Plan'),
+    SidebarItem(checkpoint: 'team_training', label: 'Training & Team Building'),
+    SidebarItem(
+        checkpoint: 'stakeholder_management', label: 'Stakeholder Management'),
+    SidebarItem(checkpoint: 'lessons_learned', label: 'Lessons Learned'),
+    SidebarItem(checkpoint: 'team_management', label: 'Team Management'),
+    SidebarItem(checkpoint: 'risk_assessment', label: 'Risk Assessment'),
+    SidebarItem(
+        checkpoint: 'security_management', label: 'Security Management'),
+    SidebarItem(checkpoint: 'quality_management', label: 'Quality Management'),
+
+    // Design Phase
+    SidebarItem(checkpoint: 'design_management', label: 'Design Management'),
+    SidebarItem(
+        checkpoint: 'requirements_implementation',
+        label: 'Requirements Implementation'),
+    SidebarItem(
+        checkpoint: 'technical_alignment', label: 'Technical Alignment'),
+    SidebarItem(checkpoint: 'development_set_up', label: 'Development Set Up'),
+    SidebarItem(checkpoint: 'ui_ux_design', label: 'UI/UX Design'),
+    SidebarItem(checkpoint: 'backend_design', label: 'Backend Design'),
+    SidebarItem(checkpoint: 'engineering_design', label: 'Engineering'),
+    SidebarItem(
+        checkpoint: 'technical_development', label: 'Technical Development'),
+    SidebarItem(checkpoint: 'tools_integration', label: 'Tools Integration'),
+    SidebarItem(
+        checkpoint: 'long_lead_equipment_ordering',
+        label: 'Long Lead Equipment Ordering'),
+    SidebarItem(checkpoint: 'specialized_design', label: 'Specialized Design'),
+    SidebarItem(
+        checkpoint: 'design_deliverables', label: 'Design Deliverables'),
+
+    // Execution Phase
+    SidebarItem(checkpoint: 'staff_team', label: 'Staff Team'),
+    SidebarItem(checkpoint: 'team_meetings', label: 'Team Meetings'),
+    SidebarItem(checkpoint: 'progress_tracking', label: 'Progress Tracking'),
+    SidebarItem(checkpoint: 'contracts_tracking', label: 'Contracts Tracking'),
+    SidebarItem(checkpoint: 'vendor_tracking', label: 'Vendor Tracking'),
+    SidebarItem(checkpoint: 'detailed_design', label: 'Detailed Design'),
+    SidebarItem(
+        checkpoint: 'agile_development_iterations',
+        label: 'Agile Development Iterations'),
+    SidebarItem(
+        checkpoint: 'scope_tracking_implementation',
+        label: 'Scope Tracking Implementation'),
+    SidebarItem(
+        checkpoint: 'stakeholder_alignment', label: 'Stakeholder Alignment'),
+    SidebarItem(
+        checkpoint: 'update_ops_maintenance_plans',
+        label: 'Update Ops and Maintenance Plans'),
+    SidebarItem(
+        checkpoint: 'launch_checklist', label: 'Start-up or Launch Checklist'),
+    SidebarItem(checkpoint: 'risk_tracking', label: 'Risk Tracking'),
+    SidebarItem(checkpoint: 'scope_completion', label: 'Scope Completion'),
+    SidebarItem(
+        checkpoint: 'gap_analysis_scope_reconcillation',
+        label: 'Gap Analysis and Scope Reconciliation'),
+    SidebarItem(checkpoint: 'punchlist_actions', label: 'Punchlist Overview'),
+    SidebarItem(
+        checkpoint: 'technical_debt_management', label: 'Tech Debt Management'),
+    SidebarItem(
+        checkpoint: 'identify_staff_ops_team',
+        label: 'Identify and Staff Ops Team'),
+    SidebarItem(
+        checkpoint: 'salvage_disposal_team',
+        label: 'Salvage and/or Disposal Plan'),
+
+    // Launch Phase
+    SidebarItem(
+        checkpoint: 'deliver_project_closure', label: 'Deliver Project'),
+    SidebarItem(
+        checkpoint: 'transition_to_prod_team',
+        label: 'Transition To Production Team'),
+    SidebarItem(checkpoint: 'contract_close_out', label: 'Contract Close Out'),
+    SidebarItem(
+        checkpoint: 'vendor_account_close_out',
+        label: 'Vendor Account Close Out'),
+    SidebarItem(
+        checkpoint: 'summarize_account_risks', label: 'Project Summary'),
+    SidebarItem(checkpoint: 'project_close_out', label: 'Project Close Out'),
+    SidebarItem(checkpoint: 'demobilize_team', label: 'Demobilize Team'),
+  ];
+
+  /// Get the next item in the sidebar order after the current checkpoint
+  SidebarItem? getNextItem(String? currentCheckpoint) {
+    if (currentCheckpoint == null || currentCheckpoint.isEmpty) {
+      return _sidebarOrder.first;
+    }
+
+    final currentIndex = _sidebarOrder
+        .indexWhere((item) => item.checkpoint == currentCheckpoint);
+    if (currentIndex == -1 || currentIndex >= _sidebarOrder.length - 1) {
+      return null; // Already at the end or checkpoint not found
+    }
+
+    return _sidebarOrder[currentIndex + 1];
+  }
+
+  /// Get the previous item in the sidebar order before the current checkpoint
+  SidebarItem? getPreviousItem(String? currentCheckpoint) {
+    if (currentCheckpoint == null || currentCheckpoint.isEmpty) {
+      return null;
+    }
+
+    final currentIndex = _sidebarOrder
+        .indexWhere((item) => item.checkpoint == currentCheckpoint);
+    if (currentIndex <= 0) {
+      return null; // Already at the beginning or checkpoint not found
+    }
+
+    return _sidebarOrder[currentIndex - 1];
+  }
+
+  /// Check if a checkpoint has been reached based on sidebar order
+  bool isCheckpointReached(
+      String checkpointToCheck, String? currentCheckpoint) {
+    if (currentCheckpoint == null || currentCheckpoint.isEmpty) {
+      return false;
+    }
+
+    final currentIndex = _sidebarOrder
+        .indexWhere((item) => item.checkpoint == currentCheckpoint);
+    final checkIndex = _sidebarOrder
+        .indexWhere((item) => item.checkpoint == checkpointToCheck);
+
+    if (currentIndex == -1 || checkIndex == -1) {
+      return false; // Unknown checkpoints
+    }
+
+    return currentIndex >= checkIndex;
+  }
+
+  /// Get all checkpoints up to and including the current one
+  List<String> getReachedCheckpoints(String? currentCheckpoint) {
+    if (currentCheckpoint == null || currentCheckpoint.isEmpty) {
+      return [];
+    }
+
+    final currentIndex = _sidebarOrder
+        .indexWhere((item) => item.checkpoint == currentCheckpoint);
+    if (currentIndex == -1) {
+      return [];
+    }
+
+    return _sidebarOrder
+        .sublist(0, currentIndex + 1)
+        .map((item) => item.checkpoint)
+        .toList();
+  }
+}
+
+/// Represents a single item in the sidebar navigation
+class SidebarItem {
+  final String checkpoint;
+  final String label;
+
+  const SidebarItem({
+    required this.checkpoint,
+    required this.label,
+  });
+}
