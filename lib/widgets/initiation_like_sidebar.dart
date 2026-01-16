@@ -1578,6 +1578,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('finalize_project', const FinalizeProjectScreen());
   }
 
+  void _openFinalizeProject() {
+    _navigateWithCheckpoint('finalize_project', const FinalizeProjectScreen());
+  }
+
   void _openContractsTracking() {
     _navigateWithCheckpoint(
         'contracts_tracking', const ContractsTrackingScreen());
@@ -3379,7 +3383,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                     isActive: widget.activeItemLabel == 'Salvage and/or Disposal Plan',
                     isDisabled: lockSalvageDisposal,
                   ),
-                  _buildSubMenuItem('Finalize Project', isActive: widget.activeItemLabel == 'Finalize Project'),
+                  _buildSubMenuItem('Finalize Project', onTap: _openFinalizeProject, isActive: widget.activeItemLabel == 'Finalize Project'),
                 ],
                 _buildExpandableHeader(
                   Icons.rocket_launch_outlined,
