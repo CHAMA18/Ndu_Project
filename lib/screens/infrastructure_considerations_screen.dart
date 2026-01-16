@@ -25,7 +25,8 @@ import 'package:ndu_project/screens/it_considerations_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
-
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 class InfrastructureConsiderationsScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
@@ -711,7 +712,35 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
   }
 
   Future<void> _handleNextPressed() async {
+    // 1. Save data FIRST before validation
     await _saveInfrastructureConsiderationsData();
+    if (!mounted) return;
+    
+    // 2. Validate data completeness
+    final provider = ProjectDataInherited.of(context);
+    final projectData = provider.projectData;
+    final hasInfraData = projectData.infrastructureConsiderationsData != null &&
+        projectData.infrastructureConsiderationsData!.solutionInfrastructureData.isNotEmpty &&
+        projectData.infrastructureConsiderationsData!.solutionInfrastructureData.any((item) => 
+          item.majorInfrastructure.trim().isNotEmpty);
+
+    if (!hasInfraData) {
+      if (mounted) {
+        ProjectDataHelper.showMissingDataMessage(context, 'Please add infrastructure considerations for at least one solution before proceeding.');
+      }
+      return;
+    }
+
+    // 3. Smart checkpoint check
+    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('infrastructure_considerations');
+    if (nextCheckpoint?.checkpoint != 'core_stakeholders') {
+      // Use standard lock check for non-sequential navigation
+      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'core_stakeholders');
+      if (isLocked) {
+        ProjectDataHelper.showLockedDestinationMessage(context, 'Core Stakeholders');
+        return;
+      }
+    }
 
     if (!mounted) return;
     showDialog(
@@ -734,7 +763,8 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
       ),
     );
 
-    await Future.delayed(const Duration(seconds: 3));
+    // Reduced delay
+    await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -781,8 +811,8 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
             : 'Infrastructure Entry ${i + 1}';
         final majorInfrastructure = _infraControllers[i].text.trim();
         
-        // Only add if there's actual content (name or infrastructure)
-        if (solutionTitle.isNotEmpty || majorInfrastructure.isNotEmpty) {
+        // Only add if there's actual content (majorInfrastructure is not empty)
+        if (majorInfrastructure.isNotEmpty) {
           solutionInfrastructureData.add(SolutionInfrastructureData(
             solutionTitle: solutionTitle,
             majorInfrastructure: majorInfrastructure,
@@ -949,10 +979,15 @@ class _InfrastructureConsiderationsScreenState extends State<InfrastructureConsi
         final infra = map[title] ?? const <String>[];
         _infraControllers[i].text = infra.isEmpty ? '' : infra.map((e) => '- $e').join('\n');
       }
+
     } catch (e) {
       _error = e.toString();
     } finally {
-      if (mounted) setState(() => _isGenerating = false);
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        // Auto-save after generation
+        _saveInfrastructureConsiderationsData();
+      }
     }
   }
   

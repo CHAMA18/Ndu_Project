@@ -14,7 +14,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:intl/intl.dart';
-import 'dart:html' as html;
+import 'package:ndu_project/utils/web_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -37,7 +37,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   // Removed 'Account' and 'Team' tabs per request
-  bool get _isAdminDomain => html.window.location.hostname == 'admin.nduproject.com';
+  bool get _isAdminDomain => getCurrentHostname() == 'admin.nduproject.com';
   
   List<String> get _tabs {
     final tabs = <String>[
@@ -2191,7 +2191,7 @@ class _InvoicesCard extends StatelessWidget {
                           DataCell(
                             IconButton(
                               onPressed: invoice.receiptUrl != null ? () {
-                                html.window.open(invoice.receiptUrl!, '_blank');
+                                openUrlInNewWindow(invoice.receiptUrl!);
                               } : null,
                               icon: Icon(Icons.download_outlined, color: invoice.receiptUrl != null ? accent : Colors.grey, size: 20),
                               tooltip: 'Download',

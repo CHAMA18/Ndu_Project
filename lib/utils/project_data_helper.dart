@@ -68,6 +68,18 @@ class ProjectDataHelper {
       ),
     );
   }
+
+  /// Show a message when required data is missing
+  static void showMissingDataMessage(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
   /// Save current screen data and navigate to next screen with automatic Firebase sync
   /// Includes security check to prevent navigation to locked destinations
   static Future<void> saveAndNavigate({

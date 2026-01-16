@@ -70,6 +70,9 @@ class ProjectDataModel {
   // Metadata
   bool isBasicPlanProject;
   Map<String, int> aiUsageCounts;
+
+  List<Map<String, dynamic>> aiIntegrations;
+  List<Map<String, dynamic>> aiRecommendations;
   String? projectId;
   DateTime? createdAt;
   DateTime? updatedAt;
@@ -111,6 +114,9 @@ class ProjectDataModel {
     DesignDeliverablesData? designDeliverablesData,
     this.isBasicPlanProject = false,
     Map<String, int>? aiUsageCounts,
+
+    List<Map<String, dynamic>>? aiIntegrations,
+    List<Map<String, dynamic>>? aiRecommendations,
     this.projectId,
     this.createdAt,
     this.updatedAt,
@@ -132,7 +138,10 @@ class ProjectDataModel {
         launchChecklistItems = launchChecklistItems ?? [],
         costEstimateItems = costEstimateItems ?? [],
         designDeliverablesData = designDeliverablesData ?? DesignDeliverablesData(),
-        aiUsageCounts = aiUsageCounts ?? {};
+
+        aiUsageCounts = aiUsageCounts ?? {},
+        aiIntegrations = aiIntegrations ?? [],
+        aiRecommendations = aiRecommendations ?? [];
 
 
   ProjectDataModel copyWith({
@@ -171,6 +180,9 @@ class ProjectDataModel {
     DesignDeliverablesData? designDeliverablesData,
     bool? isBasicPlanProject,
     Map<String, int>? aiUsageCounts,
+
+    List<Map<String, dynamic>>? aiIntegrations,
+    List<Map<String, dynamic>>? aiRecommendations,
     String? projectId,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -212,6 +224,9 @@ class ProjectDataModel {
       designDeliverablesData: designDeliverablesData ?? this.designDeliverablesData,
       isBasicPlanProject: isBasicPlanProject ?? this.isBasicPlanProject,
       aiUsageCounts: aiUsageCounts ?? this.aiUsageCounts,
+
+      aiIntegrations: aiIntegrations ?? this.aiIntegrations,
+      aiRecommendations: aiRecommendations ?? this.aiRecommendations,
       projectId: projectId ?? this.projectId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -269,6 +284,9 @@ class ProjectDataModel {
       'currentCheckpoint': currentCheckpoint,
       'isBasicPlanProject': isBasicPlanProject,
       'aiUsageCounts': aiUsageCounts,
+
+      'aiIntegrations': aiIntegrations,
+      'aiRecommendations': aiRecommendations,
       'projectId': projectId,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
@@ -403,6 +421,10 @@ class ProjectDataModel {
               }),
             )
           : {},
+
+
+      aiIntegrations: (json['aiIntegrations'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [],
+      aiRecommendations: (json['aiRecommendations'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [],
       currentCheckpoint: json['currentCheckpoint']?.toString() ?? json['checkpointRoute']?.toString() ?? 'initiation',
       projectId: json['projectId']?.toString(),
       createdAt: safeParseDateTime('createdAt'),

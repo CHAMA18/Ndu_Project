@@ -33,6 +33,7 @@ import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 class CostAnalysisScreen extends StatefulWidget {
   final String notes;
@@ -1428,10 +1429,33 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   Future<void> _openPreferredSolution() async {
     FocusScope.of(context).unfocus();
 
-    // Save all cost analysis data
+    // 1. Save data FIRST before validation
     await _saveCostAnalysisData();
+    if (!mounted) return;
+    
+    // 2. Validate data completeness
+    final provider = ProjectDataInherited.of(context);
+    final projectData = provider.projectData;
+    
+    if (projectData.costAnalysisData == null) {
+      if (mounted) {
+        ProjectDataHelper.showMissingDataMessage(context, 'Please complete the cost analysis before proceeding.');
+      }
+      return;
+    }
 
-    // Show 3-second loading dialog
+    // 3. Smart checkpoint check
+    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('cost_analysis');
+    if (nextCheckpoint?.checkpoint != 'preferred_solution_analysis') {
+      // Use standard lock check for non-sequential navigation
+      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'preferred_solution_analysis');
+      if (isLocked) {
+        ProjectDataHelper.showLockedDestinationMessage(context, 'Preferred Solution Analysis');
+        return;
+      }
+    }
+
+    // Show loading dialog
     if (!mounted) return;
     showDialog(
       context: context,
@@ -1453,24 +1477,20 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       ),
     );
 
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 1)); // Reduced delay
 
     if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
 
-    // Security check: Verify destination is not locked
-    if (ProjectDataHelper.isDestinationLocked(
-        context, 'preferred_solution_analysis')) {
-      ProjectDataHelper.showLockedDestinationMessage(
-          context, 'Preferred Solution Analysis');
-      return;
-    }
-
-    // Navigate to Front End Planning Summary (next item in sidebar order)
+    // Navigate to Preferred Solution Analysis
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const FrontEndPlanningSummaryScreen(),
+        builder: (context) => PreferredSolutionAnalysisScreen(
+          notes: widget.notes,
+          solutions: widget.solutions,
+          businessCase: projectData.businessCase,
+        ),
       ),
     );
   }

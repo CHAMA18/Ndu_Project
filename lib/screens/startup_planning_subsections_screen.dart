@@ -192,6 +192,7 @@ class _WorldClassOpsEditorState extends State<_WorldClassOpsEditor> {
         }
         return;
       }
+      if (!mounted) return;
 
       final file = result.files.first;
       final bytes = file.bytes;

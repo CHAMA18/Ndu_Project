@@ -18,6 +18,8 @@ import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/screens/project_decision_summary_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/services/project_service.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/initiation_phase_screen.dart';
 import 'package:ndu_project/screens/potential_solutions_screen.dart';
@@ -30,6 +32,7 @@ import 'package:ndu_project/screens/cost_analysis_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/select_project_kaz_button.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 class PreferredSolutionAnalysisScreen extends StatefulWidget {
   final String notes;
@@ -1435,8 +1438,19 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       return;
     }
 
-    // Save analysis data to Firebase
+    // 1. Save data FIRST before validation
     await _saveAnalysisData();
+    if (!mounted) return;
+    
+    // 2. Validate data completeness
+    // Note: Provider is updated by _saveAnalysisData
+    final provider = ProjectDataInherited.of(context);
+    if (provider.projectData.preferredSolutionAnalysis == null) {
+      if (mounted) {
+         ProjectDataHelper.showMissingDataMessage(context, 'Please complete the preferred solution analysis before continuing.');
+      }
+      return;
+    }
 
     // Show 3-second loading dialog
     if (!mounted) return;
@@ -2110,14 +2124,7 @@ class PreferredSolutionComparisonScreen extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton(
-                onPressed: () {
-                  // Navigate to Front End Planning Summary Screen
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const FrontEndPlanningSummaryScreen(),
-                    ),
-                  );
-                },
+                onPressed: () => _handleNext(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFD700),
                   foregroundColor: Colors.black,
@@ -2133,6 +2140,39 @@ class PreferredSolutionComparisonScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _handleNext(BuildContext context) async {
+    final provider = ProjectDataInherited.of(context);
+    final projectData = provider.projectData;
+
+    if (projectData.preferredSolutionAnalysis == null) {
+      if (context.mounted) {
+        ProjectDataHelper.showMissingDataMessage(context, 'Please complete the preferred solution analysis.');
+      }
+      return;
+    }
+
+    // Smart Checkpoint Check
+    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('preferred_solution_analysis');
+    if (nextCheckpoint?.checkpoint != 'fep_summary') {
+      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'fep_summary');
+      if (isLocked) {
+        if (context.mounted) {
+          ProjectDataHelper.showLockedDestinationMessage(context, 'Front End Planning Summary');
+        }
+        return;
+      }
+    }
+
+    if (context.mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const FrontEndPlanningSummaryScreen(),
+        ),
+      );
+    }
+  }
+
 }
 
 class _ComparisonContent extends StatelessWidget {
