@@ -4,6 +4,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
@@ -28,46 +29,155 @@ class TeamRolesResponsibilitiesScreen extends StatefulWidget {
 class _TeamRolesResponsibilitiesScreenState
     extends State<TeamRolesResponsibilitiesScreen> {
   final _notesDebouncer = _Debouncer(milliseconds: 1000);
+  final _saveDebouncer = _Debouncer(milliseconds: 800);
   final TextEditingController _notesSectionController = TextEditingController();
+  bool _isLoading = false;
+  bool _suspendSave = false;
+
+  static const List<String> _coverageStatusOptions = [
+    'On track',
+    'At risk',
+    'In review',
+    'Blocked',
+  ];
+
+  static const List<String> _hiringStatusOptions = [
+    'Planned',
+    'Recruiting',
+    'Offer',
+    'Onboarded',
+  ];
+
+  List<_StaffingMetric> _staffingMetrics = [];
+  List<_CoverageRow> _coverageRows = [];
+  List<_HiringRow> _hiringRows = [];
+  List<_DecisionRow> _decisionRows = [];
 
   @override
   void initState() {
     super.initState();
-    _loadNotes();
+    _staffingMetrics = _defaultStaffingMetrics();
+    _coverageRows = _defaultCoverageRows();
+    _hiringRows = _defaultHiringRows();
+    _decisionRows = _defaultDecisionRows();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMetadata());
     _notesSectionController.addListener(_onNotesChanged);
   }
 
   void _onNotesChanged() {
     _notesDebouncer.run(() {
-      _saveNotes(_notesSectionController.text);
+      _scheduleSave();
     });
   }
 
-  Future<void> _loadNotes() async {
-    final doc = await _rolesCollection.doc('metadata').get();
-    if (doc.exists && mounted) {
-      final data = doc.data() as Map<String, dynamic>;
-      _notesSectionController.text = data['notes'] ?? '';
-    }
-  }
-
-  Future<void> _saveNotes(String notes) async {
-    await _rolesCollection.doc('metadata').set({
-      'notes': notes,
-      'lastUpdated': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+  void _scheduleSave() {
+    if (_suspendSave) return;
+    _saveDebouncer.run(_saveMetadata);
   }
 
   @override
   void dispose() {
     _notesSectionController.dispose();
+    _notesDebouncer.dispose();
+    _saveDebouncer.dispose();
     super.dispose();
   }
+
+  DocumentReference<Map<String, dynamic>> _rolesDoc(String projectId) {
+    return FirebaseFirestore.instance
+        .collection('projects')
+        .doc(projectId)
+        .collection('organization_plan_sections')
+        .doc('roles_responsibilities');
+  }
+
+  CollectionReference<Map<String, dynamic>> _rolesCollection(String projectId) {
+    return _rolesDoc(projectId).collection('roles');
+  }
+
+  Future<void> _loadMetadata() async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final doc = await _rolesDoc(projectId).get();
+      final data = doc.data() ?? {};
+      _suspendSave = true;
+      if (!mounted) return;
+      setState(() {
+        _notesSectionController.text = data['notes'] ?? '';
+        final metrics = _StaffingMetric.fromList(data['staffingMetrics']);
+        final coverage = _CoverageRow.fromList(data['coverageRows']);
+        final hiring = _HiringRow.fromList(data['hiringRows']);
+        final decisions = _DecisionRow.fromList(data['decisionRows']);
+        _staffingMetrics = metrics.isEmpty ? _defaultStaffingMetrics() : metrics;
+        _coverageRows = coverage.isEmpty ? _defaultCoverageRows() : coverage;
+        _hiringRows = hiring.isEmpty ? _defaultHiringRows() : hiring;
+        _decisionRows = decisions.isEmpty ? _defaultDecisionRows() : decisions;
+      });
+    } catch (error) {
+      debugPrint('Roles metadata load error: $error');
+    } finally {
+      _suspendSave = false;
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveMetadata() async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await _rolesDoc(projectId).set({
+        'notes': _notesSectionController.text.trim(),
+        'staffingMetrics': _staffingMetrics.map((e) => e.toMap()).toList(),
+        'coverageRows': _coverageRows.map((e) => e.toMap()).toList(),
+        'hiringRows': _hiringRows.map((e) => e.toMap()).toList(),
+        'decisionRows': _decisionRows.map((e) => e.toMap()).toList(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Roles metadata save error: $error');
+    }
+  }
+
+  List<_StaffingMetric> _defaultStaffingMetrics() {
+    return [
+      _StaffingMetric(id: _newId(), label: 'Total roles', value: ''),
+      _StaffingMetric(id: _newId(), label: 'Open roles', value: ''),
+      _StaffingMetric(id: _newId(), label: 'Critical gaps', value: ''),
+      _StaffingMetric(id: _newId(), label: 'Coverage score', value: ''),
+    ];
+  }
+
+  List<_CoverageRow> _defaultCoverageRows() {
+    return [
+      _CoverageRow(id: _newId(), area: 'Product', owner: '', backup: '', status: 'On track', notes: ''),
+    ];
+  }
+
+  List<_HiringRow> _defaultHiringRows() {
+    return [
+      _HiringRow(id: _newId(), role: 'QA Lead', headcount: '1', startDate: '', rampPlan: '', status: 'Planned'),
+    ];
+  }
+
+  List<_DecisionRow> _defaultDecisionRows() {
+    return [
+      _DecisionRow(id: _newId(), decision: 'Release readiness', owner: '', approver: '', cadence: 'Weekly'),
+    ];
+  }
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isMobile = AppBreakpoints.isMobile(context);
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -92,6 +202,8 @@ class _TeamRolesResponsibilitiesScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+                        if (_isLoading) const SizedBox(height: 16),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -207,109 +319,82 @@ class _TeamRolesResponsibilitiesScreenState
                         ),
                         const SizedBox(height: 24),
 
+                        _buildStaffingOverview(),
+                        const SizedBox(height: 20),
+                        _buildCoverageSection(),
+                        const SizedBox(height: 20),
+                        _buildHiringSection(),
+                        const SizedBox(height: 20),
+                        _buildDecisionSection(),
+                        const SizedBox(height: 24),
+
                         // Roles List
-                        StreamBuilder<QuerySnapshot>(
-                          stream: _rolesCollection
-                              .where('type', isNotEqualTo: 'metadata')
-                              .snapshots(), // Filter out metadata doc if needed, or better use subcollection or different ID check
-                          builder: (context, snapshot) {
-                            if (snapshot.hasError) {
-                              return const Center(
-                                  child: Text('Error loading roles'));
-                            }
-                            if (!snapshot.hasData) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
+                        if (projectId == null)
+                          _sectionMessage(
+                            title: 'Select a project',
+                            message:
+                                'Choose a project to view roles & responsibilities.',
+                          )
+                        else
+                          StreamBuilder<QuerySnapshot>(
+                            stream: _rolesCollection(projectId)
+                                .where('type', isNotEqualTo: 'metadata')
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasError) {
+                                return const Center(
+                                    child: Text('Error loading roles'));
+                              }
+                              if (!snapshot.hasData) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              }
 
-                            final docs = snapshot.data!.docs
-                                .where((doc) => doc.id != 'metadata')
-                                .toList();
+                              final docs = snapshot.data!.docs
+                                  .where((doc) => doc.id != 'metadata')
+                                  .toList();
 
-                            if (docs.isEmpty) {
-                              return Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: const Color(0xFFE5E7EB)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFF7ED),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(Icons.people_outline,
-                                          color: Color(0xFFEA580C), size: 20),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: const [
-                                          Text(
-                                            'No staffing details yet',
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF111827),
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            'Add roles, responsibilities, and staffing notes to populate this view.',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Color(0xFF6B7280),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-
-                            return LayoutBuilder(
-                              builder: (context, constraints) {
-                                final maxWidth = constraints.maxWidth;
-                                const spacing = 24.0;
-                                final cardWidth = maxWidth >= 1080
-                                    ? (maxWidth - spacing * 2) / 3
-                                    : maxWidth >= 720
-                                        ? (maxWidth - spacing) / 2
-                                        : maxWidth;
-
-                                return Wrap(
-                                  spacing: spacing,
-                                  runSpacing: spacing,
-                                  children: docs.map((doc) {
-                                    final data = _RoleCardData.fromMap(
-                                        doc.data() as Map<String, dynamic>);
-                                    return SizedBox(
-                                      width: cardWidth,
-                                      child: _RoleCard(
-                                        data: data,
-                                        onEdit: () => _showMemberDialog(
-                                            existingId: doc.id,
-                                            existingData: data),
-                                        onDelete: () => _confirmDeleteMember(
-                                            doc.id, data.title),
-                                      ),
-                                    );
-                                  }).toList(),
+                              if (docs.isEmpty) {
+                                return _sectionMessage(
+                                  title: 'No staffing details yet',
+                                  message:
+                                      'Add roles, responsibilities, and staffing notes to populate this view.',
                                 );
-                              },
-                            );
-                          },
-                        ),
+                              }
+
+                              return LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final maxWidth = constraints.maxWidth;
+                                  const spacing = 24.0;
+                                  final cardWidth = maxWidth >= 1080
+                                      ? (maxWidth - spacing * 2) / 3
+                                      : maxWidth >= 720
+                                          ? (maxWidth - spacing) / 2
+                                          : maxWidth;
+
+                                  return Wrap(
+                                    spacing: spacing,
+                                    runSpacing: spacing,
+                                    children: docs.map((doc) {
+                                      final data = _RoleCardData.fromMap(
+                                          doc.data() as Map<String, dynamic>);
+                                      return SizedBox(
+                                        width: cardWidth,
+                                        child: _RoleCard(
+                                          data: data,
+                                          onEdit: () => _showMemberDialog(
+                                              existingId: doc.id,
+                                              existingData: data),
+                                          onDelete: () => _confirmDeleteMember(
+                                              doc.id, data.title),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -324,8 +409,402 @@ class _TeamRolesResponsibilitiesScreenState
     );
   }
 
+  Widget _buildStaffingOverview() {
+    return _SectionCardShell(
+      title: 'Staffing overview',
+      subtitle: 'Track headcount coverage, gaps, and readiness.',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          const gap = 16.0;
+          final columns = width >= 1020 ? 4 : width >= 720 ? 2 : 1;
+          final cardWidth = (width - gap * (columns - 1)) / columns;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: _staffingMetrics.map((metric) {
+              return SizedBox(
+                width: cardWidth,
+                child: _MetricCard(
+                  metric: metric,
+                  onChanged: (updated) {
+                    final index = _staffingMetrics.indexWhere((item) => item.id == updated.id);
+                    if (index == -1) return;
+                    setState(() => _staffingMetrics[index] = updated);
+                    _scheduleSave();
+                  },
+                  onDelete: () {
+                    setState(() => _staffingMetrics.removeWhere((item) => item.id == metric.id));
+                    _scheduleSave();
+                  },
+                ),
+              );
+            }).toList()
+              ..add(
+                SizedBox(
+                  width: cardWidth,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() => _staffingMetrics.add(_StaffingMetric(id: _newId(), label: '', value: '')));
+                      _scheduleSave();
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add metric'),
+                  ),
+                ),
+              ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCoverageSection() {
+    return _SectionCardShell(
+      title: 'Coverage & ownership matrix',
+      subtitle: 'Define primary owners, backups, and coverage status.',
+      trailing: TextButton.icon(
+        onPressed: () {
+          setState(() => _coverageRows.add(_CoverageRow(
+                id: _newId(),
+                area: '',
+                owner: '',
+                backup: '',
+                status: _coverageStatusOptions.first,
+                notes: '',
+              )));
+          _scheduleSave();
+        },
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Add row'),
+      ),
+      child: Column(
+        children: [
+          _coverageHeaderRow(),
+          const SizedBox(height: 8),
+          ..._coverageRows.map(_coverageRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _coverageHeaderRow() {
+    return Row(
+      children: const [
+        Expanded(flex: 2, child: _ColumnLabel('Role/Area')),
+        Expanded(child: _ColumnLabel('Primary owner')),
+        Expanded(child: _ColumnLabel('Backup')),
+        Expanded(child: _ColumnLabel('Status')),
+        Expanded(flex: 2, child: _ColumnLabel('Notes')),
+        SizedBox(width: 32),
+      ],
+    );
+  }
+
+  Widget _coverageRow(_CoverageRow row) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              initialValue: row.area,
+              decoration: _inlineInputDecoration('Role/Area'),
+              onChanged: (value) => _updateCoverage(row.copyWith(area: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              initialValue: row.owner,
+              decoration: _inlineInputDecoration('Primary owner'),
+              onChanged: (value) => _updateCoverage(row.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              initialValue: row.backup,
+              decoration: _inlineInputDecoration('Backup'),
+              onChanged: (value) => _updateCoverage(row.copyWith(backup: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _coverageStatusOptions.contains(row.status) ? row.status : _coverageStatusOptions.first,
+              decoration: _inlineInputDecoration('Status'),
+              items: _coverageStatusOptions
+                  .map((status) => DropdownMenuItem(value: status, child: Text(status)))
+                  .toList(),
+              onChanged: (value) => _updateCoverage(row.copyWith(status: value ?? _coverageStatusOptions.first)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              initialValue: row.notes,
+              decoration: _inlineInputDecoration('Notes'),
+              onChanged: (value) => _updateCoverage(row.copyWith(notes: value)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFD64545)),
+            onPressed: () {
+              setState(() => _coverageRows.removeWhere((item) => item.id == row.id));
+              _scheduleSave();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _updateCoverage(_CoverageRow row) {
+    final index = _coverageRows.indexWhere((item) => item.id == row.id);
+    if (index == -1) return;
+    setState(() => _coverageRows[index] = row);
+    _scheduleSave();
+  }
+
+  Widget _buildHiringSection() {
+    return _SectionCardShell(
+      title: 'Hiring & onboarding plan',
+      subtitle: 'Track headcount additions and onboarding milestones.',
+      trailing: TextButton.icon(
+        onPressed: () {
+          setState(() => _hiringRows.add(_HiringRow(
+                id: _newId(),
+                role: '',
+                headcount: '',
+                startDate: '',
+                rampPlan: '',
+                status: _hiringStatusOptions.first,
+              )));
+          _scheduleSave();
+        },
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Add hire'),
+      ),
+      child: Column(
+        children: [
+          _hiringHeaderRow(),
+          const SizedBox(height: 8),
+          ..._hiringRows.map(_hiringRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _hiringHeaderRow() {
+    return Row(
+      children: const [
+        Expanded(flex: 2, child: _ColumnLabel('Role')),
+        Expanded(child: _ColumnLabel('Headcount')),
+        Expanded(child: _ColumnLabel('Start date')),
+        Expanded(flex: 2, child: _ColumnLabel('Ramp plan')),
+        Expanded(child: _ColumnLabel('Status')),
+        SizedBox(width: 32),
+      ],
+    );
+  }
+
+  Widget _hiringRow(_HiringRow row) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              initialValue: row.role,
+              decoration: _inlineInputDecoration('Role'),
+              onChanged: (value) => _updateHiring(row.copyWith(role: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              initialValue: row.headcount,
+              decoration: _inlineInputDecoration('Headcount'),
+              keyboardType: TextInputType.number,
+              onChanged: (value) => _updateHiring(row.copyWith(headcount: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              initialValue: row.startDate,
+              decoration: _inlineInputDecoration('Start date'),
+              onChanged: (value) => _updateHiring(row.copyWith(startDate: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              initialValue: row.rampPlan,
+              decoration: _inlineInputDecoration('Ramp plan'),
+              onChanged: (value) => _updateHiring(row.copyWith(rampPlan: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _hiringStatusOptions.contains(row.status) ? row.status : _hiringStatusOptions.first,
+              decoration: _inlineInputDecoration('Status'),
+              items: _hiringStatusOptions.map((status) => DropdownMenuItem(value: status, child: Text(status))).toList(),
+              onChanged: (value) => _updateHiring(row.copyWith(status: value ?? _hiringStatusOptions.first)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFD64545)),
+            onPressed: () {
+              setState(() => _hiringRows.removeWhere((item) => item.id == row.id));
+              _scheduleSave();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _updateHiring(_HiringRow row) {
+    final index = _hiringRows.indexWhere((item) => item.id == row.id);
+    if (index == -1) return;
+    setState(() => _hiringRows[index] = row);
+    _scheduleSave();
+  }
+
+  Widget _buildDecisionSection() {
+    return _SectionCardShell(
+      title: 'Decision & escalation points',
+      subtitle: 'List decision areas, owners, and cadence.',
+      trailing: TextButton.icon(
+        onPressed: () {
+          setState(() => _decisionRows.add(_DecisionRow(
+                id: _newId(),
+                decision: '',
+                owner: '',
+                approver: '',
+                cadence: '',
+              )));
+          _scheduleSave();
+        },
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Add decision'),
+      ),
+      child: Column(
+        children: [
+          _decisionHeaderRow(),
+          const SizedBox(height: 8),
+          ..._decisionRows.map(_decisionRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _decisionHeaderRow() {
+    return Row(
+      children: const [
+        Expanded(flex: 2, child: _ColumnLabel('Decision area')),
+        Expanded(child: _ColumnLabel('Owner')),
+        Expanded(child: _ColumnLabel('Approver')),
+        Expanded(child: _ColumnLabel('Cadence')),
+        SizedBox(width: 32),
+      ],
+    );
+  }
+
+  Widget _decisionRow(_DecisionRow row) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              initialValue: row.decision,
+              decoration: _inlineInputDecoration('Decision area'),
+              onChanged: (value) => _updateDecision(row.copyWith(decision: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              initialValue: row.owner,
+              decoration: _inlineInputDecoration('Owner'),
+              onChanged: (value) => _updateDecision(row.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              initialValue: row.approver,
+              decoration: _inlineInputDecoration('Approver'),
+              onChanged: (value) => _updateDecision(row.copyWith(approver: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              initialValue: row.cadence,
+              decoration: _inlineInputDecoration('Cadence'),
+              onChanged: (value) => _updateDecision(row.copyWith(cadence: value)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFD64545)),
+            onPressed: () {
+              setState(() => _decisionRows.removeWhere((item) => item.id == row.id));
+              _scheduleSave();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _updateDecision(_DecisionRow row) {
+    final index = _decisionRows.indexWhere((item) => item.id == row.id);
+    if (index == -1) return;
+    setState(() => _decisionRows[index] = row);
+    _scheduleSave();
+  }
+
+  InputDecoration _inlineInputDecoration(String hint) {
+    return InputDecoration(
+      isDense: true,
+      hintText: hint,
+      filled: true,
+      fillColor: const Color(0xFFF9FAFB),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF111827)),
+      ),
+    );
+  }
+
+  Widget _sectionMessage({required String title, required String message}) {
+    return _SectionMessage(title: title, message: message);
+  }
+
   Future<void> _showMemberDialog(
       {String? existingId, _RoleCardData? existingData}) async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
     final result = await showDialog<_RoleCardData>(
       context: context,
       barrierColor: Colors.black.withOpacity(0.2),
@@ -335,13 +814,16 @@ class _TeamRolesResponsibilitiesScreenState
     if (result == null) return;
 
     if (existingId != null) {
-      await _rolesCollection.doc(existingId).update(result.toMap());
+      await _rolesCollection(projectId).doc(existingId).update(result.toMap());
     } else {
-      await _rolesCollection.add(result.toMap());
+      await _rolesCollection(projectId).add(result.toMap());
     }
   }
 
   Future<void> _confirmDeleteMember(String docId, String name) async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
     final shouldDelete = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -371,7 +853,7 @@ class _TeamRolesResponsibilitiesScreenState
     );
 
     if (shouldDelete == true) {
-      await _rolesCollection.doc(docId).delete();
+      await _rolesCollection(projectId).doc(docId).delete();
     }
   }
 }
@@ -612,6 +1094,395 @@ class _WorkProgressRow extends StatelessWidget {
   }
 }
 
+class _SectionCardShell extends StatelessWidget {
+  const _SectionCardShell({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionMessage extends StatelessWidget {
+  const _SectionMessage({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.people_outline,
+                color: Color(0xFFEA580C), size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.metric,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  final _StaffingMetric metric;
+  final ValueChanged<_StaffingMetric> onChanged;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormField(
+            initialValue: metric.value,
+            decoration: const InputDecoration(border: InputBorder.none, hintText: 'Value'),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            onChanged: (value) => onChanged(metric.copyWith(value: value)),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            initialValue: metric.label,
+            decoration: const InputDecoration(border: InputBorder.none, hintText: 'Label'),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+            onChanged: (value) => onChanged(metric.copyWith(label: value)),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFD64545)),
+              onPressed: onDelete,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColumnLabel extends StatelessWidget {
+  const _ColumnLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF6B7280),
+      ),
+    );
+  }
+}
+
+class _StaffingMetric {
+  const _StaffingMetric({
+    required this.id,
+    required this.label,
+    required this.value,
+  });
+
+  final String id;
+  final String label;
+  final String value;
+
+  _StaffingMetric copyWith({String? label, String? value}) {
+    return _StaffingMetric(
+      id: id,
+      label: label ?? this.label,
+      value: value ?? this.value,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'label': label,
+        'value': value,
+      };
+
+  static List<_StaffingMetric> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _StaffingMetric(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        label: map['label']?.toString() ?? '',
+        value: map['value']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
+class _CoverageRow {
+  const _CoverageRow({
+    required this.id,
+    required this.area,
+    required this.owner,
+    required this.backup,
+    required this.status,
+    required this.notes,
+  });
+
+  final String id;
+  final String area;
+  final String owner;
+  final String backup;
+  final String status;
+  final String notes;
+
+  _CoverageRow copyWith({
+    String? area,
+    String? owner,
+    String? backup,
+    String? status,
+    String? notes,
+  }) {
+    return _CoverageRow(
+      id: id,
+      area: area ?? this.area,
+      owner: owner ?? this.owner,
+      backup: backup ?? this.backup,
+      status: status ?? this.status,
+      notes: notes ?? this.notes,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'area': area,
+        'owner': owner,
+        'backup': backup,
+        'status': status,
+        'notes': notes,
+      };
+
+  static List<_CoverageRow> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _CoverageRow(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        area: map['area']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        backup: map['backup']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'On track',
+        notes: map['notes']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
+class _HiringRow {
+  const _HiringRow({
+    required this.id,
+    required this.role,
+    required this.headcount,
+    required this.startDate,
+    required this.rampPlan,
+    required this.status,
+  });
+
+  final String id;
+  final String role;
+  final String headcount;
+  final String startDate;
+  final String rampPlan;
+  final String status;
+
+  _HiringRow copyWith({
+    String? role,
+    String? headcount,
+    String? startDate,
+    String? rampPlan,
+    String? status,
+  }) {
+    return _HiringRow(
+      id: id,
+      role: role ?? this.role,
+      headcount: headcount ?? this.headcount,
+      startDate: startDate ?? this.startDate,
+      rampPlan: rampPlan ?? this.rampPlan,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'role': role,
+        'headcount': headcount,
+        'startDate': startDate,
+        'rampPlan': rampPlan,
+        'status': status,
+      };
+
+  static List<_HiringRow> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _HiringRow(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        role: map['role']?.toString() ?? '',
+        headcount: map['headcount']?.toString() ?? '',
+        startDate: map['startDate']?.toString() ?? '',
+        rampPlan: map['rampPlan']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Planned',
+      );
+    }).toList();
+  }
+}
+
+class _DecisionRow {
+  const _DecisionRow({
+    required this.id,
+    required this.decision,
+    required this.owner,
+    required this.approver,
+    required this.cadence,
+  });
+
+  final String id;
+  final String decision;
+  final String owner;
+  final String approver;
+  final String cadence;
+
+  _DecisionRow copyWith({
+    String? decision,
+    String? owner,
+    String? approver,
+    String? cadence,
+  }) {
+    return _DecisionRow(
+      id: id,
+      decision: decision ?? this.decision,
+      owner: owner ?? this.owner,
+      approver: approver ?? this.approver,
+      cadence: cadence ?? this.cadence,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'decision': decision,
+        'owner': owner,
+        'approver': approver,
+        'cadence': cadence,
+      };
+
+  static List<_DecisionRow> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _DecisionRow(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        decision: map['decision']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        approver: map['approver']?.toString() ?? '',
+        cadence: map['cadence']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
 class _RoleCardData {
   const _RoleCardData({
     required this.title,
@@ -732,6 +1603,10 @@ class _Debouncer {
   }
 
   Timer? _timer;
+
+  void dispose() {
+    _timer?.cancel();
+  }
 }
 
 class _WorkProgressDraft {
@@ -1706,21 +2581,4 @@ class _DateSelector extends StatelessWidget {
     ];
     return months[month - 1];
   }
-}
-
-// --- Firestore CRUD for Roles & Responsibilities ---
-final _rolesCollection =
-    FirebaseFirestore.instance.collection('organization_roles');
-
-Future<void> addOrUpdateRole(String docId, Map<String, dynamic> data) async {
-  await _rolesCollection.doc(docId).set(data, SetOptions(merge: true));
-}
-
-Future<void> deleteRole(String docId) async {
-  await _rolesCollection.doc(docId).delete();
-}
-
-Stream<List<Map<String, dynamic>>> getRolesStream() {
-  return _rolesCollection.snapshots().map((snapshot) =>
-      snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
 }
