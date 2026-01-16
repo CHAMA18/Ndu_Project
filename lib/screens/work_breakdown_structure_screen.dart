@@ -9,6 +9,9 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'project_framework_screen.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'project_framework_next_screen.dart';
+import 'package:ndu_project/screens/ssher_stacked_screen.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 const Color _kSurfaceBackground = Color(0xFFF7F8FC);
 const Color _kAccentColor = Color(0xFFFFC812);
@@ -630,10 +633,22 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
       )).toList()
     ).toList();
 
+    final isBasicPlan = ProjectDataHelper.getData(context).isBasicPlanProject;
+    final nextItem = SidebarNavigationService.instance.getNextAccessibleItem('work_breakdown_structure', isBasicPlan);
+
+    Widget nextScreen;
+    if (nextItem?.checkpoint == 'project_goals_milestones') {
+      nextScreen = const ProjectFrameworkNextScreen();
+    } else if (nextItem?.checkpoint == 'ssher') {
+      nextScreen = const SsherStackedScreen();
+    } else {
+      nextScreen = const ProjectFrameworkNextScreen(); // Default
+    }
+
     await ProjectDataHelper.saveAndNavigate(
       context: context,
-      checkpoint: 'wbs',
-      nextScreenBuilder: () => const ProjectFrameworkScreen(),
+      checkpoint: 'work_breakdown_structure',
+      nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(
         wbsCriteriaA: _selectedCriteriaA,
         wbsCriteriaB: _selectedCriteriaB,
@@ -751,9 +766,9 @@ class _WorkBreakdownStructureBodyState extends State<_WorkBreakdownStructureBody
                   ),
                   const SizedBox(height: 24),
                   LaunchPhaseNavigation(
-                    backLabel: 'Back: Planning home',
-                    nextLabel: 'Next: Project Management Framework',
-                    onBack: () => Navigator.of(context).maybePop(),
+                    backLabel: 'Back: Project Management Framework',
+                    nextLabel: 'Next: Goals & Milestones',
+                    onBack: () => ProjectFrameworkScreen.open(context),
                     onNext: _handleNextPressed,
                   ),
                 ],

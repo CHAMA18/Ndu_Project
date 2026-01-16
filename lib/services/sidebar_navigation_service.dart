@@ -92,6 +92,9 @@ class SidebarNavigationService {
     SidebarItem(
         checkpoint: 'work_breakdown_structure',
         label: 'Work Breakdown Structure'),
+    SidebarItem(
+        checkpoint: 'project_goals_milestones',
+        label: 'Project Goals & Milestones'),
     SidebarItem(checkpoint: 'ssher', label: 'SSHER'),
     SidebarItem(checkpoint: 'change_management', label: 'Change Management'),
     SidebarItem(checkpoint: 'issue_management', label: 'Issue Management'),

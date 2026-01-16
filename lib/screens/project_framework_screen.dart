@@ -13,6 +13,7 @@ import 'project_framework_next_screen.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
 class ProjectFrameworkScreen extends StatefulWidget {
   const ProjectFrameworkScreen({super.key});
@@ -146,14 +147,14 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     final nextItem = SidebarNavigationService.instance.getNextAccessibleItem('project_framework', isBasicPlan);
     
     Widget nextScreen;
-    if (nextItem?.checkpoint == 'ssher') {
-      nextScreen = const SsherStackedScreen();
+    if (nextItem?.checkpoint == 'project_goals_milestones') {
+      nextScreen = const ProjectFrameworkNextScreen();
     } else if (nextItem?.checkpoint == 'work_breakdown_structure') {
-      // If WBS is accessible, we go there. 
-      // Note: This bypasses ProjectFrameworkNextScreen which appears to be redundant with the new ProjectFrameworkScreen.
       nextScreen = const WorkBreakdownStructureScreen(); 
+    } else if (nextItem?.checkpoint == 'ssher') {
+      nextScreen = const SsherStackedScreen();
     } else {
-      // Fallback or default flow if something unexpected returns
+      // Fallback
       nextScreen = const WorkBreakdownStructureScreen();
     }
 

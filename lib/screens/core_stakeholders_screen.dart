@@ -24,6 +24,7 @@ import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 class CoreStakeholdersScreen extends StatefulWidget {
   final String notes;
@@ -637,13 +638,34 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   }
 
   Future<void> _handleNextPressed() async {
-    // Security check: Verify destination is not locked
-    if (ProjectDataHelper.isDestinationLocked(context, 'cost_analysis')) {
-      ProjectDataHelper.showLockedDestinationMessage(context, 'Cost Benefit Analysis');
+    // 1. Save data FIRST before validation check
+    await _saveCoreStakeholdersData();
+    
+    // 2. Validate data completeness
+    final provider = ProjectDataInherited.of(context);
+    final projectData = provider.projectData;
+    final hasCoreStakeholders = projectData.coreStakeholdersData != null &&
+        projectData.coreStakeholdersData!.solutionStakeholderData.isNotEmpty &&
+        projectData.coreStakeholdersData!.solutionStakeholderData.any((item) => 
+          item.notableStakeholders.trim().isNotEmpty);
+
+    if (!hasCoreStakeholders) {
+      if (mounted) {
+        ProjectDataHelper.showMissingDataMessage(context, 'Please identify key stakeholders for at least one solution before proceeding.');
+      }
       return;
     }
-    
-    await _saveCoreStakeholdersData();
+
+    // 3. Smart checkpoint check: If destination is the immediate next checkpoint, allow it (if data is valid)
+    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('core_stakeholders');
+    if (nextCheckpoint?.checkpoint != 'cost_analysis') {
+      // Use standard lock check for non-sequential navigation
+      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'cost_analysis');
+      if (isLocked) {
+        ProjectDataHelper.showLockedDestinationMessage(context, 'Cost Benefit Analysis');
+        return;
+      }
+    }
 
     if (!mounted) return;
     showDialog(
@@ -666,7 +688,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       ),
     );
 
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 1)); // Reduced delay from 3s to 1s for better UX
 
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -713,8 +735,8 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
             : 'Stakeholder Entry ${i + 1}';
         final notableStakeholders = _stakeholderControllers[i].text.trim();
         
-        // Only add if there's actual content (name or stakeholders)
-        if (solutionTitle.isNotEmpty || notableStakeholders.isNotEmpty) {
+        // Only add if there's actual content (notableStakeholders is not empty)
+        if (notableStakeholders.isNotEmpty) {
           solutionStakeholderData.add(SolutionStakeholderData(
             solutionTitle: solutionTitle,
             notableStakeholders: notableStakeholders,
@@ -941,7 +963,11 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     } catch (e) {
       _error = e.toString();
     } finally {
-      if (mounted) setState(() => _isGenerating = false);
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        // Auto-save after generation
+        _saveCoreStakeholdersData();
+      }
     }
   }
 

@@ -25,6 +25,8 @@ import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/screens/home_screen.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 class ITConsiderationsScreen extends StatefulWidget {
   final String notes;
@@ -183,7 +185,11 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     } catch (e) {
       _error = e.toString();
     } finally {
-      if (mounted) setState(() => _isGenerating = false);
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        // Auto-save after generation
+        _saveITConsiderationsData();
+      }
     }
   }
 
@@ -670,10 +676,37 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   }
 
   Future<void> _openInfrastructureConsiderations() async {
-    // Save IT considerations data
+    // 1. Save data FIRST before validation
     await _saveITConsiderationsData();
+    if (!mounted) return;
+    
+    // 2. Validate data completeness
+    final provider = ProjectDataInherited.of(context);
+    final projectData = provider.projectData;
+    final hasITData = projectData.itConsiderationsData != null &&
+        projectData.itConsiderationsData!.solutionITData.isNotEmpty &&
+        projectData.itConsiderationsData!.solutionITData.any((item) => 
+          item.coreTechnology.trim().isNotEmpty);
 
-    // Show 3-second loading dialog
+    if (!hasITData) {
+      if (mounted) {
+        ProjectDataHelper.showMissingDataMessage(context, 'Please add IT considerations for at least one solution before proceeding.');
+      }
+      return;
+    }
+
+    // 3. Smart checkpoint check
+    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('it_considerations');
+    if (nextCheckpoint?.checkpoint != 'infrastructure_considerations') {
+      // Use standard lock check for non-sequential navigation
+      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'infrastructure_considerations');
+      if (isLocked) {
+        ProjectDataHelper.showLockedDestinationMessage(context, 'Infrastructure Considerations');
+        return;
+      }
+    }
+
+    // Show loading dialog
     if (!mounted) return;
     showDialog(
       context: context,
@@ -695,7 +728,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       ),
     );
 
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 1)); // Reduced delay
 
     if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
@@ -725,8 +758,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             : 'IT Entry ${i + 1}';
         final coreTechnology = _techControllers[i].text.trim();
 
-        // Only add if there's actual content (name or technology)
-        if (solutionTitle.isNotEmpty || coreTechnology.isNotEmpty) {
+        // Only add if there's actual content (coreTechnology is not empty)
+        if (coreTechnology.isNotEmpty) {
           solutionITData.add(SolutionITData(
             solutionTitle: solutionTitle,
             coreTechnology: coreTechnology,

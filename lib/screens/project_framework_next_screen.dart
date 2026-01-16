@@ -138,16 +138,19 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
 
     final isBasicPlan = ProjectDataHelper.getData(context).isBasicPlanProject;
     
-    Widget nextScreen = const WorkBreakdownStructureScreen();
-    // 'Work Breakdown Structure' is locked in Basic Plan
-    if (isBasicPlan && SidebarNavigationService.basicPlanLockedLabels.contains('Work Breakdown Structure')) {
-       // Try next: SSHER (not locked)
-       nextScreen = const SsherStackedScreen();
+    // Find next accessible item from 'project_goals_milestones'
+    final nextItem = SidebarNavigationService.instance.getNextAccessibleItem('project_goals_milestones', isBasicPlan);
+    
+    Widget nextScreen;
+    if (nextItem?.checkpoint == 'ssher') {
+      nextScreen = const SsherStackedScreen();
+    } else {
+      nextScreen = const SsherStackedScreen(); // Default/Fallback
     }
 
     await ProjectDataHelper.saveAndNavigate(
       context: context,
-      checkpoint: 'planning_phase',
+      checkpoint: 'project_goals_milestones',
       nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(planningGoals: planningGoals),
     );
@@ -163,7 +166,7 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Project Summary'),
+              child: const InitiationLikeSidebar(activeItemLabel: 'Project Goals & Milestones'),
             ),
             Expanded(
               child: SingleChildScrollView(

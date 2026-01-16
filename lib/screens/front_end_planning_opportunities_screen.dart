@@ -9,7 +9,9 @@ import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
-
+import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
+import 'package:ndu_project/screens/project_charter_screen.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 /// Front End Planning – Project Opportunities page
 /// Built to match the provided screenshot exactly:
 /// - Left ProgramWorkspaceSidebar
@@ -309,10 +311,26 @@ class _BottomOverlays extends StatelessWidget {
                   ElevatedButton(
                     onPressed: () async {
                       final oppText = rows.map((r) => '${r.opportunity}: ${r.discipline}').where((s) => s.trim().isNotEmpty).join('\n');
+                      
+                      final isBasicPlan = ProjectDataHelper.getData(context).isBasicPlanProject;
+                      final nextItem = SidebarNavigationService.instance.getNextAccessibleItem('fep_opportunities', isBasicPlan);
+                      
+                      Widget nextScreen;
+                      if (nextItem?.checkpoint == 'fep_contract_vendor_quotes') {
+                        nextScreen = const FrontEndPlanningContractVendorQuotesScreen();
+                      } else if (nextItem?.checkpoint == 'fep_procurement') {
+                        nextScreen = const FrontEndPlanningProcurementScreen();
+                      } else if (nextItem?.checkpoint == 'project_charter') {
+                        nextScreen = const ProjectCharterScreen();
+                      } else {
+                        // Fallback
+                        nextScreen = const FrontEndPlanningContractVendorQuotesScreen();
+                      }
+
                       await ProjectDataHelper.saveAndNavigate(
                         context: context,
                         checkpoint: 'fep_opportunities',
-                        nextScreenBuilder: () => const FrontEndPlanningContractVendorQuotesScreen(),
+                        nextScreenBuilder: () => nextScreen,
                         dataUpdater: (data) => data.copyWith(
                           frontEndPlanning: ProjectDataHelper.updateFEPField(
                             current: data.frontEndPlanning,

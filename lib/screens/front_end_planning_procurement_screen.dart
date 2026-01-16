@@ -394,10 +394,6 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   }
 
   Future<void> _openAddItemDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final budgetCtrl = TextEditingController();
     final categoryOptions = const [
       'Materials',
       'Equipment',
@@ -408,190 +404,22 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
       'Security',
       'Logistics',
     ];
-    String category = categoryOptions.first;
-    _ProcurementItemStatus status = _ProcurementItemStatus.planning;
-    _ProcurementPriority priority = _ProcurementPriority.medium;
-    DateTime? deliveryDate;
-    bool showDateError = false;
 
     final result = await showDialog<_ProcurementItem>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return _ProcurementDialogShell(
-              title: 'Add Procurement Item',
-              subtitle: 'Capture scope, budget, and delivery timing.',
-              icon: Icons.inventory_2_outlined,
-              contextChips: _buildDialogContextChips(),
-              primaryLabel: 'Add Item',
-              secondaryLabel: 'Cancel',
-              onSecondary: () => Navigator.of(context).pop(),
-              onPrimary: () {
-                final valid = formKey.currentState?.validate() ?? false;
-                if (!valid) return;
-                if (deliveryDate == null) {
-                  setDialogState(() => showDateError = true);
-                  return;
-                }
-                final budget = _parseCurrency(budgetCtrl.text);
-                final item = _ProcurementItem(
-                  name: nameCtrl.text.trim(),
-                  description: descCtrl.text.trim(),
-                  category: category,
-                  status: status,
-                  priority: priority,
-                  budget: budget,
-                  estimatedDelivery: _formatStoreDate(deliveryDate!),
-                  progress: 0,
-                );
-                Navigator.of(context).pop(item);
-              },
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _DialogSectionTitle(
-                      title: 'Item details',
-                      subtitle: 'What are you sourcing for this project?',
-                    ),
-                    TextFormField(
-                      controller: nameCtrl,
-                      decoration: _dialogDecoration(label: 'Item name', hint: 'e.g. Network core switches'),
-                      validator: (value) => (value == null || value.trim().isEmpty) ? 'Item name is required.' : null,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: descCtrl,
-                      maxLines: 2,
-                      decoration: _dialogDecoration(label: 'Description', hint: 'Short scope description'),
-                    ),
-                    const SizedBox(height: 18),
-                    const _DialogSectionTitle(
-                      title: 'Classification',
-                      subtitle: 'Align the item with sourcing workflow.',
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: category,
-                            decoration: _dialogDecoration(label: 'Category'),
-                            items: categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setDialogState(() => category = value);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<_ProcurementItemStatus>(
-                            initialValue: status,
-                            decoration: _dialogDecoration(label: 'Status'),
-                            items: _ProcurementItemStatus.values
-                                .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setDialogState(() => status = value);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<_ProcurementPriority>(
-                      initialValue: priority,
-                      decoration: _dialogDecoration(label: 'Priority'),
-                      items: _ProcurementPriority.values
-                          .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setDialogState(() => priority = value);
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    const _DialogSectionTitle(
-                      title: 'Budget and timing',
-                      subtitle: 'Estimate cost and delivery window.',
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: budgetCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _dialogDecoration(label: 'Budget', hint: 'e.g. 85000', prefixIcon: const Icon(Icons.attach_money)),
-                            validator: (value) {
-                              final amount = _parseCurrency(value ?? '');
-                              return amount <= 0 ? 'Enter a budget amount.' : null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: deliveryDate ?? DateTime.now().add(const Duration(days: 14)),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(DateTime.now().year + 5),
-                              );
-                              if (picked == null) return;
-                              setDialogState(() {
-                                deliveryDate = picked;
-                                showDateError = false;
-                              });
-                            },
-                            child: InputDecorator(
-                              decoration: _dialogDecoration(
-                                label: 'Est. delivery',
-                                hint: 'Select date',
-                                prefixIcon: const Icon(Icons.event),
-                                errorText: showDateError ? 'Select a date.' : null,
-                              ),
-                              child: Text(
-                                deliveryDate == null ? 'Select date' : _formatDisplayDate(deliveryDate!),
-                                style: TextStyle(
-                                  color: deliveryDate == null ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+        return _AddItemDialog(
+          contextChips: _buildDialogContextChips(),
+          categoryOptions: categoryOptions,
         );
       },
     );
 
-    nameCtrl.dispose();
-    descCtrl.dispose();
-    budgetCtrl.dispose();
-
     if (result != null) {
       // Save items to provider before updating local state
       final provider = ProjectDataHelper.getProvider(context);
-      final currentItems = List<_ProcurementItem>.from(_items)..add(result);
-      
-      // Update provider with new items (convert to format suitable for storage)
-      // Note: This assumes procurement items need to be stored in project data
-      // If items are only local state, this prevents the crash by ensuring state consistency
       
       setState(() {
         _items.add(result);
@@ -607,8 +435,6 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   }
 
   Future<void> _openAddVendorDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final nameCtrl = TextEditingController();
     final categoryOptions = const [
       'IT Equipment',
       'Construction Services',
@@ -618,126 +444,18 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
       'Services',
       'Materials',
     ];
-    String category = categoryOptions.first;
-    double rating = 4;
-    bool approved = true;
-    bool preferred = false;
 
     final result = await showDialog<_VendorRow>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return _ProcurementDialogShell(
-              title: 'Add Vendor Partner',
-              subtitle: 'Build your trusted supplier network.',
-              icon: Icons.storefront_outlined,
-              contextChips: _buildDialogContextChips(),
-              primaryLabel: 'Add Vendor',
-              secondaryLabel: 'Cancel',
-              onSecondary: () => Navigator.of(context).pop(),
-              onPrimary: () {
-                final valid = formKey.currentState?.validate() ?? false;
-                if (!valid) return;
-                final name = nameCtrl.text.trim();
-                final vendor = _VendorRow(
-                  initials: _deriveInitials(name),
-                  name: name,
-                  category: category,
-                  rating: rating.round().clamp(1, 5).toInt(),
-                  approved: approved,
-                  preferred: preferred,
-                );
-                Navigator.of(context).pop(vendor);
-              },
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _DialogSectionTitle(
-                      title: 'Vendor identity',
-                      subtitle: 'Capture the partner name and sourcing category.',
-                    ),
-                    TextFormField(
-                      controller: nameCtrl,
-                      decoration: _dialogDecoration(label: 'Vendor name', hint: 'e.g. Atlas Tech Supply'),
-                      validator: (value) => (value == null || value.trim().isEmpty) ? 'Vendor name is required.' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: category,
-                      decoration: _dialogDecoration(label: 'Category'),
-                      items: categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setDialogState(() => category = value);
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    const _DialogSectionTitle(
-                      title: 'Qualification',
-                      subtitle: 'Define rating and approval status.',
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Rating', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                              Slider(
-                                value: rating,
-                                min: 1,
-                                max: 5,
-                                divisions: 4,
-                                label: rating.round().toString(),
-                                activeColor: const Color(0xFF2563EB),
-                                onChanged: (value) => setDialogState(() => rating = value),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          children: [
-                            Row(
-                              children: [
-                                Switch(
-                                  value: approved,
-                                  activeThumbColor: const Color(0xFF2563EB),
-                                  onChanged: (value) => setDialogState(() => approved = value),
-                                ),
-                                const Text('Approved'),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Switch(
-                                  value: preferred,
-                                  activeThumbColor: const Color(0xFF2563EB),
-                                  onChanged: (value) => setDialogState(() => preferred = value),
-                                ),
-                                const Text('Preferred'),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+        return _AddVendorDialog(
+          contextChips: _buildDialogContextChips(),
+          categoryOptions: categoryOptions,
         );
       },
     );
-
-    nameCtrl.dispose();
 
     if (result != null) {
       setState(() => _vendors.add(result));
@@ -745,217 +463,19 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   }
 
   Future<void> _openCreateRfqDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final titleCtrl = TextEditingController();
-    final ownerCtrl = TextEditingController();
-    final budgetCtrl = TextEditingController();
-    final invitedCtrl = TextEditingController(text: '0');
-    final responsesCtrl = TextEditingController(text: '0');
     final categoryOptions = const ['IT Equipment', 'Construction Services', 'Furniture', 'Security', 'Services', 'Materials'];
-    String category = categoryOptions.first;
-    _RfqStatus status = _RfqStatus.draft;
-    _ProcurementPriority priority = _ProcurementPriority.medium;
-    DateTime? dueDate;
-    bool showDateError = false;
 
     final result = await showDialog<_RfqItem>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return _ProcurementDialogShell(
-              title: 'Create RFQ',
-              subtitle: 'Kick off a request for quote with clear scope and timing.',
-              icon: Icons.request_quote_outlined,
-              contextChips: _buildDialogContextChips(),
-              primaryLabel: 'Create RFQ',
-              secondaryLabel: 'Cancel',
-              onSecondary: () => Navigator.of(context).pop(),
-              onPrimary: () {
-                final valid = formKey.currentState?.validate() ?? false;
-                if (!valid) return;
-                if (dueDate == null) {
-                  setDialogState(() => showDateError = true);
-                  return;
-                }
-                final budget = _parseCurrency(budgetCtrl.text);
-                final invited = int.tryParse(invitedCtrl.text.trim()) ?? 0;
-                final responses = int.tryParse(responsesCtrl.text.trim()) ?? 0;
-                final rfq = _RfqItem(
-                  title: titleCtrl.text.trim(),
-                  category: category,
-                  owner: ownerCtrl.text.trim().isEmpty ? 'Unassigned' : ownerCtrl.text.trim(),
-                  budget: budget,
-                  dueDate: _formatStoreDate(dueDate!),
-                  invited: invited,
-                  responses: responses.clamp(0, invited).toInt(),
-                  status: status,
-                  priority: priority,
-                );
-                Navigator.of(context).pop(rfq);
-              },
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _DialogSectionTitle(
-                      title: 'RFQ overview',
-                      subtitle: 'Define the category and owner.',
-                    ),
-                    TextFormField(
-                      controller: titleCtrl,
-                      decoration: _dialogDecoration(label: 'RFQ title', hint: 'e.g. Network infrastructure upgrade'),
-                      validator: (value) => (value == null || value.trim().isEmpty) ? 'RFQ title is required.' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: category,
-                            decoration: _dialogDecoration(label: 'Category'),
-                            items: categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setDialogState(() => category = value);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: ownerCtrl,
-                            decoration: _dialogDecoration(label: 'Owner', hint: 'e.g. J. Patel'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    const _DialogSectionTitle(
-                      title: 'Budget and schedule',
-                      subtitle: 'Set a due date and target budget.',
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: budgetCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _dialogDecoration(label: 'Budget', hint: 'e.g. 120000', prefixIcon: const Icon(Icons.attach_money)),
-                            validator: (value) {
-                              final amount = _parseCurrency(value ?? '');
-                              return amount <= 0 ? 'Enter a budget amount.' : null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: dueDate ?? DateTime.now().add(const Duration(days: 21)),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(DateTime.now().year + 5),
-                              );
-                              if (picked == null) return;
-                              setDialogState(() {
-                                dueDate = picked;
-                                showDateError = false;
-                              });
-                            },
-                            child: InputDecorator(
-                              decoration: _dialogDecoration(
-                                label: 'Due date',
-                                hint: 'Select date',
-                                prefixIcon: const Icon(Icons.event),
-                                errorText: showDateError ? 'Select a date.' : null,
-                              ),
-                              child: Text(
-                                dueDate == null ? 'Select date' : _formatDisplayDate(dueDate!),
-                                style: TextStyle(
-                                  color: dueDate == null ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    const _DialogSectionTitle(
-                      title: 'Vendor outreach',
-                      subtitle: 'Track invitations and responses.',
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: invitedCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _dialogDecoration(label: 'Invited', hint: '0'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: responsesCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _dialogDecoration(label: 'Responses', hint: '0'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<_RfqStatus>(
-                            initialValue: status,
-                            decoration: _dialogDecoration(label: 'Status'),
-                            items: _RfqStatus.values.map((option) => DropdownMenuItem(value: option, child: Text(option.label))).toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setDialogState(() => status = value);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<_ProcurementPriority>(
-                            initialValue: priority,
-                            decoration: _dialogDecoration(label: 'Priority'),
-                            items: _ProcurementPriority.values
-                                .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setDialogState(() => priority = value);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+        return _CreateRfqDialog(
+          contextChips: _buildDialogContextChips(),
+          categoryOptions: categoryOptions,
         );
       },
     );
-
-    titleCtrl.dispose();
-    ownerCtrl.dispose();
-    budgetCtrl.dispose();
-    invitedCtrl.dispose();
-    responsesCtrl.dispose();
 
     if (result != null) {
       setState(() => _rfqs.add(result));
@@ -963,194 +483,19 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   }
 
   Future<void> _openCreatePoDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final idCtrl = TextEditingController();
-    final vendorCtrl = TextEditingController();
-    final ownerCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
     final categoryOptions = const ['IT Equipment', 'Construction Services', 'Furniture', 'Security', 'Logistics', 'Services'];
-    String category = categoryOptions.first;
-    _PurchaseOrderStatus status = _PurchaseOrderStatus.awaitingApproval;
-    DateTime orderedDate = DateTime.now();
-    DateTime expectedDate = DateTime.now().add(const Duration(days: 21));
-    double progress = 0.0;
 
     final result = await showDialog<_PurchaseOrder>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return _ProcurementDialogShell(
-              title: 'Create Purchase Order',
-              subtitle: 'Issue a PO with clear ownership and delivery timing.',
-              icon: Icons.receipt_long_outlined,
-              contextChips: _buildDialogContextChips(),
-              primaryLabel: 'Create PO',
-              secondaryLabel: 'Cancel',
-              onSecondary: () => Navigator.of(context).pop(),
-              onPrimary: () {
-                final valid = formKey.currentState?.validate() ?? false;
-                if (!valid) return;
-                final amount = _parseCurrency(amountCtrl.text);
-                final poId = idCtrl.text.trim().isEmpty
-                    ? 'PO-${DateTime.now().millisecondsSinceEpoch % 10000}'
-                    : idCtrl.text.trim();
-                final po = _PurchaseOrder(
-                  id: poId,
-                  vendor: vendorCtrl.text.trim(),
-                  category: category,
-                  owner: ownerCtrl.text.trim().isEmpty ? 'Unassigned' : ownerCtrl.text.trim(),
-                  orderedDate: _formatStoreDate(orderedDate),
-                  expectedDate: _formatStoreDate(expectedDate),
-                  amount: amount,
-                  progress: progress,
-                  status: status,
-                );
-                Navigator.of(context).pop(po);
-              },
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _DialogSectionTitle(
-                      title: 'PO details',
-                      subtitle: 'Define vendor, owner, and category.',
-                    ),
-                    TextFormField(
-                      controller: idCtrl,
-                      decoration: _dialogDecoration(label: 'PO number', hint: 'Auto-generated if left blank'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: vendorCtrl,
-                      decoration: _dialogDecoration(label: 'Vendor', hint: 'e.g. GreenLeaf Office'),
-                      validator: (value) => (value == null || value.trim().isEmpty) ? 'Vendor is required.' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: category,
-                            decoration: _dialogDecoration(label: 'Category'),
-                            items: categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setDialogState(() => category = value);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: ownerCtrl,
-                            decoration: _dialogDecoration(label: 'Owner', hint: 'e.g. L. Chen'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    const _DialogSectionTitle(
-                      title: 'Amounts and dates',
-                      subtitle: 'Track financials and delivery.',
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: amountCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: _dialogDecoration(label: 'Amount', hint: 'e.g. 72000', prefixIcon: const Icon(Icons.attach_money)),
-                      validator: (value) {
-                        final amount = _parseCurrency(value ?? '');
-                        return amount <= 0 ? 'Enter a PO amount.' : null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: orderedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(DateTime.now().year + 5),
-                              );
-                              if (picked == null) return;
-                              setDialogState(() => orderedDate = picked);
-                            },
-                            child: InputDecorator(
-                              decoration: _dialogDecoration(label: 'Ordered date', prefixIcon: const Icon(Icons.event)),
-                              child: Text(
-                                _formatDisplayDate(orderedDate),
-                                style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: expectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(DateTime.now().year + 5),
-                              );
-                              if (picked == null) return;
-                              setDialogState(() => expectedDate = picked);
-                            },
-                            child: InputDecorator(
-                              decoration: _dialogDecoration(label: 'Expected date', prefixIcon: const Icon(Icons.event_available)),
-                              child: Text(
-                                _formatDisplayDate(expectedDate),
-                                style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<_PurchaseOrderStatus>(
-                      initialValue: status,
-                      decoration: _dialogDecoration(label: 'Status'),
-                      items: _PurchaseOrderStatus.values
-                          .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setDialogState(() => status = value);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Progress', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    Slider(
-                      value: progress,
-                      min: 0,
-                      max: 1,
-                      divisions: 10,
-                      label: '${(progress * 100).round()}%',
-                      activeColor: const Color(0xFF2563EB),
-                      onChanged: (value) => setDialogState(() => progress = value),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+        return _CreatePoDialog(
+          contextChips: _buildDialogContextChips(),
+          categoryOptions: categoryOptions,
         );
       },
     );
-
-    idCtrl.dispose();
-    vendorCtrl.dispose();
-    ownerCtrl.dispose();
-    amountCtrl.dispose();
 
     if (result != null) {
       setState(() => _purchaseOrders.add(result));
@@ -6283,4 +5628,942 @@ class _ComplianceMetric {
 
   final String label;
   final double value;
+}
+
+class _AddVendorDialog extends StatefulWidget {
+  const _AddVendorDialog({
+    required this.contextChips,
+    required this.categoryOptions,
+  });
+
+  final List<Widget> contextChips;
+  final List<String> categoryOptions;
+
+  @override
+  State<_AddVendorDialog> createState() => _AddVendorDialogState();
+}
+
+class _AddVendorDialogState extends State<_AddVendorDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameCtrl;
+  late String _category;
+  double _rating = 4;
+  bool _approved = true;
+  bool _preferred = false;
+  
+  final FocusNode _nameFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController();
+    _category = widget.categoryOptions.first;
+    
+    // SAFE FOCUS REQUEST: Wait for frame to be attached
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _nameFocus.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _nameFocus.dispose();
+    super.dispose();
+  }
+
+  String _deriveInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'NA';
+    if (parts.length == 1) {
+      return parts.first.substring(0, parts.first.length >= 2 ? 2 : 1).toUpperCase();
+    }
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+
+  Widget _buildDecoration(Widget child, {required String label, String? hint, Widget? prefixIcon, String? errorText}) {
+       return InputDecorator(
+        decoration: _dialogDecoration(
+          label: label,
+          hint: hint,
+          prefixIcon: prefixIcon,
+          errorText: errorText,
+        ),
+        child: child,
+      );
+  }
+
+  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? helperText, String? errorText}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      helperText: helperText,
+      errorText: errorText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProcurementDialogShell(
+      title: 'Add Vendor Partner',
+      subtitle: 'Build your trusted supplier network.',
+      icon: Icons.storefront_outlined,
+      contextChips: widget.contextChips,
+      primaryLabel: 'Add Vendor',
+      secondaryLabel: 'Cancel',
+      onSecondary: () => Navigator.of(context).pop(),
+      onPrimary: () {
+        final valid = _formKey.currentState?.validate() ?? false;
+        if (!valid) return;
+        final name = _nameCtrl.text.trim();
+        final vendor = _VendorRow(
+          initials: _deriveInitials(name),
+          name: name,
+          category: _category,
+          rating: _rating.round().clamp(1, 5).toInt(),
+          approved: _approved,
+          preferred: _preferred,
+        );
+        Navigator.of(context).pop(vendor);
+      },
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _DialogSectionTitle(
+              title: 'Vendor identity',
+              subtitle: 'Capture the partner name and sourcing category.',
+            ),
+            TextFormField(
+              controller: _nameCtrl,
+              focusNode: _nameFocus,
+              decoration: _dialogDecoration(label: 'Vendor name', hint: 'e.g. Atlas Tech Supply'),
+              validator: (value) => (value == null || value.trim().isEmpty) ? 'Vendor name is required.' : null,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _category,
+              decoration: _dialogDecoration(label: 'Category'),
+              items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _category = value);
+              },
+            ),
+            const SizedBox(height: 18),
+            const _DialogSectionTitle(
+              title: 'Qualification',
+              subtitle: 'Define rating and approval status.',
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Rating', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+                      Slider(
+                        value: _rating,
+                        min: 1,
+                        max: 5,
+                        divisions: 4,
+                        label: _rating.round().toString(),
+                        activeColor: const Color(0xFF2563EB),
+                        onChanged: (value) => setState(() => _rating = value),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Switch(
+                          value: _approved,
+                          activeThumbColor: const Color(0xFF2563EB),
+                          onChanged: (value) => setState(() => _approved = value),
+                        ),
+                        const Text('Approved'),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Switch(
+                          value: _preferred,
+                          activeThumbColor: const Color(0xFF2563EB),
+                          onChanged: (value) => setState(() => _preferred = value),
+                        ),
+                        const Text('Preferred'),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddItemDialog extends StatefulWidget {
+  const _AddItemDialog({
+    required this.contextChips,
+    required this.categoryOptions,
+  });
+
+  final List<Widget> contextChips;
+  final List<String> categoryOptions;
+
+  @override
+  State<_AddItemDialog> createState() => _AddItemDialogState();
+}
+
+class _AddItemDialogState extends State<_AddItemDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameCtrl;
+  late TextEditingController _descCtrl;
+  late TextEditingController _budgetCtrl;
+  
+  late String _category;
+  _ProcurementItemStatus _status = _ProcurementItemStatus.planning;
+  _ProcurementPriority _priority = _ProcurementPriority.medium;
+  DateTime? _deliveryDate;
+  bool _showDateError = false;
+
+  final FocusNode _nameFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController();
+    _descCtrl = TextEditingController();
+    _budgetCtrl = TextEditingController();
+    _category = widget.categoryOptions.first;
+
+    // SAFE FOCUS REQUEST
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nameFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    _budgetCtrl.dispose();
+    _nameFocus.dispose();
+    super.dispose();
+  }
+
+  int _parseCurrency(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(cleaned) ?? 0;
+  }
+
+  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
+  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
+
+  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? helperText, String? errorText}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      helperText: helperText,
+      errorText: errorText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProcurementDialogShell(
+      title: 'Add Procurement Item',
+      subtitle: 'Capture scope, budget, and delivery timing.',
+      icon: Icons.inventory_2_outlined,
+      contextChips: widget.contextChips,
+      primaryLabel: 'Add Item',
+      secondaryLabel: 'Cancel',
+      onSecondary: () => Navigator.of(context).pop(),
+      onPrimary: () {
+        final valid = _formKey.currentState?.validate() ?? false;
+        if (!valid) return;
+        if (_deliveryDate == null) {
+          setState(() => _showDateError = true);
+          return;
+        }
+        final budget = _parseCurrency(_budgetCtrl.text);
+        final item = _ProcurementItem(
+          name: _nameCtrl.text.trim(),
+          description: _descCtrl.text.trim(),
+          category: _category,
+          status: _status,
+          priority: _priority,
+          budget: budget,
+          estimatedDelivery: _formatStoreDate(_deliveryDate!),
+          progress: 0,
+        );
+        Navigator.of(context).pop(item);
+      },
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _DialogSectionTitle(
+              title: 'Item details',
+              subtitle: 'What are you sourcing for this project?',
+            ),
+            TextFormField(
+              controller: _nameCtrl,
+              focusNode: _nameFocus,
+              decoration: _dialogDecoration(label: 'Item name', hint: 'e.g. Network core switches'),
+              validator: (value) => (value == null || value.trim().isEmpty) ? 'Item name is required.' : null,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _descCtrl,
+              maxLines: 2,
+              decoration: _dialogDecoration(label: 'Description', hint: 'Short scope description'),
+            ),
+            const SizedBox(height: 18),
+            const _DialogSectionTitle(
+              title: 'Classification',
+              subtitle: 'Align the item with sourcing workflow.',
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _category,
+                    decoration: _dialogDecoration(label: 'Category'),
+                    items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _category = value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<_ProcurementItemStatus>(
+                    value: _status,
+                    decoration: _dialogDecoration(label: 'Status'),
+                    items: _ProcurementItemStatus.values
+                        .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _status = value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<_ProcurementPriority>(
+              value: _priority,
+              decoration: _dialogDecoration(label: 'Priority'),
+              items: _ProcurementPriority.values
+                  .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _priority = value);
+              },
+            ),
+            const SizedBox(height: 18),
+            const _DialogSectionTitle(
+              title: 'Budget and timing',
+              subtitle: 'Estimate cost and delivery window.',
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _budgetCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: _dialogDecoration(label: 'Budget', hint: 'e.g. 85000', prefixIcon: const Icon(Icons.attach_money)),
+                    validator: (value) {
+                      final amount = _parseCurrency(value ?? '');
+                      return amount <= 0 ? 'Enter a budget amount.' : null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _deliveryDate ?? DateTime.now().add(const Duration(days: 14)),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(DateTime.now().year + 5),
+                      );
+                      if (picked == null) return;
+                      setState(() {
+                        _deliveryDate = picked;
+                        _showDateError = false;
+                      });
+                    },
+                    child: InputDecorator(
+                      decoration: _dialogDecoration(
+                        label: 'Est. delivery',
+                        hint: 'Select date',
+                        prefixIcon: const Icon(Icons.event),
+                        errorText: _showDateError ? 'Select a date.' : null,
+                      ),
+                      child: Text(
+                        _deliveryDate == null ? 'Select date' : _formatDisplayDate(_deliveryDate!),
+                        style: TextStyle(
+                          color: _deliveryDate == null ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreateRfqDialog extends StatefulWidget {
+  const _CreateRfqDialog({
+    required this.contextChips,
+    required this.categoryOptions,
+  });
+
+  final List<Widget> contextChips;
+  final List<String> categoryOptions;
+
+  @override
+  State<_CreateRfqDialog> createState() => _CreateRfqDialogState();
+}
+
+class _CreateRfqDialogState extends State<_CreateRfqDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleCtrl;
+  late TextEditingController _ownerCtrl;
+  late TextEditingController _budgetCtrl;
+  late TextEditingController _invitedCtrl;
+  late TextEditingController _responsesCtrl;
+  
+  late String _category;
+  _RfqStatus _status = _RfqStatus.draft;
+  _ProcurementPriority _priority = _ProcurementPriority.medium;
+  DateTime? _dueDate;
+  bool _showDateError = false;
+
+  final FocusNode _titleFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController();
+    _ownerCtrl = TextEditingController();
+    _budgetCtrl = TextEditingController();
+    _invitedCtrl = TextEditingController(text: '0');
+    _responsesCtrl = TextEditingController(text: '0');
+    _category = widget.categoryOptions.first;
+
+    // SAFE FOCUS REQUEST
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _titleFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _ownerCtrl.dispose();
+    _budgetCtrl.dispose();
+    _invitedCtrl.dispose();
+    _responsesCtrl.dispose();
+    _titleFocus.dispose();
+    super.dispose();
+  }
+
+  int _parseCurrency(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(cleaned) ?? 0;
+  }
+  
+  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
+  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
+
+  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? errorText}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      errorText: errorText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProcurementDialogShell(
+      title: 'Create RFQ',
+      subtitle: 'Kick off a request for quote with clear scope and timing.',
+      icon: Icons.request_quote_outlined,
+      contextChips: widget.contextChips,
+      primaryLabel: 'Create RFQ',
+      secondaryLabel: 'Cancel',
+      onSecondary: () => Navigator.of(context).pop(),
+      onPrimary: () {
+        final valid = _formKey.currentState?.validate() ?? false;
+        if (!valid) return;
+        if (_dueDate == null) {
+          setState(() => _showDateError = true);
+          return;
+        }
+        final budget = _parseCurrency(_budgetCtrl.text);
+        final invited = int.tryParse(_invitedCtrl.text.trim()) ?? 0;
+        final responses = int.tryParse(_responsesCtrl.text.trim()) ?? 0;
+        final rfq = _RfqItem(
+          title: _titleCtrl.text.trim(),
+          category: _category,
+          owner: _ownerCtrl.text.trim().isEmpty ? 'Unassigned' : _ownerCtrl.text.trim(),
+          budget: budget,
+          dueDate: _formatStoreDate(_dueDate!),
+          invited: invited,
+          responses: responses.clamp(0, invited).toInt(),
+          status: _status,
+          priority: _priority,
+        );
+        Navigator.of(context).pop(rfq);
+      },
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _DialogSectionTitle(
+              title: 'RFQ overview',
+              subtitle: 'Define the category and owner.',
+            ),
+            TextFormField(
+              controller: _titleCtrl,
+              focusNode: _titleFocus,
+              decoration: _dialogDecoration(label: 'RFQ title', hint: 'e.g. Network infrastructure upgrade'),
+              validator: (value) => (value == null || value.trim().isEmpty) ? 'RFQ title is required.' : null,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _category,
+                    decoration: _dialogDecoration(label: 'Category'),
+                    items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _category = value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _ownerCtrl,
+                    decoration: _dialogDecoration(label: 'Owner', hint: 'e.g. J. Patel'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const _DialogSectionTitle(
+              title: 'Budget and schedule',
+              subtitle: 'Set a due date and target budget.',
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _budgetCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: _dialogDecoration(label: 'Budget', hint: 'e.g. 120000', prefixIcon: const Icon(Icons.attach_money)),
+                    validator: (value) {
+                      final amount = _parseCurrency(value ?? '');
+                      return amount <= 0 ? 'Enter a budget amount.' : null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 21)),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(DateTime.now().year + 5),
+                      );
+                      if (picked == null) return;
+                      setState(() {
+                        _dueDate = picked;
+                        _showDateError = false;
+                      });
+                    },
+                    child: InputDecorator(
+                      decoration: _dialogDecoration(
+                        label: 'Due date',
+                        hint: 'Select date',
+                        prefixIcon: const Icon(Icons.event),
+                        errorText: _showDateError ? 'Select a date.' : null,
+                      ),
+                      child: Text(
+                        _dueDate == null ? 'Select date' : _formatDisplayDate(_dueDate!),
+                        style: TextStyle(
+                          color: _dueDate == null ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const _DialogSectionTitle(
+              title: 'Vendor outreach',
+              subtitle: 'Track invitations and responses.',
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _invitedCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: _dialogDecoration(label: 'Invited', hint: '0'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _responsesCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: _dialogDecoration(label: 'Responses', hint: '0'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<_RfqStatus>(
+                    value: _status,
+                    decoration: _dialogDecoration(label: 'Status'),
+                    items: _RfqStatus.values.map((option) => DropdownMenuItem(value: option, child: Text(option.label))).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _status = value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<_ProcurementPriority>(
+                    value: _priority,
+                    decoration: _dialogDecoration(label: 'Priority'),
+                    items: _ProcurementPriority.values
+                        .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _priority = value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreatePoDialog extends StatefulWidget {
+  const _CreatePoDialog({
+    required this.contextChips,
+    required this.categoryOptions,
+  });
+
+  final List<Widget> contextChips;
+  final List<String> categoryOptions;
+
+  @override
+  State<_CreatePoDialog> createState() => _CreatePoDialogState();
+}
+
+class _CreatePoDialogState extends State<_CreatePoDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _idCtrl;
+  late TextEditingController _vendorCtrl;
+  late TextEditingController _ownerCtrl;
+  late TextEditingController _amountCtrl;
+  
+  late String _category;
+  _PurchaseOrderStatus _status = _PurchaseOrderStatus.awaitingApproval;
+  DateTime _orderedDate = DateTime.now();
+  DateTime _expectedDate = DateTime.now().add(const Duration(days: 21));
+  double _progress = 0.0;
+
+  final FocusNode _idFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _idCtrl = TextEditingController();
+    _vendorCtrl = TextEditingController();
+    _ownerCtrl = TextEditingController();
+    _amountCtrl = TextEditingController();
+    _category = widget.categoryOptions.first;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _idFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _idCtrl.dispose();
+    _vendorCtrl.dispose();
+    _ownerCtrl.dispose();
+    _amountCtrl.dispose();
+    _idFocus.dispose();
+    super.dispose();
+  }
+
+  int _parseCurrency(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(cleaned) ?? 0;
+  }
+  
+  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
+  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
+
+  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? errorText}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      errorText: errorText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProcurementDialogShell(
+      title: 'Create Purchase Order',
+      subtitle: 'Issue a PO with clear ownership and delivery timing.',
+      icon: Icons.receipt_long_outlined,
+      contextChips: widget.contextChips,
+      primaryLabel: 'Create PO',
+      secondaryLabel: 'Cancel',
+      onSecondary: () => Navigator.of(context).pop(),
+      onPrimary: () {
+        final valid = _formKey.currentState?.validate() ?? false;
+        if (!valid) return;
+        final amount = _parseCurrency(_amountCtrl.text);
+        final poId = _idCtrl.text.trim().isEmpty
+            ? 'PO-${DateTime.now().millisecondsSinceEpoch % 10000}'
+            : _idCtrl.text.trim();
+        final po = _PurchaseOrder(
+          id: poId,
+          vendor: _vendorCtrl.text.trim(),
+          category: _category,
+          owner: _ownerCtrl.text.trim().isEmpty ? 'Unassigned' : _ownerCtrl.text.trim(),
+          orderedDate: _formatStoreDate(_orderedDate),
+          expectedDate: _formatStoreDate(_expectedDate),
+          amount: amount,
+          progress: _progress,
+          status: _status,
+        );
+        Navigator.of(context).pop(po);
+      },
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _DialogSectionTitle(
+              title: 'PO details',
+              subtitle: 'Define vendor, owner, and category.',
+            ),
+            TextFormField(
+              controller: _idCtrl,
+              focusNode: _idFocus,
+              decoration: _dialogDecoration(label: 'PO number', hint: 'Auto-generated if left blank'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _vendorCtrl,
+              decoration: _dialogDecoration(label: 'Vendor', hint: 'e.g. GreenLeaf Office'),
+              validator: (value) => (value == null || value.trim().isEmpty) ? 'Vendor is required.' : null,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _category,
+                    decoration: _dialogDecoration(label: 'Category'),
+                    items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _category = value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _ownerCtrl,
+                    decoration: _dialogDecoration(label: 'Owner', hint: 'e.g. L. Chen'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const _DialogSectionTitle(
+              title: 'Amounts and dates',
+              subtitle: 'Track financials and delivery.',
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _amountCtrl,
+              keyboardType: TextInputType.number,
+              decoration: _dialogDecoration(label: 'Amount', hint: 'e.g. 72000', prefixIcon: const Icon(Icons.attach_money)),
+              validator: (value) {
+                final amount = _parseCurrency(value ?? '');
+                return amount <= 0 ? 'Enter a PO amount.' : null;
+              },
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _orderedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(DateTime.now().year + 5),
+                      );
+                      if (picked == null) return;
+                      setState(() => _orderedDate = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: _dialogDecoration(label: 'Ordered date', prefixIcon: const Icon(Icons.event)),
+                      child: Text(
+                        _formatDisplayDate(_orderedDate),
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _expectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(DateTime.now().year + 5),
+                      );
+                      if (picked == null) return;
+                      setState(() => _expectedDate = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: _dialogDecoration(label: 'Expected date', prefixIcon: const Icon(Icons.event_available)),
+                      child: Text(
+                        _formatDisplayDate(_expectedDate),
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<_PurchaseOrderStatus>(
+              value: _status,
+              decoration: _dialogDecoration(label: 'Status'),
+              items: _PurchaseOrderStatus.values
+                  .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _status = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            const Text('Progress', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            Slider(
+              value: _progress,
+              min: 0,
+              max: 1,
+              divisions: 10,
+              label: '${(_progress * 100).round()}%',
+              activeColor: const Color(0xFF2563EB),
+              onChanged: (value) => setState(() => _progress = value),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

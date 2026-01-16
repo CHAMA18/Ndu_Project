@@ -28,6 +28,9 @@ import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_contracts_screen.dart';
 import 'package:ndu_project/screens/change_management_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
+import 'package:ndu_project/screens/project_framework_next_screen.dart';
+import 'package:ndu_project/screens/project_framework_screen.dart';
+import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'package:ndu_project/screens/project_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
 import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
@@ -61,8 +64,7 @@ import 'package:ndu_project/screens/deliverables_roadmap_screen.dart';
 import 'package:ndu_project/screens/finalize_project_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/screens/launch_checklist_screen.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
-import 'package:ndu_project/screens/project_framework_screen.dart';
+
 import 'package:ndu_project/screens/punchlist_actions_screen.dart';
 import 'package:ndu_project/screens/tools_integration_screen.dart';
 import 'package:ndu_project/screens/salvage_disposal_team_screen.dart';
@@ -1024,6 +1026,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('project_framework', const ProjectFrameworkScreen());
   }
 
+  void _openProjectGoalsMilestones() {
+    _navigateWithCheckpoint('project_goals_milestones', const ProjectFrameworkNextScreen());
+  }
+
   Widget _buildMenuItem(IconData icon, String title, {VoidCallback? onTap, bool isActive = false, bool isDisabled = false}) {
     final primary = const Color(0xFFFFD700);
     final isInteractive = !isDisabled && onTap != null;
@@ -1453,6 +1459,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                     isActive: widget.activeItemLabel == 'Work Breakdown Structure',
                     isDisabled: lockWorkBreakdown,
                   ),
+                  _buildSubMenuItem('Project Goals & Milestones', onTap: _openProjectGoalsMilestones, isActive: widget.activeItemLabel == 'Project Goals & Milestones'),
                   _buildSubMenuItem('SSHER', onTap: _openSSHER, isActive: widget.activeItemLabel == 'SSHER'),
                   _buildSubMenuItem(
                     'Change Management',
