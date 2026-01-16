@@ -425,7 +425,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return SizedBox(
       width: 150,
       child: DropdownButtonFormField<String>(
-        value: status,
+        initialValue: status,
         items: _sectionStatusOptions
             .map((option) => DropdownMenuItem<String>(
                   value: option,
@@ -722,7 +722,7 @@ class _DropdownCell extends StatelessWidget {
     final resolved = options.contains(value) ? value : options.first;
     return DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
-      value: resolved,
+      initialValue: resolved,
       items: options.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
       onChanged: (value) {
         if (value != null) onChanged(value);

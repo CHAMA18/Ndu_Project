@@ -431,6 +431,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
           footerLabel: 'Open full checklist view',
         ),
       ];
+  @override
   Widget build(BuildContext context) {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 16 : 32;

@@ -50,7 +50,8 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
     super.didChangeDependencies();
     if (_didInitNotes) return;
     final data = ProjectDataHelper.getData(context);
-    _notesController.text = data.planningNotes['planning_risk_assessment_notes'] ?? '';
+    _notesController.text =
+        data.planningNotes['planning_risk_assessment_notes'] ?? '';
     _didInitNotes = true;
   }
 
@@ -73,7 +74,8 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
           .collection('risk_assessment_entries')
           .orderBy('createdAt', descending: true)
           .get();
-      final entries = snapshot.docs.map((doc) => _RiskEntry.fromFirestore(doc)).toList();
+      final entries =
+          snapshot.docs.map((doc) => _RiskEntry.fromFirestore(doc)).toList();
       if (!mounted) return;
       setState(() {
         _entries
@@ -135,11 +137,15 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
     });
   }
 
-  Future<void> _openEntryDialog({_RiskEntry? entry, bool readOnly = false}) async {
+  Future<void> _openEntryDialog(
+      {_RiskEntry? entry, bool readOnly = false}) async {
     final idController = TextEditingController(text: entry?.id ?? '');
-    final descriptionController = TextEditingController(text: entry?.description ?? '');
-    final categoryController = TextEditingController(text: entry?.category ?? '');
-    final probabilityController = TextEditingController(text: entry?.probability ?? '');
+    final descriptionController =
+        TextEditingController(text: entry?.description ?? '');
+    final categoryController =
+        TextEditingController(text: entry?.category ?? '');
+    final probabilityController =
+        TextEditingController(text: entry?.probability ?? '');
     final impactController = TextEditingController(text: entry?.impact ?? '');
     final scoreController = TextEditingController(text: entry?.score ?? '');
     final ownerController = TextEditingController(text: entry?.owner ?? '');
@@ -150,27 +156,55 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
       builder: (context) {
         final bool isEditing = entry != null;
         return AlertDialog(
-          title: Text(readOnly ? 'View risk' : (isEditing ? 'Edit risk' : 'Add risk')),
+          title: Text(
+              readOnly ? 'View risk' : (isEditing ? 'Edit risk' : 'Add risk')),
           content: SizedBox(
             width: 440,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _dialogField(controller: idController, label: 'Risk ID', readOnly: readOnly),
-                  _dialogField(controller: descriptionController, label: 'Description', readOnly: readOnly, maxLines: 2),
-                  _dialogField(controller: categoryController, label: 'Category', readOnly: readOnly),
-                  _dialogField(controller: probabilityController, label: 'Probability', readOnly: readOnly),
-                  _dialogField(controller: impactController, label: 'Impact', readOnly: readOnly),
-                  _dialogField(controller: scoreController, label: 'Risk Score', readOnly: readOnly),
-                  _dialogField(controller: ownerController, label: 'Owner', readOnly: readOnly),
-                  _dialogField(controller: statusController, label: 'Status', readOnly: readOnly),
+                  _dialogField(
+                      controller: idController,
+                      label: 'Risk ID',
+                      readOnly: readOnly),
+                  _dialogField(
+                      controller: descriptionController,
+                      label: 'Description',
+                      readOnly: readOnly,
+                      maxLines: 2),
+                  _dialogField(
+                      controller: categoryController,
+                      label: 'Category',
+                      readOnly: readOnly),
+                  _dialogField(
+                      controller: probabilityController,
+                      label: 'Probability',
+                      readOnly: readOnly),
+                  _dialogField(
+                      controller: impactController,
+                      label: 'Impact',
+                      readOnly: readOnly),
+                  _dialogField(
+                      controller: scoreController,
+                      label: 'Risk Score',
+                      readOnly: readOnly),
+                  _dialogField(
+                      controller: ownerController,
+                      label: 'Owner',
+                      readOnly: readOnly),
+                  _dialogField(
+                      controller: statusController,
+                      label: 'Status',
+                      readOnly: readOnly),
                 ],
               ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Close')),
+            TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Close')),
             if (!readOnly)
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
@@ -184,14 +218,18 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
     if (result != true || readOnly) return;
     final newEntry = _RiskEntry(
       docId: entry?.docId ?? _newEntryId(),
-      id: idController.text.trim().isEmpty ? 'R-${DateTime.now().millisecondsSinceEpoch}' : idController.text.trim(),
+      id: idController.text.trim().isEmpty
+          ? 'R-${DateTime.now().millisecondsSinceEpoch}'
+          : idController.text.trim(),
       description: descriptionController.text.trim(),
       category: categoryController.text.trim(),
       probability: probabilityController.text.trim(),
       impact: impactController.text.trim(),
       score: scoreController.text.trim(),
       owner: ownerController.text.trim(),
-      status: statusController.text.trim().isEmpty ? 'Open' : statusController.text.trim(),
+      status: statusController.text.trim().isEmpty
+          ? 'Open'
+          : statusController.text.trim(),
       createdAt: entry?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -223,7 +261,8 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
   List<_RiskEntry> _filteredEntries() {
     final query = _searchController.text.trim().toLowerCase();
     return _entries.where((entry) {
-      final matchesStatus = _statusFilter == null || entry.status == _statusFilter;
+      final matchesStatus =
+          _statusFilter == null || entry.status == _statusFilter;
       if (!matchesStatus) return false;
       if (query.isEmpty) return true;
       final haystack = [
@@ -278,17 +317,20 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Risk Assessment'),
+              child: const InitiationLikeSidebar(
+                  activeItemLabel: 'Risk Assessment'),
             ),
             Expanded(
               child: Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 28),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 28),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _TopUtilityBar(onBack: () => Navigator.maybePop(context)),
+                        _TopUtilityBar(
+                            onBack: () => Navigator.maybePop(context)),
                         const SizedBox(height: 24),
                         const _PageHeading(),
                         const SizedBox(height: 20),
@@ -310,7 +352,8 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
                           searchController: _searchController,
                           onAdd: () => _openEntryDialog(),
                           onFilter: _openFilterDialog,
-                          onView: (entry) => _openEntryDialog(entry: entry, readOnly: true),
+                          onView: (entry) =>
+                              _openEntryDialog(entry: entry, readOnly: true),
                           onEdit: (entry) => _openEntryDialog(entry: entry),
                         ),
                         const SizedBox(height: 80),
@@ -336,7 +379,8 @@ class _TopUtilityBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final displayName = FirebaseAuthService.displayNameOrEmail(fallback: 'User');
+    final displayName =
+        FirebaseAuthService.displayNameOrEmail(fallback: 'User');
     final email = user?.email ?? '';
     final primaryText = email.isNotEmpty ? email : displayName;
 
@@ -355,7 +399,10 @@ class _TopUtilityBar extends StatelessWidget {
           const SizedBox(width: 20),
           const Text(
             'Risk Mitigation',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
           ),
           const Spacer(),
           StreamBuilder<bool>(
@@ -423,20 +470,25 @@ class _RiskNotesCard extends StatelessWidget {
                   color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.note_outlined, color: Color(0xFF475569), size: 18),
+                child: const Icon(Icons.note_outlined,
+                    color: Color(0xFF475569), size: 18),
               ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
                   'Notes',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827)),
                 ),
               ),
               if (saving)
                 const _StatusChip(label: 'Saving...', color: Color(0xFF64748B))
               else if (savedAt != null)
                 _StatusChip(
-                  label: 'Saved ${TimeOfDay.fromDateTime(savedAt!).format(context)}',
+                  label:
+                      'Saved ${TimeOfDay.fromDateTime(savedAt!).format(context)}',
                   color: const Color(0xFF16A34A),
                   background: const Color(0xFFECFDF3),
                 ),
@@ -445,7 +497,8 @@ class _RiskNotesCard extends StatelessWidget {
           const SizedBox(height: 10),
           const Text(
             'Summarize key risks, probability/impact themes, and mitigation focus.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
+            style:
+                TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -456,7 +509,8 @@ class _RiskNotesCard extends StatelessWidget {
               hintText: 'Capture risk assessment notes here...',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                borderSide:
+                    BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
               ),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
@@ -471,7 +525,8 @@ class _RiskNotesCard extends StatelessWidget {
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label, required this.color, this.background});
+  const _StatusChip(
+      {required this.label, required this.color, this.background});
 
   final String label;
   final Color color;
@@ -487,7 +542,8 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+        style:
+            TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }
@@ -522,7 +578,10 @@ class _UserChip extends StatelessWidget {
             children: [
               Text(
                 name,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827)),
               ),
               Text(
                 role,
@@ -592,7 +651,10 @@ class _PageHeading extends StatelessWidget {
       children: [
         Text(
           'Risk Assessment',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+          style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF111827)),
         ),
         SizedBox(height: 8),
         Text(
@@ -627,7 +689,8 @@ class _MetricsWrap extends StatelessWidget {
     final String topRiskArea = unknown;
     final String unaddressed = totalRisks == 0 ? '0' : unknown;
 
-    const double cardHeight = 148; // Uniform height to prevent visual jumps/overflow
+    const double cardHeight =
+        148; // Uniform height to prevent visual jumps/overflow
     final cards = [
       _MetricCard(
         height: cardHeight,
@@ -685,11 +748,11 @@ class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.title,
     required this.subtitle,
-    this.badges = const [],
     this.height,
     this.progress,
     this.footer,
     this.footerIcon,
+    this.badges = const [],
   });
 
   final String title;
@@ -724,7 +787,10 @@ class _MetricCard extends StatelessWidget {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+            style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
           ),
           if (badges.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -759,7 +825,8 @@ class _MetricCard extends StatelessWidget {
                     footer!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    style:
+                        const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                   ),
                 ),
               ],
@@ -792,7 +859,10 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF374151)),
+        style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF374151)),
       ),
     );
   }
@@ -822,7 +892,10 @@ class _RiskMatrixCard extends StatelessWidget {
             children: [
               const Text(
                 'Risk Matrix',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827)),
               ),
               const Spacer(),
               _LegendDot(color: _high, label: 'High Risk'),
@@ -843,21 +916,34 @@ class _RiskMatrixCard extends StatelessWidget {
                     children: const [
                       SizedBox(width: 90),
                       Expanded(
-                        child: _MatrixHeaderRow(labels: ['Low', 'Medium', 'High']),
+                        child:
+                            _MatrixHeaderRow(labels: ['Low', 'Medium', 'High']),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   const Text(
                     'Likelihood',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF6B7280)),
                   ),
                   const SizedBox(height: 12),
                   Column(
                     children: [
-                      _MatrixRow(label: 'Low', height: cellHeight, colors: const [_low, _low, _medium]),
-                      _MatrixRow(label: 'Medium', height: cellHeight, colors: const [_low, _medium, _high]),
-                      _MatrixRow(label: 'High', height: cellHeight, colors: const [_medium, _high, _high]),
+                      _MatrixRow(
+                          label: 'Low',
+                          height: cellHeight,
+                          colors: const [_low, _low, _medium]),
+                      _MatrixRow(
+                          label: 'Medium',
+                          height: cellHeight,
+                          colors: const [_low, _medium, _high]),
+                      _MatrixRow(
+                          label: 'High',
+                          height: cellHeight,
+                          colors: const [_medium, _high, _high]),
                     ],
                   ),
                 ],
@@ -909,7 +995,10 @@ class _MatrixHeaderRow extends StatelessWidget {
               child: Center(
                 child: Text(
                   label,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF111827)),
                 ),
               ),
             ),
@@ -920,7 +1009,8 @@ class _MatrixHeaderRow extends StatelessWidget {
 }
 
 class _MatrixRow extends StatelessWidget {
-  const _MatrixRow({required this.label, required this.height, required this.colors});
+  const _MatrixRow(
+      {required this.label, required this.height, required this.colors});
 
   final String label;
   final double height;
@@ -936,7 +1026,10 @@ class _MatrixRow extends StatelessWidget {
             width: 90,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF111827)),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF111827)),
             ),
           ),
           Expanded(
@@ -1002,7 +1095,10 @@ class _RiskRegister extends StatelessWidget {
         children: [
           const Text(
             'Risk Register',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+            style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -1069,11 +1165,15 @@ class _RiskRegister extends StatelessWidget {
               ),
               child: Column(
                 children: const [
-                  Icon(Icons.inbox_outlined, size: 28, color: Color(0xFF9CA3AF)),
+                  Icon(Icons.inbox_outlined,
+                      size: 28, color: Color(0xFF9CA3AF)),
                   SizedBox(height: 10),
                   Text(
                     'No risks yet',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827)),
                   ),
                   SizedBox(height: 6),
                   Text(
@@ -1098,7 +1198,9 @@ class _RiskRegister extends StatelessWidget {
                     onView: () => onView(entry),
                     onEdit: () => onEdit(entry),
                   ),
-                  if (!isLast) const Divider(height: 26, thickness: 1, color: Color(0xFFF3F4F6)),
+                  if (!isLast)
+                    const Divider(
+                        height: 26, thickness: 1, color: Color(0xFFF3F4F6)),
                 ],
               );
             }),
@@ -1139,7 +1241,10 @@ class _RegisterHeader extends StatelessWidget {
             flex: flex,
             child: Text(
               _labels[index],
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280)),
             ),
           );
         }),
@@ -1231,10 +1336,12 @@ class _RegisterRow extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: pillColor, borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(
+                  color: pillColor, borderRadius: BorderRadius.circular(999)),
               child: Text(
                 entry.status,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: pillText),
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w500, color: pillText),
               ),
             ),
           ),
@@ -1245,12 +1352,14 @@ class _RegisterRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               IconButton(
-                icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF6B7280)),
+                icon: const Icon(Icons.visibility_outlined,
+                    size: 18, color: Color(0xFF6B7280)),
                 onPressed: onView,
                 tooltip: 'View',
               ),
               IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF6B7280)),
+                icon: const Icon(Icons.edit_outlined,
+                    size: 18, color: Color(0xFF6B7280)),
                 onPressed: onEdit,
                 tooltip: 'Edit',
               ),
@@ -1287,10 +1396,12 @@ class _RiskTag extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
+      decoration: BoxDecoration(
+          color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
+        style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
       ),
     );
   }
@@ -1380,7 +1491,8 @@ Widget _dialogField({
 }
 
 class _Debouncer {
-  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 700);
+  _Debouncer({Duration? delay})
+      : delay = delay ?? const Duration(milliseconds: 700);
 
   final Duration delay;
   Timer? _timer;

@@ -27,10 +27,12 @@ class FrontEndPlanningRisksScreen extends StatefulWidget {
   }
 
   @override
-  State<FrontEndPlanningRisksScreen> createState() => _FrontEndPlanningRisksScreenState();
+  State<FrontEndPlanningRisksScreen> createState() =>
+      _FrontEndPlanningRisksScreenState();
 }
 
-class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScreen> {
+class _FrontEndPlanningRisksScreenState
+    extends State<FrontEndPlanningRisksScreen> {
   final TextEditingController _notesController = TextEditingController();
   bool _isSyncReady = false;
 
@@ -57,47 +59,49 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
     setState(() => _isGeneratingRequirements = true);
     try {
       final data = ProjectDataHelper.getData(context);
-      final ctx = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Project Risks');
+      final ctx = ProjectDataHelper.buildFepContext(data,
+          sectionLabel: 'Project Risks');
       final aiService = OpenAiServiceSecure();
-      
+
       // Generate risks with all fields (Title, Category, Probability, Impact)
       final risks = await aiService.generateFepRisks(ctx);
-      
+
       if (!mounted) return;
       setState(() {
-        _rows = risks
-            .asMap()
-            .entries
-            .map((entry) {
-              final riskData = entry.value;
-              // Calculate risk level from probability and impact
-              final prob = riskData['probability']?.toLowerCase() ?? 'medium';
-              final impact = riskData['impact']?.toLowerCase() ?? 'medium';
-              String riskLevel = 'Medium';
-              if ((prob == 'high' && impact == 'high') || (prob == 'high' && impact == 'medium') || (prob == 'medium' && impact == 'high')) {
-                riskLevel = 'High';
-              } else if ((prob == 'low' && impact == 'low') || (prob == 'low' && impact == 'medium') || (prob == 'medium' && impact == 'low')) {
-                riskLevel = 'Low';
-              }
-              
-              return _RiskItem(
-                id: _generateId(entry.key + 1),
-                requirement: '',
-                requirementType: '',
-                risk: riskData['title'] ?? '',
-                description: riskData['title'] ?? '', // Use title as description initially
-                category: riskData['category'] ?? '',
-                probability: riskData['probability'] ?? '',
-                impact: riskData['impact'] ?? '',
-                riskValue: '',
-                riskLevel: riskLevel,
-                mitigation: '',
-                discipline: '',
-                owner: '',
-                status: 'Identified',
-              );
-            })
-            .toList();
+        _rows = risks.asMap().entries.map((entry) {
+          final riskData = entry.value;
+          // Calculate risk level from probability and impact
+          final prob = riskData['probability']?.toLowerCase() ?? 'medium';
+          final impact = riskData['impact']?.toLowerCase() ?? 'medium';
+          String riskLevel = 'Medium';
+          if ((prob == 'high' && impact == 'high') ||
+              (prob == 'high' && impact == 'medium') ||
+              (prob == 'medium' && impact == 'high')) {
+            riskLevel = 'High';
+          } else if ((prob == 'low' && impact == 'low') ||
+              (prob == 'low' && impact == 'medium') ||
+              (prob == 'medium' && impact == 'low')) {
+            riskLevel = 'Low';
+          }
+
+          return _RiskItem(
+            id: _generateId(entry.key + 1),
+            requirement: '',
+            requirementType: '',
+            risk: riskData['title'] ?? '',
+            description:
+                riskData['title'] ?? '', // Use title as description initially
+            category: riskData['category'] ?? '',
+            probability: riskData['probability'] ?? '',
+            impact: riskData['impact'] ?? '',
+            riskValue: '',
+            riskLevel: riskLevel,
+            mitigation: '',
+            discipline: '',
+            owner: '',
+            status: 'Identified',
+          );
+        }).toList();
         _isGeneratingRequirements = false;
       });
       _syncRisksToProvider();
@@ -153,42 +157,55 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
     final disciplineCtrl = TextEditingController(text: current.discipline);
     final ownerCtrl = TextEditingController(text: current.owner);
     // Dropdown options
-    const requirementTypeOptions = ['Functional', 'Non-Functional', 'Technical', 'Business', 'Regulatory'];
+    const requirementTypeOptions = [
+      'Functional',
+      'Non-Functional',
+      'Technical',
+      'Business',
+      'Regulatory'
+    ];
     const probabilityOptions = ['High', 'Medium', 'Low'];
     const impactOptions = ['High', 'Medium', 'Low'];
     const riskLevelOptions = ['Critical', 'Moderate', 'Low'];
     const statusOptions = ['Open', 'Mitigated', 'Closed'];
 
-    String selectedRequirementType = current.requirementType.isEmpty
-        ? ''
-        : current.requirementType;
-    String selectedProbability = current.probability.isEmpty
-        ? ''
-        : current.probability;
+    String selectedRequirementType =
+        current.requirementType.isEmpty ? '' : current.requirementType;
+    String selectedProbability =
+        current.probability.isEmpty ? '' : current.probability;
     String selectedImpact = current.impact.isEmpty ? '' : current.impact;
-    String selectedRiskLevel = current.riskLevel.isEmpty ? '' : current.riskLevel;
+    String selectedRiskLevel =
+        current.riskLevel.isEmpty ? '' : current.riskLevel;
     String selectedStatus = current.status.isEmpty ? '' : current.status;
 
     // Ensure custom previously-saved values still appear in dropdowns
     List<String> requirementTypeItems = [
       ...requirementTypeOptions,
-      if (selectedRequirementType.isNotEmpty && !requirementTypeOptions.contains(selectedRequirementType)) selectedRequirementType,
+      if (selectedRequirementType.isNotEmpty &&
+          !requirementTypeOptions.contains(selectedRequirementType))
+        selectedRequirementType,
     ];
     List<String> probabilityItems = [
       ...probabilityOptions,
-      if (selectedProbability.isNotEmpty && !probabilityOptions.contains(selectedProbability)) selectedProbability,
+      if (selectedProbability.isNotEmpty &&
+          !probabilityOptions.contains(selectedProbability))
+        selectedProbability,
     ];
     List<String> impactItems = [
       ...impactOptions,
-      if (selectedImpact.isNotEmpty && !impactOptions.contains(selectedImpact)) selectedImpact,
+      if (selectedImpact.isNotEmpty && !impactOptions.contains(selectedImpact))
+        selectedImpact,
     ];
     List<String> riskLevelItems = [
       ...riskLevelOptions,
-      if (selectedRiskLevel.isNotEmpty && !riskLevelOptions.contains(selectedRiskLevel)) selectedRiskLevel,
+      if (selectedRiskLevel.isNotEmpty &&
+          !riskLevelOptions.contains(selectedRiskLevel))
+        selectedRiskLevel,
     ];
     List<String> statusItems = [
       ...statusOptions,
-      if (selectedStatus.isNotEmpty && !statusOptions.contains(selectedStatus)) selectedStatus,
+      if (selectedStatus.isNotEmpty && !statusOptions.contains(selectedStatus))
+        selectedStatus,
     ];
 
     final result = await showDialog<_RiskItem>(
@@ -204,7 +221,8 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + viewInsets.bottom),
+                padding:
+                    EdgeInsets.fromLTRB(20, 16, 20, 16 + viewInsets.bottom),
                 child: StatefulBuilder(
                   builder: (ctx, setLocal) {
                     return SingleChildScrollView(
@@ -216,81 +234,110 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
                             children: const [
                               Icon(Icons.edit_note, color: Color(0xFF111827)),
                               SizedBox(width: 8),
-                              Text('Edit Risk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                              Text('Edit Risk',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800)),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          _LabeledField(label: 'ID', controller: idCtrl, enabled: false),
+                          _LabeledField(
+                              label: 'ID', controller: idCtrl, enabled: false),
                           const SizedBox(height: 12),
-                          _LabeledField(label: 'Requirement', controller: requirementCtrl, autofocus: true),
+                          _LabeledField(
+                              label: 'Requirement',
+                              controller: requirementCtrl,
+                              autofocus: true),
                           const SizedBox(height: 12),
                           _LabeledDropdown(
                             label: 'Requirement Type',
-                            value: selectedRequirementType.isEmpty ? null : selectedRequirementType,
+                            value: selectedRequirementType.isEmpty
+                                ? null
+                                : selectedRequirementType,
                             hint: 'e.g. Functional/Technical',
                             items: requirementTypeItems,
-                            onChanged: (v) => setLocal(() => selectedRequirementType = v ?? ''),
+                            onChanged: (v) => setLocal(
+                                () => selectedRequirementType = v ?? ''),
                           ),
                           const SizedBox(height: 12),
-                          _LabeledField(label: 'Risk Title', controller: riskCtrl),
+                          _LabeledField(
+                              label: 'Risk Title', controller: riskCtrl),
                           const SizedBox(height: 12),
-                          _LabeledField(label: 'Description', controller: descriptionCtrl),
+                          _LabeledField(
+                              label: 'Description',
+                              controller: descriptionCtrl),
                           const SizedBox(height: 12),
-                          _LabeledField(label: 'Category', controller: categoryCtrl),
+                          _LabeledField(
+                              label: 'Category', controller: categoryCtrl),
                           const SizedBox(height: 12),
                           Row(
                             children: [
                               Expanded(
                                 child: _LabeledDropdown(
                                   label: 'Probability',
-                                  value: selectedProbability.isEmpty ? null : selectedProbability,
+                                  value: selectedProbability.isEmpty
+                                      ? null
+                                      : selectedProbability,
                                   hint: 'e.g. High/Medium/Low',
                                   items: probabilityItems,
-                                  onChanged: (v) => setLocal(() => selectedProbability = v ?? ''),
+                                  onChanged: (v) => setLocal(
+                                      () => selectedProbability = v ?? ''),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _LabeledDropdown(
                                   label: 'Impact',
-                                  value: selectedImpact.isEmpty ? null : selectedImpact,
+                                  value: selectedImpact.isEmpty
+                                      ? null
+                                      : selectedImpact,
                                   hint: 'e.g. High/Medium/Low',
                                   items: impactItems,
-                                  onChanged: (v) => setLocal(() => selectedImpact = v ?? ''),
+                                  onChanged: (v) =>
+                                      setLocal(() => selectedImpact = v ?? ''),
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          _LabeledField(label: 'Risk Value', controller: riskValueCtrl),
+                          _LabeledField(
+                              label: 'Risk Value', controller: riskValueCtrl),
                           const SizedBox(height: 12),
                           Row(
                             children: [
                               Expanded(
                                 child: _LabeledDropdown(
                                   label: 'Risk Level',
-                                  value: selectedRiskLevel.isEmpty ? null : selectedRiskLevel,
+                                  value: selectedRiskLevel.isEmpty
+                                      ? null
+                                      : selectedRiskLevel,
                                   hint: 'e.g. Critical/Moderate/Low',
                                   items: riskLevelItems,
-                                  onChanged: (v) => setLocal(() => selectedRiskLevel = v ?? ''),
+                                  onChanged: (v) => setLocal(
+                                      () => selectedRiskLevel = v ?? ''),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _LabeledDropdown(
                                   label: 'Status',
-                                  value: selectedStatus.isEmpty ? null : selectedStatus,
+                                  value: selectedStatus.isEmpty
+                                      ? null
+                                      : selectedStatus,
                                   hint: 'e.g. Open/Mitigated/Closed',
                                   items: statusItems,
-                                  onChanged: (v) => setLocal(() => selectedStatus = v ?? ''),
+                                  onChanged: (v) =>
+                                      setLocal(() => selectedStatus = v ?? ''),
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          _LabeledField(label: 'Mitigation', controller: mitigationCtrl),
+                          _LabeledField(
+                              label: 'Mitigation', controller: mitigationCtrl),
                           const SizedBox(height: 12),
-                          _LabeledField(label: 'Discipline', controller: disciplineCtrl),
+                          _LabeledField(
+                              label: 'Discipline', controller: disciplineCtrl),
                           const SizedBox(height: 12),
                           _LabeledField(label: 'Owner', controller: ownerCtrl),
                           const SizedBox(height: 20),
@@ -302,13 +349,18 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
                               ),
                               const Spacer(),
                               ElevatedButton.icon(
-                                icon: const Icon(Icons.check, color: Colors.black),
-                                label: const Text('Save', style: TextStyle(color: Colors.black)),
+                                icon: const Icon(Icons.check,
+                                    color: Colors.black),
+                                label: const Text('Save',
+                                    style: TextStyle(color: Colors.black)),
                                 onPressed: () {
-                                  final requirement = requirementCtrl.text.trim();
+                                  final requirement =
+                                      requirementCtrl.text.trim();
                                   if (requirement.isEmpty) {
                                     ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(content: Text('Please enter the Requirement')),
+                                      const SnackBar(
+                                          content: Text(
+                                              'Please enter the Requirement')),
                                     );
                                     return;
                                   }
@@ -333,8 +385,10 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
                                   backgroundColor: const Color(0xFFFFD700),
                                   foregroundColor: Colors.black,
                                   elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 18, vertical: 12),
                                 ),
                               ),
                             ],
@@ -366,7 +420,8 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Delete row?',
-          style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+          style:
+              TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF111827)),
         ),
         content: const Text(
           'This action cannot be undone.',
@@ -383,7 +438,8 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
               backgroundColor: const Color(0xFFFFE4E6),
               foregroundColor: const Color(0xFFDC2626),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Delete'),
           ),
@@ -410,8 +466,12 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
 
   void _syncRisksToProvider() {
     if (!mounted || !_isSyncReady) return;
-    final risksText = _rows.map((r) => '${r.risk}: ${r.description}').where((s) => s.trim().isNotEmpty).join('\n');
-    final value = risksText.isNotEmpty ? risksText : _notesController.text.trim();
+    final risksText = _rows
+        .map((r) => '${r.risk}: ${r.description}')
+        .where((s) => s.trim().isNotEmpty)
+        .join('\n');
+    final value =
+        risksText.isNotEmpty ? risksText : _notesController.text.trim();
     final provider = ProjectDataHelper.getProvider(context);
     provider.updateField(
       (data) => data.copyWith(
@@ -435,7 +495,8 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
             // Use the same sidebar component used in PreferredSolutionAnalysisScreen
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Project Risks'),
+              child:
+                  const InitiationLikeSidebar(activeItemLabel: 'Project Risks'),
             ),
             Expanded(
               child: Stack(
@@ -446,72 +507,82 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
                       const FrontEndPlanningHeader(),
                       Expanded(
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 24),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                        _roundedField(
-                          controller: _notesController,
-                          hint: 'Input your notes here…',
-                          minLines: 3,
-                        ),
-                        const SizedBox(height: 22),
-                        Row(
-                          children: const [
-                            EditableContentText(
-                              contentKey: 'fep_risks_title',
-                              fallback: 'Project Risks',
-                              category: 'front_end_planning',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF111827),
+                              _roundedField(
+                                controller: _notesController,
+                                hint: 'Input your notes here…',
+                                minLines: 3,
                               ),
-                            ),
-                            SizedBox(width: 8),
-                            EditableContentText(
-                              contentKey: 'fep_risks_subtitle',
-                              fallback: '(Highlight and quantify known and/or anticipated risks here)',
-                              category: 'front_end_planning',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        if (_isGeneratingRequirements)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24.0),
-                              child: Column(
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 12),
-                                  Text('Generating requirements from Business Case...'),
+                              const SizedBox(height: 22),
+                              Row(
+                                children: const [
+                                  EditableContentText(
+                                    contentKey: 'fep_risks_title',
+                                    fallback: 'Project Risks',
+                                    category: 'front_end_planning',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF111827),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  EditableContentText(
+                                    contentKey: 'fep_risks_subtitle',
+                                    fallback:
+                                        '(Highlight and quantify known and/or anticipated risks here)',
+                                    category: 'front_end_planning',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                  ),
                                 ],
                               ),
-                            ),
-                          )
-                        else
-                          _buildRiskTable(context),
-                        const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ElevatedButton.icon(
-                            onPressed: _addNewRisk,
-                            icon: const Icon(Icons.add, color: Colors.black, size: 18),
-                            label: const Text('Add Item', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFFD700),
-                              foregroundColor: Colors.black,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            ),
-                          ),
-                        ),
+                              const SizedBox(height: 14),
+                              if (_isGeneratingRequirements)
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(24.0),
+                                    child: Column(
+                                      children: [
+                                        CircularProgressIndicator(),
+                                        SizedBox(height: 12),
+                                        Text(
+                                            'Generating requirements from Business Case...'),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              else
+                                _buildRiskTable(context),
+                              const SizedBox(height: 16),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: ElevatedButton.icon(
+                                  onPressed: _addNewRisk,
+                                  icon: const Icon(Icons.add,
+                                      color: Colors.black, size: 18),
+                                  label: const Text('Add Item',
+                                      style: TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w600)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFFD700),
+                                    foregroundColor: Colors.black,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 140),
                             ],
                           ),
@@ -522,11 +593,15 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
                   const KazAiChatBubble(),
                   _BottomOverlays(
                     onNext: () async {
-                      final risksText = _rows.map((r) => '${r.risk}: ${r.description}').where((s) => s.trim().isNotEmpty).join('\n');
+                      final risksText = _rows
+                          .map((r) => '${r.risk}: ${r.description}')
+                          .where((s) => s.trim().isNotEmpty)
+                          .join('\n');
                       await ProjectDataHelper.saveAndNavigate(
                         context: context,
                         checkpoint: 'fep_risks',
-                        nextScreenBuilder: () => const FrontEndPlanningOpportunitiesScreen(),
+                        nextScreenBuilder: () =>
+                            const FrontEndPlanningOpportunitiesScreen(),
                         dataUpdater: (data) => data.copyWith(
                           frontEndPlanning: ProjectDataHelper.updateFEPField(
                             current: data.frontEndPlanning,
@@ -547,7 +622,8 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
 
   Widget _buildRiskTable(BuildContext context) {
     final border = const BorderSide(color: Color(0xFFE5E7EB));
-    final headerStyle = const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563));
+    final headerStyle = const TextStyle(
+        fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563));
     final cellStyle = const TextStyle(fontSize: 14, color: Color(0xFF111827));
 
     return Container(
@@ -562,94 +638,107 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
           constraints: const BoxConstraints(minWidth: 1980),
           child: Table(
             columnWidths: const {
-               0: FixedColumnWidth(60),
-               1: FixedColumnWidth(150),
-               2: FixedColumnWidth(150),
-               3: FixedColumnWidth(150),
-               4: FixedColumnWidth(200),
-               5: FixedColumnWidth(100),
-               6: FixedColumnWidth(100),
-               7: FixedColumnWidth(100),
-               8: FixedColumnWidth(100),
-               9: FixedColumnWidth(120),
+              0: FixedColumnWidth(60),
+              1: FixedColumnWidth(150),
+              2: FixedColumnWidth(150),
+              3: FixedColumnWidth(150),
+              4: FixedColumnWidth(200),
+              5: FixedColumnWidth(100),
+              6: FixedColumnWidth(100),
+              7: FixedColumnWidth(100),
+              8: FixedColumnWidth(100),
+              9: FixedColumnWidth(120),
               10: FixedColumnWidth(150),
               11: FixedColumnWidth(100),
               12: FixedColumnWidth(100),
               13: FixedColumnWidth(100),
               14: FixedColumnWidth(80),
             },
-        border: TableBorder(
-          horizontalInside: border,
-          verticalInside: border,
-          top: border,
-          bottom: border,
-          left: border,
-          right: border,
-        ),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          TableRow(
-            decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
+            border: TableBorder(
+              horizontalInside: border,
+              verticalInside: border,
+              top: border,
+              bottom: border,
+              left: border,
+              right: border,
+            ),
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             children: [
-              _th('ID', headerStyle),
-              _th('Requirement', headerStyle),
-              _th('Requirement Type', headerStyle),
-              _th('Risk Title', headerStyle),
-              _th('Description', headerStyle),
-              _th('Category', headerStyle),
-              _th('Probability', headerStyle),
-              _th('Impact', headerStyle),
-              _th('Risk Value', headerStyle),
-              _th('Risk Level', headerStyle),
-              _th('Mitigation', headerStyle),
-              _th('Discipline', headerStyle),
-              _th('Owner', headerStyle),
-              _th('Status', headerStyle),
-              _th('Ac', headerStyle),
-            ],
-          ),
-          ...List.generate(_rows.length, (i) {
-            final r = _rows[i];
-            return TableRow(children: [
-              _td(Text(r.id, style: cellStyle)),
-              _td(Text(r.requirement, style: cellStyle)),
-              _td(r.requirementType.isEmpty ? const SizedBox.shrink() : _chip(r.requirementType, const Color(0xFFDCFCE7), const Color(0xFF16A34A))),
-              _td(Text(r.risk, style: cellStyle)),
-              _td(Text(r.description, style: cellStyle)),
-              _td(r.category.isEmpty ? const SizedBox.shrink() : _chip(r.category, const Color(0xFFF3E8FF), const Color(0xFF7C3AED))),
-              _td(Text(r.probability, style: cellStyle)),
-              _td(Text(r.impact, style: cellStyle)),
-              _td(Text(r.riskValue, style: cellStyle)),
-              _td(r.riskLevel.isEmpty ? const SizedBox.shrink() : _chip(r.riskLevel, const Color(0xFFFFE4E6), const Color(0xFFDC2626))),
-              _td(Text(r.mitigation, style: cellStyle)),
-              _td(Text(r.discipline, style: cellStyle)),
-              _td(Text(r.owner, style: cellStyle)),
-              _td(r.status.isEmpty ? const SizedBox.shrink() : _statusPill(r.status)),
-              _td(Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              TableRow(
+                decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
                 children: [
-                  InkWell(
-                    onTap: () => _showEditRiskSheet(i),
-                    borderRadius: BorderRadius.circular(8),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4.0),
-                      child: Icon(Icons.edit, size: 18, color: Color(0xFF6B7280)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  InkWell(
-                    onTap: () => _confirmAndDeleteRow(i),
-                    borderRadius: BorderRadius.circular(8),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4.0),
-                      child: Icon(Icons.delete_outline, size: 18, color: Color(0xFF6B7280)),
-                    ),
-                  ),
+                  _th('ID', headerStyle),
+                  _th('Requirement', headerStyle),
+                  _th('Requirement Type', headerStyle),
+                  _th('Risk Title', headerStyle),
+                  _th('Description', headerStyle),
+                  _th('Category', headerStyle),
+                  _th('Probability', headerStyle),
+                  _th('Impact', headerStyle),
+                  _th('Risk Value', headerStyle),
+                  _th('Risk Level', headerStyle),
+                  _th('Mitigation', headerStyle),
+                  _th('Discipline', headerStyle),
+                  _th('Owner', headerStyle),
+                  _th('Status', headerStyle),
+                  _th('Ac', headerStyle),
                 ],
-              )),
-            ]);
-          }),
-        ],
+              ),
+              ...List.generate(_rows.length, (i) {
+                final r = _rows[i];
+                return TableRow(children: [
+                  _td(Text(r.id, style: cellStyle)),
+                  _td(Text(r.requirement, style: cellStyle)),
+                  _td(r.requirementType.isEmpty
+                      ? const SizedBox.shrink()
+                      : _chip(r.requirementType, const Color(0xFFDCFCE7),
+                          const Color(0xFF16A34A))),
+                  _td(Text(r.risk, style: cellStyle)),
+                  _td(Text(r.description, style: cellStyle)),
+                  _td(r.category.isEmpty
+                      ? const SizedBox.shrink()
+                      : _chip(r.category, const Color(0xFFF3E8FF),
+                          const Color(0xFF7C3AED))),
+                  _td(Text(r.probability, style: cellStyle)),
+                  _td(Text(r.impact, style: cellStyle)),
+                  _td(Text(r.riskValue, style: cellStyle)),
+                  _td(r.riskLevel.isEmpty
+                      ? const SizedBox.shrink()
+                      : _chip(r.riskLevel, const Color(0xFFFFE4E6),
+                          const Color(0xFFDC2626))),
+                  _td(Text(r.mitigation, style: cellStyle)),
+                  _td(Text(r.discipline, style: cellStyle)),
+                  _td(Text(r.owner, style: cellStyle)),
+                  _td(r.status.isEmpty
+                      ? const SizedBox.shrink()
+                      : _statusPill(r.status)),
+                  _td(Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: () => _showEditRiskSheet(i),
+                        borderRadius: BorderRadius.circular(8),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.edit,
+                              size: 18, color: Color(0xFF6B7280)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: () => _confirmAndDeleteRow(i),
+                        borderRadius: BorderRadius.circular(8),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.delete_outline,
+                              size: 18, color: Color(0xFF6B7280)),
+                        ),
+                      ),
+                    ],
+                  )),
+                ]);
+              }),
+            ],
           ),
         ),
       ),
@@ -666,7 +755,8 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
           const SizedBox(height: 4),
           Text(
             bottom,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), height: 1.15),
+            style: const TextStyle(
+                fontSize: 12, color: Color(0xFF9CA3AF), height: 1.15),
           ),
         ],
       ),
@@ -677,7 +767,8 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: EditableContentText(
-        contentKey: 'fep_risks_header_${text.toLowerCase().replaceAll(' ', '_')}',
+        contentKey:
+            'fep_risks_header_${text.toLowerCase().replaceAll(' ', '_')}',
         fallback: text,
         category: 'front_end_planning',
         style: style,
@@ -701,7 +792,9 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
           color: bg,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(label, style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w700)),
+        child: Text(label,
+            style: TextStyle(
+                color: fg, fontSize: 12, fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -715,7 +808,11 @@ class _FrontEndPlanningRisksScreenState extends State<FrontEndPlanningRisksScree
           color: const Color(0xFFFFE4E6),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(status, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w700)),
+        child: Text(status,
+            style: const TextStyle(
+                color: Color(0xFFDC2626),
+                fontSize: 12,
+                fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -771,7 +868,8 @@ class _BottomOverlays extends StatelessWidget {
               child: Container(
                 width: 48,
                 height: 48,
-                decoration: const BoxDecoration(color: Color(0xFFB3D9FF), shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                    color: Color(0xFFB3D9FF), shape: BoxShape.circle),
                 child: const Icon(Icons.info_outline, color: Colors.white),
               ),
             ),
@@ -787,11 +885,15 @@ class _BottomOverlays extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFD700),
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22)),
                       elevation: 0,
                     ),
-                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: const Text('Next',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -814,16 +916,22 @@ class _BottomOverlays extends StatelessWidget {
         children: const [
           Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
           SizedBox(width: 8),
-          Text('AI', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+          Text('AI',
+              style: TextStyle(
+                  fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
           SizedBox(width: 10),
-          Text('Focus on major risks associated with each potential solution.', style: TextStyle(color: Color(0xFF1F2937))),
+          Text('Focus on major risks associated with each potential solution.',
+              style: TextStyle(color: Color(0xFF1F2937))),
         ],
       ),
     );
   }
 }
 
-Widget _roundedField({required TextEditingController controller, required String hint, int minLines = 1}) {
+Widget _roundedField(
+    {required TextEditingController controller,
+    required String hint,
+    int minLines = 1}) {
   return Container(
     width: double.infinity,
     decoration: BoxDecoration(
@@ -856,9 +964,9 @@ class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
     required this.controller,
-    this.hintText,
     this.autofocus = false,
     this.enabled = true,
+    this.hintText,
   });
 
   @override
@@ -866,7 +974,11 @@ class _LabeledField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280))),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6B7280))),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
@@ -910,7 +1022,11 @@ class _LabeledDropdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280))),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6B7280))),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
@@ -923,10 +1039,17 @@ class _LabeledDropdown extends StatelessWidget {
             child: DropdownButton<String>(
               isExpanded: true,
               value: value,
-              hint: hint == null ? null : Text(hint!, style: const TextStyle(color: Color(0xFF9CA3AF))),
-              items: items.map((e) => DropdownMenuItem<String>(value: e, child: Text(e))).toList(),
+              hint: hint == null
+                  ? null
+                  : Text(hint!,
+                      style: const TextStyle(color: Color(0xFF9CA3AF))),
+              items: items
+                  .map(
+                      (e) => DropdownMenuItem<String>(value: e, child: Text(e)))
+                  .toList(),
               onChanged: onChanged,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF9CA3AF)),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF9CA3AF)),
             ),
           ),
         ),

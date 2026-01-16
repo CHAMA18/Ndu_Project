@@ -795,7 +795,7 @@ class _SectionEmptyState extends StatelessWidget {
 }
 
 class _EngagementSection extends StatelessWidget {
-  _EngagementSection({
+  const _EngagementSection({
     required this.activeTabIndex,
     required this.onTabChanged,
     required this.stakeholders,
@@ -1336,7 +1336,7 @@ class _DropdownCell extends StatelessWidget {
     final resolvedValue = options.contains(value) ? value : options.first;
     return DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
-      value: resolvedValue,
+      initialValue: resolvedValue,
       items: options
           .map((option) => DropdownMenuItem(value: option, child: Text(option, style: const TextStyle(fontSize: 13))))
           .toList(),

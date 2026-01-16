@@ -7772,13 +7772,15 @@ class _ContractDocumentData {
     Icons.description_outlined.codePoint: Icons.description_outlined,
     Icons.picture_as_pdf_outlined.codePoint: Icons.picture_as_pdf_outlined,
     Icons.table_chart_outlined.codePoint: Icons.table_chart_outlined,
-    Icons.insert_drive_file_outlined.codePoint: Icons.insert_drive_file_outlined,
+    Icons.insert_drive_file_outlined.codePoint:
+        Icons.insert_drive_file_outlined,
     Icons.folder_outlined.codePoint: Icons.folder_outlined,
     Icons.assignment_outlined.codePoint: Icons.assignment_outlined,
   };
 
   factory _ContractDocumentData.fromJson(Map<String, dynamic> json) {
-    final codePoint = (json['iconCodePoint'] ?? Icons.description_outlined.codePoint) as int;
+    final codePoint =
+        (json['iconCodePoint'] ?? Icons.description_outlined.codePoint) as int;
     return _ContractDocumentData(
       title: (json['title'] ?? '').toString(),
       details: (json['details'] ?? '').toString(),

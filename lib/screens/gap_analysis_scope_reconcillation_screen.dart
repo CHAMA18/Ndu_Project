@@ -22,19 +22,27 @@ class GapAnalysisScopeReconcillationScreen extends StatefulWidget {
 
   final String activeItemLabel;
 
-  static void open(BuildContext context, {String activeItemLabel = 'Gap Analysis And Scope Reconcillation'}) {
+  static void open(BuildContext context,
+      {String activeItemLabel = 'Gap Analysis And Scope Reconcillation'}) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => GapAnalysisScopeReconcillationScreen(activeItemLabel: activeItemLabel)),
+      MaterialPageRoute(
+          builder: (_) => GapAnalysisScopeReconcillationScreen(
+              activeItemLabel: activeItemLabel)),
     );
   }
 
   @override
-  State<GapAnalysisScopeReconcillationScreen> createState() => _GapAnalysisScopeReconcillationScreenState();
+  State<GapAnalysisScopeReconcillationScreen> createState() =>
+      _GapAnalysisScopeReconcillationScreenState();
 }
 
-class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeReconcillationScreen> {
+class _GapAnalysisScopeReconcillationScreenState
+    extends State<GapAnalysisScopeReconcillationScreen> {
   final Set<String> _selectedFocusFilters = {'Gap register'};
-  final Set<String> _selectedVisibilityFilters = {'Scope baseline', 'Mitigation backlog'};
+  final Set<String> _selectedVisibilityFilters = {
+    'Scope baseline',
+    'Mitigation backlog'
+  };
   final List<_GapEntry> _gapEntries = [];
   final List<_RootCauseItem> _rootCauseThemes = [];
   final List<_RootCauseItem> _mitigationConfidence = [];
@@ -74,13 +82,15 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-                  child: InitiationLikeSidebar(activeItemLabel: widget.activeItemLabel),
+              child: InitiationLikeSidebar(
+                  activeItemLabel: widget.activeItemLabel),
             ),
             Expanded(
               child: Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 28),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 28),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -144,7 +154,8 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
                           backLabel: 'Back: Scope Completion',
                           nextLabel: 'Next: Deliver Project',
                           onBack: () => ScopeCompletionScreen.open(context),
-                          onNext: () => DeliverProjectClosureScreen.open(context),
+                          onNext: () =>
+                              DeliverProjectClosureScreen.open(context),
                         ),
                         const SizedBox(height: 48),
                       ],
@@ -182,12 +193,14 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
             [];
         final rootCauses = (data['rootCauseThemes'] as List?)
                 ?.whereType<Map>()
-                .map((e) => _RootCauseItem.fromJson(Map<String, dynamic>.from(e)))
+                .map((e) =>
+                    _RootCauseItem.fromJson(Map<String, dynamic>.from(e)))
                 .toList() ??
             [];
         final mitigation = (data['mitigationConfidence'] as List?)
                 ?.whereType<Map>()
-                .map((e) => _RootCauseItem.fromJson(Map<String, dynamic>.from(e)))
+                .map((e) =>
+                    _RootCauseItem.fromJson(Map<String, dynamic>.from(e)))
                 .toList() ??
             [];
         final plans = (data['reconciliationPlans'] as List?)
@@ -202,7 +215,8 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
             [];
         final workflow = (data['reconciliationWorkflow'] as List?)
                 ?.whereType<Map>()
-                .map((e) => _WorkflowStep.fromJson(Map<String, dynamic>.from(e)))
+                .map(
+                    (e) => _WorkflowStep.fromJson(Map<String, dynamic>.from(e)))
                 .toList() ??
             [];
         final lessons = (data['lessonsLearned'] as List?)
@@ -236,7 +250,9 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
         });
       }
       _loadedEntries = true;
-      if (_impactRows.isEmpty && _workflowSteps.isEmpty && _lessonsLearned.isEmpty) {
+      if (_impactRows.isEmpty &&
+          _workflowSteps.isEmpty &&
+          _lessonsLearned.isEmpty) {
         await _populateFromAi();
       }
     } catch (error) {
@@ -247,7 +263,8 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
   Future<void> _populateFromAi() async {
     if (_aiGenerated || _isGenerating) return;
     final projectData = ProjectDataHelper.getData(context);
-    final contextText = ProjectDataHelper.buildFepContext(projectData, sectionLabel: 'Gap Analysis & Scope Reconciliation');
+    final contextText = ProjectDataHelper.buildFepContext(projectData,
+        sectionLabel: 'Gap Analysis & Scope Reconciliation');
     if (contextText.trim().isEmpty) return;
 
     setState(() => _isGenerating = true);
@@ -267,7 +284,9 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
     }
 
     if (!mounted) return;
-    if (_impactRows.isNotEmpty || _workflowSteps.isNotEmpty || _lessonsLearned.isNotEmpty) {
+    if (_impactRows.isNotEmpty ||
+        _workflowSteps.isNotEmpty ||
+        _lessonsLearned.isNotEmpty) {
       setState(() => _isGenerating = false);
       _aiGenerated = true;
       return;
@@ -408,12 +427,18 @@ class _PageHeader extends StatelessWidget {
       children: const [
         Text(
           'Gap Analysis & Scope Reconciliation',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827)),
         ),
         SizedBox(height: 8),
         Text(
           'Assess active scope gaps, align remediation plans, and ensure stakeholders stay synchronized before handover.',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B7280)),
         ),
       ],
     );
@@ -428,10 +453,12 @@ class _InfoStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const chips = [
-      _InfoChipData(label: 'Project', value: 'AI path capacity uplift – Inception'),
+      _InfoChipData(
+          label: 'Project', value: 'AI path capacity uplift – Inception'),
       _InfoChipData(label: 'Track', value: 'Product launch alignment'),
       _InfoChipData(label: 'Delivery stage', value: 'Ready-to-build review'),
-      _InfoChipData(label: 'Refresh cadence', value: 'Weekly · Next sync Thu, 10:00 AM'),
+      _InfoChipData(
+          label: 'Refresh cadence', value: 'Weekly · Next sync Thu, 10:00 AM'),
     ];
 
     return Wrap(
@@ -486,7 +513,10 @@ class _FilterToolbar extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 18, offset: const Offset(0, 10)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -496,7 +526,10 @@ class _FilterToolbar extends StatelessWidget {
             children: [
               const Text(
                 'Focus',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937)),
               ),
               const Spacer(),
               TextButton.icon(
@@ -504,10 +537,12 @@ class _FilterToolbar extends StatelessWidget {
                 icon: const Icon(Icons.video_call_outlined, size: 20),
                 label: const Text('Schedule reconciliation meeting'),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   backgroundColor: const Color(0xFF4154F1),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ],
@@ -523,14 +558,20 @@ class _FilterToolbar extends StatelessWidget {
                     selected: selectedFocusFilters.contains(option),
                     onSelected: (_) => onFocusFilterChanged(option),
                     showCheckmark: false,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     selectedColor: primary.withOpacity(0.12),
                     labelStyle: TextStyle(
-                      color: selectedFocusFilters.contains(option) ? primary : const Color(0xFF374151),
-                      fontWeight: selectedFocusFilters.contains(option) ? FontWeight.w600 : FontWeight.w500,
+                      color: selectedFocusFilters.contains(option)
+                          ? primary
+                          : const Color(0xFF374151),
+                      fontWeight: selectedFocusFilters.contains(option)
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                     ),
                     backgroundColor: const Color(0xFFF3F4F6),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                   ),
                 )
                 .toList(),
@@ -550,12 +591,16 @@ class _FilterToolbar extends StatelessWidget {
                     showCheckmark: false,
                     selectedColor: const Color(0xFFEEF2FF),
                     labelStyle: TextStyle(
-                      color: selectedVisibilityFilters.contains(option) ? const Color(0xFF3730A3) : const Color(0xFF4B5563),
+                      color: selectedVisibilityFilters.contains(option)
+                          ? const Color(0xFF3730A3)
+                          : const Color(0xFF4B5563),
                       fontWeight: FontWeight.w600,
                     ),
                     backgroundColor: const Color(0xFFF9FAFB),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                   ),
                 )
                 .toList(),
@@ -630,7 +675,13 @@ class _SummaryGrid extends StatelessWidget {
     ],
   );
 
-  static const cards = [_healthCard, _gapsCard, _scopeCard, _impactCard, _stakeholderCard];
+  static const cards = [
+    _healthCard,
+    _gapsCard,
+    _scopeCard,
+    _impactCard,
+    _stakeholderCard
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -647,7 +698,8 @@ class _SummaryGrid extends StatelessWidget {
           targetWidth = maxWidth;
         }
 
-        final childWidth = maxWidth < 260 ? maxWidth : targetWidth.clamp(260.0, maxWidth);
+        final childWidth =
+            maxWidth < 260 ? maxWidth : targetWidth.clamp(260.0, maxWidth);
 
         return Wrap(
           spacing: 20,
@@ -682,7 +734,9 @@ class _SummaryCard extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: data.accentColor.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                  color: data.accentColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12)),
               child: Icon(data.icon, color: data.accentColor, size: 22),
             ),
             const Spacer(),
@@ -697,12 +751,16 @@ class _SummaryCard extends StatelessWidget {
                       value: data.progress,
                       strokeWidth: 5,
                       backgroundColor: const Color(0xFFE5E7EB),
-                      valueColor: AlwaysStoppedAnimation<Color>(data.accentColor),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(data.accentColor),
                     ),
                     Center(
                       child: Text(
                         '${(data.progress! * 100).round()}%',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF111827)),
                       ),
                     ),
                   ],
@@ -713,17 +771,26 @@ class _SummaryCard extends StatelessWidget {
         const SizedBox(height: 20),
         Text(
           data.title,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+          style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937)),
         ),
         const SizedBox(height: 10),
         Text(
           data.headline,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: data.accentColor),
+          style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: data.accentColor),
         ),
         const SizedBox(height: 6),
         Text(
           data.annotation,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B7280)),
         ),
         const SizedBox(height: 14),
         ...data.bullets.map(
@@ -740,7 +807,10 @@ class _SummaryCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     bullet,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF4B5563)),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF4B5563)),
                   ),
                 ),
               ],
@@ -759,7 +829,10 @@ class _SummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 14)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 14)),
         ],
       ),
       child: cardContent,
@@ -913,7 +986,8 @@ class _GapRegisterCard extends StatelessWidget {
     return _SectionShell(
       width: width,
       title: 'Gap register & catalog',
-      subtitle: 'Tracking priority, owner, and mitigation status for each scope gap.',
+      subtitle:
+          'Tracking priority, owner, and mitigation status for each scope gap.',
       trailing: TextButton.icon(
         onPressed: _addEntry,
         icon: const Icon(Icons.add_circle_outline),
@@ -926,10 +1000,18 @@ class _GapRegisterCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _Pill(label: 'Critical · ${counts['Critical'] ?? 0}', color: const Color(0xFFDC2626)),
-              _Pill(label: 'Moderate · ${counts['Moderate'] ?? 0}', color: const Color(0xFFF97316)),
-              _Pill(label: 'Low · ${counts['Low'] ?? 0}', color: const Color(0xFF059669)),
-              _Pill(label: 'Resolved · ${counts['Resolved'] ?? 0}', color: const Color(0xFF2563EB)),
+              _Pill(
+                  label: 'Critical · ${counts['Critical'] ?? 0}',
+                  color: const Color(0xFFDC2626)),
+              _Pill(
+                  label: 'Moderate · ${counts['Moderate'] ?? 0}',
+                  color: const Color(0xFFF97316)),
+              _Pill(
+                  label: 'Low · ${counts['Low'] ?? 0}',
+                  color: const Color(0xFF059669)),
+              _Pill(
+                  label: 'Resolved · ${counts['Resolved'] ?? 0}',
+                  color: const Color(0xFF2563EB)),
             ],
           ),
           const SizedBox(height: 18),
@@ -986,7 +1068,8 @@ class _GapRegisterCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 0.9)),
+        border:
+            Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 0.9)),
       ),
       child: Row(
         children: [
@@ -1003,8 +1086,7 @@ class _GapRegisterCard extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF6B7280)),
-                  onChanged: (value) =>
-                      _updateEntry(entry.copyWith(id: value)),
+                  onChanged: (value) => _updateEntry(entry.copyWith(id: value)),
                 ),
                 const SizedBox(height: 6),
                 TextFormField(
@@ -1021,7 +1103,7 @@ class _GapRegisterCard extends StatelessWidget {
           Expanded(
             flex: 1,
             child: DropdownButtonFormField<String>(
-              value: _priorityOptions.contains(entry.stage)
+              initialValue: _priorityOptions.contains(entry.stage)
                   ? entry.stage
                   : _priorityOptions.first,
               decoration: _inputDecoration('Priority', dense: true),
@@ -1042,8 +1124,7 @@ class _GapRegisterCard extends StatelessWidget {
               key: ValueKey('gap-owner-${entry.uid}'),
               initialValue: entry.owner,
               decoration: _inputDecoration('Owner'),
-              onChanged: (value) =>
-                  _updateEntry(entry.copyWith(owner: value)),
+              onChanged: (value) => _updateEntry(entry.copyWith(owner: value)),
             ),
           ),
           const SizedBox(width: 12),
@@ -1207,8 +1288,8 @@ class _ReconciliationPlanningCard extends StatelessWidget {
               child: Column(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 14),
                     decoration: const BoxDecoration(
                       color: Color(0xFFF9FAFB),
                       borderRadius:
@@ -1238,7 +1319,8 @@ class _ReconciliationPlanningCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 0.9)),
+        border:
+            Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 0.9)),
       ),
       child: Row(
         children: [
@@ -1275,7 +1357,7 @@ class _ReconciliationPlanningCard extends StatelessWidget {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: _statusOptions.contains(plan.status)
+              initialValue: _statusOptions.contains(plan.status)
                   ? plan.status
                   : _statusOptions.first,
               decoration: _inputDecoration('Status', dense: true),
@@ -1315,8 +1397,7 @@ class _ReconciliationPlanningCard extends StatelessWidget {
 
   void _updatePlan(_PlanEntry updatedPlan) {
     final updated = [
-      for (final plan in plans)
-        plan.id == updatedPlan.id ? updatedPlan : plan
+      for (final plan in plans) plan.id == updatedPlan.id ? updatedPlan : plan
     ];
     onPlansUpdated(updated);
   }
@@ -1349,7 +1430,8 @@ class _ImpactAssessmentCard extends StatelessWidget {
     return _SectionShell(
       width: width,
       title: 'Impact assessment results',
-      subtitle: 'Evaluate schedule, cost, quality, and adoption exposure for unresolved gaps.',
+      subtitle:
+          'Evaluate schedule, cost, quality, and adoption exposure for unresolved gaps.',
       trailing: TextButton.icon(
         onPressed: () {
           showDialog<void>(
@@ -1377,7 +1459,8 @@ class _ImpactAssessmentCard extends StatelessWidget {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   child: Row(
                     children: const [
                       Expanded(
@@ -1420,7 +1503,8 @@ class _ImpactAssessmentCard extends StatelessWidget {
                 if (impacts.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                    child: _EmptyPanel(label: 'No impact assessment items yet.'),
+                    child:
+                        _EmptyPanel(label: 'No impact assessment items yet.'),
                   )
                 else
                   ...impacts.map(_buildImpactRow),
@@ -1474,7 +1558,7 @@ class _ImpactAssessmentCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _ratingOptions.contains(impact.rating)
+              initialValue: _ratingOptions.contains(impact.rating)
                   ? impact.rating
                   : _ratingOptions.first,
               decoration: _inputDecoration('Rating', dense: true),
@@ -1491,7 +1575,7 @@ class _ImpactAssessmentCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _trendOptions.contains(impact.trend)
+              initialValue: _trendOptions.contains(impact.trend)
                   ? impact.trend
                   : _trendOptions.first,
               decoration: _inputDecoration('Trend', dense: true),
@@ -1621,7 +1705,10 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
             children: [
               const Text(
                 'Scenario Matrix',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827)),
               ),
               Text(
                 'Synthesized from your gap register, impact ratings, and plan milestones.',
@@ -1630,14 +1717,16 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
             ],
           ),
         ),
-  Container(
+        Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: Text('$totalCount scenarios', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          child: Text('$totalCount scenarios',
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ),
         const SizedBox(width: 8),
         IconButton(
@@ -1657,7 +1746,8 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
     );
   }
 
-  Future<void> _openEditDialog(BuildContext context, {ScenarioRecord? record, List<ScenarioRecord>? currentList}) async {
+  Future<void> _openEditDialog(BuildContext context,
+      {ScenarioRecord? record, List<ScenarioRecord>? currentList}) async {
     final id = record?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
     final titleCtrl = TextEditingController(text: record?.title ?? '');
     final detailCtrl = TextEditingController(text: record?.detail ?? '');
@@ -1673,32 +1763,74 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
         content: SingleChildScrollView(
           child: Column(
             children: [
-              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Title')),
+              TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Title')),
               const SizedBox(height: 8),
-              TextField(controller: detailCtrl, decoration: const InputDecoration(labelText: 'Detail')),
+              TextField(
+                  controller: detailCtrl,
+                  decoration: const InputDecoration(labelText: 'Detail')),
               const SizedBox(height: 8),
-              TextField(onChanged: (v) => owner = v, controller: TextEditingController(text: owner), decoration: const InputDecoration(labelText: 'Owner')),
+              TextField(
+                  onChanged: (v) => owner = v,
+                  controller: TextEditingController(text: owner),
+                  decoration: const InputDecoration(labelText: 'Owner')),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(initialValue: category, items: ['Custom', 'Impact', 'Gap', 'Plan'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: (v) => category = v ?? 'Custom', decoration: const InputDecoration(labelText: 'Category')),
+              DropdownButtonFormField<String>(
+                  initialValue: category,
+                  items: ['Custom', 'Impact', 'Gap', 'Plan']
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => category = v ?? 'Custom',
+                  decoration: const InputDecoration(labelText: 'Category')),
               const SizedBox(height: 8),
               Row(children: [
-                Expanded(child: DropdownButtonFormField<int>(initialValue: severity, items: [1, 2, 3].map((i) => DropdownMenuItem(value: i, child: Text('Severity $i'))).toList(), onChanged: (v) => severity = v ?? 2, decoration: const InputDecoration(labelText: 'Severity'))),
+                Expanded(
+                    child: DropdownButtonFormField<int>(
+                        initialValue: severity,
+                        items: [1, 2, 3]
+                            .map((i) => DropdownMenuItem(
+                                value: i, child: Text('Severity $i')))
+                            .toList(),
+                        onChanged: (v) => severity = v ?? 2,
+                        decoration:
+                            const InputDecoration(labelText: 'Severity'))),
                 const SizedBox(width: 8),
-                Expanded(child: DropdownButtonFormField<int>(initialValue: likelihood, items: [1, 2, 3].map((i) => DropdownMenuItem(value: i, child: Text('Likelihood $i'))).toList(), onChanged: (v) => likelihood = v ?? 2, decoration: const InputDecoration(labelText: 'Likelihood'))),
+                Expanded(
+                    child: DropdownButtonFormField<int>(
+                        initialValue: likelihood,
+                        items: [1, 2, 3]
+                            .map((i) => DropdownMenuItem(
+                                value: i, child: Text('Likelihood $i')))
+                            .toList(),
+                        onChanged: (v) => likelihood = v ?? 2,
+                        decoration:
+                            const InputDecoration(labelText: 'Likelihood'))),
               ])
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Save')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Save')),
         ],
       ),
     );
 
     if (saved != true) return;
 
-    final newRecord = ScenarioRecord(id: id, title: titleCtrl.text.trim(), detail: detailCtrl.text.trim(), category: category, owner: owner, severity: severity, likelihood: likelihood);
+    final newRecord = ScenarioRecord(
+        id: id,
+        title: titleCtrl.text.trim(),
+        detail: detailCtrl.text.trim(),
+        category: category,
+        owner: owner,
+        severity: severity,
+        likelihood: likelihood);
     // update provider
     await ProjectDataHelper.updateAndSave(
       context: context,
@@ -1724,7 +1856,10 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
           technicalDebtRootCauses: fep.technicalDebtRootCauses,
           technicalDebtTracks: fep.technicalDebtTracks,
           technicalDebtOwners: fep.technicalDebtOwners,
-          scenarioMatrixItems: [...fep.scenarioMatrixItems.where((s) => s.id != id), newRecord],
+          scenarioMatrixItems: [
+            ...fep.scenarioMatrixItems.where((s) => s.id != id),
+            newRecord
+          ],
         );
         return current.copyWith(frontEndPlanning: updated);
       },
@@ -1744,10 +1879,18 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
               prefixIcon: const Icon(Icons.search, size: 20),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF4338CA), width: 1.6)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF4338CA), width: 1.6)),
             ),
           ),
         ),
@@ -1778,7 +1921,9 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                 color: selected ? Colors.white : const Color(0xFF475569),
                 fontWeight: FontWeight.w600,
               ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999), side: const BorderSide(color: Color(0xFFE2E8F0))),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  side: const BorderSide(color: Color(0xFFE2E8F0))),
             );
           }).toList(),
         ),
@@ -1788,7 +1933,11 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
 
   Widget _buildMatrix(List<_ScenarioPoint> scenarios) {
     final grouped = _groupByCell(scenarios);
-    const likelihoodLabels = ['Low likelihood', 'Medium likelihood', 'High likelihood'];
+    const likelihoodLabels = [
+      'Low likelihood',
+      'Medium likelihood',
+      'High likelihood'
+    ];
     const impactLabels = ['Low impact', 'Medium impact', 'High impact'];
 
     return Column(
@@ -1813,13 +1962,17 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                 Expanded(
                   child: Row(
                     children: [
-                      SizedBox(width: 110, child: _AxisHeader(label: impactLabels[row], isVertical: true)),
+                      SizedBox(
+                          width: 110,
+                          child: _AxisHeader(
+                              label: impactLabels[row], isVertical: true)),
                       for (int col = 0; col < 3; col++)
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(6),
                             child: _MatrixCell(
-                              scenarios: grouped[_cellKey(row, col)] ?? const [],
+                              scenarios:
+                                  grouped[_cellKey(row, col)] ?? const [],
                               tone: _cellTone(row, col),
                             ),
                           ),
@@ -1835,8 +1988,17 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
   }
 
   Widget _buildInsightsPanel(List<_ScenarioPoint> scenarios) {
-  final persisted = ProjectDataHelper.getData(context).frontEndPlanning.scenarioMatrixItems.map((r) {
-      return _ScenarioPoint(title: r.title, detail: r.detail, category: r.category, owner: r.owner, severity: r.severity, likelihood: r.likelihood);
+    final persisted = ProjectDataHelper.getData(context)
+        .frontEndPlanning
+        .scenarioMatrixItems
+        .map((r) {
+      return _ScenarioPoint(
+          title: r.title,
+          detail: r.detail,
+          category: r.category,
+          owner: r.owner,
+          severity: r.severity,
+          likelihood: r.likelihood);
     }).toList();
 
     final merged = [...scenarios, ...persisted];
@@ -1852,17 +2014,34 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Priority scenarios', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const Text('Priority scenarios',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text('Highest impact and likelihood combinations based on your inputs.',
+          Text(
+              'Highest impact and likelihood combinations based on your inputs.',
               style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const SizedBox(height: 16),
           if (topThree.isEmpty)
-            const Text('No scenarios match the current filters.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))
+            const Text('No scenarios match the current filters.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))
           else
             ...topThree.map((scenario) {
               // locate persisted record id if any
-              final match = ProjectDataHelper.getData(context).frontEndPlanning.scenarioMatrixItems.firstWhere((r) => r.title == scenario.title && r.detail == scenario.detail, orElse: () => ScenarioRecord(id: '', title: '', detail: '', category: '', owner: '', severity: 2, likelihood: 2));
+              final match = ProjectDataHelper.getData(context)
+                  .frontEndPlanning
+                  .scenarioMatrixItems
+                  .firstWhere(
+                      (r) =>
+                          r.title == scenario.title &&
+                          r.detail == scenario.detail,
+                      orElse: () => ScenarioRecord(
+                          id: '',
+                          title: '',
+                          detail: '',
+                          category: '',
+                          owner: '',
+                          severity: 2,
+                          likelihood: 2));
               final isPersisted = match.id.isNotEmpty;
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -1878,7 +2057,9 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(scenario.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                          child: Text(scenario.title,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w700)),
                         ),
                         _ScorePill(score: scenario.score),
                         const SizedBox(width: 8),
@@ -1886,7 +2067,10 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                           IconButton(
                             tooltip: 'Edit',
                             onPressed: () {
-                              final rec = ProjectDataHelper.getData(context).frontEndPlanning.scenarioMatrixItems.firstWhere((r) => r.id == match.id);
+                              final rec = ProjectDataHelper.getData(context)
+                                  .frontEndPlanning
+                                  .scenarioMatrixItems
+                                  .firstWhere((r) => r.id == match.id);
                               _openEditDialog(context, record: rec);
                             },
                             icon: const Icon(Icons.edit, size: 18),
@@ -1895,33 +2079,64 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                           IconButton(
                             tooltip: 'Delete',
                             onPressed: () async {
-                              final confirmed = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Delete scenario?'), content: const Text('This will remove the scenario from the project.'), actions: [TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete'))]));
+                              final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                          title: const Text('Delete scenario?'),
+                                          content: const Text(
+                                              'This will remove the scenario from the project.'),
+                                          actions: [
+                                            TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(false),
+                                                child: const Text('Cancel')),
+                                            ElevatedButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(true),
+                                                child: const Text('Delete'))
+                                          ]));
                               if (confirmed == true) {
-                                await ProjectDataHelper.updateAndSave(context: context, checkpoint: 'gap_analysis_scope_reconcillation', dataUpdater: (current) {
-                                  final fep = current.frontEndPlanning;
-                                  final updated = FrontEndPlanningData(
-                                    requirements: fep.requirements,
-                                    requirementsNotes: fep.requirementsNotes,
-                                    risks: fep.risks,
-                                    opportunities: fep.opportunities,
-                                    contractVendorQuotes: fep.contractVendorQuotes,
-                                    procurement: fep.procurement,
-                                    security: fep.security,
-                                    allowance: fep.allowance,
-                                    summary: fep.summary,
-                                    technology: fep.technology,
-                                    personnel: fep.personnel,
-                                    infrastructure: fep.infrastructure,
-                                    contracts: fep.contracts,
-                                    requirementItems: fep.requirementItems,
-                                    technicalDebtItems: fep.technicalDebtItems,
-                                    technicalDebtRootCauses: fep.technicalDebtRootCauses,
-                                    technicalDebtTracks: fep.technicalDebtTracks,
-                                    technicalDebtOwners: fep.technicalDebtOwners,
-                                    scenarioMatrixItems: fep.scenarioMatrixItems.where((s) => s.id != match.id).toList(),
-                                  );
-                                  return current.copyWith(frontEndPlanning: updated);
-                                });
+                                await ProjectDataHelper.updateAndSave(
+                                    context: context,
+                                    checkpoint:
+                                        'gap_analysis_scope_reconcillation',
+                                    dataUpdater: (current) {
+                                      final fep = current.frontEndPlanning;
+                                      final updated = FrontEndPlanningData(
+                                        requirements: fep.requirements,
+                                        requirementsNotes:
+                                            fep.requirementsNotes,
+                                        risks: fep.risks,
+                                        opportunities: fep.opportunities,
+                                        contractVendorQuotes:
+                                            fep.contractVendorQuotes,
+                                        procurement: fep.procurement,
+                                        security: fep.security,
+                                        allowance: fep.allowance,
+                                        summary: fep.summary,
+                                        technology: fep.technology,
+                                        personnel: fep.personnel,
+                                        infrastructure: fep.infrastructure,
+                                        contracts: fep.contracts,
+                                        requirementItems: fep.requirementItems,
+                                        technicalDebtItems:
+                                            fep.technicalDebtItems,
+                                        technicalDebtRootCauses:
+                                            fep.technicalDebtRootCauses,
+                                        technicalDebtTracks:
+                                            fep.technicalDebtTracks,
+                                        technicalDebtOwners:
+                                            fep.technicalDebtOwners,
+                                        scenarioMatrixItems: fep
+                                            .scenarioMatrixItems
+                                            .where((s) => s.id != match.id)
+                                            .toList(),
+                                      );
+                                      return current.copyWith(
+                                          frontEndPlanning: updated);
+                                    });
                                 setState(() {});
                               }
                             },
@@ -1930,7 +2145,9 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(scenario.detail, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                    Text(scenario.detail,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF475569))),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -1951,7 +2168,8 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF111827),
               side: const BorderSide(color: Color(0xFFE2E8F0)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             ),
           ),
@@ -2010,7 +2228,8 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
   List<_ScenarioPoint> _filterScenarios(List<_ScenarioPoint> scenarios) {
     final query = _searchController.text.trim().toLowerCase();
     return scenarios.where((scenario) {
-      final matchesCategory = _categoryFilters.contains('All') || _categoryFilters.contains(scenario.category);
+      final matchesCategory = _categoryFilters.contains('All') ||
+          _categoryFilters.contains(scenario.category);
       final matchesQuery = query.isEmpty ||
           scenario.title.toLowerCase().contains(query) ||
           scenario.detail.toLowerCase().contains(query) ||
@@ -2019,7 +2238,8 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
     }).toList();
   }
 
-  Map<String, List<_ScenarioPoint>> _groupByCell(List<_ScenarioPoint> scenarios) {
+  Map<String, List<_ScenarioPoint>> _groupByCell(
+      List<_ScenarioPoint> scenarios) {
     final map = <String, List<_ScenarioPoint>>{};
     for (final scenario in scenarios) {
       final key = _cellKey(scenario.severity - 1, scenario.likelihood - 1);
@@ -2093,7 +2313,8 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
     }
   }
 
-  String _cellKey(int severityIndex, int likelihoodIndex) => '$severityIndex-$likelihoodIndex';
+  String _cellKey(int severityIndex, int likelihoodIndex) =>
+      '$severityIndex-$likelihoodIndex';
 
   Color _cellTone(int severityIndex, int likelihoodIndex) {
     final score = (severityIndex + 1) * (likelihoodIndex + 1);
@@ -2143,16 +2364,26 @@ class _MatrixCell extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('${scenarios.length} scenario${scenarios.length == 1 ? '' : 's'}',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1F2937))),
+              Text(
+                  '${scenarios.length} scenario${scenarios.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1F2937))),
               const Spacer(),
-              if (scenarios.isNotEmpty) _ScorePill(score: scenarios.map((s) => s.score).reduce((a, b) => a > b ? a : b)),
+              if (scenarios.isNotEmpty)
+                _ScorePill(
+                    score: scenarios
+                        .map((s) => s.score)
+                        .reduce((a, b) => a > b ? a : b)),
             ],
           ),
           const SizedBox(height: 8),
           Expanded(
             child: scenarios.isEmpty
-                ? const Center(child: Text('—', style: TextStyle(color: Color(0xFF94A3B8))))
+                ? const Center(
+                    child:
+                        Text('—', style: TextStyle(color: Color(0xFF94A3B8))))
                 : ListView.separated(
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: scenarios.length.clamp(0, 3),
@@ -2160,7 +2391,8 @@ class _MatrixCell extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final scenario = scenarios[index];
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(10),
@@ -2172,7 +2404,10 @@ class _MatrixCell extends StatelessWidget {
                                 scenario.title,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1F2937)),
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -2207,7 +2442,10 @@ class _AxisHeader extends StatelessWidget {
       child: Text(
         label,
         textAlign: isVertical ? TextAlign.right : TextAlign.center,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+        style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF475569)),
       ),
     );
   }
@@ -2234,7 +2472,9 @@ class _ScorePill extends StatelessWidget {
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text('Score $score', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+      child: Text('Score $score',
+          style: TextStyle(
+              fontSize: 10, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }
@@ -2252,7 +2492,11 @@ class _Tag extends StatelessWidget {
         color: const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+      child: Text(label,
+          style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF475569))),
     );
   }
 }
@@ -2269,10 +2513,12 @@ class _ReconciliationWorkflowCard extends StatefulWidget {
   final ValueChanged<List<_WorkflowStep>> onWorkflowUpdated;
 
   @override
-  State<_ReconciliationWorkflowCard> createState() => _ReconciliationWorkflowCardState();
+  State<_ReconciliationWorkflowCard> createState() =>
+      _ReconciliationWorkflowCardState();
 }
 
-class _ReconciliationWorkflowCardState extends State<_ReconciliationWorkflowCard> {
+class _ReconciliationWorkflowCardState
+    extends State<_ReconciliationWorkflowCard> {
   static const _columns = [
     _WorkflowBoardColumnConfig(
       keyName: 'planned',
@@ -2363,7 +2609,7 @@ class _ReconciliationWorkflowCardState extends State<_ReconciliationWorkflowCard
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   items: _columns
                       .map((col) => DropdownMenuItem<String>(
                             value: col.label,
@@ -2426,7 +2672,8 @@ class _ReconciliationWorkflowCardState extends State<_ReconciliationWorkflowCard
     return _SectionShell(
       width: widget.width,
       title: 'Reconciliation workflow & backlog',
-      subtitle: 'Track the lifecycle of gap discovery through launch readiness.',
+      subtitle:
+          'Track the lifecycle of gap discovery through launch readiness.',
       trailing: TextButton.icon(
         onPressed: () {},
         icon: const Icon(Icons.view_kanban_outlined),
@@ -2440,14 +2687,18 @@ class _ReconciliationWorkflowCardState extends State<_ReconciliationWorkflowCard
           if (widget.steps.isNotEmpty) ...[
             const Text(
               'Open workflow board',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827)),
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 16,
               runSpacing: 16,
               children: _columns.map((column) {
-                final items = _grouped[column.keyName] ?? const <_WorkflowStep>[];
+                final items =
+                    _grouped[column.keyName] ?? const <_WorkflowStep>[];
                 return SizedBox(
                   width: isMobile ? double.infinity : 260,
                   child: _WorkflowBoardColumn(
@@ -2466,11 +2717,14 @@ class _ReconciliationWorkflowCardState extends State<_ReconciliationWorkflowCard
                           status: column.label,
                           description: step.description,
                         );
-                        _grouped.putIfAbsent(column.keyName, () => []).add(updated);
+                        _grouped
+                            .putIfAbsent(column.keyName, () => [])
+                            .add(updated);
                       });
                       final updatedList = <_WorkflowStep>[];
                       for (final column in _columns) {
-                        updatedList.addAll(_grouped[column.keyName] ?? const []);
+                        updatedList
+                            .addAll(_grouped[column.keyName] ?? const []);
                       }
                       widget.onWorkflowUpdated(updatedList);
                     },
@@ -2484,7 +2738,8 @@ class _ReconciliationWorkflowCardState extends State<_ReconciliationWorkflowCard
                       });
                       final updatedList = <_WorkflowStep>[];
                       for (final column in _columns) {
-                        updatedList.addAll(_grouped[column.keyName] ?? const []);
+                        updatedList
+                            .addAll(_grouped[column.keyName] ?? const []);
                       }
                       widget.onWorkflowUpdated(updatedList);
                     },
@@ -2538,17 +2793,19 @@ class _WorkflowBoardColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DragTarget<_WorkflowStep>(
-      onWillAccept: (data) => data != null,
-      onAccept: onAccept,
+      onWillAcceptWithDetails: (data) => data != null,
+      onAcceptWithDetails: (details) => onAccept(details.data),
       builder: (context, candidateData, rejectedData) {
         final isActive = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: isActive ? accent.withOpacity(0.08) : const Color(0xFFF8FAFC),
+            color:
+                isActive ? accent.withOpacity(0.08) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isActive ? accent : const Color(0xFFE5E7EB)),
+            border:
+                Border.all(color: isActive ? accent : const Color(0xFFE5E7EB)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2558,23 +2815,31 @@ class _WorkflowBoardColumn extends StatelessWidget {
                   Container(
                     width: 8,
                     height: 8,
-                    decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                    decoration:
+                        BoxDecoration(color: accent, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827)),
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: accent.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       '${items.length}',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accent),
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: accent),
                     ),
                   ),
                 ],
@@ -2663,7 +2928,8 @@ class _WorkflowBoardCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -2674,12 +2940,16 @@ class _WorkflowBoardCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827)),
                 ),
               ),
               IconButton(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                icon: const Icon(Icons.delete_outline,
+                    size: 16, color: Color(0xFFEF4444)),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 splashRadius: 18,
@@ -2698,7 +2968,8 @@ class _WorkflowBoardCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             description,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563), height: 1.35),
+            style: const TextStyle(
+                fontSize: 12, color: Color(0xFF4B5563), height: 1.35),
           ),
         ],
       ),
@@ -2722,7 +2993,8 @@ class _LessonsLearnedCard extends StatelessWidget {
     return _SectionShell(
       width: width,
       title: 'Lessons learned & prevention',
-      subtitle: 'Document leading indicators and preventative practices for future launches.',
+      subtitle:
+          'Document leading indicators and preventative practices for future launches.',
       trailing: TextButton.icon(
         onPressed: () {},
         icon: const Icon(Icons.history_edu_outlined),
@@ -2815,7 +3087,10 @@ class _EmptyPanel extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF6B7280)),
             ),
           ),
         ],
@@ -2853,12 +3128,18 @@ class _SectionShell extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827)),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF6B7280)),
                   ),
                 ],
               ),
@@ -2884,7 +3165,10 @@ class _SectionShell extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 12)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 12)),
         ],
       ),
       child: content,
@@ -2907,7 +3191,10 @@ class _InfoChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 14, offset: const Offset(0, 12)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 12)),
         ],
       ),
       child: Column(
@@ -2915,12 +3202,18 @@ class _InfoChip extends StatelessWidget {
         children: [
           Text(
             data.label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 6),
           Text(
             data.value,
-            style: TextStyle(fontSize: isCompact ? 13 : 14, fontWeight: FontWeight.w600, color: const Color(0xFF1F2937)),
+            style: TextStyle(
+                fontSize: isCompact ? 13 : 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1F2937)),
           ),
         ],
       ),
@@ -2940,12 +3233,18 @@ class _GapTitleCell extends StatelessWidget {
       children: [
         Text(
           entry.id,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280)),
         ),
         const SizedBox(height: 4),
         Text(
           entry.title,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937)),
         ),
       ],
     );
@@ -2987,10 +3286,12 @@ class _PriorityBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: _badgeColor(), borderRadius: BorderRadius.circular(30)),
+      decoration: BoxDecoration(
+          color: _badgeColor(), borderRadius: BorderRadius.circular(30)),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _textColor()),
+        style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w700, color: _textColor()),
       ),
     );
   }
@@ -3027,10 +3328,13 @@ class _StatusBadge extends StatelessWidget {
     final color = _statusColor();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(30)),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(30)),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+        style:
+            TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }
@@ -3059,19 +3363,24 @@ class _TrendPill extends StatelessWidget {
     final color = _trendColor();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(30)),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(30)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            label.toLowerCase() == 'needs attention' ? Icons.warning_amber_outlined : Icons.trending_up,
+            label.toLowerCase() == 'needs attention'
+                ? Icons.warning_amber_outlined
+                : Icons.trending_up,
             size: 16,
             color: color,
           ),
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700, color: color),
           ),
         ],
       ),
@@ -3161,15 +3470,15 @@ class _EditableInsightBlock extends StatelessWidget {
   void _addItem() {
     final updated = [
       ...items,
-      _RootCauseItem(id: DateTime.now().microsecondsSinceEpoch.toString(), text: ''),
+      _RootCauseItem(
+          id: DateTime.now().microsecondsSinceEpoch.toString(), text: ''),
     ];
     onUpdated(updated);
   }
 
   void _updateItem(_RootCauseItem updatedItem) {
     final updated = [
-      for (final item in items)
-        item.id == updatedItem.id ? updatedItem : item
+      for (final item in items) item.id == updatedItem.id ? updatedItem : item
     ];
     onUpdated(updated);
   }
@@ -3191,7 +3500,11 @@ class _TableHeaderCell extends StatelessWidget {
       flex: flex,
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280), letterSpacing: 0.3),
+        style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6B7280),
+            letterSpacing: 0.3),
       ),
     );
   }
@@ -3207,10 +3520,13 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16)),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+        style:
+            TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }
@@ -3452,7 +3768,8 @@ class _RootCauseItem {
 }
 
 class _WorkflowStep {
-  const _WorkflowStep({required this.label, required this.status, required this.description});
+  const _WorkflowStep(
+      {required this.label, required this.status, required this.description});
 
   final String label;
   final String status;
@@ -3479,7 +3796,8 @@ class _WorkflowStep {
     return _WorkflowStep(
       label: label,
       status: status.isEmpty ? 'Planned' : status,
-      description: description.isEmpty ? 'Define workflow details.' : description,
+      description:
+          description.isEmpty ? 'Define workflow details.' : description,
     );
   }
 }
@@ -3510,7 +3828,8 @@ InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
 }
 
 class _Debouncer {
-  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 600);
+  _Debouncer({Duration? delay})
+      : delay = delay ?? const Duration(milliseconds: 600);
 
   final Duration delay;
   Timer? _timer;

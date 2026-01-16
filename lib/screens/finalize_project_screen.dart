@@ -368,7 +368,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
               SizedBox(
                 width: 160,
                 child: DropdownButtonFormField<String>(
-                  value: _finalizationStatus,
+                  initialValue: _finalizationStatus,
                   decoration:
                       _heroInputDecoration('Status', filledColor: Colors.white),
                   items: _finalizationStatuses
@@ -611,7 +611,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: item.status,
+              initialValue: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _checklistStatuses
                   .map((status) =>
@@ -703,7 +703,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: item.status,
+              initialValue: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _signOffStatuses
                   .map((status) =>

@@ -624,7 +624,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: item.status,
+              initialValue: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _workStatuses
                   .map((status) =>
@@ -640,7 +640,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: item.impact,
+              initialValue: item.impact,
               decoration: _inputDecoration('Impact', dense: true),
               items: _impactLevels
                   .map((impact) =>
@@ -793,7 +793,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: item.status,
+              initialValue: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _checkpointStatuses
                   .map((status) =>

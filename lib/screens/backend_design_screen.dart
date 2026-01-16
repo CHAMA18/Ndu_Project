@@ -19,8 +19,10 @@ class BackendDesignScreen extends StatefulWidget {
 }
 
 class _BackendDesignScreenState extends State<BackendDesignScreen> {
-  final TextEditingController _architectureSummaryController = TextEditingController();
-  final TextEditingController _databaseSummaryController = TextEditingController();
+  final TextEditingController _architectureSummaryController =
+      TextEditingController();
+  final TextEditingController _databaseSummaryController =
+      TextEditingController();
 
   final List<_ArchitectureComponent> _components = [];
   final List<_ArchitectureDataFlow> _dataFlows = [];
@@ -32,10 +34,33 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   bool _isLoading = false;
   bool _suspendSave = false;
 
-  final List<String> _componentTypes = const ['Client', 'Service', 'Data store', 'Integration', 'Queue', 'Analytics'];
-  final List<String> _componentStatuses = const ['Planned', 'In progress', 'Live', 'Deprecated'];
-  final List<String> _protocolOptions = const ['HTTP', 'gRPC', 'Event', 'Batch', 'Streaming'];
-  final List<String> _documentStatuses = const ['Draft', 'In review', 'Approved', 'Deprecated'];
+  final List<String> _componentTypes = const [
+    'Client',
+    'Service',
+    'Data store',
+    'Integration',
+    'Queue',
+    'Analytics'
+  ];
+  final List<String> _componentStatuses = const [
+    'Planned',
+    'In progress',
+    'Live',
+    'Deprecated'
+  ];
+  final List<String> _protocolOptions = const [
+    'HTTP',
+    'gRPC',
+    'Event',
+    'Batch',
+    'Streaming'
+  ];
+  final List<String> _documentStatuses = const [
+    'Draft',
+    'In review',
+    'Approved',
+    'Deprecated'
+  ];
 
   @override
   void initState() {
@@ -110,8 +135,14 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                   LaunchPhaseNavigation(
                     backLabel: 'Back: UI/UX design',
                     nextLabel: 'Next: Engineering',
-                    onBack: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UiUxDesignScreen())),
-                    onNext: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EngineeringDesignScreen())),
+                    onBack: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const UiUxDesignScreen())),
+                    onNext: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const EngineeringDesignScreen())),
                   ),
                 ],
               ),
@@ -121,6 +152,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       ),
     );
   }
+
   String? _projectId() => ProjectDataHelper.getData(context).projectId;
 
   Future<void> _loadFromFirestore() async {
@@ -135,15 +167,18 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           .doc('backend_design')
           .get();
       final data = doc.data() ?? {};
-      final architecture = Map<String, dynamic>.from(data['architecture'] ?? {});
+      final architecture =
+          Map<String, dynamic>.from(data['architecture'] ?? {});
       final database = Map<String, dynamic>.from(data['database'] ?? {});
 
       _suspendSave = true;
-      _architectureSummaryController.text = architecture['summary']?.toString() ?? '';
+      _architectureSummaryController.text =
+          architecture['summary']?.toString() ?? '';
       _databaseSummaryController.text = database['summary']?.toString() ?? '';
       _suspendSave = false;
 
-      final components = _ArchitectureComponent.fromList(architecture['components']);
+      final components =
+          _ArchitectureComponent.fromList(architecture['components']);
       final flows = _ArchitectureDataFlow.fromList(architecture['dataFlows']);
       final documents = _DesignDocument.fromList(architecture['documents']);
       final entities = _DbEntity.fromList(database['entities']);
@@ -215,7 +250,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           _LabeledTextArea(
             label: 'Architecture summary',
             controller: _architectureSummaryController,
-            hintText: 'Describe the overall backend topology, critical services, and integration patterns.',
+            hintText:
+                'Describe the overall backend topology, critical services, and integration patterns.',
           ),
           const SizedBox(height: 16),
           _SectionHeader(
@@ -253,7 +289,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           _LabeledTextArea(
             label: 'Schema summary',
             controller: _databaseSummaryController,
-            hintText: 'Capture key database decisions, scaling approach, and indexing strategy.',
+            hintText:
+                'Capture key database decisions, scaling approach, and indexing strategy.',
           ),
           const SizedBox(height: 16),
           _SectionHeader(
@@ -314,7 +351,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   }
 
   void _updateDesignDocument(_DesignDocument updated) {
-    final index = _designDocuments.indexWhere((entry) => entry.id == updated.id);
+    final index =
+        _designDocuments.indexWhere((entry) => entry.id == updated.id);
     if (index == -1) return;
     setState(() => _designDocuments[index] = updated);
     _scheduleSave();
@@ -388,32 +426,37 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 value: entry.name,
                 fieldKey: '${entry.id}_name',
                 hintText: 'Component',
-                onChanged: (value) => _updateComponent(entry.copyWith(name: value)),
+                onChanged: (value) =>
+                    _updateComponent(entry.copyWith(name: value)),
               ),
               _DropdownCell(
                 value: entry.type,
                 fieldKey: '${entry.id}_type',
                 options: _componentTypes,
-                onChanged: (value) => _updateComponent(entry.copyWith(type: value)),
+                onChanged: (value) =>
+                    _updateComponent(entry.copyWith(type: value)),
               ),
               _TextCell(
                 value: entry.responsibility,
                 fieldKey: '${entry.id}_responsibility',
                 hintText: 'Responsibility',
                 maxLines: 2,
-                onChanged: (value) => _updateComponent(entry.copyWith(responsibility: value)),
+                onChanged: (value) =>
+                    _updateComponent(entry.copyWith(responsibility: value)),
               ),
               _TextCell(
                 value: entry.owner,
                 fieldKey: '${entry.id}_owner',
                 hintText: 'Owner',
-                onChanged: (value) => _updateComponent(entry.copyWith(owner: value)),
+                onChanged: (value) =>
+                    _updateComponent(entry.copyWith(owner: value)),
               ),
               _DropdownCell(
                 value: entry.status,
                 fieldKey: '${entry.id}_status',
                 options: _componentStatuses,
-                onChanged: (value) => _updateComponent(entry.copyWith(status: value)),
+                onChanged: (value) =>
+                    _updateComponent(entry.copyWith(status: value)),
               ),
               _DeleteCell(onPressed: () => _deleteComponent(entry.id)),
             ],
@@ -450,26 +493,30 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 value: entry.source,
                 fieldKey: '${entry.id}_source',
                 hintText: 'Source',
-                onChanged: (value) => _updateDataFlow(entry.copyWith(source: value)),
+                onChanged: (value) =>
+                    _updateDataFlow(entry.copyWith(source: value)),
               ),
               _TextCell(
                 value: entry.destination,
                 fieldKey: '${entry.id}_destination',
                 hintText: 'Destination',
-                onChanged: (value) => _updateDataFlow(entry.copyWith(destination: value)),
+                onChanged: (value) =>
+                    _updateDataFlow(entry.copyWith(destination: value)),
               ),
               _DropdownCell(
                 value: entry.protocol,
                 fieldKey: '${entry.id}_protocol',
                 options: _protocolOptions,
-                onChanged: (value) => _updateDataFlow(entry.copyWith(protocol: value)),
+                onChanged: (value) =>
+                    _updateDataFlow(entry.copyWith(protocol: value)),
               ),
               _TextCell(
                 value: entry.notes,
                 fieldKey: '${entry.id}_notes',
                 hintText: 'Notes',
                 maxLines: 2,
-                onChanged: (value) => _updateDataFlow(entry.copyWith(notes: value)),
+                onChanged: (value) =>
+                    _updateDataFlow(entry.copyWith(notes: value)),
               ),
               _DeleteCell(onPressed: () => _deleteDataFlow(entry.id)),
             ],
@@ -507,32 +554,37 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 value: entry.title,
                 fieldKey: '${entry.id}_title',
                 hintText: 'Document',
-                onChanged: (value) => _updateDesignDocument(entry.copyWith(title: value)),
+                onChanged: (value) =>
+                    _updateDesignDocument(entry.copyWith(title: value)),
               ),
               _TextCell(
                 value: entry.description,
                 fieldKey: '${entry.id}_description',
                 hintText: 'Description',
                 maxLines: 2,
-                onChanged: (value) => _updateDesignDocument(entry.copyWith(description: value)),
+                onChanged: (value) =>
+                    _updateDesignDocument(entry.copyWith(description: value)),
               ),
               _TextCell(
                 value: entry.owner,
                 fieldKey: '${entry.id}_owner',
                 hintText: 'Owner',
-                onChanged: (value) => _updateDesignDocument(entry.copyWith(owner: value)),
+                onChanged: (value) =>
+                    _updateDesignDocument(entry.copyWith(owner: value)),
               ),
               _DropdownCell(
                 value: entry.status,
                 fieldKey: '${entry.id}_status',
                 options: _documentStatuses,
-                onChanged: (value) => _updateDesignDocument(entry.copyWith(status: value)),
+                onChanged: (value) =>
+                    _updateDesignDocument(entry.copyWith(status: value)),
               ),
               _TextCell(
                 value: entry.location,
                 fieldKey: '${entry.id}_location',
                 hintText: 'Link or path',
-                onChanged: (value) => _updateDesignDocument(entry.copyWith(location: value)),
+                onChanged: (value) =>
+                    _updateDesignDocument(entry.copyWith(location: value)),
               ),
               _DeleteCell(onPressed: () => _deleteDesignDocument(entry.id)),
             ],
@@ -569,26 +621,30 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 value: entry.name,
                 fieldKey: '${entry.id}_name',
                 hintText: 'Entity',
-                onChanged: (value) => _updateEntity(entry.copyWith(name: value)),
+                onChanged: (value) =>
+                    _updateEntity(entry.copyWith(name: value)),
               ),
               _TextCell(
                 value: entry.primaryKey,
                 fieldKey: '${entry.id}_pk',
                 hintText: 'Primary key',
-                onChanged: (value) => _updateEntity(entry.copyWith(primaryKey: value)),
+                onChanged: (value) =>
+                    _updateEntity(entry.copyWith(primaryKey: value)),
               ),
               _TextCell(
                 value: entry.owner,
                 fieldKey: '${entry.id}_owner',
                 hintText: 'Owner',
-                onChanged: (value) => _updateEntity(entry.copyWith(owner: value)),
+                onChanged: (value) =>
+                    _updateEntity(entry.copyWith(owner: value)),
               ),
               _TextCell(
                 value: entry.description,
                 fieldKey: '${entry.id}_description',
                 hintText: 'Description',
                 maxLines: 2,
-                onChanged: (value) => _updateEntity(entry.copyWith(description: value)),
+                onChanged: (value) =>
+                    _updateEntity(entry.copyWith(description: value)),
               ),
               _DeleteCell(onPressed: () => _deleteEntity(entry.id)),
             ],
@@ -626,13 +682,15 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 value: entry.table,
                 fieldKey: '${entry.id}_table',
                 hintText: 'Entity',
-                onChanged: (value) => _updateField(entry.copyWith(table: value)),
+                onChanged: (value) =>
+                    _updateField(entry.copyWith(table: value)),
               ),
               _TextCell(
                 value: entry.field,
                 fieldKey: '${entry.id}_field',
                 hintText: 'Field',
-                onChanged: (value) => _updateField(entry.copyWith(field: value)),
+                onChanged: (value) =>
+                    _updateField(entry.copyWith(field: value)),
               ),
               _TextCell(
                 value: entry.type,
@@ -644,14 +702,16 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 value: entry.constraints,
                 fieldKey: '${entry.id}_constraints',
                 hintText: 'Constraints',
-                onChanged: (value) => _updateField(entry.copyWith(constraints: value)),
+                onChanged: (value) =>
+                    _updateField(entry.copyWith(constraints: value)),
               ),
               _TextCell(
                 value: entry.notes,
                 fieldKey: '${entry.id}_notes',
                 hintText: 'Notes',
                 maxLines: 2,
-                onChanged: (value) => _updateField(entry.copyWith(notes: value)),
+                onChanged: (value) =>
+                    _updateField(entry.copyWith(notes: value)),
               ),
               _DeleteCell(onPressed: () => _deleteField(entry.id)),
             ],
@@ -700,9 +760,13 @@ class _CardShell extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    Text(subtitle,
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
                   ],
                 ),
               ),
@@ -733,7 +797,9 @@ class _SectionHeader extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          child: Text(title,
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         ),
         TextButton.icon(
           onPressed: onAction,
@@ -767,7 +833,11 @@ class _LabeledTextArea extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151))),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -781,7 +851,8 @@ class _LabeledTextArea extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
           style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
         ),
@@ -810,7 +881,11 @@ class _EditableTable extends StatelessWidget {
                   width: column.width,
                   child: Text(
                     column.label.toUpperCase(),
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.7, color: Color(0xFF6B7280)),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.7,
+                        color: Color(0xFF6B7280)),
                   ),
                 ))
             .toList(),
@@ -820,7 +895,8 @@ class _EditableTable extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: columns.fold<double>(0, (sum, col) => sum + col.width)),
+        constraints: BoxConstraints(
+            minWidth: columns.fold<double>(0, (sum, col) => sum + col.width)),
         child: Column(
           children: [
             header,
@@ -828,7 +904,8 @@ class _EditableTable extends StatelessWidget {
             for (int i = 0; i < rows.length; i++)
               Container(
                 margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: i.isEven ? Colors.white : const Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.circular(10),
@@ -920,8 +997,10 @@ class _DropdownCell extends StatelessWidget {
     final resolved = options.contains(value) ? value : options.first;
     return DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
-      value: resolved,
-      items: options.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+      initialValue: resolved,
+      items: options
+          .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+          .toList(),
       onChanged: (value) {
         if (value != null) onChanged(value);
       },
@@ -975,16 +1054,23 @@ class _InlineEmptyState extends StatelessWidget {
               color: const Color(0xFFFFF7ED),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.info_outline, size: 18, color: Color(0xFFF59E0B)),
+            child: const Icon(Icons.info_outline,
+                size: 18, color: Color(0xFFF59E0B)),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827))),
                 const SizedBox(height: 4),
-                Text(message, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                Text(message,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF6B7280))),
               ],
             ),
           ),
@@ -1055,7 +1141,8 @@ class _ArchitectureComponent {
     return raw.whereType<Map>().map((item) {
       final data = Map<String, dynamic>.from(item);
       return _ArchitectureComponent(
-        id: data['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: data['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         name: data['name']?.toString() ?? '',
         type: data['type']?.toString() ?? 'Service',
         responsibility: data['responsibility']?.toString() ?? '',
@@ -1121,7 +1208,8 @@ class _ArchitectureDataFlow {
     return raw.whereType<Map>().map((item) {
       final data = Map<String, dynamic>.from(item);
       return _ArchitectureDataFlow(
-        id: data['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: data['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         source: data['source']?.toString() ?? '',
         destination: data['destination']?.toString() ?? '',
         protocol: data['protocol']?.toString() ?? 'HTTP',
@@ -1192,7 +1280,8 @@ class _DesignDocument {
     return raw.whereType<Map>().map((item) {
       final data = Map<String, dynamic>.from(item);
       return _DesignDocument(
-        id: data['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: data['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         title: data['title']?.toString() ?? '',
         description: data['description']?.toString() ?? '',
         owner: data['owner']?.toString() ?? '',
@@ -1258,7 +1347,8 @@ class _DbEntity {
     return raw.whereType<Map>().map((item) {
       final data = Map<String, dynamic>.from(item);
       return _DbEntity(
-        id: data['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: data['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         name: data['name']?.toString() ?? '',
         primaryKey: data['primaryKey']?.toString() ?? '',
         owner: data['owner']?.toString() ?? '',
@@ -1329,7 +1419,8 @@ class _DbField {
     return raw.whereType<Map>().map((item) {
       final data = Map<String, dynamic>.from(item);
       return _DbField(
-        id: data['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: data['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         table: data['table']?.toString() ?? '',
         field: data['field']?.toString() ?? '',
         type: data['type']?.toString() ?? '',
@@ -1341,7 +1432,8 @@ class _DbField {
 }
 
 class _Debouncer {
-  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 600);
+  _Debouncer({Duration? delay})
+      : delay = delay ?? const Duration(milliseconds: 600);
 
   final Duration delay;
   Timer? _timer;

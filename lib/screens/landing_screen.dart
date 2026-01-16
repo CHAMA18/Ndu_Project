@@ -18,7 +18,8 @@ class LandingScreen extends StatefulWidget {
   State<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen> with SingleTickerProviderStateMixin {
+class _LandingScreenState extends State<LandingScreen>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
   late final Animation<double> _fadeAnimation;
   late final ScrollController _scrollController;
@@ -32,7 +33,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
   bool _isDebugMode = false;
   int _kazAiTapCount = 0;
   DateTime? _lastKazAiTap;
-  
+
   // Workflow tap counter for admin edit mode (admin domain only)
   int _workflowTapCount = 0;
   DateTime? _lastWorkflowTap;
@@ -44,7 +45,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
-    _fadeAnimation = CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic);
+    _fadeAnimation =
+        CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic);
     _scrollController = ScrollController();
     _animController.forward();
   }
@@ -70,7 +72,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
   void _handleKazAiTap() {
     final now = DateTime.now();
     // Reset counter if more than 2 seconds have passed
-    if (_lastKazAiTap == null || now.difference(_lastKazAiTap!) > const Duration(seconds: 2)) {
+    if (_lastKazAiTap == null ||
+        now.difference(_lastKazAiTap!) > const Duration(seconds: 2)) {
       _kazAiTapCount = 1;
     } else {
       _kazAiTapCount++;
@@ -84,7 +87,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isDebugMode ? '🛠️ Debug mode enabled' : '✅ Debug mode disabled'),
+          content: Text(_isDebugMode
+              ? '🛠️ Debug mode enabled'
+              : '✅ Debug mode disabled'),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -105,7 +110,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
     final now = DateTime.now();
     // Reset counter if more than 2 seconds have passed
-    if (_lastWorkflowTap == null || now.difference(_lastWorkflowTap!) > const Duration(seconds: 2)) {
+    if (_lastWorkflowTap == null ||
+        now.difference(_lastWorkflowTap!) > const Duration(seconds: 2)) {
       _workflowTapCount = 1;
     } else {
       _workflowTapCount++;
@@ -116,12 +122,14 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       // Enable edit mode via provider
       final provider = context.read<AppContentProvider>();
       provider.toggleEditMode();
-      
+
       setState(() => _workflowTapCount = 0);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.isEditMode ? '✏️ Edit mode enabled' : '✅ Edit mode disabled'),
+          content: Text(provider.isEditMode
+              ? '✏️ Edit mode enabled'
+              : '✅ Edit mode disabled'),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -193,13 +201,15 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _launchExternalLink('https://form.typeform.com/to/UGGatowF');
+                    _launchExternalLink(
+                        'https://form.typeform.com/to/UGGatowF');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: LightModeColors.accent,
                     foregroundColor: const Color(0xFF151515),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   child: const Text(
@@ -225,7 +235,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
   Future<void> _launchExternalLink(String url) async {
     final uri = Uri.parse(url);
-    final bool launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final bool launched =
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to open link. Please try again.')),
@@ -323,11 +334,11 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
     Widget buildLogo() {
       return Image.asset(
-        'assets/images/Logo.png',  // Direct asset reference (not theme-aware)
+        'assets/images/Logo.png', // Direct asset reference (not theme-aware)
         height: isDesktop
-            ? 90      // Desktop: 90px (increased from 80px, then 72px)
+            ? 90 // Desktop: 90px (increased from 80px, then 72px)
             : isTablet
-                ? 70  // Tablet: 70px (increased from 68px, then 64px)
+                ? 70 // Tablet: 70px (increased from 68px, then 64px)
                 : 60, // Mobile: 60px (increased from 54px, then 48px)
         fit: BoxFit.contain,
       );
@@ -375,10 +386,12 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
         },
         style: TextButton.styleFrom(
           foregroundColor: Colors.white,
-          padding: EdgeInsets.symmetric(horizontal: fullWidth ? 16 : 20, vertical: 12),
+          padding: EdgeInsets.symmetric(
+              horizontal: fullWidth ? 16 : 20, vertical: 12),
           minimumSize: const Size(0, 44),
         ),
-        child: const Text('Sign In', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        child: const Text('Sign In',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
       );
 
       return fullWidth
@@ -392,12 +405,15 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
         style: ElevatedButton.styleFrom(
           backgroundColor: LightModeColors.accent,
           foregroundColor: const Color(0xFF151515),
-          padding: EdgeInsets.symmetric(horizontal: fullWidth ? 16 : 26, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: EdgeInsets.symmetric(
+              horizontal: fullWidth ? 16 : 26, vertical: 14),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
           minimumSize: const Size(0, 48),
         ),
-        child: const Text('Start Your Project', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        child: const Text('Start Your Project',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
       );
 
       return fullWidth
@@ -460,13 +476,24 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       child: IgnorePointer(
         ignoring: false,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: isDesktop ? 64 : isMobile ? 16 : 32),
+          padding: EdgeInsets.symmetric(
+              horizontal: isDesktop
+                  ? 64
+                  : isMobile
+                      ? 16
+                      : 32),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : isMobile ? 16 : 20, vertical: 12),
+                padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop
+                        ? 32
+                        : isMobile
+                            ? 16
+                            : 20,
+                    vertical: 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
                   color: Colors.black.withOpacity(0.82),
@@ -479,7 +506,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     ),
                   ],
                 ),
-                child: isMobile ? buildMobileContent() : buildTabletOrDesktopContent(),
+                child: isMobile
+                    ? buildMobileContent()
+                    : buildTabletOrDesktopContent(),
               ),
             ),
           ),
@@ -578,7 +607,10 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
-                      colors: [LightModeColors.accent.withOpacity(0.32), Colors.transparent],
+                      colors: [
+                        LightModeColors.accent.withOpacity(0.32),
+                        Colors.transparent
+                      ],
                     ),
                   ),
                 ),
@@ -603,7 +635,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Expanded(child: _buildHeroContent(context, highlights, metrics, true)),
+                          Expanded(
+                              child: _buildHeroContent(
+                                  context, highlights, metrics, true)),
                           const SizedBox(width: 54),
                           Expanded(child: _buildHeroVisual(context)),
                         ],
@@ -611,7 +645,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _buildHeroContent(context, highlights, metrics, false),
+                          _buildHeroContent(
+                              context, highlights, metrics, false),
                           const SizedBox(height: 40),
                           _buildHeroVisual(context),
                         ],
@@ -631,7 +666,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
     bool isDesktop,
   ) {
     return Column(
-      crossAxisAlignment: isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      crossAxisAlignment:
+          isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -643,7 +679,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.auto_awesome, size: 18, color: LightModeColors.accent.withOpacity(0.95)),
+              Icon(Icons.auto_awesome,
+                  size: 18, color: LightModeColors.accent.withOpacity(0.95)),
               const SizedBox(width: 8),
               Text(
                 'Project management powered by KAZ AI',
@@ -707,9 +744,13 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                       selected: false,
                       selectedColor: LightModeColors.accent,
                       backgroundColor: LightModeColors.accent,
-                      side: BorderSide(color: LightModeColors.accent.withOpacity(0.4), width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      side: BorderSide(
+                          color: LightModeColors.accent.withOpacity(0.4),
+                          width: 1.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                       labelPadding: const EdgeInsets.symmetric(horizontal: 6),
                     ),
                     const SizedBox(height: 8),
@@ -723,9 +764,12 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                       selected: false,
                       selectedColor: Colors.white.withOpacity(0.85),
                       backgroundColor: Colors.white.withOpacity(0.85),
-                      side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      side: BorderSide(
+                          color: Colors.white.withOpacity(0.3), width: 1),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                     ),
                   ],
@@ -744,24 +788,32 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
               style: ElevatedButton.styleFrom(
                 backgroundColor: LightModeColors.accent,
                 foregroundColor: const Color(0xFF151515),
-                padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 34, vertical: 18),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              child: const Text('Start Your Project', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              child: const Text('Start Your Project',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             ),
             OutlinedButton(
               onPressed: () => _scrollTo(_platformKey),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white.withOpacity(0.92),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-                side: BorderSide(color: Colors.white.withOpacity(0.26), width: 1.6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                side: BorderSide(
+                    color: Colors.white.withOpacity(0.26), width: 1.6),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  Text('Explore platform', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('Explore platform',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   SizedBox(width: 8),
                   Icon(Icons.arrow_outward_rounded, size: 18),
                 ],
@@ -777,9 +829,12 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
             spacing: 20,
             runSpacing: 12,
             children: const [
-              Text('Integrate with ERPs', style: TextStyle(color: Colors.white)),
-              Text('Integrate with CRMs', style: TextStyle(color: Colors.white)),
-              Text('Integrate with Design Tools', style: TextStyle(color: Colors.white)),
+              Text('Integrate with ERPs',
+                  style: TextStyle(color: Colors.white)),
+              Text('Integrate with CRMs',
+                  style: TextStyle(color: Colors.white)),
+              Text('Integrate with Design Tools',
+                  style: TextStyle(color: Colors.white)),
             ],
           ),
         ),
@@ -803,7 +858,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
     final List<_DeliveryIllustrationData> illustrationData = const [
       _DeliveryIllustrationData(
         title: 'Projects',
-        description: 'Focused initiatives delivering defined outcomes with clear scope and velocity.',
+        description:
+            'Focused initiatives delivering defined outcomes with clear scope and velocity.',
         highlights: ['Single charter', 'Rapid execution'],
         colors: [Color(0xFF38BDF8), Color(0xFF2563EB)],
         icon: Icons.task_alt_rounded,
@@ -811,7 +867,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       ),
       _DeliveryIllustrationData(
         title: 'Programs',
-        description: 'Coordinated projects aligned to shared benefits, managed through orchestration.',
+        description:
+            'Coordinated projects aligned to shared benefits, managed through orchestration.',
         highlights: ['Cross-team flow', 'Benefit mapping'],
         colors: [Color(0xFFF59E0B), Color(0xFFEAB308)],
         icon: Icons.device_hub_rounded,
@@ -819,7 +876,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       ),
       _DeliveryIllustrationData(
         title: 'Portfolios',
-        description: 'Strategic themes balancing investments, resources, and transformation readiness.',
+        description:
+            'Strategic themes balancing investments, resources, and transformation readiness.',
         highlights: ['Strategic guardrails', 'Capacity balance'],
         colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
         icon: Icons.auto_graph_rounded,
@@ -863,7 +921,10 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
-                        colors: [LightModeColors.accent.withOpacity(0.45), Colors.transparent],
+                        colors: [
+                          LightModeColors.accent.withOpacity(0.45),
+                          Colors.transparent
+                        ],
                       ),
                     ),
                   ),
@@ -887,135 +948,170 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
                     child: Container(
-                       decoration: const BoxDecoration(
-                         gradient: LinearGradient(
-                           begin: Alignment.topLeft,
-                           end: Alignment.bottomRight,
-                           colors: [Color(0xFF131313), Color(0xFF070707)],
-                         ),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF131313), Color(0xFF070707)],
+                        ),
                       ),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
-                          final bool horizontalLayout = constraints.maxWidth >= 720;
-                          final bool twoColumnCards = constraints.maxWidth >= 560;
-                          final bool threeColumnCards = constraints.maxWidth >= 980;
+                          final bool horizontalLayout =
+                              constraints.maxWidth >= 720;
+                          final bool twoColumnCards =
+                              constraints.maxWidth >= 560;
+                          final bool threeColumnCards =
+                              constraints.maxWidth >= 980;
                           const double cardSpacing = 18;
 
                           return SingleChildScrollView(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                              LayoutBuilder(
-                                builder: (context, buttonConstraints) {
-                                  final double buttonWidth = buttonConstraints.maxWidth;
-                                  final bool stackButtons = buttonWidth < 900;
-                                  
-                                  if (stackButtons) {
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                LayoutBuilder(
+                                  builder: (context, buttonConstraints) {
+                                    final double buttonWidth =
+                                        buttonConstraints.maxWidth;
+                                    final bool stackButtons = buttonWidth < 900;
+
+                                    if (stackButtons) {
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                                maxWidth: buttonWidth),
+                                            child: _HeroActionButton(
+                                              label: 'Schedule Consultations',
+                                              icon:
+                                                  Icons.calendar_month_rounded,
+                                              onTap: () => _launchExternalLink(
+                                                  'https://calendly.com/chimmie-nduproject'),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                                maxWidth: buttonWidth),
+                                            child: _HeroActionButton(
+                                              label:
+                                                  'Personnel Training & PM Process Request',
+                                              icon: Icons.people_alt_rounded,
+                                              onTap: () => _launchExternalLink(
+                                                  'https://forms.gle/on7KZmbup92G6qUb7'),
+                                              isSecondary: true,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }
+
+                                    return Wrap(
+                                      spacing: 16,
+                                      runSpacing: 12,
+                                      alignment: WrapAlignment.center,
                                       children: [
-                                        ConstrainedBox(
-                                          constraints: BoxConstraints(maxWidth: buttonWidth),
-                                          child: _HeroActionButton(
-                                            label: 'Schedule Consultations',
-                                            icon: Icons.calendar_month_rounded,
-                                            onTap: () => _launchExternalLink('https://calendly.com/chimmie-nduproject'),
-                                          ),
+                                        _HeroActionButton(
+                                          label: 'Schedule Consultations',
+                                          icon: Icons.calendar_month_rounded,
+                                          onTap: () => _launchExternalLink(
+                                              'https://calendly.com/chimmie-nduproject'),
                                         ),
-                                        const SizedBox(height: 12),
-                                        ConstrainedBox(
-                                          constraints: BoxConstraints(maxWidth: buttonWidth),
-                                          child: _HeroActionButton(
-                                            label: 'Personnel Training & PM Process Request',
-                                            icon: Icons.people_alt_rounded,
-                                            onTap: () => _launchExternalLink('https://forms.gle/on7KZmbup92G6qUb7'),
-                                            isSecondary: true,
-                                          ),
+                                        _HeroActionButton(
+                                          label:
+                                              'Personnel Training & PM Process Request',
+                                          icon: Icons.people_alt_rounded,
+                                          onTap: () => _launchExternalLink(
+                                              'https://forms.gle/on7KZmbup92G6qUb7'),
+                                          isSecondary: true,
                                         ),
                                       ],
                                     );
-                                  }
-                                  
-                                  return Wrap(
-                                    spacing: 16,
-                                    runSpacing: 12,
-                                    alignment: WrapAlignment.center,
-                                    children: [
-                                      _HeroActionButton(
-                                        label: 'Schedule Consultations',
-                                        icon: Icons.calendar_month_rounded,
-                                        onTap: () => _launchExternalLink('https://calendly.com/chimmie-nduproject'),
-                                      ),
-                                      _HeroActionButton(
-                                        label: 'Personnel Training & PM Process Request',
-                                        icon: Icons.people_alt_rounded,
-                                        onTap: () => _launchExternalLink('https://forms.gle/on7KZmbup92G6qUb7'),
-                                        isSecondary: true,
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 24),
-                              LayoutBuilder(
-                                builder: (context, wrapConstraints) {
-                                  final double availableWidth = wrapConstraints.maxWidth;
-                                  final double availableHeight = MediaQuery.of(context).size.height - 400;
-                                  
-                                  // Adjust responsive breakpoints for smaller desktop screens
-                                  final bool shouldUseThreeColumns = availableWidth >= 980;
-                                  final bool shouldUseTwoColumns = availableWidth >= 560 && availableWidth < 980;
-                                  final bool shouldUseOneColumn = availableWidth < 560;
-                                  
-                                  final EdgeInsets cardPadding = EdgeInsets.symmetric(
-                                    horizontal: shouldUseThreeColumns || shouldUseTwoColumns ? 18 : 16,
-                                    vertical: 16,
-                                  );
-                                  
-                                  double cardWidth;
-                                  if (shouldUseThreeColumns) {
-                                    cardWidth = (availableWidth - (cardSpacing * 2)) / 3;
-                                  } else if (shouldUseTwoColumns) {
-                                    cardWidth = (availableWidth - cardSpacing) / 2;
-                                  } else {
-                                    cardWidth = availableWidth;
-                                  }
-                                  
-                                  final cardsWidget = Wrap(
-                                    spacing: cardSpacing,
-                                    runSpacing: cardSpacing,
-                                    alignment: horizontalLayout ? WrapAlignment.start : WrapAlignment.center,
-                                    children: illustrationData.map((data) {
+                                  },
+                                ),
+                                const SizedBox(height: 24),
+                                LayoutBuilder(
+                                  builder: (context, wrapConstraints) {
+                                    final double availableWidth =
+                                        wrapConstraints.maxWidth;
+                                    final double availableHeight =
+                                        MediaQuery.of(context).size.height -
+                                            400;
+
+                                    // Adjust responsive breakpoints for smaller desktop screens
+                                    final bool shouldUseThreeColumns =
+                                        availableWidth >= 980;
+                                    final bool shouldUseTwoColumns =
+                                        availableWidth >= 560 &&
+                                            availableWidth < 980;
+                                    final bool shouldUseOneColumn =
+                                        availableWidth < 560;
+
+                                    final EdgeInsets cardPadding =
+                                        EdgeInsets.symmetric(
+                                      horizontal: shouldUseThreeColumns ||
+                                              shouldUseTwoColumns
+                                          ? 18
+                                          : 16,
+                                      vertical: 16,
+                                    );
+
+                                    double cardWidth;
+                                    if (shouldUseThreeColumns) {
+                                      cardWidth =
+                                          (availableWidth - (cardSpacing * 2)) /
+                                              3;
+                                    } else if (shouldUseTwoColumns) {
+                                      cardWidth =
+                                          (availableWidth - cardSpacing) / 2;
+                                    } else {
+                                      cardWidth = availableWidth;
+                                    }
+
+                                    final cardsWidget = Wrap(
+                                      spacing: cardSpacing,
+                                      runSpacing: cardSpacing,
+                                      alignment: horizontalLayout
+                                          ? WrapAlignment.start
+                                          : WrapAlignment.center,
+                                      children: illustrationData.map((data) {
+                                        return SizedBox(
+                                          width: cardWidth,
+                                          child: _DeliveryIllustrationCard(
+                                            data: data,
+                                            padding: cardPadding,
+                                          ),
+                                        );
+                                      }).toList(),
+                                    );
+
+                                    // Calculate estimated height needed for cards
+                                    final cardHeight =
+                                        220.0; // Approximate card height
+                                    final rows = shouldUseThreeColumns
+                                        ? 1
+                                        : (shouldUseTwoColumns ? 2 : 3);
+                                    final estimatedHeight =
+                                        (cardHeight * rows) +
+                                            (cardSpacing * (rows - 1));
+
+                                    // If content would overflow, wrap in scrollable container
+                                    if (estimatedHeight > availableHeight) {
                                       return SizedBox(
-                                        width: cardWidth,
-                                        child: _DeliveryIllustrationCard(
-                                          data: data,
-                                          padding: cardPadding,
+                                        height: availableHeight.clamp(300, 500),
+                                        child: SingleChildScrollView(
+                                          child: cardsWidget,
                                         ),
                                       );
-                                    }).toList(),
-                                  );
-                                  
-                                  // Calculate estimated height needed for cards
-                                  final cardHeight = 220.0; // Approximate card height
-                                  final rows = shouldUseThreeColumns ? 1 : (shouldUseTwoColumns ? 2 : 3);
-                                  final estimatedHeight = (cardHeight * rows) + (cardSpacing * (rows - 1));
-                                  
-                                  // If content would overflow, wrap in scrollable container
-                                  if (estimatedHeight > availableHeight) {
-                                    return SizedBox(
-                                      height: availableHeight.clamp(300, 500),
-                                      child: SingleChildScrollView(
-                                        child: cardsWidget,
-                                      ),
-                                    );
-                                  }
-                                  
-                                  return cardsWidget;
-                                },
-                              ),
-                              const SizedBox(height: 24),
-                            ],
+                                    }
+
+                                    return cardsWidget;
+                                  },
+                                ),
+                                const SizedBox(height: 24),
+                              ],
                             ),
                           );
                         },
@@ -1033,9 +1129,18 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
   Widget _buildExecutiveProgramCard() {
     final List<Map<String, dynamic>> segments = [
-      {'title': 'Project', 'methodologies': ['Agile', 'Waterfall', 'Hybrid']},
-      {'title': 'Program', 'methodologies': ['Agile', 'Waterfall', 'Hybrid']},
-      {'title': 'Portfolio', 'methodologies': ['Agile', 'Waterfall', 'Hybrid']},
+      {
+        'title': 'Project',
+        'methodologies': ['Agile', 'Waterfall', 'Hybrid']
+      },
+      {
+        'title': 'Program',
+        'methodologies': ['Agile', 'Waterfall', 'Hybrid']
+      },
+      {
+        'title': 'Portfolio',
+        'methodologies': ['Agile', 'Waterfall', 'Hybrid']
+      },
     ];
 
     return Container(
@@ -1066,7 +1171,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                 ],
               ),
             ),
-            child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFF111827), size: 24),
+            child: const Icon(Icons.workspace_premium_rounded,
+                color: Color(0xFF111827), size: 24),
           ),
           const SizedBox(height: 18),
           Text(
@@ -1099,11 +1205,16 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
               children: [
                 Row(
                   children: [
-                    Icon(Icons.auto_awesome_mosaic_rounded, color: LightModeColors.accent.withOpacity(0.92), size: 18),
+                    Icon(Icons.auto_awesome_mosaic_rounded,
+                        color: LightModeColors.accent.withOpacity(0.92),
+                        size: 18),
                     const SizedBox(width: 10),
                     Text(
                       'Delivery view',
-                      style: TextStyle(color: Colors.white.withOpacity(0.85), fontWeight: FontWeight.w700, fontSize: 13),
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.85),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13),
                     ),
                   ],
                 ),
@@ -1114,22 +1225,28 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                   children: segments
                       .map(
                         (segment) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
                             color: Colors.white.withOpacity(0.06),
-                            border: Border.all(color: Colors.white.withOpacity(0.12)),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.12)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(10),
-                                  color: LightModeColors.accent.withOpacity(0.15),
-                                  border: Border.all(color: LightModeColors.accent.withOpacity(0.3)),
+                                  color:
+                                      LightModeColors.accent.withOpacity(0.15),
+                                  border: Border.all(
+                                      color: LightModeColors.accent
+                                          .withOpacity(0.3)),
                                 ),
                                 child: Text(
                                   segment['title']!,
@@ -1144,19 +1261,25 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 6,
-                                children: (segment['methodologies'] as List<String>)
+                                children: (segment['methodologies']
+                                        as List<String>)
                                     .map(
                                       (method) => Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                           color: Colors.white.withOpacity(0.08),
-                                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+                                          border: Border.all(
+                                              color: Colors.white
+                                                  .withOpacity(0.12)),
                                         ),
                                         child: Text(
                                           method,
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7),
+                                            color:
+                                                Colors.white.withOpacity(0.7),
                                             fontSize: 11,
                                           ),
                                         ),
@@ -1178,7 +1301,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
     );
   }
 
-  Widget _floatingChip({required IconData icon, required String label, required Color color}) {
+  Widget _floatingChip(
+      {required IconData icon, required String label, required Color color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
@@ -1229,7 +1353,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     ],
                   ),
                 ),
-                child: const Icon(Icons.auto_graph_rounded, color: Color(0xFF111827), size: 20),
+                child: const Icon(Icons.auto_graph_rounded,
+                    color: Color(0xFF111827), size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1263,8 +1388,11 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
             spacing: 10,
             runSpacing: 10,
             children: const [
-              _HeroMetricChip(label: 'Investment mix aligned', icon: Icons.pie_chart_rounded),
-              _HeroMetricChip(label: 'Capacity plan synced', icon: Icons.groups_rounded),
+              _HeroMetricChip(
+                  label: 'Investment mix aligned',
+                  icon: Icons.pie_chart_rounded),
+              _HeroMetricChip(
+                  label: 'Capacity plan synced', icon: Icons.groups_rounded),
             ],
           ),
         ],
@@ -1273,6 +1401,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
     return width != null ? SizedBox(width: width, child: card) : card;
   }
+
   Widget _floatingTimelineCard({double? width}) {
     final card = Container(
       padding: const EdgeInsets.all(18),
@@ -1287,7 +1416,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
         children: [
           Text(
             'Critical path',
-            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
           ),
           const SizedBox(height: 12),
           _timelineRow('Initiation', 'Complete', true),
@@ -1310,7 +1440,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           height: 12,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: done ? LightModeColors.accent.withOpacity(0.95) : Colors.white.withOpacity(0.3),
+            color: done
+                ? LightModeColors.accent.withOpacity(0.95)
+                : Colors.white.withOpacity(0.3),
           ),
         ),
         const SizedBox(width: 12),
@@ -1328,7 +1460,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
               ),
               Text(
                 subtitle,
-                style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.6), fontSize: 12),
               ),
             ],
           ),
@@ -1336,13 +1469,15 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       ],
     );
   }
+
   Widget _buildMetricCard(_MetricData metric) {
     return AnimatedBuilder(
       animation: _animController,
       builder: (context, child) {
         final easedValue = Curves.easeOutCubic.transform(_animController.value);
         final animated = metric.value * easedValue;
-        final valueText = '${metric.prefix}${animated.toStringAsFixed(metric.decimals)}${metric.suffix}';
+        final valueText =
+            '${metric.prefix}${animated.toStringAsFixed(metric.decimals)}${metric.suffix}';
 
         return SizedBox(
           width: 240,
@@ -1389,14 +1524,24 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
   Widget _buildMomentumStrip(bool isDesktop) {
     final momentumItems = [
-      const _MomentumData(title: '40+ specialized workspaces', description: 'Including requirements, procurement, contracts, technology, risk, SSHER, and more.'),
-      const _MomentumData(title: 'KAZ AI assistance throughout the product delivery process', description: 'Surface next best actions and clarify documentation in seconds.'),
-      const _MomentumData(title: 'Enterprise-grade collaboration', description: 'Stakeholder views, approvals, and governance designed for complex teams.'),
+      const _MomentumData(
+          title: '40+ specialized workspaces',
+          description:
+              'Including requirements, procurement, contracts, technology, risk, SSHER, and more.'),
+      const _MomentumData(
+          title: 'KAZ AI assistance throughout the product delivery process',
+          description:
+              'Surface next best actions and clarify documentation in seconds.'),
+      const _MomentumData(
+          title: 'Enterprise-grade collaboration',
+          description:
+              'Stakeholder views, approvals, and governance designed for complex teams.'),
     ];
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: isDesktop ? 96 : 24),
-      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 48 : 24, vertical: isDesktop ? 26 : 22),
+      padding: EdgeInsets.symmetric(
+          horizontal: isDesktop ? 48 : 24, vertical: isDesktop ? 26 : 22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
@@ -1425,7 +1570,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           } else {
             columns = 1;
           }
-          final double itemWidth = columns == 1 ? maxWidth : (maxWidth - spacing * (columns - 1)) / columns;
+          final double itemWidth = columns == 1
+              ? maxWidth
+              : (maxWidth - spacing * (columns - 1)) / columns;
 
           return Wrap(
             spacing: spacing,
@@ -1442,14 +1589,15 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                           height: 40,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                              gradient: LinearGradient(
-                                colors: [
-                                  LightModeColors.accent.withOpacity(0.9),
-                                  LightModeColors.accent.withOpacity(0.65),
-                                ],
-                              ),
+                            gradient: LinearGradient(
+                              colors: [
+                                LightModeColors.accent.withOpacity(0.9),
+                                LightModeColors.accent.withOpacity(0.65),
+                              ],
+                            ),
                           ),
-                            child: const Icon(Icons.star_rate_rounded, color: Color(0xFF111827)),
+                          child: const Icon(Icons.star_rate_rounded,
+                              color: Color(0xFF111827)),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -1461,7 +1609,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                  color: Colors.white,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -1469,7 +1617,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                                 item.description,
                                 style: TextStyle(
                                   fontSize: 14,
-                                    color: Colors.white.withOpacity(0.78),
+                                  color: Colors.white.withOpacity(0.78),
                                   height: 1.5,
                                 ),
                               ),
@@ -1566,7 +1714,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
     return Container(
       key: _platformKey,
       margin: EdgeInsets.symmetric(horizontal: wideLayout ? 96 : 24),
-      padding: EdgeInsets.symmetric(horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 84 : 56),
+      padding: EdgeInsets.symmetric(
+          horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 84 : 56),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(36),
         gradient: const LinearGradient(
@@ -1619,14 +1768,17 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
               } else {
                 columns = 1;
               }
-              final double itemWidth = columns == 1 ? maxWidth : (maxWidth - spacing * (columns - 1)) / columns;
+              final double itemWidth = columns == 1
+                  ? maxWidth
+                  : (maxWidth - spacing * (columns - 1)) / columns;
 
               return Wrap(
                 spacing: spacing,
                 runSpacing: spacing,
                 children: capability
                     .map(
-                      (cap) => SizedBox(width: itemWidth, child: _CapabilityCard(data: cap)),
+                      (cap) => SizedBox(
+                          width: itemWidth, child: _CapabilityCard(data: cap)),
                     )
                     .toList(),
               );
@@ -1643,24 +1795,29 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
         step: '01',
         title: 'Initiate & Align',
         description: 'Including cost, schedule, procurement, and contracts',
-        spotlight: 'Requirements, design, technology, quality, cost estimation & cost mobilization, schedule',
+        spotlight:
+            'Requirements, design, technology, quality, cost estimation & cost mobilization, schedule',
       ),
       const _WorkflowStep(
         step: '02',
         title: 'Architect the Plan',
-        description: 'Design technology, infrastructure, procurement, and personnel strategies with connected workspaces.',
+        description:
+            'Design technology, infrastructure, procurement, and personnel strategies with connected workspaces.',
         spotlight: 'Technology • Procurement • Contracts • Infrastructure',
       ),
       const _WorkflowStep(
         step: '03',
         title: 'Execute & Control',
-        description: 'Work the plan while ensuring requirements are met, costs are tracked, and the project remains on schedule.',
-        spotlight: 'Team training • Change management • Iteration • Deliverables',
+        description:
+            'Work the plan while ensuring requirements are met, costs are tracked, and the project remains on schedule.',
+        spotlight:
+            'Team training • Change management • Iteration • Deliverables',
       ),
       const _WorkflowStep(
         step: '04',
         title: 'Operationalize Delivery',
-        description: 'Operationalize delivery surface fast track decision and drive continuous improvement across projects.',
+        description:
+            'Operationalize delivery surface fast track decision and drive continuous improvement across projects.',
         spotlight: 'Checklist • Analytics • Gap analysis • Reconciliation',
       ),
     ];
@@ -1668,7 +1825,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
     return Container(
       key: _workflowKey,
       margin: EdgeInsets.symmetric(horizontal: wideLayout ? 96 : 24),
-      padding: EdgeInsets.symmetric(horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 80 : 56),
+      padding: EdgeInsets.symmetric(
+          horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 80 : 56),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(36),
         gradient: const LinearGradient(
@@ -1720,14 +1878,17 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
               } else {
                 columns = 1;
               }
-              final double itemWidth = columns == 1 ? maxWidth : (maxWidth - spacing * (columns - 1)) / columns;
+              final double itemWidth = columns == 1
+                  ? maxWidth
+                  : (maxWidth - spacing * (columns - 1)) / columns;
 
               return Wrap(
                 spacing: spacing,
                 runSpacing: spacing,
                 children: steps
                     .map(
-                      (step) => SizedBox(width: itemWidth, child: _WorkflowCard(step: step)),
+                      (step) => SizedBox(
+                          width: itemWidth, child: _WorkflowCard(step: step)),
                     )
                     .toList(),
               );
@@ -1740,15 +1901,25 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
   Widget _buildKazAISection(BuildContext context, bool isDesktop) {
     final conversations = const [
-      _ConversationBubble(role: 'You', message: 'KAZ AI what are the potential risks with launching a virtual fitting room?'),
-      _ConversationBubble(role: 'KAZ AI', message: 'Here are the critical risk themes to monitor: data privacy compliance, store associate adoption, and integration stability with your ecommerce stack.'),
-      _ConversationBubble(role: 'KAZ AI', message: 'Mitigation playbook drafted—schedule security validation, align change enablement, and add rollout checkpoints for the pilot markets.'),
+      _ConversationBubble(
+          role: 'You',
+          message:
+              'KAZ AI what are the potential risks with launching a virtual fitting room?'),
+      _ConversationBubble(
+          role: 'KAZ AI',
+          message:
+              'Here are the critical risk themes to monitor: data privacy compliance, store associate adoption, and integration stability with your ecommerce stack.'),
+      _ConversationBubble(
+          role: 'KAZ AI',
+          message:
+              'Mitigation playbook drafted—schedule security validation, align change enablement, and add rollout checkpoints for the pilot markets.'),
     ];
 
     return Container(
       key: _aiKey,
       margin: EdgeInsets.symmetric(horizontal: isDesktop ? 96 : 24),
-      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 64 : 28, vertical: isDesktop ? 72 : 52),
+      padding: EdgeInsets.symmetric(
+          horizontal: isDesktop ? 64 : 28, vertical: isDesktop ? 72 : 52),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(36),
         gradient: const LinearGradient(
@@ -1798,7 +1969,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
             children: const [
               Icon(Icons.smart_toy_rounded, color: Colors.white, size: 18),
               SizedBox(width: 8),
-              Text('KAZ AI copilot', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              Text('KAZ AI copilot',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -1824,11 +1997,20 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
-            _KazAiBullet(title: 'Context-aware answers', subtitle: 'Ask about contracts, requirements, or training and get answers citing the exact workspace.'),
+            _KazAiBullet(
+                title: 'Context-aware answers',
+                subtitle:
+                    'Ask about contracts, requirements, or training and get answers citing the exact workspace.'),
             SizedBox(height: 16),
-            _KazAiBullet(title: 'Action acceleration', subtitle: 'KAZ AI generates briefs, next-step checklists, and executive-ready updates instantly.'),
+            _KazAiBullet(
+                title: 'Action acceleration',
+                subtitle:
+                    'KAZ AI generates briefs, next-step checklists, and executive-ready updates instantly.'),
             SizedBox(height: 16),
-            _KazAiBullet(title: 'Guided decisioning', subtitle: 'KAZ AI helps with details that make the project delivery process more robust.'),
+            _KazAiBullet(
+                title: 'Guided decisioning',
+                subtitle:
+                    'KAZ AI helps with details that make the project delivery process more robust.'),
           ],
         ),
         const SizedBox(height: 30),
@@ -1841,12 +2023,15 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           ),
           child: Row(
             children: [
-              Icon(Icons.lock_rounded, color: LightModeColors.accent.withOpacity(0.95)),
+              Icon(Icons.lock_rounded,
+                  color: LightModeColors.accent.withOpacity(0.95)),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'KAZ AI follows your governance rules—keeping approvals tracked, content scoped, and data secure.',
-                  style: TextStyle(color: Colors.white.withOpacity(0.82), fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.82),
+                      fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -1880,9 +2065,13 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
               gradient: LinearGradient(
-                colors: [LightModeColors.accent.withOpacity(0.85), LightModeColors.accent.withOpacity(0.55)],
+                colors: [
+                  LightModeColors.accent.withOpacity(0.85),
+                  LightModeColors.accent.withOpacity(0.55)
+                ],
               ),
             ),
             child: Row(
@@ -1894,24 +2083,36 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     shape: BoxShape.circle,
                     color: Colors.white.withOpacity(0.15),
                   ),
-                  child: const Icon(Icons.smart_toy_rounded, color: Color(0xFF1F2937)),
+                  child: const Icon(Icons.smart_toy_rounded,
+                      color: Color(0xFF1F2937)),
                 ),
                 const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text('KAZ AI Live Assistant', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1F2937))),
-                    Text('Always-on copilots across your program', style: TextStyle(color: Color(0xFF1F2937), fontSize: 13)),
+                    Text('KAZ AI Live Assistant',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: Color(0xFF1F2937))),
+                    Text('Always-on copilots across your program',
+                        style:
+                            TextStyle(color: Color(0xFF1F2937), fontSize: 13)),
                   ],
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     color: Colors.white.withOpacity(0.18),
                   ),
-                  child: const Text('Online', style: TextStyle(color: Color(0xFF1F2937), fontWeight: FontWeight.w700, fontSize: 12)),
+                  child: const Text('Online',
+                      style: TextStyle(
+                          color: Color(0xFF1F2937),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12)),
                 ),
               ],
             ),
@@ -1925,16 +2126,20 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     (bubble) => Padding(
                       padding: const EdgeInsets.only(bottom: 18),
                       child: Align(
-                        alignment: bubble.role == 'You' ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: bubble.role == 'You'
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           constraints: const BoxConstraints(maxWidth: 320),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 14),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(18),
                             color: bubble.role == 'You'
                                 ? Colors.white.withOpacity(0.14)
                                 : Colors.white.withOpacity(0.08),
-                            border: Border.all(color: Colors.white.withOpacity(0.12)),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.12)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1944,7 +2149,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                                 style: TextStyle(
                                   color: bubble.role == 'You'
                                       ? Colors.white.withOpacity(0.85)
-                                      : LightModeColors.accent.withOpacity(0.95),
+                                      : LightModeColors.accent
+                                          .withOpacity(0.95),
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
                                 ),
@@ -1970,15 +2176,18 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           Container(
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
             decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(28)),
               color: Colors.black.withOpacity(0.2),
-              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+              border: Border(
+                  top: BorderSide(color: Colors.white.withOpacity(0.08))),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 14),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       color: Colors.white.withOpacity(0.08),
@@ -1986,12 +2195,16 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.bolt_rounded, color: LightModeColors.accent.withOpacity(0.9), size: 18),
+                        Icon(Icons.bolt_rounded,
+                            color: LightModeColors.accent.withOpacity(0.9),
+                            size: 18),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Ask KAZ AI how to accelerate this week\'s milestone...',
-                            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 13),
                           ),
                         ),
                       ],
@@ -2004,10 +2217,14 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     gradient: LinearGradient(
-                      colors: [LightModeColors.accent.withOpacity(0.95), LightModeColors.accent.withOpacity(0.7)],
+                      colors: [
+                        LightModeColors.accent.withOpacity(0.95),
+                        LightModeColors.accent.withOpacity(0.7)
+                      ],
                     ),
                   ),
-                  child: const Icon(Icons.send_rounded, color: Color(0xFF1F2937), size: 20),
+                  child: const Icon(Icons.send_rounded,
+                      color: Color(0xFF1F2937), size: 20),
                 ),
               ],
             ),
@@ -2041,7 +2258,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: wideLayout ? 96 : 24),
-      padding: EdgeInsets.symmetric(horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 72 : 48),
+      padding: EdgeInsets.symmetric(
+          horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 72 : 48),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(36),
         gradient: const LinearGradient(
@@ -2082,13 +2300,17 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                 columns = 1;
               }
               final double spacing = 24;
-              final double itemWidth = columns == 1 ? maxWidth : (maxWidth - spacing * (columns - 1)) / columns;
+              final double itemWidth = columns == 1
+                  ? maxWidth
+                  : (maxWidth - spacing * (columns - 1)) / columns;
 
               return Wrap(
                 spacing: spacing,
                 runSpacing: spacing,
                 children: testimonials
-                    .map((testimonial) => SizedBox(width: itemWidth, child: _TestimonialCard(data: testimonial)))
+                    .map((testimonial) => SizedBox(
+                        width: itemWidth,
+                        child: _TestimonialCard(data: testimonial)))
                     .toList(),
               );
             },
@@ -2101,8 +2323,10 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
   Widget _buildCTASection(BuildContext context, bool isDesktop) {
     return Container(
       key: _ctaKey,
-      margin: EdgeInsets.fromLTRB(isDesktop ? 96 : 24, 0, isDesktop ? 96 : 24, isDesktop ? 80 : 56),
-      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 72 : 32, vertical: isDesktop ? 76 : 56),
+      margin: EdgeInsets.fromLTRB(
+          isDesktop ? 96 : 24, 0, isDesktop ? 96 : 24, isDesktop ? 80 : 56),
+      padding: EdgeInsets.symmetric(
+          horizontal: isDesktop ? 72 : 32, vertical: isDesktop ? 76 : 56),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(36),
         gradient: const LinearGradient(
@@ -2135,7 +2359,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           Text(
             'Start a free trial and access every workspace, KAZ AI, and executive-ready report.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 17, color: Colors.white.withOpacity(0.78)),
+            style:
+                TextStyle(fontSize: 17, color: Colors.white.withOpacity(0.78)),
           ),
           const SizedBox(height: 32),
           Wrap(
@@ -2148,11 +2373,15 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LightModeColors.accent,
                   foregroundColor: const Color(0xFF151515),
-                  padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 20),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 42, vertical: 20),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
-                child: const Text('Start Your Project', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                child: const Text('Start Your Project',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
               ),
               OutlinedButton(
                 onPressed: () {
@@ -2167,11 +2396,15 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                   side: const BorderSide(color: Colors.white, width: 2),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text('Partner with us', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                child: const Text('Partner with us',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -2517,10 +2750,17 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       _FooterColumnData(
         title: 'Platform',
         links: [
-          _FooterLinkData(label: 'Front-End Planning', onTap: () => _scrollTo(_platformKey)),
-          _FooterLinkData(label: 'Risk & SSHER Intelligence', onTap: () => _scrollTo(_workflowKey)),
-          _FooterLinkData(label: 'Team Collaboration', onTap: () => _scrollTo(_workflowKey)),
-          _FooterLinkData(label: 'KAZ AI Copilot', onTap: () => _scrollTo(_aiKey)),
+          _FooterLinkData(
+              label: 'Front-End Planning',
+              onTap: () => _scrollTo(_platformKey)),
+          _FooterLinkData(
+              label: 'Risk & SSHER Intelligence',
+              onTap: () => _scrollTo(_workflowKey)),
+          _FooterLinkData(
+              label: 'Team Collaboration',
+              onTap: () => _scrollTo(_workflowKey)),
+          _FooterLinkData(
+              label: 'KAZ AI Copilot', onTap: () => _scrollTo(_aiKey)),
         ],
       ),
       _FooterColumnData(
@@ -2534,7 +2774,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       _FooterColumnData(
         title: 'Resources',
         links: [
-          _FooterLinkData(label: 'KAZ AI Playbook.', onTap: () => _scrollTo(_aiKey)),
+          _FooterLinkData(
+              label: 'KAZ AI Playbook.', onTap: () => _scrollTo(_aiKey)),
           const _FooterLinkData(label: 'Security'),
           const _FooterLinkData(label: 'Governance'),
           const _FooterLinkData(label: 'Customer Service'),
@@ -2556,20 +2797,24 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
     final columnWidget = LayoutBuilder(
       builder: (context, constraints) {
         final double maxWidth = constraints.maxWidth;
-        final double resolvedWidth = maxWidth >= 540 ? 240.0 : (maxWidth <= 320 ? maxWidth : maxWidth / 2);
+        final double resolvedWidth = maxWidth >= 540
+            ? 240.0
+            : (maxWidth <= 320 ? maxWidth : maxWidth / 2);
         return Wrap(
           spacing: 28,
           runSpacing: 28,
           alignment: isMobile ? WrapAlignment.center : WrapAlignment.start,
           children: columns
-              .map((data) => SizedBox(width: resolvedWidth, child: _FooterColumn(data: data)))
+              .map((data) => SizedBox(
+                  width: resolvedWidth, child: _FooterColumn(data: data)))
               .toList(),
         );
       },
     );
 
     final leftBlock = Column(
-      crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
         Text(
           'Ndu Project is a project delivery platform that enables organizations to save money on projects via robust planning, integrated design, and flawless execution.',
@@ -2609,7 +2854,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                                   ],
                                 ),
                               ),
-                              child: const Icon(Icons.headset_mic_rounded, color: Color(0xFF111827), size: 20),
+                              child: const Icon(Icons.headset_mic_rounded,
+                                  color: Color(0xFF111827), size: 20),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -2627,7 +2873,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                                   const SizedBox(height: 4),
                                   Text(
                                     'Expert guidance to optimize your project outcomes.',
-                                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                                    style: TextStyle(
+                                        color: Colors.white.withOpacity(0.6),
+                                        fontSize: 13),
                                   ),
                                 ],
                               ),
@@ -2640,16 +2888,21 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                           child: ElevatedButton(
                             onPressed: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const CreateAccountScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const CreateAccountScreen()),
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: const Color(0xFF111827),
-                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 22, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
                               elevation: 0,
                             ),
-                            child: const Text('Book a session', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                            child: const Text('Book a session',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 14)),
                           ),
                         ),
                       ],
@@ -2667,7 +2920,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                               ],
                             ),
                           ),
-                          child: const Icon(Icons.headset_mic_rounded, color: Color(0xFF111827), size: 20),
+                          child: const Icon(Icons.headset_mic_rounded,
+                              color: Color(0xFF111827), size: 20),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -2685,7 +2939,9 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                               const SizedBox(height: 4),
                               Text(
                                 'Expert guidance to optimize your project outcomes.',
-                                style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                                style: TextStyle(
+                                    color: Colors.white.withOpacity(0.6),
+                                    fontSize: 13),
                               ),
                             ],
                           ),
@@ -2694,16 +2950,21 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                         ElevatedButton(
                           onPressed: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const CreateAccountScreen()),
+                            MaterialPageRoute(
+                                builder: (_) => const CreateAccountScreen()),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: const Color(0xFF111827),
-                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 22, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
                             elevation: 0,
                           ),
-                          child: const Text('Book a session', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                          child: const Text('Book a session',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 14)),
                         ),
                       ],
                     ),
@@ -2716,8 +2977,16 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isWide ? 96 : isMobile ? 20 : 28,
-        vertical: isWide ? 80 : isMobile ? 42 : 56,
+        horizontal: isWide
+            ? 96
+            : isMobile
+                ? 20
+                : 28,
+        vertical: isWide
+            ? 80
+            : isMobile
+                ? 42
+                : 56,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -2728,7 +2997,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
         border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
       ),
       child: Column(
-        crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
           if (isWide)
             Row(
@@ -2754,15 +3024,19 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
           Container(
             padding: const EdgeInsets.symmetric(vertical: 22),
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+              border: Border(
+                  top: BorderSide(color: Colors.white.withOpacity(0.08))),
             ),
             child: Column(
-              crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              crossAxisAlignment: isMobile
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
               children: [
                 Wrap(
                   spacing: 18,
                   runSpacing: 12,
-                  alignment: isMobile ? WrapAlignment.center : WrapAlignment.start,
+                  alignment:
+                      isMobile ? WrapAlignment.center : WrapAlignment.start,
                   children: const [
                     _FooterPill(text: 'contact@nduproject.com'),
                     _FooterPill(text: 'Phone (US): +1 (832) 228-3510'),
@@ -2771,7 +3045,8 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                 const SizedBox(height: 18),
                 Text(
                   '© 2025 NDU Project. Engineered for leaders building the next wave of critical programs.',
-                  style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 13),
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.55), fontSize: 13),
                   textAlign: isMobile ? TextAlign.center : TextAlign.left,
                 ),
                 const SizedBox(height: 12),
@@ -3004,7 +3279,8 @@ class _DeliveryIllustrationCard extends StatelessWidget {
             data.colors.first.withOpacity(0.08),
           ],
         ),
-        border: Border.all(color: data.colors.first.withOpacity(0.35), width: 1.5),
+        border:
+            Border.all(color: data.colors.first.withOpacity(0.35), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: data.colors.last.withOpacity(0.35),
@@ -3054,7 +3330,8 @@ class _DeliveryIllustrationCard extends StatelessWidget {
                       data.colors.last.withOpacity(0.7),
                     ],
                   ),
-                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.3), width: 2),
                   boxShadow: [
                     BoxShadow(
                       color: data.colors.last.withOpacity(0.4),
@@ -3105,11 +3382,13 @@ class _DeliveryIllustrationCard extends StatelessWidget {
                 children: data.highlights
                     .map(
                       (highlight) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
                           color: Colors.white.withOpacity(0.18),
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.3), width: 1),
                           boxShadow: [
                             BoxShadow(
                               color: data.colors.first.withOpacity(0.15),
@@ -3184,7 +3463,8 @@ class _HeroActionButton extends StatelessWidget {
             ],
           );
 
-    final Color textColor = isSecondary ? Colors.white.withOpacity(0.88) : const Color(0xFF14213D);
+    final Color textColor =
+        isSecondary ? Colors.white.withOpacity(0.88) : const Color(0xFF14213D);
 
     return Material(
       color: Colors.transparent,
@@ -3198,7 +3478,7 @@ class _HeroActionButton extends StatelessWidget {
             builder: (context, constraints) {
               // On very small screens, wrap text and stack elements
               final bool shouldWrap = constraints.maxWidth < 300;
-              
+
               if (shouldWrap) {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -3217,7 +3497,7 @@ class _HeroActionButton extends StatelessWidget {
                   ],
                 );
               }
-              
+
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -3236,7 +3516,8 @@ class _HeroActionButton extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Icon(Icons.arrow_outward_rounded, size: 18, color: textColor.withOpacity(0.9)),
+                  Icon(Icons.arrow_outward_rounded,
+                      size: 18, color: textColor.withOpacity(0.9)),
                 ],
               );
             },
@@ -3283,7 +3564,8 @@ class _HeroMetricChip extends StatelessWidget {
 
 class _NoGlowScrollBehavior extends ScrollBehavior {
   @override
-  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) {
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
     return child;
   }
 }
@@ -3330,7 +3612,8 @@ class _FooterColumn extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 alignment: Alignment.centerLeft,
                 foregroundColor: Colors.white.withOpacity(0.68),
-                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                textStyle:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               ),
               child: Text(link.label),
             ),
@@ -3357,7 +3640,10 @@ class _FooterPill extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(color: Colors.white.withOpacity(0.68), fontSize: 13, fontWeight: FontWeight.w600),
+        style: TextStyle(
+            color: Colors.white.withOpacity(0.68),
+            fontSize: 13,
+            fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -3406,7 +3692,10 @@ class _TrustedByBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 13, fontWeight: FontWeight.w600),
+        style: TextStyle(
+            color: Colors.white.withOpacity(0.75),
+            fontSize: 13,
+            fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -3417,8 +3706,8 @@ class _MetricData {
     required this.value,
     required this.label,
     required this.caption,
-    this.prefix = '',
     this.suffix = '',
+    this.prefix = '',
     this.decimals = 0,
   });
 
@@ -3467,7 +3756,10 @@ class _CapabilityCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [data.gradient.first.withOpacity(0.22), const Color(0xFF090909)],
+          colors: [
+            data.gradient.first.withOpacity(0.22),
+            const Color(0xFF090909)
+          ],
         ),
         border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
@@ -3480,7 +3772,10 @@ class _CapabilityCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
-                colors: [data.gradient.first.withOpacity(0.9), data.gradient.last.withOpacity(0.8)],
+                colors: [
+                  data.gradient.first.withOpacity(0.9),
+                  data.gradient.last.withOpacity(0.8)
+                ],
               ),
             ),
             child: Icon(data.icon, color: Colors.white, size: 26),
@@ -3522,7 +3817,10 @@ class _CapabilityCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       bullet,
-                      style: TextStyle(color: Colors.white.withOpacity(0.78), fontSize: 14, height: 1.6),
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.78),
+                          fontSize: 14,
+                          height: 1.6),
                     ),
                   ),
                 ],
@@ -3575,18 +3873,23 @@ class _WorkflowCard extends StatelessWidget {
             ),
             child: Text(
               step.step,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 18),
           Text(
             step.title,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
           ),
           const SizedBox(height: 12),
           Text(
             step.description,
-            style: TextStyle(color: Colors.white.withOpacity(0.72), height: 1.6, fontSize: 14),
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.72),
+                height: 1.6,
+                fontSize: 14),
           ),
           const SizedBox(height: 18),
           Container(
@@ -3598,12 +3901,14 @@ class _WorkflowCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.explore_rounded, color: Colors.white, size: 18),
+                const Icon(Icons.explore_rounded,
+                    color: Colors.white, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     step.spotlight,
-                    style: TextStyle(color: Colors.white.withOpacity(0.82), fontSize: 13),
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.82), fontSize: 13),
                   ),
                 ),
               ],
@@ -3649,12 +3954,18 @@ class _KazAiBullet extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Colors.white),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: Colors.white),
               ),
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: TextStyle(color: Colors.white.withOpacity(0.78), height: 1.6, fontSize: 14),
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.78),
+                    height: 1.6,
+                    fontSize: 14),
               ),
             ],
           ),
@@ -3665,7 +3976,8 @@ class _KazAiBullet extends StatelessWidget {
 }
 
 class _TestimonialData {
-  const _TestimonialData({required this.quote, required this.name, required this.company});
+  const _TestimonialData(
+      {required this.quote, required this.name, required this.company});
 
   final String quote;
   final String name;
@@ -3693,16 +4005,21 @@ class _TestimonialCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             data.quote,
-            style: TextStyle(color: Colors.white.withOpacity(0.85), height: 1.6, fontSize: 15),
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                height: 1.6,
+                fontSize: 15),
           ),
           const SizedBox(height: 18),
           Text(
             data.name,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
           ),
           Text(
             data.company,
-            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
           ),
         ],
       ),
