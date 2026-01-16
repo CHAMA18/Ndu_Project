@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/progress_tracking_screen.dart';
@@ -25,6 +28,27 @@ class ContractsTrackingScreen extends StatefulWidget {
 
 class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
   final Set<String> _selectedFilters = {'All contracts'};
+  final _Debouncer _saveDebouncer = _Debouncer();
+  bool _isLoading = false;
+  bool _suspendSave = false;
+
+  List<_RenewalLaneData> _renewalLanes = [];
+  List<_RiskSignalData> _riskSignals = [];
+  List<_ApprovalCheckpointData> _approvalCheckpoints = [];
+
+  static const List<String> _riskStatusOptions = [
+    'On track',
+    'At risk',
+    'Needs review',
+    'Blocked',
+  ];
+
+  static const List<String> _approvalStatusOptions = [
+    'Pending',
+    'In review',
+    'Complete',
+    'Scheduled',
+  ];
 
   String? get _projectId {
     try {
@@ -34,6 +58,98 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
       return null;
     }
   }
+
+  @override
+  void initState() {
+    super.initState();
+    _renewalLanes = _defaultRenewalLanes();
+    _riskSignals = _defaultRiskSignals();
+    _approvalCheckpoints = _defaultApprovalCheckpoints();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTrackingData());
+  }
+
+  @override
+  void dispose() {
+    _saveDebouncer.dispose();
+    super.dispose();
+  }
+
+  DocumentReference<Map<String, dynamic>> _trackingDoc(String projectId) {
+    return FirebaseFirestore.instance
+        .collection('projects')
+        .doc(projectId)
+        .collection('execution_phase_sections')
+        .doc('contracts_tracking');
+  }
+
+  void _scheduleSave() {
+    if (_suspendSave) return;
+    _saveDebouncer.run(_saveTrackingData);
+  }
+
+  Future<void> _loadTrackingData() async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final doc = await _trackingDoc(projectId).get();
+      final data = doc.data() ?? {};
+      _suspendSave = true;
+      if (!mounted) return;
+      setState(() {
+        final lanes = _RenewalLaneData.fromList(data['renewalLanes']);
+        final signals = _RiskSignalData.fromList(data['riskSignals']);
+        final approvals = _ApprovalCheckpointData.fromList(data['approvalCheckpoints']);
+        _renewalLanes = lanes.isEmpty ? _defaultRenewalLanes() : lanes;
+        _riskSignals = signals.isEmpty ? _defaultRiskSignals() : signals;
+        _approvalCheckpoints = approvals.isEmpty ? _defaultApprovalCheckpoints() : approvals;
+      });
+    } catch (error) {
+      debugPrint('Contracts tracking load error: $error');
+    } finally {
+      _suspendSave = false;
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveTrackingData() async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await _trackingDoc(projectId).set({
+        'renewalLanes': _renewalLanes.map((e) => e.toMap()).toList(),
+        'riskSignals': _riskSignals.map((e) => e.toMap()).toList(),
+        'approvalCheckpoints': _approvalCheckpoints.map((e) => e.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Contracts tracking save error: $error');
+    }
+  }
+
+  List<_RenewalLaneData> _defaultRenewalLanes() {
+    return [
+      _RenewalLaneData(id: _newId(), label: '30 days', count: '0', note: 'Immediate renewals', color: const Color(0xFFF97316)),
+      _RenewalLaneData(id: _newId(), label: '60 days', count: '0', note: 'Prepare negotiation pack', color: const Color(0xFF6366F1)),
+      _RenewalLaneData(id: _newId(), label: '90 days', count: '0', note: 'Pipeline planning', color: const Color(0xFF10B981)),
+    ];
+  }
+
+  List<_RiskSignalData> _defaultRiskSignals() {
+    return [
+      _RiskSignalData(id: _newId(), title: 'Renewal risk flagged', detail: 'Track renewals with expiring SLAs', owner: 'Legal', status: 'Needs review'),
+    ];
+  }
+
+  List<_ApprovalCheckpointData> _defaultApprovalCheckpoints() {
+    return [
+      _ApprovalCheckpointData(id: _newId(), title: 'Legal review queue', status: 'Pending', owner: 'Legal', dueDate: 'TBD'),
+      _ApprovalCheckpointData(id: _newId(), title: 'Finance sign-off', status: 'Complete', owner: 'Finance', dueDate: 'TBD'),
+    ];
+  }
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +166,8 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+                if (_isLoading) const SizedBox(height: 16),
                 _buildHeader(isNarrow),
                 const SizedBox(height: 16),
                 _buildFilterChips(),
@@ -432,65 +550,13 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     return _PanelShell(
       title: 'Renewal pipeline',
       subtitle: 'Contracts rolling into renewal windows',
-      child: StreamBuilder<List<ContractModel>>(
-        stream: ContractService.streamContracts(_projectId!),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const SizedBox.shrink();
-          }
-
-          final contracts = snapshot.data!;
-          final now = DateTime.now();
-          
-          final renewal30 = contracts.where((c) {
-            final days = c.endDate.difference(now).inDays;
-            return days <= 30 && days > 0;
-          }).length;
-          
-          final renewal60 = contracts.where((c) {
-            final days = c.endDate.difference(now).inDays;
-            return days <= 60 && days > 30;
-          }).length;
-          
-          final renewal90 = contracts.where((c) {
-            final days = c.endDate.difference(now).inDays;
-            return days <= 90 && days > 60;
-          }).length;
-
-          final lanes = [
-            _RenewalLane('30 days', renewal30, const Color(0xFFF97316)),
-            _RenewalLane('60 days', renewal60, const Color(0xFF6366F1)),
-            _RenewalLane('90 days', renewal90, const Color(0xFF10B981)),
-          ];
-
-          return Column(
-            children: lanes.map((lane) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(color: lane.color, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(lane.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                    ),
-                    Text('${lane.count} contracts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: lane.color)),
-                  ],
-                ),
-              );
-            }).toList(),
-          );
-        },
+      trailing: TextButton.icon(
+        onPressed: _addRenewalLane,
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Add lane'),
+      ),
+      child: Column(
+        children: _renewalLanes.map(_buildRenewalLane).toList(),
       ),
     );
   }
@@ -507,63 +573,20 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     return _PanelShell(
       title: 'Risk signals',
       subtitle: 'Items that need attention this week',
-      child: StreamBuilder<List<ContractModel>>(
-        stream: ContractService.streamContracts(_projectId!),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const SizedBox.shrink();
-          }
-
-          final contracts = snapshot.data!;
-          final renewalDue = contracts.where((c) {
-            final days = c.endDate.difference(DateTime.now()).inDays;
-            return days <= 7 && days > 0;
-          }).length;
-          final atRiskCount = contracts.where((c) => c.status == 'At risk').length;
-          final pendingCount = contracts.where((c) => c.status == 'Pending sign-off').length;
-
-          final signals = <_SignalItem>[];
-          if (renewalDue > 0) {
-            signals.add(_SignalItem('Renewal risk flagged', '$renewalDue contract${renewalDue > 1 ? 's' : ''} require escalation this week.'));
-          }
-          if (atRiskCount > 0) {
-            signals.add(_SignalItem('At-risk contracts', '$atRiskCount contract${atRiskCount > 1 ? 's' : ''} marked as at risk.'));
-          }
-          if (pendingCount > 0) {
-            signals.add(_SignalItem('Legal review backlog', '$pendingCount item${pendingCount > 1 ? 's' : ''} awaiting legal sign-off.'));
-          }
-
-          if (signals.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text('No active risk signals', style: TextStyle(color: Color(0xFF10B981))),
-              ),
-            );
-          }
-
-          return Column(
-            children: signals.map((signal) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+      trailing: TextButton.icon(
+        onPressed: _addRiskSignal,
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Add signal'),
+      ),
+      child: Column(
+        children: _riskSignals.isEmpty
+            ? [
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('No active risk signals', style: TextStyle(color: Color(0xFF10B981))),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(signal.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text(signal.subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                  ],
-                ),
-              );
-            }).toList(),
-          );
-        },
+              ]
+            : _riskSignals.map(_buildRiskSignal).toList(),
       ),
     );
   }
@@ -572,13 +595,14 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     return _PanelShell(
       title: 'Approval readiness',
       subtitle: 'Legal and finance checkpoints',
+      trailing: TextButton.icon(
+        onPressed: _addApprovalCheckpoint,
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Add checkpoint'),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _ApprovalItem('Legal review queue', '2 pending', true),
-          _ApprovalItem('Finance sign-off', 'Complete', true),
-          _ApprovalItem('Security assessment', 'Scheduled', false),
-        ],
+        children: _approvalCheckpoints.map(_buildApprovalCheckpoint).toList(),
       ),
     );
   }
@@ -612,10 +636,269 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)      ),
+    );
+  }
+
+  Widget _buildRenewalLane(_RenewalLaneData lane) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: lane.color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextFormField(
+              initialValue: lane.label,
+              decoration: _inlineDecoration('Lane label'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              onChanged: (value) => _updateRenewalLane(lane.copyWith(label: value)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 70,
+            child: TextFormField(
+              initialValue: lane.count,
+              decoration: _inlineDecoration('Count'),
+              keyboardType: TextInputType.number,
+              onChanged: (value) => _updateRenewalLane(lane.copyWith(count: value)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextFormField(
+              initialValue: lane.note,
+              decoration: _inlineDecoration('Note'),
+              onChanged: (value) => _updateRenewalLane(lane.copyWith(note: value)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteRenewalLane(lane.id),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiskSignal(_RiskSignalData signal) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormField(
+            initialValue: signal.title,
+            decoration: _inlineDecoration('Signal title'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            onChanged: (value) => _updateRiskSignal(signal.copyWith(title: value)),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            initialValue: signal.detail,
+            decoration: _inlineDecoration('Detail'),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            onChanged: (value) => _updateRiskSignal(signal.copyWith(detail: value)),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  initialValue: signal.owner,
+                  decoration: _inlineDecoration('Owner'),
+                  onChanged: (value) => _updateRiskSignal(signal.copyWith(owner: value)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _riskStatusOptions.contains(signal.status) ? signal.status : _riskStatusOptions.first,
+                  decoration: _inlineDecoration('Status'),
+                  items: _riskStatusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                  onChanged: (value) => _updateRiskSignal(signal.copyWith(status: value ?? _riskStatusOptions.first)),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+                onPressed: () => _deleteRiskSignal(signal.id),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApprovalCheckpoint(_ApprovalCheckpointData checkpoint) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              initialValue: checkpoint.title,
+              decoration: _inlineDecoration('Checkpoint'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              onChanged: (value) => _updateApprovalCheckpoint(checkpoint.copyWith(title: value)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 120,
+            child: DropdownButtonFormField<String>(
+              value: _approvalStatusOptions.contains(checkpoint.status) ? checkpoint.status : _approvalStatusOptions.first,
+              decoration: _inlineDecoration('Status'),
+              items: _approvalStatusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              onChanged: (value) => _updateApprovalCheckpoint(checkpoint.copyWith(status: value ?? _approvalStatusOptions.first)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextFormField(
+              initialValue: checkpoint.owner,
+              decoration: _inlineDecoration('Owner'),
+              onChanged: (value) => _updateApprovalCheckpoint(checkpoint.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 120,
+            child: TextFormField(
+              initialValue: checkpoint.dueDate,
+              decoration: _inlineDecoration('Due date'),
+              onChanged: (value) => _updateApprovalCheckpoint(checkpoint.copyWith(dueDate: value)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteApprovalCheckpoint(checkpoint.id),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addRenewalLane() {
+    setState(() {
+      _renewalLanes.add(_RenewalLaneData(
+        id: _newId(),
+        label: '',
+        count: '',
+        note: '',
+        color: const Color(0xFFF97316),
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateRenewalLane(_RenewalLaneData lane) {
+    final index = _renewalLanes.indexWhere((item) => item.id == lane.id);
+    if (index == -1) return;
+    setState(() => _renewalLanes[index] = lane);
+    _scheduleSave();
+  }
+
+  void _deleteRenewalLane(String id) {
+    setState(() => _renewalLanes.removeWhere((item) => item.id == id));
+    _scheduleSave();
+  }
+
+  void _addRiskSignal() {
+    setState(() {
+      _riskSignals.add(_RiskSignalData(
+        id: _newId(),
+        title: '',
+        detail: '',
+        owner: '',
+        status: _riskStatusOptions.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateRiskSignal(_RiskSignalData signal) {
+    final index = _riskSignals.indexWhere((item) => item.id == signal.id);
+    if (index == -1) return;
+    setState(() => _riskSignals[index] = signal);
+    _scheduleSave();
+  }
+
+  void _deleteRiskSignal(String id) {
+    setState(() => _riskSignals.removeWhere((item) => item.id == id));
+    _scheduleSave();
+  }
+
+  void _addApprovalCheckpoint() {
+    setState(() {
+      _approvalCheckpoints.add(_ApprovalCheckpointData(
+        id: _newId(),
+        title: '',
+        status: _approvalStatusOptions.first,
+        owner: '',
+        dueDate: '',
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateApprovalCheckpoint(_ApprovalCheckpointData checkpoint) {
+    final index = _approvalCheckpoints.indexWhere((item) => item.id == checkpoint.id);
+    if (index == -1) return;
+    setState(() => _approvalCheckpoints[index] = checkpoint);
+    _scheduleSave();
+  }
+
+  void _deleteApprovalCheckpoint(String id) {
+    setState(() => _approvalCheckpoints.removeWhere((item) => item.id == id));
+    _scheduleSave();
+  }
+
+  InputDecoration _inlineDecoration(String hint) {
+    return InputDecoration(
+      isDense: true,
+      hintText: hint,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF0EA5E9)),
+      ),
     );
   }
 
@@ -878,49 +1161,164 @@ class _PanelShell extends StatelessWidget {
   }
 }
 
-class _ApprovalItem extends StatelessWidget {
-  const _ApprovalItem(this.title, this.status, this.complete);
+class _RenewalLaneData {
+  const _RenewalLaneData({
+    required this.id,
+    required this.label,
+    required this.count,
+    required this.note,
+    required this.color,
+  });
 
-  final String title;
-  final String status;
-  final bool complete;
+  final String id;
+  final String label;
+  final String count;
+  final String note;
+  final Color color;
 
-  @override
-  Widget build(BuildContext context) {
-    final color = complete ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Icon(complete ? Icons.check_circle : Icons.schedule, size: 16, color: color),
-          const SizedBox(width: 8),
-          Expanded(child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-          Text(status, style: TextStyle(fontSize: 12, color: color)),
-        ],
-      ),
+  _RenewalLaneData copyWith({String? label, String? count, String? note, Color? color}) {
+    return _RenewalLaneData(
+      id: id,
+      label: label ?? this.label,
+      count: count ?? this.count,
+      note: note ?? this.note,
+      color: color ?? this.color,
     );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'label': label,
+        'count': count,
+        'note': note,
+        'color': color.value,
+      };
+
+  static List<_RenewalLaneData> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _RenewalLaneData(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        label: map['label']?.toString() ?? '',
+        count: map['count']?.toString() ?? '',
+        note: map['note']?.toString() ?? '',
+        color: Color(map['color'] is int ? map['color'] as int : const Color(0xFFF97316).value),
+      );
+    }).toList();
   }
 }
 
-class _RenewalLane {
-  const _RenewalLane(this.label, this.count, this.color);
+class _RiskSignalData {
+  const _RiskSignalData({
+    required this.id,
+    required this.title,
+    required this.detail,
+    required this.owner,
+    required this.status,
+  });
 
-  final String label;
-  final int count;
-  final Color color;
+  final String id;
+  final String title;
+  final String detail;
+  final String owner;
+  final String status;
+
+  _RiskSignalData copyWith({String? title, String? detail, String? owner, String? status}) {
+    return _RiskSignalData(
+      id: id,
+      title: title ?? this.title,
+      detail: detail ?? this.detail,
+      owner: owner ?? this.owner,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'detail': detail,
+        'owner': owner,
+        'status': status,
+      };
+
+  static List<_RiskSignalData> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _RiskSignalData(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        title: map['title']?.toString() ?? '',
+        detail: map['detail']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'On track',
+      );
+    }).toList();
+  }
 }
 
-class _SignalItem {
-  const _SignalItem(this.title, this.subtitle);
+class _ApprovalCheckpointData {
+  const _ApprovalCheckpointData({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.owner,
+    required this.dueDate,
+  });
 
+  final String id;
   final String title;
-  final String subtitle;
+  final String status;
+  final String owner;
+  final String dueDate;
+
+  _ApprovalCheckpointData copyWith({String? title, String? status, String? owner, String? dueDate}) {
+    return _ApprovalCheckpointData(
+      id: id,
+      title: title ?? this.title,
+      status: status ?? this.status,
+      owner: owner ?? this.owner,
+      dueDate: dueDate ?? this.dueDate,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'status': status,
+        'owner': owner,
+        'dueDate': dueDate,
+      };
+
+  static List<_ApprovalCheckpointData> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _ApprovalCheckpointData(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        title: map['title']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Pending',
+        owner: map['owner']?.toString() ?? '',
+        dueDate: map['dueDate']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
+class _Debouncer {
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 700);
+
+  final Duration delay;
+  Timer? _timer;
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
+  }
 }
 
 class _StatCardData {
