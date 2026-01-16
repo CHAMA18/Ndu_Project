@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
+import 'package:ndu_project/screens/ssher_stacked_screen.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -134,10 +136,19 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
       );
     });
 
+    final isBasicPlan = ProjectDataHelper.getData(context).isBasicPlanProject;
+    
+    Widget nextScreen = const WorkBreakdownStructureScreen();
+    // 'Work Breakdown Structure' is locked in Basic Plan
+    if (isBasicPlan && SidebarNavigationService.basicPlanLockedLabels.contains('Work Breakdown Structure')) {
+       // Try next: SSHER (not locked)
+       nextScreen = const SsherStackedScreen();
+    }
+
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'planning_phase',
-      nextScreenBuilder: () => const WorkBreakdownStructureScreen(),
+      nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(planningGoals: planningGoals),
     );
   }

@@ -4,6 +4,53 @@ class SidebarNavigationService {
   SidebarNavigationService._();
   static final SidebarNavigationService instance = SidebarNavigationService._();
 
+  static const Set<String> basicPlanLockedLabels = {
+    'Contract & Vendor Quotes',
+    'Security',
+    'Allowance',
+    'Work Breakdown Structure',
+    'Interface Management',
+    'Project Baseline',
+    'Level 1 - Project Schedule',
+    'Detailed Project Schedule',
+    'Condensed Project Summary',
+    'Team Management',
+    'Staff Team',
+    'Update Ops and Maintenance Plans',
+    'Gap Analysis and Scope Reconciliation',
+    'Punchlist Actions',
+    'Salvage and/or Disposal Plan',
+    'Engineering',
+    'Specialized Design',
+    'Technical Development',
+    'Project Summary',
+    'Warranties & Operations Support',
+    'Project Financial Review',
+  };
+
+  /// Check if an item is locked based on its label and plan status
+  bool isItemLocked(SidebarItem item, bool isBasicPlan) {
+    if (!isBasicPlan) return false;
+    return basicPlanLockedLabels.contains(item.label);
+  }
+
+  /// Get the next accessible item in the sidebar order
+  SidebarItem? getNextAccessibleItem(String? currentCheckpoint, bool isBasicPlan) {
+    if (currentCheckpoint == null) return _sidebarOrder.first;
+
+    int currentIndex = _sidebarOrder.indexWhere((item) => item.checkpoint == currentCheckpoint);
+    if (currentIndex == -1) return null;
+
+    // Look ahead for the first non-locked item
+    for (int i = currentIndex + 1; i < _sidebarOrder.length; i++) {
+      final item = _sidebarOrder[i];
+      if (!isItemLocked(item, isBasicPlan)) {
+        return item;
+      }
+    }
+    return null; // Reached end or all remaining are locked
+  }
+
   /// Flat, ordered list of all sidebar items with their checkpoint names.
   /// This order determines the project flow chronology.
   static const List<SidebarItem> _sidebarOrder = [

@@ -10,7 +10,9 @@ import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'project_framework_next_screen.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/screens/project_charter_screen.dart';
+import 'package:ndu_project/screens/ssher_stacked_screen.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 class ProjectFrameworkScreen extends StatefulWidget {
   const ProjectFrameworkScreen({super.key});
@@ -138,10 +140,27 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
       return;
     }
 
+    final isBasicPlan = ProjectDataHelper.getData(context).isBasicPlanProject;
+    
+    // Use SidebarNavigationService to find the next accessible step given the current checkpoint 'project_framework'
+    final nextItem = SidebarNavigationService.instance.getNextAccessibleItem('project_framework', isBasicPlan);
+    
+    Widget nextScreen;
+    if (nextItem?.checkpoint == 'ssher') {
+      nextScreen = const SsherStackedScreen();
+    } else if (nextItem?.checkpoint == 'work_breakdown_structure') {
+      // If WBS is accessible, we go there. 
+      // Note: This bypasses ProjectFrameworkNextScreen which appears to be redundant with the new ProjectFrameworkScreen.
+      nextScreen = const WorkBreakdownStructureScreen(); 
+    } else {
+      // Fallback or default flow if something unexpected returns
+      nextScreen = const WorkBreakdownStructureScreen();
+    }
+
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'project_framework',
-      nextScreenBuilder: () => const ProjectFrameworkNextScreen(),
+      nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(
         overallFramework: _selectedOverallFramework,
         projectGoals: projectGoals,
@@ -206,9 +225,9 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                               ),
                               const SizedBox(height: 24),
                               LaunchPhaseNavigation(
-                                backLabel: 'Back: Work Breakdown Structure',
-                                nextLabel: 'Next: SSHER',
-                                onBack: () => WorkBreakdownStructureScreen.open(context),
+                                backLabel: 'Back: Project Charter',
+                                nextLabel: 'Next',
+                                onBack: () => ProjectCharterScreen.open(context),
                                 onNext: _handleNextPressed,
                               ),
                               const SizedBox(height: 40),
@@ -218,7 +237,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                       ),
                     ],
                   ),
-                  const _BottomOverlay(),
                   const KazAiChatBubble(),
                 ],
               ),
