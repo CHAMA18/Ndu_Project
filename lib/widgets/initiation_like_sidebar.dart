@@ -58,6 +58,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/screens/security_management_screen.dart';
 import '../screens/quality_management_screen.dart';
 import 'package:ndu_project/screens/deliverables_roadmap_screen.dart';
+import 'package:ndu_project/screens/finalize_project_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/screens/launch_checklist_screen.dart';
 import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
@@ -873,6 +874,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   void _openIdentifyStaffOpsTeam() {
     _navigateWithCheckpoint('identify_staff_ops_team', const IdentifyStaffOpsTeamScreen());
+  }
+
+  void _openFinalizeProject() {
+    _navigateWithCheckpoint('finalize_project', const FinalizeProjectScreen());
   }
 
   void _openContractsTracking() {
@@ -1769,7 +1774,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                     isActive: widget.activeItemLabel == 'Salvage and/or Disposal Plan',
                     isDisabled: lockSalvageDisposal,
                   ),
-                  _buildSubMenuItem('Finalize Project', isActive: widget.activeItemLabel == 'Finalize Project'),
+                  _buildSubMenuItem('Finalize Project', onTap: _openFinalizeProject, isActive: widget.activeItemLabel == 'Finalize Project'),
                 ],
                 _buildExpandableHeader(
                   Icons.rocket_launch_outlined,

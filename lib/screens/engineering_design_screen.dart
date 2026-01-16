@@ -1,15 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/routing/app_router.dart';
-import 'package:ndu_project/services/user_service.dart';
 
 class EngineeringDesignScreen extends StatefulWidget {
   const EngineeringDesignScreen({super.key});
@@ -20,22 +16,6 @@ class EngineeringDesignScreen extends StatefulWidget {
 
 class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   final TextEditingController _notesController = TextEditingController();
-
-  // Admin status
-  bool _isAdmin = false;
-
-  // Track if content exists for each section
-  bool _hasSystemArchitecture = true;
-  bool _hasComponentsInterfaces = true;
-  bool _hasEngineeringReadiness = true;
-
-  // Imported documents for each section
-  String? _systemArchitectureDocument;
-  String? _componentsInterfacesDocument;
-  String? _engineeringReadinessDocument;
-  String? _systemArchitectureDocContent;
-  String? _componentsInterfacesDocContent;
-  String? _engineeringReadinessDocContent;
 
   // Core layers data
   final List<_CoreLayerItem> _coreLayers = [
@@ -62,72 +42,12 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAdminStatus();
-  }
-
-  Future<void> _checkAdminStatus() async {
-    final isAdmin = await UserService.isCurrentUserAdmin();
-    if (mounted) {
-      setState(() => _isAdmin = isAdmin);
-    }
   }
 
   @override
   void dispose() {
     _notesController.dispose();
     super.dispose();
-  }
-
-  Future<void> _importDocument(String sectionName, Function(String, String?) onImported) async {
-    try {
-      FilePickerResult? result;
-      
-      // Use different approach for web vs native
-      if (kIsWeb) {
-        result = await FilePicker.platform.pickFiles(
-          type: FileType.any,
-          withData: true,
-        );
-      } else {
-        result = await FilePicker.platform.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'md'],
-          withData: true,
-        );
-      }
-
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        final fileName = file.name;
-        final content = _extractTextPreview(fileName, file.bytes);
-        onImported(fileName, content);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Document "$fileName" imported for $sectionName'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No document selected.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error importing document: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to import document: ${e.toString().contains('LateInitializationError') ? 'File picker not available' : 'Please try again'}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -250,179 +170,18 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   Widget _buildSectionHeader({
     required String title,
     required String subtitle,
-    required String sectionName,
-    required String? importedDocument,
-    required Function(String, String?) onDocumentImported,
-    required VoidCallback onDeleteDocument,
-    required VoidCallback onCreate,
-    required bool hasContent,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                ],
-              ),
-            ),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _importDocument(sectionName, onDocumentImported),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.upload_file, size: 16, color: Colors.grey[700]),
-                      const SizedBox(width: 6),
-                      Text('Import', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+        Text(
+          title,
+          style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
         ),
-        if (importedDocument != null) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.insert_drive_file, size: 14, color: Colors.green),
-                    const SizedBox(width: 6),
-                    Text(importedDocument, style: const TextStyle(fontSize: 12, color: Colors.green), overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-              if (_isAdmin) ...[
-                const SizedBox(width: 8),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: onDeleteDocument,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.red.withOpacity(0.3)),
-                      ),
-                      child: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-        if (!hasContent) ...[
-          const SizedBox(height: 12),
-          Center(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onCreate,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                    color: LightModeColors.accent.withOpacity(0.1),
-                    border: Border.all(color: LightModeColors.accent),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.add, size: 18, color: Colors.black87),
-                      SizedBox(width: 8),
-                      Text('Create', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        const SizedBox(height: 6),
+        Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
-    );
-  }
-
-  String? _extractTextPreview(String fileName, Uint8List? bytes) {
-    if (bytes == null) return null;
-    final lower = fileName.toLowerCase();
-    final isText = lower.endsWith('.txt') ||
-        lower.endsWith('.md') ||
-        lower.endsWith('.csv') ||
-        lower.endsWith('.json') ||
-        lower.endsWith('.yaml') ||
-        lower.endsWith('.yml');
-    if (!isText) return null;
-    final decoded = utf8.decode(bytes, allowMalformed: true).trim();
-    if (decoded.isEmpty) return null;
-    const maxChars = 1600;
-    return decoded.length > maxChars ? '${decoded.substring(0, maxChars)}...' : decoded;
-  }
-
-  Widget _buildImportedPreview({required String fileName, required String? content}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppSemanticColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.insert_drive_file_outlined, size: 16, color: Color(0xFF2563EB)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  fileName,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            content ?? 'Preview unavailable for this file type. Imported file is linked to this section.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.4),
-            maxLines: 8,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
     );
   }
 
@@ -440,41 +199,34 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
           _buildSectionHeader(
             title: 'System architecture',
             subtitle: 'High-level layers and responsibilities',
-            sectionName: 'System architecture',
-            importedDocument: _systemArchitectureDocument,
-            onDocumentImported: (fileName, content) => setState(() {
-              _systemArchitectureDocument = fileName;
-              _systemArchitectureDocContent = content;
-              _hasSystemArchitecture = true;
-            }),
-            onDeleteDocument: () => setState(() => _systemArchitectureDocument = null),
-            onCreate: () => setState(() => _hasSystemArchitecture = true),
-            hasContent: _hasSystemArchitecture,
           ),
-          if (_systemArchitectureDocument != null) ...[
-            const SizedBox(height: 16),
-            _buildImportedPreview(fileName: _systemArchitectureDocument!, content: _systemArchitectureDocContent),
-          ],
-          if (_hasSystemArchitecture) ...[
-            const SizedBox(height: 20),
-            for (final layer in _coreLayers) ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(layer.name, style: const TextStyle(fontSize: 14, color: Colors.black87)),
-                    ),
-                    Text(layer.description, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                  ],
-                ),
+          const SizedBox(height: 20),
+          for (final layer in _coreLayers) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(layer.name,
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.black87)),
+                  ),
+                  Text(layer.description,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                ],
               ),
-            ],
-            const SizedBox(height: 16),
-            Text('Key decisions', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[700])),
-            const SizedBox(height: 8),
-            const Text('Document trade-offs for scalability, resilience, and security so all teams implement consistently.', style: TextStyle(fontSize: 14, color: Colors.black87)),
+            ),
           ],
+          const SizedBox(height: 16),
+          Text('Key decisions',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700])),
+          const SizedBox(height: 8),
+          const Text(
+              'Document trade-offs for scalability, resilience, and security so all teams implement consistently.',
+              style: TextStyle(fontSize: 14, color: Colors.black87)),
         ],
       ),
     );
@@ -493,106 +245,100 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
         _buildSectionHeader(
           title: 'Components & interfaces',
           subtitle: 'Who owns what and how they talk',
-          sectionName: 'Components & interfaces',
-          importedDocument: _componentsInterfacesDocument,
-          onDocumentImported: (fileName, content) => setState(() {
-            _componentsInterfacesDocument = fileName;
-            _componentsInterfacesDocContent = content;
-            _hasComponentsInterfaces = true;
-          }),
-          onDeleteDocument: () => setState(() => _componentsInterfacesDocument = null),
-          onCreate: () => setState(() => _hasComponentsInterfaces = true),
-          hasContent: _hasComponentsInterfaces,
         ),
-        if (_componentsInterfacesDocument != null) ...[
-          const SizedBox(height: 16),
-          _buildImportedPreview(
-            fileName: _componentsInterfacesDocument!,
-            content: _componentsInterfacesDocContent,
-          ),
-        ],
-        if (_hasComponentsInterfaces) ...[
-          const SizedBox(height: 20),
-          // Header Row
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: Text(
-                  'Component',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
-                ),
+        const SizedBox(height: 20),
+        // Header Row
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(
+                'Component',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600]),
               ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  'Responsibility',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Text(
-                  'Interface status',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ..._components.map((component) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    component.name,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      component.responsibility,
-                      style: const TextStyle(fontSize: 13, color: Colors.black87),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _getStatusColor(component.status),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          component.statusLabel,
-                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ),
-          )),
-        ],
+            Expanded(
+              flex: 2,
+              child: Text(
+                'Responsibility',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600]),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Text(
+                'Interface status',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600]),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ..._components.map((component) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      component.name,
+                      style:
+                          const TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        component.responsibility,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black87),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _getStatusColor(component.status),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            component.statusLabel,
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.grey[700]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )),
       ],
     ),
   );
@@ -610,98 +356,84 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
         _buildSectionHeader(
           title: 'Engineering readiness',
           subtitle: 'Design reviews, sign-offs, and ownership',
-          sectionName: 'Engineering readiness',
-          importedDocument: _engineeringReadinessDocument,
-          onDocumentImported: (fileName, content) => setState(() {
-            _engineeringReadinessDocument = fileName;
-            _engineeringReadinessDocContent = content;
-            _hasEngineeringReadiness = true;
-          }),
-          onDeleteDocument: () => setState(() => _engineeringReadinessDocument = null),
-          onCreate: () => setState(() => _hasEngineeringReadiness = true),
-          hasContent: _hasEngineeringReadiness,
         ),
-        if (_engineeringReadinessDocument != null) ...[
-          const SizedBox(height: 16),
-          _buildImportedPreview(
-            fileName: _engineeringReadinessDocument!,
-            content: _engineeringReadinessDocContent,
-          ),
-        ],
-        if (_hasEngineeringReadiness) ...[
-          const SizedBox(height: 20),
-          ..._readinessItems.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.description,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Owner: ${item.owner}',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          )),
-          const SizedBox(height: 8),
-          // Add engineering entry button
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {},
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 18, color: Colors.grey[700]),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Add engineering entry',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+        const SizedBox(height: 20),
+        ..._readinessItems.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.description,
+                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Owner: ${item.owner}',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            )),
+        const SizedBox(height: 8),
+        // Add engineering entry button
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {},
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, size: 18, color: Colors.grey[700]),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Add engineering entry',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          // Export button
-          Center(
-            child: OutlinedButton.icon(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.black87,
-                side: const BorderSide(color: LightModeColors.accent, width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              icon: const Icon(Icons.download, size: 18),
-              label: const Text('Export engineering blueprint'),
+        ),
+        const SizedBox(height: 16),
+        // Export button
+        Center(
+          child: OutlinedButton.icon(
+            onPressed: () {},
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.black87,
+              side:
+                  const BorderSide(color: LightModeColors.accent, width: 1.5),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
+            icon: const Icon(Icons.download, size: 18),
+            label: const Text('Export engineering blueprint'),
           ),
-        ],
+        ),
       ],
     ),
   );
