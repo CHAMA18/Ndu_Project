@@ -159,37 +159,16 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static const Set<String> _basicPlanLockedItems = {
-    'Contract & Vendor Quotes',
-    'Security',
-    'Allowance',
-    'Work Breakdown Structure',
-    'Interface Management',
-    'Project Baseline',
-    'Level 1 - Project Schedule',
-    'Detailed Project Schedule',
-    'Condensed Project Summary',
-    'Team Management',
-    'Staff Team',
-    'Update Ops and Maintenance Plans',
-    'Gap Analysis and Scope Reconciliation',
-    'Punchlist Actions',
-    'Salvage and/or Disposal Plan',
-    'Engineering',
-    'Specialized Design',
-    'Technical Development',
-    'Project Summary',
-    'Warranties & Operations Support',
-    'Project Financial Review',
-  };
-
   bool get _isBasicPlanProject {
     final provider = ProjectDataInherited.maybeOf(context);
     return provider?.projectData.isBasicPlanProject ?? false;
   }
 
   bool _isBasicPlanLocked(String label) {
-    return _isBasicPlanProject && _basicPlanLockedItems.contains(label);
+    if (!_isBasicPlanProject) return false;
+    final item = SidebarNavigationService.instance.findItemByLabel(label);
+    if (item == null) return false;
+    return SidebarNavigationService.instance.isItemLocked(item, true);
   }
 
   /// Check if a checkpoint has been reached based on Firestore project progress
