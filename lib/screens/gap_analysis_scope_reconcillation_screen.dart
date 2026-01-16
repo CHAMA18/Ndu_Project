@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -33,12 +35,17 @@ class GapAnalysisScopeReconcillationScreen extends StatefulWidget {
 class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeReconcillationScreen> {
   final Set<String> _selectedFocusFilters = {'Gap register'};
   final Set<String> _selectedVisibilityFilters = {'Scope baseline', 'Mitigation backlog'};
+  final List<_GapEntry> _gapEntries = [];
+  final List<_RootCauseItem> _rootCauseThemes = [];
+  final List<_RootCauseItem> _mitigationConfidence = [];
+  final List<_PlanEntry> _reconciliationPlans = [];
   final List<_ImpactRow> _impactRows = [];
   final List<_WorkflowStep> _workflowSteps = [];
   final List<String> _lessonsLearned = [];
   bool _loadedEntries = false;
   bool _aiGenerated = false;
   bool _isGenerating = false;
+  final _Debouncer _saveDebouncer = _Debouncer();
 
   @override
   void initState() {
@@ -46,6 +53,12 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadEntries();
     });
+  }
+
+  @override
+  void dispose() {
+    _saveDebouncer.dispose();
+    super.dispose();
   }
 
   @override
@@ -98,20 +111,33 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
                           },
                         ),
                         const SizedBox(height: 28),
-                        const _PrimarySections(),
+                        _PrimarySections(
+                          gapEntries: _gapEntries,
+                          rootCauseThemes: _rootCauseThemes,
+                          mitigationConfidence: _mitigationConfidence,
+                          reconciliationPlans: _reconciliationPlans,
+                          onGapEntriesChanged: _updateGapEntries,
+                          onRootCauseUpdated: _updateRootCauseThemes,
+                          onMitigationUpdated: _updateMitigationConfidence,
+                          onPlansUpdated: _updateReconciliationPlans,
+                        ),
                         const SizedBox(height: 24),
                         _SecondarySections(
+                          gapEntries: _gapEntries,
+                          reconciliationPlans: _reconciliationPlans,
                           impacts: _impactRows,
                           workflowSteps: _workflowSteps,
                           lessons: _lessonsLearned,
+                          onImpactsUpdated: _updateImpactRows,
                           onWorkflowUpdated: (updated) {
                             setState(() {
                               _workflowSteps
                                 ..clear()
                                 ..addAll(updated);
                             });
-                            _persistEntries();
+                            _schedulePersist();
                           },
+                          onLessonsUpdated: _updateLessonsLearned,
                         ),
                         const SizedBox(height: 24),
                         LaunchPhaseNavigation(
@@ -149,6 +175,26 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
           .get();
       if (doc.exists) {
         final data = doc.data() ?? {};
+        final gapEntries = (data['gapRegister'] as List?)
+                ?.whereType<Map>()
+                .map((e) => _GapEntry.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [];
+        final rootCauses = (data['rootCauseThemes'] as List?)
+                ?.whereType<Map>()
+                .map((e) => _RootCauseItem.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [];
+        final mitigation = (data['mitigationConfidence'] as List?)
+                ?.whereType<Map>()
+                .map((e) => _RootCauseItem.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [];
+        final plans = (data['reconciliationPlans'] as List?)
+                ?.whereType<Map>()
+                .map((e) => _PlanEntry.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [];
         final impacts = (data['impactAssessment'] as List?)
                 ?.whereType<Map>()
                 .map((e) => _ImpactRow.fromJson(Map<String, dynamic>.from(e)))
@@ -166,6 +212,18 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
             [];
         if (!mounted) return;
         setState(() {
+          _gapEntries
+            ..clear()
+            ..addAll(gapEntries);
+          _rootCauseThemes
+            ..clear()
+            ..addAll(rootCauses);
+          _mitigationConfidence
+            ..clear()
+            ..addAll(mitigation);
+          _reconciliationPlans
+            ..clear()
+            ..addAll(plans);
           _impactRows
             ..clear()
             ..addAll(impacts);
@@ -261,6 +319,12 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
     if (projectId == null || projectId.isEmpty) return;
 
     final payload = {
+      'gapRegister': _gapEntries.map((e) => e.toJson()).toList(),
+      'rootCauseThemes': _rootCauseThemes.map((e) => e.toJson()).toList(),
+      'mitigationConfidence':
+          _mitigationConfidence.map((e) => e.toJson()).toList(),
+      'reconciliationPlans':
+          _reconciliationPlans.map((e) => e.toJson()).toList(),
       'impactAssessment': _impactRows.map((e) => e.toJson()).toList(),
       'reconciliationWorkflow': _workflowSteps.map((e) => e.toJson()).toList(),
       'lessonsLearned': _lessonsLearned,
@@ -273,6 +337,64 @@ class _GapAnalysisScopeReconcillationScreenState extends State<GapAnalysisScopeR
         .collection('launch_phase')
         .doc('gap_analysis_scope_reconciliation')
         .set(payload, SetOptions(merge: true));
+  }
+
+  void _schedulePersist() {
+    _saveDebouncer.run(_persistEntries);
+  }
+
+  void _updateGapEntries(List<_GapEntry> updated) {
+    setState(() {
+      _gapEntries
+        ..clear()
+        ..addAll(updated);
+    });
+    _schedulePersist();
+  }
+
+  void _updateRootCauseThemes(List<_RootCauseItem> updated) {
+    setState(() {
+      _rootCauseThemes
+        ..clear()
+        ..addAll(updated);
+    });
+    _schedulePersist();
+  }
+
+  void _updateMitigationConfidence(List<_RootCauseItem> updated) {
+    setState(() {
+      _mitigationConfidence
+        ..clear()
+        ..addAll(updated);
+    });
+    _schedulePersist();
+  }
+
+  void _updateReconciliationPlans(List<_PlanEntry> updated) {
+    setState(() {
+      _reconciliationPlans
+        ..clear()
+        ..addAll(updated);
+    });
+    _schedulePersist();
+  }
+
+  void _updateImpactRows(List<_ImpactRow> updated) {
+    setState(() {
+      _impactRows
+        ..clear()
+        ..addAll(updated);
+    });
+    _schedulePersist();
+  }
+
+  void _updateLessonsLearned(List<String> updated) {
+    setState(() {
+      _lessonsLearned
+        ..clear()
+        ..addAll(updated);
+    });
+    _schedulePersist();
   }
 }
 
@@ -364,7 +486,7 @@ class _FilterToolbar extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 18, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 18, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -637,7 +759,7 @@ class _SummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 18, offset: const Offset(0, 14)),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 14)),
         ],
       ),
       child: cardContent,
@@ -646,7 +768,25 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _PrimarySections extends StatelessWidget {
-  const _PrimarySections();
+  const _PrimarySections({
+    required this.gapEntries,
+    required this.rootCauseThemes,
+    required this.mitigationConfidence,
+    required this.reconciliationPlans,
+    required this.onGapEntriesChanged,
+    required this.onRootCauseUpdated,
+    required this.onMitigationUpdated,
+    required this.onPlansUpdated,
+  });
+
+  final List<_GapEntry> gapEntries;
+  final List<_RootCauseItem> rootCauseThemes;
+  final List<_RootCauseItem> mitigationConfidence;
+  final List<_PlanEntry> reconciliationPlans;
+  final ValueChanged<List<_GapEntry>> onGapEntriesChanged;
+  final ValueChanged<List<_RootCauseItem>> onRootCauseUpdated;
+  final ValueChanged<List<_RootCauseItem>> onMitigationUpdated;
+  final ValueChanged<List<_PlanEntry>> onPlansUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -657,11 +797,25 @@ class _PrimarySections extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _GapRegisterCard(width: sectionWidth),
+            _GapRegisterCard(
+              width: sectionWidth,
+              entries: gapEntries,
+              onChanged: onGapEntriesChanged,
+            ),
             const SizedBox(height: 20),
-            _GapAnalysisRootCauseCard(width: sectionWidth),
+            _GapAnalysisRootCauseCard(
+              width: sectionWidth,
+              rootCauseThemes: rootCauseThemes,
+              mitigationConfidence: mitigationConfidence,
+              onRootCauseUpdated: onRootCauseUpdated,
+              onMitigationUpdated: onMitigationUpdated,
+            ),
             const SizedBox(height: 20),
-            _ReconciliationPlanningCard(width: sectionWidth),
+            _ReconciliationPlanningCard(
+              width: sectionWidth,
+              plans: reconciliationPlans,
+              onPlansUpdated: onPlansUpdated,
+            ),
           ],
         );
       },
@@ -671,16 +825,24 @@ class _PrimarySections extends StatelessWidget {
 
 class _SecondarySections extends StatelessWidget {
   const _SecondarySections({
+    required this.gapEntries,
+    required this.reconciliationPlans,
     required this.impacts,
     required this.workflowSteps,
     required this.lessons,
+    required this.onImpactsUpdated,
     required this.onWorkflowUpdated,
+    required this.onLessonsUpdated,
   });
 
+  final List<_GapEntry> gapEntries;
+  final List<_PlanEntry> reconciliationPlans;
   final List<_ImpactRow> impacts;
   final List<_WorkflowStep> workflowSteps;
   final List<String> lessons;
+  final ValueChanged<List<_ImpactRow>> onImpactsUpdated;
   final ValueChanged<List<_WorkflowStep>> onWorkflowUpdated;
+  final ValueChanged<List<String>> onLessonsUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -691,7 +853,13 @@ class _SecondarySections extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ImpactAssessmentCard(width: sectionWidth, impacts: impacts),
+            _ImpactAssessmentCard(
+              width: sectionWidth,
+              impacts: impacts,
+              onImpactsUpdated: onImpactsUpdated,
+              gaps: gapEntries,
+              plans: reconciliationPlans,
+            ),
             const SizedBox(height: 20),
             _ReconciliationWorkflowCard(
               width: sectionWidth,
@@ -699,7 +867,11 @@ class _SecondarySections extends StatelessWidget {
               onWorkflowUpdated: onWorkflowUpdated,
             ),
             const SizedBox(height: 20),
-            _LessonsLearnedCard(width: sectionWidth, lessons: lessons),
+            _LessonsLearnedCard(
+              width: sectionWidth,
+              lessons: lessons,
+              onLessonsUpdated: onLessonsUpdated,
+            ),
           ],
         );
       },
@@ -708,49 +880,42 @@ class _SecondarySections extends StatelessWidget {
 }
 
 class _GapRegisterCard extends StatelessWidget {
-  const _GapRegisterCard({required this.width});
+  const _GapRegisterCard({
+    required this.width,
+    required this.entries,
+    required this.onChanged,
+  });
 
   final double width;
+  final List<_GapEntry> entries;
+  final ValueChanged<List<_GapEntry>> onChanged;
 
-  static const entries = [
-    _GapEntry(
-      id: 'GAP-017',
-      title: 'Prod-ready data sync misaligned with AI pilot scope',
-      stage: 'Critical',
-      owner: 'Alex Rivera',
-      nextStep: 'Finalize ops readiness checklist',
-    ),
-    _GapEntry(
-      id: 'GAP-011',
-      title: 'Support knowledge base misses new workflow',
-      stage: 'Moderate',
-      owner: 'Priya Nair',
-      nextStep: 'Review enablement drafts (due Wed)',
-    ),
-    _GapEntry(
-      id: 'GAP-004',
-      title: 'API throttling policy conflicts with projected volume',
-      stage: 'Moderate',
-      owner: 'Morgan Lee',
-      nextStep: 'Update rollout guardrails',
-    ),
-    _GapEntry(
-      id: 'GAP-002',
-      title: 'Deployment playbook lacks rollback automation',
-      stage: 'Critical',
-      owner: 'Jamie Chen',
-      nextStep: 'Schedule dry-run with release manager',
-    ),
+  static const List<String> _priorityOptions = [
+    'Critical',
+    'Moderate',
+    'Low',
+    'Resolved'
   ];
 
   @override
   Widget build(BuildContext context) {
+    final counts = <String, int>{
+      for (final option in _priorityOptions) option: 0
+    };
+    for (final entry in entries) {
+      final key = _priorityOptions.firstWhere(
+        (option) => option.toLowerCase() == entry.stage.toLowerCase(),
+        orElse: () => 'Moderate',
+      );
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+
     return _SectionShell(
       width: width,
       title: 'Gap register & catalog',
       subtitle: 'Tracking priority, owner, and mitigation status for each scope gap.',
       trailing: TextButton.icon(
-        onPressed: () {},
+        onPressed: _addEntry,
         icon: const Icon(Icons.add_circle_outline),
         label: const Text('Log new gap'),
       ),
@@ -760,83 +925,190 @@ class _GapRegisterCard extends StatelessWidget {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: const [
-              _Pill(label: 'Critical · 3', color: Color(0xFFDC2626)),
-              _Pill(label: 'Moderate · 5', color: Color(0xFFF97316)),
-              _Pill(label: 'Low · 4', color: Color(0xFF059669)),
-              _Pill(label: 'Resolved · 18', color: Color(0xFF2563EB)),
+            children: [
+              _Pill(label: 'Critical · ${counts['Critical'] ?? 0}', color: const Color(0xFFDC2626)),
+              _Pill(label: 'Moderate · ${counts['Moderate'] ?? 0}', color: const Color(0xFFF97316)),
+              _Pill(label: 'Low · ${counts['Low'] ?? 0}', color: const Color(0xFF059669)),
+              _Pill(label: 'Resolved · ${counts['Resolved'] ?? 0}', color: const Color(0xFF2563EB)),
             ],
           ),
           const SizedBox(height: 18),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+          if (entries.isEmpty)
+            const _EmptyPanel(label: 'No gaps logged yet.')
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final tableWidth =
+                    constraints.maxWidth < 920 ? 920.0 : constraints.maxWidth;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 14),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF9FAFB),
+                              borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(16)),
+                            ),
+                            child: Row(
+                              children: const [
+                                _TableHeaderCell(flex: 3, label: 'Gap'),
+                                _TableHeaderCell(flex: 1, label: 'Priority'),
+                                _TableHeaderCell(flex: 1, label: 'Owner'),
+                                _TableHeaderCell(flex: 3, label: 'Next step'),
+                                _TableHeaderCell(flex: 1, label: ''),
+                              ],
+                            ),
+                          ),
+                          ...entries.map((entry) => _buildEntryRow(entry)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEntryRow(_GapEntry entry) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 0.9)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  ),
-                  child: Row(
-                    children: const [
-                      _TableHeaderCell(flex: 3, label: 'Gap'),
-                      _TableHeaderCell(flex: 1, label: 'Priority'),
-                      _TableHeaderCell(flex: 1, label: 'Owner'),
-                      _TableHeaderCell(flex: 3, label: 'Next step'),
-                    ],
-                  ),
+                TextFormField(
+                  key: ValueKey('gap-id-${entry.uid}'),
+                  initialValue: entry.id,
+                  decoration: _inputDecoration('Gap ID', dense: true),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280)),
+                  onChanged: (value) =>
+                      _updateEntry(entry.copyWith(id: value)),
                 ),
-                ...entries.map(
-                  (entry) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                    decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 0.9)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(flex: 3, child: _GapTitleCell(entry: entry)),
-                        Expanded(
-                          flex: 1,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: _PriorityBadge(label: entry.stage),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Text(
-                            entry.owner,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            entry.nextStep,
-                            style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563), fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  key: ValueKey('gap-title-${entry.uid}'),
+                  initialValue: entry.title,
+                  decoration: _inputDecoration('Gap description'),
+                  onChanged: (value) =>
+                      _updateEntry(entry.copyWith(title: value)),
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 1,
+            child: DropdownButtonFormField<String>(
+              value: _priorityOptions.contains(entry.stage)
+                  ? entry.stage
+                  : _priorityOptions.first,
+              decoration: _inputDecoration('Priority', dense: true),
+              items: _priorityOptions
+                  .map((option) =>
+                      DropdownMenuItem(value: option, child: Text(option)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateEntry(entry.copyWith(stage: value));
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 1,
+            child: TextFormField(
+              key: ValueKey('gap-owner-${entry.uid}'),
+              initialValue: entry.owner,
+              decoration: _inputDecoration('Owner'),
+              onChanged: (value) =>
+                  _updateEntry(entry.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              key: ValueKey('gap-next-${entry.uid}'),
+              initialValue: entry.nextStep,
+              decoration: _inputDecoration('Next step'),
+              onChanged: (value) =>
+                  _updateEntry(entry.copyWith(nextStep: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteEntry(entry),
           ),
         ],
       ),
     );
   }
+
+  void _addEntry() {
+    final updated = [
+      ...entries,
+      _GapEntry(
+        uid: DateTime.now().microsecondsSinceEpoch.toString(),
+        id: 'GAP-${DateTime.now().millisecondsSinceEpoch % 1000}',
+        title: '',
+        stage: _priorityOptions.first,
+        owner: '',
+        nextStep: '',
+      ),
+    ];
+    onChanged(updated);
+  }
+
+  void _updateEntry(_GapEntry entry) {
+    final updated = [
+      for (final item in entries) item.uid == entry.uid ? entry : item
+    ];
+    onChanged(updated);
+  }
+
+  void _deleteEntry(_GapEntry entry) {
+    final updated = entries.where((item) => item.uid != entry.uid).toList();
+    onChanged(updated);
+  }
 }
 
 class _GapAnalysisRootCauseCard extends StatelessWidget {
-  const _GapAnalysisRootCauseCard({required this.width});
+  const _GapAnalysisRootCauseCard({
+    required this.width,
+    required this.rootCauseThemes,
+    required this.mitigationConfidence,
+    required this.onRootCauseUpdated,
+    required this.onMitigationUpdated,
+  });
 
   final double width;
+  final List<_RootCauseItem> rootCauseThemes;
+  final List<_RootCauseItem> mitigationConfidence;
+  final ValueChanged<List<_RootCauseItem>> onRootCauseUpdated;
+  final ValueChanged<List<_RootCauseItem>> onMitigationUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -851,23 +1123,17 @@ class _GapAnalysisRootCauseCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _InsightBlock(
+        children: [
+          _EditableInsightBlock(
             label: 'Root cause themes',
-            points: [
-              'Handoffs between solution engineering and product readiness lack coverage on data retention scenarios.',
-              'Operational load forecast underestimated AI inference traffic across two customer segments.',
-              'Customer success enablement packs were built off outdated pilot assumptions.',
-            ],
+            items: rootCauseThemes,
+            onUpdated: onRootCauseUpdated,
           ),
-          SizedBox(height: 18),
-          _InsightBlock(
+          const SizedBox(height: 18),
+          _EditableInsightBlock(
             label: 'Mitigation confidence',
-            points: [
-              '80% confidence on deployment gap closure once automation scripts finish QA (ETA Tue).',
-              'Stakeholder sign-off pending around support playbooks; expect approval during Thursday sync.',
-              'Adoption risk tracked as medium – features flagged for staged rollout with guardrails.',
-            ],
+            items: mitigationConfidence,
+            onUpdated: onMitigationUpdated,
           ),
         ],
       ),
@@ -876,15 +1142,22 @@ class _GapAnalysisRootCauseCard extends StatelessWidget {
 }
 
 class _ReconciliationPlanningCard extends StatelessWidget {
-  const _ReconciliationPlanningCard({required this.width});
+  const _ReconciliationPlanningCard({
+    required this.width,
+    required this.plans,
+    required this.onPlansUpdated,
+  });
 
   final double width;
+  final List<_PlanEntry> plans;
+  final ValueChanged<List<_PlanEntry>> onPlansUpdated;
 
-  static const plans = [
-    _PlanEntry(title: 'Finalize design to ops handoff', due: 'Due Wed · Release train', owner: 'Ops integration squad', status: 'On track'),
-    _PlanEntry(title: 'Validate deployment automation guardrails', due: 'Due Thu · QA automation', owner: 'Quality guild', status: 'At risk'),
-    _PlanEntry(title: 'Roll out customer success knowledge base updates', due: 'Due Fri · Adoption pod', owner: 'GTM + CS enablement', status: 'In review'),
-    _PlanEntry(title: 'Confirm post-launch monitoring coverage', due: 'Due Sat · Reliability team', owner: 'SRE task force', status: 'Not started'),
+  static const _statusOptions = [
+    'On track',
+    'At risk',
+    'In review',
+    'Not started',
+    'Complete',
   ];
 
   @override
@@ -900,55 +1173,176 @@ class _ReconciliationPlanningCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: plans
-            .map(
-              (plan) => Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            plan.title,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1F2937)),
-                          ),
-                        ),
-                        _StatusBadge(label: plan.status),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      plan.due,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4C1D95)),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      plan.owner,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF4B5563)),
-                    ),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
+        children: [
+          _buildPlanTable(),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: _addPlan,
+            icon: const Icon(Icons.add_circle_outline),
+            label: const Text('Add reconciliation step'),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildPlanTable() {
+    if (plans.isEmpty) {
+      return const _EmptyPanel(label: 'No reconciliation steps yet.');
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth =
+            constraints.maxWidth < 860 ? 860.0 : constraints.maxWidth;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF9FAFB),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    child: const Row(
+                      children: [
+                        _TableHeaderCell(flex: 3, label: 'Action'),
+                        _TableHeaderCell(flex: 2, label: 'Due'),
+                        _TableHeaderCell(flex: 2, label: 'Owner'),
+                        _TableHeaderCell(flex: 2, label: 'Status'),
+                        _TableHeaderCell(flex: 1, label: ''),
+                      ],
+                    ),
+                  ),
+                  ...plans.map(_buildPlanRow),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlanRow(_PlanEntry plan) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 0.9)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              key: ValueKey('plan-title-${plan.id}'),
+              initialValue: plan.title,
+              decoration: _inputDecoration('Action'),
+              onChanged: (value) => _updatePlan(plan.copyWith(title: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('plan-due-${plan.id}'),
+              initialValue: plan.due,
+              decoration: _inputDecoration('Due date'),
+              onChanged: (value) => _updatePlan(plan.copyWith(due: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('plan-owner-${plan.id}'),
+              initialValue: plan.owner,
+              decoration: _inputDecoration('Owner'),
+              onChanged: (value) => _updatePlan(plan.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: _statusOptions.contains(plan.status)
+                  ? plan.status
+                  : _statusOptions.first,
+              decoration: _inputDecoration('Status', dense: true),
+              items: _statusOptions
+                  .map((status) =>
+                      DropdownMenuItem(value: status, child: Text(status)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updatePlan(plan.copyWith(status: value));
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deletePlan(plan),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addPlan() {
+    final updated = [
+      ...plans,
+      _PlanEntry(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: '',
+        due: '',
+        owner: '',
+        status: _statusOptions.first,
+      ),
+    ];
+    onPlansUpdated(updated);
+  }
+
+  void _updatePlan(_PlanEntry updatedPlan) {
+    final updated = [
+      for (final plan in plans)
+        plan.id == updatedPlan.id ? updatedPlan : plan
+    ];
+    onPlansUpdated(updated);
+  }
+
+  void _deletePlan(_PlanEntry plan) {
+    onPlansUpdated(plans.where((item) => item.id != plan.id).toList());
   }
 }
 
 class _ImpactAssessmentCard extends StatelessWidget {
-  const _ImpactAssessmentCard({required this.width, required this.impacts});
+  const _ImpactAssessmentCard({
+    required this.width,
+    required this.impacts,
+    required this.onImpactsUpdated,
+    required this.gaps,
+    required this.plans,
+  });
 
   final double width;
   final List<_ImpactRow> impacts;
+  final ValueChanged<List<_ImpactRow>> onImpactsUpdated;
+  final List<_GapEntry> gaps;
+  final List<_PlanEntry> plans;
+
+  static const _ratingOptions = ['Low', 'Medium', 'High', 'Critical'];
+  static const _trendOptions = ['Improving', 'Stable', 'Needs attention'];
 
   @override
   Widget build(BuildContext context) {
@@ -960,11 +1354,11 @@ class _ImpactAssessmentCard extends StatelessWidget {
         onPressed: () {
           showDialog<void>(
             context: context,
-            barrierColor: Colors.black.withValues(alpha: 0.35),
+            barrierColor: Colors.black.withOpacity(0.35),
             builder: (_) => _ScenarioMatrixDialog(
               impacts: impacts,
-              gaps: _GapRegisterCard.entries,
-              plans: _ReconciliationPlanningCard.plans,
+              gaps: gaps,
+              plans: plans,
             ),
           );
         },
@@ -972,6 +1366,7 @@ class _ImpactAssessmentCard extends StatelessWidget {
         label: const Text('View scenario matrix'),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             decoration: BoxDecoration(
@@ -1028,50 +1423,122 @@ class _ImpactAssessmentCard extends StatelessWidget {
                     child: _EmptyPanel(label: 'No impact assessment items yet.'),
                   )
                 else
-                  ...impacts.map(
-                    (impact) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  impact.area,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1F2937)),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  impact.detail,
-                                  style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563), fontWeight: FontWeight.w500),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _StatusBadge(label: impact.rating),
-                            ),
-                          ),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _TrendPill(label: impact.trend),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  ...impacts.map(_buildImpactRow),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: _addImpactRow,
+            icon: const Icon(Icons.add_circle_outline),
+            label: const Text('Add impact row'),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildImpactRow(_ImpactRow impact) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  key: ValueKey('impact-area-${impact.id}'),
+                  initialValue: impact.area,
+                  decoration: _inputDecoration('Impact area', dense: true),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F2937)),
+                  onChanged: (value) =>
+                      _updateImpact(impact.copyWith(area: value)),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  key: ValueKey('impact-detail-${impact.id}'),
+                  initialValue: impact.detail,
+                  decoration: _inputDecoration('Detail'),
+                  maxLines: 2,
+                  onChanged: (value) =>
+                      _updateImpact(impact.copyWith(detail: value)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _ratingOptions.contains(impact.rating)
+                  ? impact.rating
+                  : _ratingOptions.first,
+              decoration: _inputDecoration('Rating', dense: true),
+              items: _ratingOptions
+                  .map((rating) =>
+                      DropdownMenuItem(value: rating, child: Text(rating)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateImpact(impact.copyWith(rating: value));
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _trendOptions.contains(impact.trend)
+                  ? impact.trend
+                  : _trendOptions.first,
+              decoration: _inputDecoration('Trend', dense: true),
+              items: _trendOptions
+                  .map((trend) =>
+                      DropdownMenuItem(value: trend, child: Text(trend)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateImpact(impact.copyWith(trend: value));
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteImpact(impact),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addImpactRow() {
+    final updated = [
+      ...impacts,
+      _ImpactRow(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        area: '',
+        rating: _ratingOptions.first,
+        trend: _trendOptions.first,
+        detail: '',
+      ),
+    ];
+    onImpactsUpdated(updated);
+  }
+
+  void _updateImpact(_ImpactRow updatedImpact) {
+    final updated = [
+      for (final impact in impacts)
+        impact.id == updatedImpact.id ? updatedImpact : impact
+    ];
+    onImpactsUpdated(updated);
+  }
+
+  void _deleteImpact(_ImpactRow impact) {
+    onImpactsUpdated(impacts.where((item) => item.id != impact.id).toList());
   }
 }
 
@@ -1695,7 +2162,7 @@ class _MatrixCell extends StatelessWidget {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: Colors.white.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
@@ -1764,7 +2231,7 @@ class _ScorePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text('Score $score', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
@@ -1967,75 +2434,75 @@ class _ReconciliationWorkflowCardState extends State<_ReconciliationWorkflowCard
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: widget.steps.isEmpty
-            ? const [
-                _EmptyPanel(label: 'No workflow items yet.'),
-              ]
-            : [
-                const Text(
-                  'Open workflow board',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: _columns.map((column) {
-                    final items = _grouped[column.keyName] ?? const <_WorkflowStep>[];
-                    return SizedBox(
-                      width: isMobile ? double.infinity : 260,
-                      child: _WorkflowBoardColumn(
-                        label: column.label,
-                        accent: column.accent,
-                        items: items,
-                        onAccept: (step) {
-                          setState(() {
-                            for (final list in _grouped.values) {
-                              list.removeWhere((item) =>
-                                  item.label == step.label &&
-                                  item.description == step.description);
-                            }
-                            final updated = _WorkflowStep(
-                              label: step.label,
-                              status: column.label,
-                              description: step.description,
-                            );
-                            _grouped.putIfAbsent(column.keyName, () => []).add(updated);
-                          });
-                          final updatedList = <_WorkflowStep>[];
-                          for (final column in _columns) {
-                            updatedList.addAll(_grouped[column.keyName] ?? const []);
-                          }
-                          widget.onWorkflowUpdated(updatedList);
-                        },
-                        onDelete: (step) {
-                          setState(() {
-                            for (final list in _grouped.values) {
-                              list.removeWhere((item) =>
-                                  item.label == step.label &&
-                                  item.description == step.description);
-                            }
-                          });
-                          final updatedList = <_WorkflowStep>[];
-                          for (final column in _columns) {
-                            updatedList.addAll(_grouped[column.keyName] ?? const []);
-                          }
-                          widget.onWorkflowUpdated(updatedList);
-                        },
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _openAddWorkflowItem,
-                    icon: const Icon(Icons.add_circle_outline),
-                    label: const Text('Add workflow item'),
+        children: [
+          if (widget.steps.isEmpty)
+            const _EmptyPanel(label: 'No workflow items yet.'),
+          if (widget.steps.isNotEmpty) ...[
+            const Text(
+              'Open workflow board',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: _columns.map((column) {
+                final items = _grouped[column.keyName] ?? const <_WorkflowStep>[];
+                return SizedBox(
+                  width: isMobile ? double.infinity : 260,
+                  child: _WorkflowBoardColumn(
+                    label: column.label,
+                    accent: column.accent,
+                    items: items,
+                    onAccept: (step) {
+                      setState(() {
+                        for (final list in _grouped.values) {
+                          list.removeWhere((item) =>
+                              item.label == step.label &&
+                              item.description == step.description);
+                        }
+                        final updated = _WorkflowStep(
+                          label: step.label,
+                          status: column.label,
+                          description: step.description,
+                        );
+                        _grouped.putIfAbsent(column.keyName, () => []).add(updated);
+                      });
+                      final updatedList = <_WorkflowStep>[];
+                      for (final column in _columns) {
+                        updatedList.addAll(_grouped[column.keyName] ?? const []);
+                      }
+                      widget.onWorkflowUpdated(updatedList);
+                    },
+                    onDelete: (step) {
+                      setState(() {
+                        for (final list in _grouped.values) {
+                          list.removeWhere((item) =>
+                              item.label == step.label &&
+                              item.description == step.description);
+                        }
+                      });
+                      final updatedList = <_WorkflowStep>[];
+                      for (final column in _columns) {
+                        updatedList.addAll(_grouped[column.keyName] ?? const []);
+                      }
+                      widget.onWorkflowUpdated(updatedList);
+                    },
                   ),
-                ),
-              ],
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+          ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _openAddWorkflowItem,
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Add workflow item'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2079,7 +2546,7 @@ class _WorkflowBoardColumn extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: isActive ? accent.withValues(alpha: 0.08) : const Color(0xFFF8FAFC),
+            color: isActive ? accent.withOpacity(0.08) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: isActive ? accent : const Color(0xFFE5E7EB)),
           ),
@@ -2102,7 +2569,7 @@ class _WorkflowBoardColumn extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.12),
+                      color: accent.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -2222,7 +2689,7 @@ class _WorkflowBoardCard extends StatelessWidget {
                 width: 6,
                 height: 18,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.5),
+                  color: accent.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -2240,10 +2707,15 @@ class _WorkflowBoardCard extends StatelessWidget {
 }
 
 class _LessonsLearnedCard extends StatelessWidget {
-  const _LessonsLearnedCard({required this.width, required this.lessons});
+  const _LessonsLearnedCard({
+    required this.width,
+    required this.lessons,
+    required this.onLessonsUpdated,
+  });
 
   final double width;
   final List<String> lessons;
+  final ValueChanged<List<String>> onLessonsUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -2258,35 +2730,66 @@ class _LessonsLearnedCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: lessons.isEmpty
-            ? const [
-                _EmptyPanel(label: 'No lessons captured yet.'),
-              ]
-            : lessons
-                .map(
-                  (line) => Padding(
+        children: [
+          if (lessons.isEmpty)
+            const _EmptyPanel(label: 'No lessons captured yet.')
+          else
+            ...lessons.asMap().entries.map(
+                  (entry) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Padding(
                           padding: EdgeInsets.only(top: 6),
-                          child: Icon(Icons.check_circle, size: 18, color: Color(0xFF22C55E)),
+                          child: Icon(Icons.check_circle,
+                              size: 18, color: Color(0xFF22C55E)),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            line,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1F2937)),
+                          child: TextFormField(
+                            key: ValueKey('lesson-${entry.key}'),
+                            initialValue: entry.value,
+                            decoration: _inputDecoration('Lesson learned'),
+                            maxLines: 2,
+                            onChanged: (value) =>
+                                _updateLesson(entry.key, value),
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline,
+                              color: Color(0xFFEF4444)),
+                          onPressed: () => _deleteLesson(entry.key),
                         ),
                       ],
                     ),
                   ),
-                )
-                .toList(),
+                ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _addLesson,
+            icon: const Icon(Icons.add_circle_outline),
+            label: const Text('Add lesson'),
+          ),
+        ],
       ),
     );
+  }
+
+  void _addLesson() {
+    final updated = [...lessons, ''];
+    onLessonsUpdated(updated);
+  }
+
+  void _updateLesson(int index, String value) {
+    final updated = [...lessons];
+    updated[index] = value;
+    onLessonsUpdated(updated);
+  }
+
+  void _deleteLesson(int index) {
+    final updated = [...lessons]..removeAt(index);
+    onLessonsUpdated(updated);
   }
 }
 
@@ -2381,7 +2884,7 @@ class _SectionShell extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 12)),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 12)),
         ],
       ),
       child: content,
@@ -2404,7 +2907,7 @@ class _InfoChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 12)),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 14, offset: const Offset(0, 12)),
         ],
       ),
       child: Column(
@@ -2576,11 +3079,16 @@ class _TrendPill extends StatelessWidget {
   }
 }
 
-class _InsightBlock extends StatelessWidget {
-  const _InsightBlock({required this.label, required this.points});
+class _EditableInsightBlock extends StatelessWidget {
+  const _EditableInsightBlock({
+    required this.label,
+    required this.items,
+    required this.onUpdated,
+  });
 
   final String label;
-  final List<String> points;
+  final List<_RootCauseItem> items;
+  final ValueChanged<List<_RootCauseItem>> onUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -2594,35 +3102,80 @@ class _InsightBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1F2937)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937)),
+              ),
+              TextButton.icon(
+                onPressed: _addItem,
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Add'),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          ...points.map(
-            (point) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 6),
-                    child: Icon(Icons.circle, size: 6, color: Color(0xFF9CA3AF)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      point,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF4B5563)),
-                    ),
-                  ),
-                ],
-              ),
+          if (items.isEmpty)
+            const _EmptyPanel(label: 'No insights yet.')
+          else
+            ...items.map(_buildRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRow(_RootCauseItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Icon(Icons.circle, size: 6, color: Color(0xFF9CA3AF)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextFormField(
+              key: ValueKey('root-cause-${item.id}'),
+              initialValue: item.text,
+              decoration: _inputDecoration('Insight'),
+              maxLines: 2,
+              onChanged: (value) => _updateItem(item.copyWith(text: value)),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteItem(item),
           ),
         ],
       ),
     );
+  }
+
+  void _addItem() {
+    final updated = [
+      ...items,
+      _RootCauseItem(id: DateTime.now().microsecondsSinceEpoch.toString(), text: ''),
+    ];
+    onUpdated(updated);
+  }
+
+  void _updateItem(_RootCauseItem updatedItem) {
+    final updated = [
+      for (final item in items)
+        item.id == updatedItem.id ? updatedItem : item
+    ];
+    onUpdated(updated);
+  }
+
+  void _deleteItem(_RootCauseItem item) {
+    onUpdated(items.where((entry) => entry.id != item.id).toList());
   }
 }
 
@@ -2692,6 +3245,7 @@ class _SummaryCardData {
 
 class _GapEntry {
   const _GapEntry({
+    required this.uid,
     required this.id,
     required this.title,
     required this.stage,
@@ -2699,31 +3253,119 @@ class _GapEntry {
     required this.nextStep,
   });
 
+  final String uid;
   final String id;
   final String title;
   final String stage;
   final String owner;
   final String nextStep;
+
+  _GapEntry copyWith({
+    String? uid,
+    String? id,
+    String? title,
+    String? stage,
+    String? owner,
+    String? nextStep,
+  }) {
+    return _GapEntry(
+      uid: uid ?? this.uid,
+      id: id ?? this.id,
+      title: title ?? this.title,
+      stage: stage ?? this.stage,
+      owner: owner ?? this.owner,
+      nextStep: nextStep ?? this.nextStep,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'uid': uid,
+        'id': id,
+        'title': title,
+        'stage': stage,
+        'owner': owner,
+        'nextStep': nextStep,
+      };
+
+  factory _GapEntry.fromJson(Map<String, dynamic> json) {
+    return _GapEntry(
+      uid: json['uid']?.toString() ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      stage: json['stage']?.toString() ?? 'Moderate',
+      owner: json['owner']?.toString() ?? '',
+      nextStep: json['nextStep']?.toString() ?? '',
+    );
+  }
 }
 
 class _PlanEntry {
-  const _PlanEntry({required this.title, required this.due, required this.owner, required this.status});
+  const _PlanEntry({
+    required this.id,
+    required this.title,
+    required this.due,
+    required this.owner,
+    required this.status,
+  });
 
+  final String id;
   final String title;
   final String due;
   final String owner;
   final String status;
+
+  _PlanEntry copyWith({
+    String? title,
+    String? due,
+    String? owner,
+    String? status,
+  }) {
+    return _PlanEntry(
+      id: id,
+      title: title ?? this.title,
+      due: due ?? this.due,
+      owner: owner ?? this.owner,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'due': due,
+        'owner': owner,
+        'status': status,
+      };
+
+  factory _PlanEntry.fromJson(Map<String, dynamic> json) {
+    return _PlanEntry(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      due: json['due']?.toString() ?? '',
+      owner: json['owner']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'On track',
+    );
+  }
 }
 
 class _ImpactRow {
-  const _ImpactRow({required this.area, required this.rating, required this.trend, required this.detail});
+  const _ImpactRow({
+    required this.id,
+    required this.area,
+    required this.rating,
+    required this.trend,
+    required this.detail,
+  });
 
+  final String id;
   final String area;
   final String rating;
   final String trend;
   final String detail;
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'area': area,
         'rating': rating,
         'trend': trend,
@@ -2732,10 +3374,27 @@ class _ImpactRow {
 
   factory _ImpactRow.fromJson(Map<String, dynamic> json) {
     return _ImpactRow(
+      id: json['id']?.toString() ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       area: json['area']?.toString() ?? '',
       rating: json['rating']?.toString() ?? 'Medium',
       trend: json['trend']?.toString() ?? 'Stable',
       detail: json['detail']?.toString() ?? '',
+    );
+  }
+
+  _ImpactRow copyWith({
+    String? area,
+    String? rating,
+    String? trend,
+    String? detail,
+  }) {
+    return _ImpactRow(
+      id: id,
+      area: area ?? this.area,
+      rating: rating ?? this.rating,
+      trend: trend ?? this.trend,
+      detail: detail ?? this.detail,
     );
   }
 
@@ -2759,10 +3418,35 @@ class _ImpactRow {
       }
     }
     return _ImpactRow(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
       area: title,
       rating: rating,
       trend: trend,
       detail: detail.isEmpty ? 'Update impact details.' : detail,
+    );
+  }
+}
+
+class _RootCauseItem {
+  const _RootCauseItem({required this.id, required this.text});
+
+  final String id;
+  final String text;
+
+  _RootCauseItem copyWith({String? text}) {
+    return _RootCauseItem(id: id, text: text ?? this.text);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+      };
+
+  factory _RootCauseItem.fromJson(Map<String, dynamic> json) {
+    return _RootCauseItem(
+      id: json['id']?.toString() ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
+      text: json['text']?.toString() ?? '',
     );
   }
 }
@@ -2797,5 +3481,46 @@ class _WorkflowStep {
       status: status.isEmpty ? 'Planned' : status,
       description: description.isEmpty ? 'Define workflow details.' : description,
     );
+  }
+}
+
+InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
+  return InputDecoration(
+    hintText: hintText,
+    isDense: dense,
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: EdgeInsets.symmetric(
+      horizontal: 12,
+      vertical: dense ? 8 : 12,
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFF93C5FD)),
+    ),
+  );
+}
+
+class _Debouncer {
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 600);
+
+  final Duration delay;
+  Timer? _timer;
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
   }
 }

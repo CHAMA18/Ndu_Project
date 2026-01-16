@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/screens/detailed_design_screen.dart';
@@ -28,8 +31,64 @@ class AgileDevelopmentIterationsScreen extends StatefulWidget {
 class _AgileDevelopmentIterationsScreenState
     extends State<AgileDevelopmentIterationsScreen> {
   final Set<String> _selectedFilters = {'Single view of iteration health'};
-  final TextEditingController _notesController = TextEditingController();
   bool _expandAllStories = false;
+
+  final TextEditingController _overviewGoalController = TextEditingController();
+  final TextEditingController _overviewSummaryController =
+      TextEditingController();
+  final TextEditingController _overviewDependenciesController =
+      TextEditingController();
+  final TextEditingController _boardSummaryController =
+      TextEditingController();
+
+  final TextEditingController _iterationNameController =
+      TextEditingController();
+  final TextEditingController _iterationWindowController =
+      TextEditingController();
+  final TextEditingController _iterationFocusController =
+      TextEditingController();
+
+  final TextEditingController _throughputCommittedController =
+      TextEditingController();
+  final TextEditingController _throughputInProgressController =
+      TextEditingController();
+  final TextEditingController _throughputDoneController =
+      TextEditingController();
+  final TextEditingController _throughputAtRiskController =
+      TextEditingController();
+
+  final TextEditingController _healthPercentController =
+      TextEditingController();
+  final TextEditingController _healthNotesController = TextEditingController();
+  String? _healthLevel;
+
+  final TextEditingController _cadenceController = TextEditingController();
+  final TextEditingController _burndownNoteController =
+      TextEditingController();
+  double _burndownProgress = 0.0;
+
+  final List<_SimpleListItem> _overviewOutcomes = [];
+  final List<_SimpleListItem> _rhythmPractices = [];
+  final List<_MilestoneItem> _milestones = [];
+  final List<_RiskItem> _risks = [];
+
+  final _Debouncer _saveDebounce = _Debouncer();
+  bool _isLoading = false;
+  bool _suspendSave = false;
+
+  static const List<String> _confidenceLevels = ['Green', 'Amber', 'Red'];
+  static const List<String> _milestoneStatuses = [
+    'Planned',
+    'In progress',
+    'At risk',
+    'Complete'
+  ];
+  static const List<String> _riskStatuses = [
+    'Open',
+    'Watching',
+    'Mitigating',
+    'Resolved'
+  ];
 
   String? _getProjectId() {
     try {
@@ -67,9 +126,210 @@ class _AgileDevelopmentIterationsScreenState
     return grouped;
   }
 
+  void _registerListeners() {
+    final controllers = [
+      _overviewGoalController,
+      _overviewSummaryController,
+      _overviewDependenciesController,
+      _boardSummaryController,
+      _iterationNameController,
+      _iterationWindowController,
+      _iterationFocusController,
+      _throughputCommittedController,
+      _throughputInProgressController,
+      _throughputDoneController,
+      _throughputAtRiskController,
+      _healthPercentController,
+      _healthNotesController,
+      _cadenceController,
+      _burndownNoteController,
+    ];
+    for (final controller in controllers) {
+      controller.addListener(_scheduleSave);
+    }
+  }
+
+  void _scheduleSave() {
+    if (_suspendSave) return;
+    _saveDebounce.run(_saveToFirestore);
+  }
+
+  Future<void> _loadFromFirestore() async {
+    final projectId = _getProjectId();
+    if (projectId == null || projectId.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('execution_phase_sections')
+          .doc('agile_development_iterations')
+          .get();
+      final data = doc.data() ?? {};
+
+      final overview = Map<String, dynamic>.from(data['overview'] ?? {});
+      final metrics = Map<String, dynamic>.from(data['metrics'] ?? {});
+      final iteration = Map<String, dynamic>.from(metrics['iteration'] ?? {});
+      final throughput = Map<String, dynamic>.from(metrics['throughput'] ?? {});
+      final health = Map<String, dynamic>.from(metrics['health'] ?? {});
+      final board = Map<String, dynamic>.from(data['board'] ?? {});
+      final rhythm = Map<String, dynamic>.from(data['rhythm'] ?? {});
+
+      _suspendSave = true;
+      _overviewGoalController.text = overview['goal']?.toString() ?? '';
+      _overviewSummaryController.text = overview['summary']?.toString() ?? '';
+      _overviewDependenciesController.text =
+          overview['dependencies']?.toString() ?? '';
+      _boardSummaryController.text = board['summary']?.toString() ?? '';
+      _iterationNameController.text = iteration['label']?.toString() ?? '';
+      _iterationWindowController.text = iteration['window']?.toString() ?? '';
+      _iterationFocusController.text = iteration['focus']?.toString() ?? '';
+      _throughputCommittedController.text =
+          throughput['committed']?.toString() ?? '';
+      _throughputInProgressController.text =
+          throughput['inProgress']?.toString() ?? '';
+      _throughputDoneController.text =
+          throughput['done']?.toString() ?? '';
+      _throughputAtRiskController.text =
+          throughput['atRisk']?.toString() ?? '';
+      _healthLevel = _normalizeConfidence(health['level']?.toString());
+      _healthPercentController.text =
+          _formatNumber(health['percent'], fallback: '');
+      _healthNotesController.text = health['notes']?.toString() ?? '';
+      _cadenceController.text = rhythm['cadence']?.toString() ?? '';
+      _burndownProgress = _parseDouble(rhythm['burndownProgress']) ?? 0.0;
+      _burndownNoteController.text = rhythm['burndownNote']?.toString() ?? '';
+      _suspendSave = false;
+
+      final outcomes = _SimpleListItem.fromList(overview['outcomes']);
+      final practices = _SimpleListItem.fromList(rhythm['practices']);
+      final milestones = _MilestoneItem.fromList(data['milestones']);
+      final risks = _RiskItem.fromList(data['risks']);
+
+      if (!mounted) return;
+      setState(() {
+        _overviewOutcomes
+          ..clear()
+          ..addAll(outcomes);
+        _rhythmPractices
+          ..clear()
+          ..addAll(practices);
+        _milestones
+          ..clear()
+          ..addAll(milestones);
+        _risks
+          ..clear()
+          ..addAll(risks);
+      });
+    } catch (error) {
+      debugPrint('Error loading agile iterations data: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _saveToFirestore() async {
+    final projectId = _getProjectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('execution_phase_sections')
+          .doc('agile_development_iterations')
+          .set({
+        'overview': {
+          'goal': _overviewGoalController.text.trim(),
+          'summary': _overviewSummaryController.text.trim(),
+          'dependencies': _overviewDependenciesController.text.trim(),
+          'outcomes': _overviewOutcomes.map((e) => e.toMap()).toList(),
+        },
+        'metrics': {
+          'iteration': {
+            'label': _iterationNameController.text.trim(),
+            'window': _iterationWindowController.text.trim(),
+            'focus': _iterationFocusController.text.trim(),
+          },
+          'throughput': {
+            'committed': _throughputCommittedController.text.trim(),
+            'inProgress': _throughputInProgressController.text.trim(),
+            'done': _throughputDoneController.text.trim(),
+            'atRisk': _throughputAtRiskController.text.trim(),
+          },
+          'health': {
+            'level': _healthLevel,
+            'percent': _healthPercentController.text.trim(),
+            'notes': _healthNotesController.text.trim(),
+          },
+        },
+        'board': {
+          'summary': _boardSummaryController.text.trim(),
+        },
+        'rhythm': {
+          'cadence': _cadenceController.text.trim(),
+          'burndownProgress': _burndownProgress,
+          'burndownNote': _burndownNoteController.text.trim(),
+          'practices': _rhythmPractices.map((e) => e.toMap()).toList(),
+        },
+        'milestones': _milestones.map((e) => e.toMap()).toList(),
+        'risks': _risks.map((e) => e.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Error saving agile iterations data: $error');
+    }
+  }
+
+  String? _normalizeConfidence(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final normalized = value.trim().toLowerCase();
+    for (final option in _confidenceLevels) {
+      if (option.toLowerCase() == normalized) {
+        return option;
+      }
+    }
+    return null;
+  }
+
+  double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
+  String _formatNumber(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    return value.toString();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _registerListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
+  }
+
   @override
   void dispose() {
-    _notesController.dispose();
+    _overviewGoalController.dispose();
+    _overviewSummaryController.dispose();
+    _overviewDependenciesController.dispose();
+    _boardSummaryController.dispose();
+    _iterationNameController.dispose();
+    _iterationWindowController.dispose();
+    _iterationFocusController.dispose();
+    _throughputCommittedController.dispose();
+    _throughputInProgressController.dispose();
+    _throughputDoneController.dispose();
+    _throughputAtRiskController.dispose();
+    _healthPercentController.dispose();
+    _healthNotesController.dispose();
+    _cadenceController.dispose();
+    _burndownNoteController.dispose();
+    _saveDebounce.dispose();
     super.dispose();
   }
 
@@ -98,6 +358,9 @@ class _AgileDevelopmentIterationsScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_isLoading)
+                          const LinearProgressIndicator(minHeight: 2),
+                        if (_isLoading) const SizedBox(height: 16),
                         _buildPageHeader(context),
                         const SizedBox(height: 20),
                         _buildFilterChips(context),
@@ -106,9 +369,9 @@ class _AgileDevelopmentIterationsScreenState
                         const SizedBox(height: 20),
                         _buildMetricsRow(context, isMobile),
                         const SizedBox(height: 20),
-                        _buildBoardAndRhythmRow(context, isMobile),
+                        _buildBoardAndRhythmRow(context),
                         const SizedBox(height: 20),
-                        _buildMilestonesAndRiskRow(context, isMobile),
+                        _buildMilestonesAndRiskRow(context),
                         const SizedBox(height: 24),
                         _buildFooterNavigation(context),
                         const SizedBox(height: 48),
@@ -217,15 +480,52 @@ class _AgileDevelopmentIterationsScreenState
           const Text(
             'Overview',
             style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827)),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Use this page during stand-ups, iteration kick-offs, and demos to ground the team on what must land this cycle, how confident you are, and which dependencies could slow you down.',
+            'Capture the iteration narrative so stand-ups, kick-offs, and reviews stay aligned on outcomes and dependencies.',
             style: TextStyle(
-                fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
+              fontSize: 13,
+              color: const Color(0xFF6B7280),
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildLabeledField(
+            label: 'Iteration goal',
+            controller: _overviewGoalController,
+            hintText: 'Define the must-win outcome for this iteration.',
+          ),
+          const SizedBox(height: 12),
+          _buildLabeledField(
+            label: 'Overview summary',
+            controller: _overviewSummaryController,
+            hintText:
+                'Summarize scope, confidence, and what could change the plan.',
+            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          _buildEditableListSection(
+            title: 'Key outcomes',
+            description:
+                'List measurable outcomes the team is accountable for this iteration.',
+            items: _overviewOutcomes,
+            onAdd: _addOverviewOutcome,
+            onChanged: _updateOverviewOutcome,
+            onDelete: _deleteOverviewOutcome,
+            hintText: 'Outcome statement',
+          ),
+          const SizedBox(height: 16),
+          _buildLabeledField(
+            label: 'Dependencies to watch',
+            controller: _overviewDependenciesController,
+            hintText:
+                'Capture dependencies, approvals, or external blockers to monitor.',
+            maxLines: 2,
           ),
         ],
       ),
@@ -233,36 +533,17 @@ class _AgileDevelopmentIterationsScreenState
   }
 
   Widget _buildMetricsRow(BuildContext context, bool isMobile) {
-    final metrics = [
-      _MetricData(
-        badgeLabel: 'Sprint window',
-        title: 'Sprint 8 · 10 days',
-        subtitle:
-            'Mar 4 – Mar 15 · Focus on core launch-critical stories only.',
-        header: 'Current iteration',
-      ),
-      _MetricData(
-        badgeLabel: 'Throughput',
-        title: '21 committed',
-        subtitle: '16 in progress · 3 done · 2 flagged as at risk.',
-        header: 'Stories this iteration',
-      ),
-      _MetricData(
-        badgeLabel: 'Confidence',
-        title: 'Amber · 78%',
-        subtitle:
-            'Blocked on environment stability and one external integration dependency.',
-        header: 'Delivery health',
-        titleColor: const Color(0xFFD97706),
-      ),
+    final cards = [
+      _buildIterationMetricCard(),
+      _buildThroughputMetricCard(isMobile),
+      _buildHealthMetricCard(),
     ];
-
     if (isMobile) {
       return Column(
-        children: metrics
-            .map((m) => Padding(
+        children: cards
+            .map((card) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildMetricCard(m),
+                  child: card,
                 ))
             .toList(),
       );
@@ -270,71 +551,164 @@ class _AgileDevelopmentIterationsScreenState
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: metrics
-          .map((m) => Expanded(
+      children: cards
+          .map((card) => Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(right: m == metrics.last ? 0 : 12),
-                  child: _buildMetricCard(m),
+                  padding: EdgeInsets.only(right: card == cards.last ? 0 : 12),
+                  child: card,
                 ),
               ))
           .toList(),
     );
   }
 
-  Widget _buildMetricCard(_MetricData data) {
+  Widget _buildIterationMetricCard() {
     return _ContentCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                data.header,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF6B7280)),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
-                child: Text(
-                  data.badgeLabel,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF374151)),
-                ),
-              ),
-            ],
-          ),
+          _buildMetricHeader('Current iteration', 'Sprint window'),
           const SizedBox(height: 12),
-          Text(
-            data.title,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: data.titleColor ?? const Color(0xFF111827),
-            ),
+          _buildLabeledField(
+            label: 'Sprint label',
+            controller: _iterationNameController,
+            hintText: 'Sprint 8 · 10 days',
           ),
-          const SizedBox(height: 6),
-          Text(
-            data.subtitle,
-            style: const TextStyle(
-                fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
+          const SizedBox(height: 10),
+          _buildLabeledField(
+            label: 'Date range',
+            controller: _iterationWindowController,
+            hintText: 'Mar 4 – Mar 15',
+          ),
+          const SizedBox(height: 10),
+          _buildLabeledField(
+            label: 'Focus',
+            controller: _iterationFocusController,
+            hintText: 'Launch-critical scope only.',
+            maxLines: 2,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBoardAndRhythmRow(BuildContext context, bool isMobile) {
+  Widget _buildThroughputMetricCard(bool isMobile) {
+    final fields = [
+      _buildLabeledField(
+        label: 'Committed',
+        controller: _throughputCommittedController,
+        hintText: '0',
+        keyboardType: TextInputType.number,
+        dense: true,
+      ),
+      _buildLabeledField(
+        label: 'In progress',
+        controller: _throughputInProgressController,
+        hintText: '0',
+        keyboardType: TextInputType.number,
+        dense: true,
+      ),
+      _buildLabeledField(
+        label: 'Done',
+        controller: _throughputDoneController,
+        hintText: '0',
+        keyboardType: TextInputType.number,
+        dense: true,
+      ),
+      _buildLabeledField(
+        label: 'At risk',
+        controller: _throughputAtRiskController,
+        hintText: '0',
+        keyboardType: TextInputType.number,
+        dense: true,
+      ),
+    ];
+
+    return _ContentCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMetricHeader('Stories this iteration', 'Throughput'),
+          const SizedBox(height: 12),
+          if (isMobile)
+            Column(
+              children: fields
+                  .map((field) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: field,
+                      ))
+                  .toList(),
+            )
+          else
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              children: fields
+                  .map((field) => SizedBox(
+                        width: 140,
+                        child: field,
+                      ))
+                  .toList(),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            'Use consistent counting rules to keep sprint commitment metrics trusted.',
+            style: const TextStyle(
+                fontSize: 12, color: Color(0xFF6B7280), height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthMetricCard() {
+    return _ContentCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMetricHeader('Delivery health', 'Confidence'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _healthLevel,
+                  decoration: _inputDecoration('Select confidence'),
+                  items: _confidenceLevels
+                      .map((level) =>
+                          DropdownMenuItem(value: level, child: Text(level)))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _healthLevel = value);
+                    _scheduleSave();
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildLabeledField(
+                  label: 'Percent',
+                  controller: _healthPercentController,
+                  hintText: '0',
+                  keyboardType: TextInputType.number,
+                  dense: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildLabeledField(
+            label: 'Blockers & risks',
+            controller: _healthNotesController,
+            hintText: 'Call out blockers, risks, and mitigation owners.',
+            maxLines: 3,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBoardAndRhythmRow(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -390,9 +764,20 @@ class _AgileDevelopmentIterationsScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            'A compressed view of the board focusing only on launch-critical work. Use this to steer conversations away from noise.',
+            'Highlight the focus of the iteration board snapshot.',
             style: TextStyle(
-                fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
+              fontSize: 13,
+              color: const Color(0xFF6B7280),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildLabeledField(
+            label: 'Board focus summary',
+            controller: _boardSummaryController,
+            hintText:
+                'Summarize what is in scope for this board view and why it matters.',
+            maxLines: 2,
           ),
           const SizedBox(height: 16),
           _buildKanbanBoard(),
@@ -907,53 +1292,89 @@ class _AgileDevelopmentIterationsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Iteration rhythm',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111827)),
-              ),
-              _buildOutlineBadge('10-day cadence'),
-            ],
+          const Text(
+            'Iteration rhythm',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Keep a lightweight but disciplined rhythm so that every iteration produces visible, reviewable progress.',
+            'Define cadence, burndown trajectory, and repeatable practices that keep the iteration healthy.',
             style: TextStyle(
-                fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
+              fontSize: 13,
+              color: const Color(0xFF6B7280),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildLabeledField(
+            label: 'Cadence',
+            controller: _cadenceController,
+            hintText: '10-day cadence',
           ),
           const SizedBox(height: 16),
           const Text(
             'Burndown trend',
             style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF374151)),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF374151),
+            ),
           ),
           const SizedBox(height: 8),
           _buildBurndownBar(),
+          Row(
+            children: [
+              Expanded(
+                child: Slider(
+                  value: _burndownProgress.clamp(0.0, 100.0),
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  label: '${_burndownProgress.round()}%',
+                  onChanged: (value) {
+                    setState(() => _burndownProgress = value);
+                    _scheduleSave();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_burndownProgress.round()}%',
+                style:
+                    const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
-          Text(
-            'Slightly behind ideal line · 4 pts to pull into next sprint if risk remains.',
-            style: TextStyle(fontSize: 12, color: const Color(0xFF6B7280)),
+          _buildLabeledField(
+            label: 'Burndown note',
+            controller: _burndownNoteController,
+            hintText:
+                'Explain variance from the ideal line and the mitigation plan.',
+            maxLines: 2,
           ),
           const SizedBox(height: 16),
-          _buildRhythmBullet(
-              'Align scope for the next sprint while there are still 3–4 days left in the current one.'),
-          _buildRhythmBullet(
-              'Reserve capacity every iteration for technical debt and stabilization work.'),
-          _buildRhythmBullet(
-              'Capture 3–5 key learnings in each retrospective and link them to concrete actions.'),
+          _buildEditableListSection(
+            title: 'Rhythm practices',
+            description:
+                'Capture the practices that keep the iteration predictable.',
+            items: _rhythmPractices,
+            onAdd: _addRhythmPractice,
+            onChanged: _updateRhythmPractice,
+            onDelete: _deleteRhythmPractice,
+            hintText: 'Practice or rule of engagement',
+          ),
         ],
       ),
     );
   }
 
   Widget _buildBurndownBar() {
+    final progress = (_burndownProgress / 100).clamp(0.0, 1.0);
     return Container(
       height: 8,
       decoration: BoxDecoration(
@@ -962,7 +1383,7 @@ class _AgileDevelopmentIterationsScreenState
       ),
       child: FractionallySizedBox(
         alignment: Alignment.centerLeft,
-        widthFactor: 0.72,
+        widthFactor: progress,
         child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFFFFC812),
@@ -973,34 +1394,7 @@ class _AgileDevelopmentIterationsScreenState
     );
   }
 
-  Widget _buildRhythmBullet(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 6, right: 8),
-            width: 5,
-            height: 5,
-            decoration: const BoxDecoration(
-              color: Color(0xFF6B7280),
-              shape: BoxShape.circle,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF374151), height: 1.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMilestonesAndRiskRow(BuildContext context, bool isMobile) {
+  Widget _buildMilestonesAndRiskRow(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1012,12 +1406,6 @@ class _AgileDevelopmentIterationsScreenState
   }
 
   Widget _buildUpcomingMilestonesCard(BuildContext context) {
-    final milestones = [
-      _MilestoneItem(title: 'Beta launch feature-complete', date: 'Mar 29'),
-      _MilestoneItem(title: 'Security & compliance sign-off', date: 'Apr 05'),
-      _MilestoneItem(title: 'Production readiness review', date: 'Apr 18'),
-    ];
-
     return _ContentCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1032,7 +1420,19 @@ class _AgileDevelopmentIterationsScreenState
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF111827)),
               ),
-              _buildOutlineBadge('Next 30 days'),
+              TextButton.icon(
+                onPressed: _addMilestone,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add milestone'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF1F2937),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  backgroundColor: const Color(0xFFFFF3C4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1042,38 +1442,42 @@ class _AgileDevelopmentIterationsScreenState
                 fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
-          ...milestones.map((m) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      m.title,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF111827)),
-                    ),
-                    Text(
-                      m.date,
-                      style: const TextStyle(
-                          fontSize: 13, color: Color(0xFF6B7280)),
-                    ),
-                  ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tableWidth =
+                  constraints.maxWidth < 720 ? 720.0 : constraints.maxWidth;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: tableWidth,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTableHeader(
+                        const ['Milestone', 'Due date', 'Owner', 'Status', ''],
+                        columnWidths: const [3, 2, 2, 2, 1],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_milestones.isEmpty)
+                        const _InlineEmptyState(
+                          title: 'No milestones yet',
+                          message:
+                              'Add milestones to track delivery commitments.',
+                        )
+                      else
+                        ..._milestones.map(_buildMilestoneRow),
+                    ],
+                  ),
                 ),
-              )),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
   Widget _buildDependencyRiskCard(BuildContext context) {
-    final risks = [
-      'Payments sandbox instability could delay end-to-end checkout testing by 3–5 days.',
-      'Environment capacity upgrades must land before load-testing window opens.',
-      'Design bandwidth is tight; agree on what can move to a later iteration.',
-    ];
-
     return _ContentCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1088,20 +1492,38 @@ class _AgileDevelopmentIterationsScreenState
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF111827)),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Exec focus',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white),
-                ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Exec focus',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _addRisk,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add risk'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF1F2937),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      backgroundColor: const Color(0xFFFFF3C4),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1112,39 +1534,487 @@ class _AgileDevelopmentIterationsScreenState
                 fontSize: 13, color: const Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
-          ...risks.map((r) => _buildRhythmBullet(r)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildActionChip('+ Log new iteration risk'),
-              _buildActionChip('Link to vendor tracking'),
-              _buildActionChip('Export iteration summary'),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tableWidth =
+                  constraints.maxWidth < 860 ? 860.0 : constraints.maxWidth;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: tableWidth,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTableHeader(
+                        const [
+                          'Risk',
+                          'Impact',
+                          'Owner',
+                          'Mitigation',
+                          'Status',
+                          ''
+                        ],
+                        columnWidths: const [3, 2, 2, 3, 2, 1],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_risks.isEmpty)
+                        const _InlineEmptyState(
+                          title: 'No risks yet',
+                          message:
+                              'Log risks and dependencies to keep leadership aligned.',
+                        )
+                      else
+                        ..._risks.map(_buildRiskRow),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-            fontSize: 12,
+  Widget _buildMetricHeader(String title, String badgeLabel) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF374151)),
+            color: Color(0xFF6B7280),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Text(
+            badgeLabel,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF374151),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLabeledField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    bool dense = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          decoration: _inputDecoration(hintText, dense: dense),
+          style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
+    return InputDecoration(
+      hintText: hintText,
+      isDense: dense,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: dense ? 8 : 12,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF93C5FD)),
       ),
     );
   }
+
+  Widget _buildEditableListSection({
+    required String title,
+    required String description,
+    required List<_SimpleListItem> items,
+    required VoidCallback onAdd,
+    required ValueChanged<_SimpleListItem> onChanged,
+    required ValueChanged<String> onDelete,
+    required String hintText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add'),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1F2937),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                backgroundColor: const Color(0xFFFFF3C4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          description,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+        ),
+        const SizedBox(height: 12),
+        if (items.isEmpty)
+          const _InlineEmptyState(
+            title: 'No entries yet',
+            message: 'Add the first item to get started.',
+          )
+        else
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      key: ValueKey(item.id),
+                      initialValue: item.text,
+                      decoration: _inputDecoration(hintText, dense: true),
+                      style: const TextStyle(
+                          fontSize: 13, color: Color(0xFF111827)),
+                      maxLines: 2,
+                      onChanged: (value) =>
+                          onChanged(item.copyWith(text: value)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: Color(0xFFEF4444)),
+                    onPressed: () => onDelete(item.id),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTableHeader(List<String> labels,
+      {List<int>? columnWidths}) {
+    final widths =
+        columnWidths ?? List<int>.filled(labels.length, 1, growable: false);
+    return Row(
+      children: List.generate(labels.length, (index) {
+        return Expanded(
+          flex: widths[index],
+          child: Text(
+            labels[index],
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildMilestoneRow(_MilestoneItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              key: ValueKey('milestone-title-${item.id}'),
+              initialValue: item.title,
+              decoration: _inputDecoration('Milestone'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateMilestone(item.copyWith(title: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('milestone-date-${item.id}'),
+              initialValue: item.dueDate,
+              decoration: _inputDecoration('Due date'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateMilestone(item.copyWith(dueDate: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('milestone-owner-${item.id}'),
+              initialValue: item.owner,
+              decoration: _inputDecoration('Owner'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateMilestone(item.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: item.status,
+              decoration: _inputDecoration('Status', dense: true),
+              items: _milestoneStatuses
+                  .map(
+                    (status) => DropdownMenuItem(
+                      value: status,
+                      child: Text(status),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateMilestone(item.copyWith(status: value), notify: true);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteMilestone(item.id),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiskRow(_RiskItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              key: ValueKey('risk-title-${item.id}'),
+              initialValue: item.risk,
+              decoration: _inputDecoration('Risk'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateRisk(item.copyWith(risk: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('risk-impact-${item.id}'),
+              initialValue: item.impact,
+              decoration: _inputDecoration('Impact'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateRisk(item.copyWith(impact: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('risk-owner-${item.id}'),
+              initialValue: item.owner,
+              decoration: _inputDecoration('Owner'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateRisk(item.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              key: ValueKey('risk-mitigation-${item.id}'),
+              initialValue: item.mitigation,
+              decoration: _inputDecoration('Mitigation'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateRisk(item.copyWith(mitigation: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: item.status,
+              decoration: _inputDecoration('Status', dense: true),
+              items: _riskStatuses
+                  .map(
+                    (status) => DropdownMenuItem(
+                      value: status,
+                      child: Text(status),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateRisk(item.copyWith(status: value), notify: true);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteRisk(item.id),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addOverviewOutcome() {
+    setState(() {
+      _overviewOutcomes.add(_SimpleListItem(id: _newId(), text: ''));
+    });
+    _scheduleSave();
+  }
+
+  void _updateOverviewOutcome(_SimpleListItem item) {
+    final index = _overviewOutcomes.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _overviewOutcomes[index] = item;
+    _scheduleSave();
+  }
+
+  void _deleteOverviewOutcome(String id) {
+    setState(() => _overviewOutcomes.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _addRhythmPractice() {
+    setState(() {
+      _rhythmPractices.add(_SimpleListItem(id: _newId(), text: ''));
+    });
+    _scheduleSave();
+  }
+
+  void _updateRhythmPractice(_SimpleListItem item) {
+    final index = _rhythmPractices.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _rhythmPractices[index] = item;
+    _scheduleSave();
+  }
+
+  void _deleteRhythmPractice(String id) {
+    setState(() => _rhythmPractices.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _addMilestone() {
+    setState(() {
+      _milestones.add(_MilestoneItem(
+        id: _newId(),
+        title: '',
+        dueDate: '',
+        owner: '',
+        status: _milestoneStatuses.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateMilestone(_MilestoneItem item, {bool notify = false}) {
+    final index = _milestones.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _milestones[index] = item;
+    if (notify && mounted) {
+      setState(() {});
+    }
+    _scheduleSave();
+  }
+
+  void _deleteMilestone(String id) {
+    setState(() => _milestones.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _addRisk() {
+    setState(() {
+      _risks.add(_RiskItem(
+        id: _newId(),
+        risk: '',
+        impact: '',
+        owner: '',
+        mitigation: '',
+        status: _riskStatuses.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateRisk(_RiskItem item, {bool notify = false}) {
+    final index = _risks.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _risks[index] = item;
+    if (notify && mounted) {
+      setState(() {});
+    }
+    _scheduleSave();
+  }
+
+  void _deleteRisk(String id) {
+    setState(() => _risks.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   Widget _buildOutlineBadge(String label) {
     return Container(
@@ -1349,22 +2219,6 @@ class _ContentCard extends StatelessWidget {
   }
 }
 
-class _MetricData {
-  final String header;
-  final String badgeLabel;
-  final String title;
-  final String subtitle;
-  final Color? titleColor;
-
-  _MetricData({
-    required this.header,
-    required this.badgeLabel,
-    required this.title,
-    required this.subtitle,
-    this.titleColor,
-  });
-}
-
 enum _BoardStatus { planned, inProgress, readyToDemo }
 
 class _StoryDragData {
@@ -1389,8 +2243,221 @@ class _StatusBadgeColors {
 }
 
 class _MilestoneItem {
-  final String title;
-  final String date;
+  _MilestoneItem({
+    required this.id,
+    required this.title,
+    required this.dueDate,
+    required this.owner,
+    required this.status,
+  });
 
-  _MilestoneItem({required this.title, required this.date});
+  static const List<String> _allowedStatuses = [
+    'Planned',
+    'In progress',
+    'At risk',
+    'Complete'
+  ];
+
+  final String id;
+  final String title;
+  final String dueDate;
+  final String owner;
+  final String status;
+
+  _MilestoneItem copyWith({
+    String? title,
+    String? dueDate,
+    String? owner,
+    String? status,
+  }) {
+    return _MilestoneItem(
+      id: id,
+      title: title ?? this.title,
+      dueDate: dueDate ?? this.dueDate,
+      owner: owner ?? this.owner,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'dueDate': dueDate,
+        'owner': owner,
+        'status': status,
+      };
+
+  static List<_MilestoneItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      final status = map['status']?.toString() ?? 'Planned';
+      return _MilestoneItem(
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        title: map['title']?.toString() ?? '',
+        dueDate: map['dueDate']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        status: _allowedStatuses.contains(status) ? status : 'Planned',
+      );
+    }).toList();
+  }
+}
+
+class _RiskItem {
+  _RiskItem({
+    required this.id,
+    required this.risk,
+    required this.impact,
+    required this.owner,
+    required this.mitigation,
+    required this.status,
+  });
+
+  final String id;
+  final String risk;
+  final String impact;
+  final String owner;
+  final String mitigation;
+  final String status;
+
+  static const List<String> _allowedStatuses = [
+    'Open',
+    'Watching',
+    'Mitigating',
+    'Resolved'
+  ];
+
+  _RiskItem copyWith({
+    String? risk,
+    String? impact,
+    String? owner,
+    String? mitigation,
+    String? status,
+  }) {
+    return _RiskItem(
+      id: id,
+      risk: risk ?? this.risk,
+      impact: impact ?? this.impact,
+      owner: owner ?? this.owner,
+      mitigation: mitigation ?? this.mitigation,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'risk': risk,
+        'impact': impact,
+        'owner': owner,
+        'mitigation': mitigation,
+        'status': status,
+      };
+
+  static List<_RiskItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      final status = map['status']?.toString() ?? 'Open';
+      return _RiskItem(
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        risk: map['risk']?.toString() ?? '',
+        impact: map['impact']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        mitigation: map['mitigation']?.toString() ?? '',
+        status: _allowedStatuses.contains(status) ? status : 'Open',
+      );
+    }).toList();
+  }
+}
+
+class _SimpleListItem {
+  _SimpleListItem({required this.id, required this.text});
+
+  final String id;
+  final String text;
+
+  _SimpleListItem copyWith({String? text}) {
+    return _SimpleListItem(id: id, text: text ?? this.text);
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'text': text,
+      };
+
+  static List<_SimpleListItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _SimpleListItem(
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        text: map['text']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
+class _InlineEmptyState extends StatelessWidget {
+  const _InlineEmptyState({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 18, color: Color(0xFF9CA3AF)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Debouncer {
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 600);
+
+  final Duration delay;
+  Timer? _timer;
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
+  }
 }

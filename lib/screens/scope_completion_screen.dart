@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/screens/gap_analysis_scope_reconcillation_screen.dart';
 import 'package:ndu_project/screens/risk_tracking_screen.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -23,6 +27,225 @@ class ScopeCompletionScreen extends StatefulWidget {
 
 class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   final Set<String> _selectedFilters = {'Clear view of delivered scope'};
+
+  final TextEditingController _overviewController = TextEditingController();
+  final TextEditingController _statusSummaryController =
+      TextEditingController();
+  final TextEditingController _sponsorSummaryController =
+      TextEditingController();
+  final TextEditingController _changeSummaryController =
+      TextEditingController();
+
+  final TextEditingController _deliveredPercentController =
+      TextEditingController();
+  final TextEditingController _deliveredStatusController =
+      TextEditingController();
+  final TextEditingController _deferredCountController =
+      TextEditingController();
+  final TextEditingController _deferredStatusController =
+      TextEditingController();
+  final TextEditingController _criticalGapCountController =
+      TextEditingController();
+  final TextEditingController _criticalGapStatusController =
+      TextEditingController();
+
+  final TextEditingController _approvedChangesController =
+      TextEditingController();
+  final TextEditingController _unapprovedChangesController =
+      TextEditingController();
+  final TextEditingController _openRequestsController =
+      TextEditingController();
+
+  final List<_WorkPackageItem> _workPackages = [];
+  final List<_CheckpointItem> _acceptanceCheckpoints = [];
+  final List<_AcceptanceTagItem> _acceptanceTags = [];
+  final List<_ScopeChangeItem> _scopeChanges = [];
+
+  final _Debouncer _saveDebouncer = _Debouncer();
+  bool _isLoading = false;
+  bool _suspendSave = false;
+
+  static const List<String> _workStatuses = [
+    'Delivered',
+    'Partially delivered',
+    'Deferred',
+    'Not started'
+  ];
+  static const List<String> _impactLevels = [
+    'Critical',
+    'High',
+    'Medium',
+    'Low'
+  ];
+  static const List<String> _checkpointStatuses = [
+    'Pending',
+    'Aligned',
+    'Blocked'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _registerListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
+  }
+
+  @override
+  void dispose() {
+    _overviewController.dispose();
+    _statusSummaryController.dispose();
+    _sponsorSummaryController.dispose();
+    _changeSummaryController.dispose();
+    _deliveredPercentController.dispose();
+    _deliveredStatusController.dispose();
+    _deferredCountController.dispose();
+    _deferredStatusController.dispose();
+    _criticalGapCountController.dispose();
+    _criticalGapStatusController.dispose();
+    _approvedChangesController.dispose();
+    _unapprovedChangesController.dispose();
+    _openRequestsController.dispose();
+    _saveDebouncer.dispose();
+    super.dispose();
+  }
+
+  String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  void _registerListeners() {
+    final controllers = [
+      _overviewController,
+      _statusSummaryController,
+      _sponsorSummaryController,
+      _changeSummaryController,
+      _deliveredPercentController,
+      _deliveredStatusController,
+      _deferredCountController,
+      _deferredStatusController,
+      _criticalGapCountController,
+      _criticalGapStatusController,
+      _approvedChangesController,
+      _unapprovedChangesController,
+      _openRequestsController,
+    ];
+    for (final controller in controllers) {
+      controller.addListener(_scheduleSave);
+    }
+  }
+
+  void _scheduleSave() {
+    if (_suspendSave) return;
+    _saveDebouncer.run(_saveToFirestore);
+  }
+
+  Future<void> _loadFromFirestore() async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('execution_phase_sections')
+          .doc('scope_completion')
+          .get();
+      final data = doc.data() ?? {};
+      final metrics = Map<String, dynamic>.from(data['metrics'] ?? {});
+
+      _suspendSave = true;
+      _overviewController.text = data['overview']?.toString() ?? '';
+      _statusSummaryController.text =
+          data['statusSummary']?.toString() ?? '';
+      _sponsorSummaryController.text =
+          data['sponsorSummary']?.toString() ?? '';
+      _changeSummaryController.text =
+          data['changeSummary']?.toString() ?? '';
+      _deliveredPercentController.text =
+          metrics['deliveredPercent']?.toString() ?? '';
+      _deliveredStatusController.text =
+          metrics['deliveredStatus']?.toString() ?? '';
+      _deferredCountController.text =
+          metrics['deferredCount']?.toString() ?? '';
+      _deferredStatusController.text =
+          metrics['deferredStatus']?.toString() ?? '';
+      _criticalGapCountController.text =
+          metrics['criticalGapCount']?.toString() ?? '';
+      _criticalGapStatusController.text =
+          metrics['criticalGapStatus']?.toString() ?? '';
+      _approvedChangesController.text =
+          metrics['approvedChanges']?.toString() ?? '';
+      _unapprovedChangesController.text =
+          metrics['unapprovedChanges']?.toString() ?? '';
+      _openRequestsController.text =
+          metrics['openRequests']?.toString() ?? '';
+      _suspendSave = false;
+
+      final packages = _WorkPackageItem.fromList(data['workPackages']);
+      final checkpoints =
+          _CheckpointItem.fromList(data['acceptanceCheckpoints']);
+      final tags = _AcceptanceTagItem.fromList(data['acceptanceTags']);
+      final changes = _ScopeChangeItem.fromList(data['scopeChanges']);
+
+      if (!mounted) return;
+      setState(() {
+        _workPackages
+          ..clear()
+          ..addAll(packages);
+        _acceptanceCheckpoints
+          ..clear()
+          ..addAll(checkpoints);
+        _acceptanceTags
+          ..clear()
+          ..addAll(tags);
+        _scopeChanges
+          ..clear()
+          ..addAll(changes);
+      });
+    } catch (error) {
+      debugPrint('Scope Completion load error: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _saveToFirestore() async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('execution_phase_sections')
+          .doc('scope_completion')
+          .set({
+        'overview': _overviewController.text.trim(),
+        'statusSummary': _statusSummaryController.text.trim(),
+        'sponsorSummary': _sponsorSummaryController.text.trim(),
+        'changeSummary': _changeSummaryController.text.trim(),
+        'metrics': {
+          'deliveredPercent': _deliveredPercentController.text.trim(),
+          'deliveredStatus': _deliveredStatusController.text.trim(),
+          'deferredCount': _deferredCountController.text.trim(),
+          'deferredStatus': _deferredStatusController.text.trim(),
+          'criticalGapCount': _criticalGapCountController.text.trim(),
+          'criticalGapStatus': _criticalGapStatusController.text.trim(),
+          'approvedChanges': _approvedChangesController.text.trim(),
+          'unapprovedChanges': _unapprovedChangesController.text.trim(),
+          'openRequests': _openRequestsController.text.trim(),
+        },
+        'workPackages': _workPackages.map((e) => e.toMap()).toList(),
+        'acceptanceCheckpoints':
+            _acceptanceCheckpoints.map((e) => e.toMap()).toList(),
+        'acceptanceTags': _acceptanceTags.map((e) => e.toMap()).toList(),
+        'scopeChanges': _scopeChanges.map((e) => e.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Scope Completion save error: $error');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +270,8 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+                        if (_isLoading) const SizedBox(height: 16),
                         _buildPageHeader(context),
                         const SizedBox(height: 20),
                         _buildFilterChips(context),
@@ -174,9 +399,12 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
           ),
           const SizedBox(height: 8),
-          Text(
-            'This page summarizes how closely delivery matched the agreed scope. Use it to show completion status, scope changes, and final acceptance so everyone understands what is in and out.',
-            style: TextStyle(fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
+          _buildLabeledField(
+            label: 'Scope completion overview',
+            controller: _overviewController,
+            hintText:
+                'Summarize how delivery matched the agreed scope and what is out-of-scope.',
+            maxLines: 3,
           ),
         ],
       ),
@@ -235,9 +463,12 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'Most planned scope has been delivered with a few items consciously deferred into a follow-up phase.',
-            style: TextStyle(fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
+          _buildLabeledField(
+            label: 'Completion narrative',
+            controller: _statusSummaryController,
+            hintText:
+                'Explain delivery confidence, known deferrals, and remaining gaps.',
+            maxLines: 3,
           ),
           const SizedBox(height: 16),
           _buildMetricsRow(context),
@@ -247,33 +478,29 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 12),
-          _buildWorkPackageItem(
-            title: 'Core platform rollout',
-            description: 'Production deployment, monitoring, and access patterns delivered as designed.',
-            status: 'Delivered',
-            statusColor: const Color(0xFF10B981),
-            owner: 'Engineering',
-            impact: 'critical',
-            milestone: 'Milestone M4',
+          _buildTableHeader(
+            const ['Work package', 'Owner', 'Milestone', 'Status', 'Impact', ''],
+            columnWidths: const [3, 2, 2, 2, 2, 1],
           ),
-          const SizedBox(height: 12),
-          _buildWorkPackageItem(
-            title: 'Reporting & dashboards',
-            description: 'Baseline reports live; advanced analytics intentionally moved to next phase.',
-            status: 'Partially delivered',
-            statusColor: const Color(0xFFF59E0B),
-            owner: 'Data lead',
-            deferredLabel: 'Deferred items listed',
-            milestone: 'Phase 2',
-          ),
-          const SizedBox(height: 12),
-          _buildWorkPackageItem(
-            title: 'Training & enablement',
-            description: 'Key user groups trained; self-serve materials available in knowledge base.',
-            status: 'Delivered',
-            statusColor: const Color(0xFF10B981),
-            owner: 'Change team',
-            milestone: 'Completed',
+          const SizedBox(height: 10),
+          if (_workPackages.isEmpty)
+            const _InlineEmptyState(
+              title: 'No work packages yet',
+              message: 'Add work packages to summarize delivered scope.',
+            )
+          else
+            ..._workPackages.map(_buildWorkPackageRow),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _addWorkPackage,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add work package'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1F2937),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              backgroundColor: const Color(0xFFFFF3C4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           ),
         ],
       ),
@@ -285,28 +512,25 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
       children: [
         Expanded(
           child: _buildMetricBox(
-            value: '92%',
             label: 'Original scope delivered',
-            statusLabel: 'On track',
-            statusColor: const Color(0xFF10B981),
+            valueController: _deliveredPercentController,
+            statusController: _deliveredStatusController,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildMetricBox(
-            value: '3',
             label: 'Items deferred',
-            statusLabel: 'Tracked in backlog',
-            statusColor: const Color(0xFFF59E0B),
+            valueController: _deferredCountController,
+            statusController: _deferredStatusController,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildMetricBox(
-            value: '1',
-            label: 'Critical gap',
-            statusLabel: 'Requires explicit sign-off',
-            statusColor: const Color(0xFFF59E0B),
+            label: 'Critical gaps',
+            valueController: _criticalGapCountController,
+            statusController: _criticalGapStatusController,
           ),
         ),
       ],
@@ -314,10 +538,9 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   }
 
   Widget _buildMetricBox({
-    required String value,
     required String label,
-    required String statusLabel,
-    required Color statusColor,
+    required TextEditingController valueController,
+    required TextEditingController statusController,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -329,9 +552,15 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          TextField(
+            controller: valueController,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            decoration: const InputDecoration(
+              hintText: '0',
+              border: InputBorder.none,
+              isDense: true,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -339,109 +568,96 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 8),
-          Text(
-            statusLabel,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: statusColor),
+          TextField(
+            controller: statusController,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+            decoration: const InputDecoration(
+              hintText: 'Status note',
+              border: InputBorder.none,
+              isDense: true,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWorkPackageItem({
-    required String title,
-    required String description,
-    required String status,
-    required Color statusColor,
-    required String owner,
-    String? impact,
-    String? deferredLabel,
-    required String milestone,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildWorkPackageRow(_WorkPackageItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
-                ),
-              ),
-              Text(
-                milestone,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-              ),
-            ],
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              key: ValueKey('package-title-${item.id}'),
+              initialValue: item.title,
+              decoration: _inputDecoration('Work package'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateWorkPackage(item.copyWith(title: value)),
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            description,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('package-owner-${item.id}'),
+              initialValue: item.owner,
+              decoration: _inputDecoration('Owner'),
+              onChanged: (value) =>
+                  _updateWorkPackage(item.copyWith(owner: value)),
+            ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _buildStatusChip(status, statusColor),
-              _buildInfoChip('Owner: $owner'),
-              if (impact != null) _buildInfoChip('Impact: $impact'),
-              if (deferredLabel != null) _buildDeferredChip(deferredLabel),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('package-milestone-${item.id}'),
+              initialValue: item.milestone,
+              decoration: _inputDecoration('Milestone'),
+              onChanged: (value) =>
+                  _updateWorkPackage(item.copyWith(milestone: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: item.status,
+              decoration: _inputDecoration('Status', dense: true),
+              items: _workStatuses
+                  .map((status) =>
+                      DropdownMenuItem(value: status, child: Text(status)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateWorkPackage(item.copyWith(status: value), notify: true);
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: item.impact,
+              decoration: _inputDecoration('Impact', dense: true),
+              items: _impactLevels
+                  .map((impact) =>
+                      DropdownMenuItem(value: impact, child: Text(impact)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateWorkPackage(item.copyWith(impact: value), notify: true);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteWorkPackage(item.id),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color),
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF374151)),
-      ),
-    );
-  }
-
-  Widget _buildDeferredChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF3C7),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFFD97706)),
       ),
     );
   }
@@ -473,9 +689,12 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'Sponsors acknowledge that the delivered scope meets the agreed objectives and that any remaining items are either out-of-scope or planned as follow-up work.',
-            style: TextStyle(fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
+          _buildLabeledField(
+            label: 'Acceptance summary',
+            controller: _sponsorSummaryController,
+            hintText:
+                'Capture sponsor alignment, remaining gaps, and ownership confirmation.',
+            maxLines: 3,
           ),
           const SizedBox(height: 16),
           const Text(
@@ -483,51 +702,166 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 10),
-          _buildCheckpointItem('Scope baseline and all approved changes reviewed with sponsors.'),
-          const SizedBox(height: 6),
-          _buildCheckpointItem('Remaining items documented with owners and target timelines.'),
-          const SizedBox(height: 6),
-          _buildCheckpointItem('Support and operations confirm they can own the solution.'),
+          _buildTableHeader(
+            const ['Checkpoint', 'Owner', 'Status', ''],
+            columnWidths: const [4, 2, 2, 1],
+          ),
+          const SizedBox(height: 8),
+          if (_acceptanceCheckpoints.isEmpty)
+            const _InlineEmptyState(
+              title: 'No checkpoints yet',
+              message: 'List the acceptance checkpoints for sponsor sign-off.',
+            )
+          else
+            ..._acceptanceCheckpoints.map(_buildCheckpointRow),
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _buildAcceptanceChip('Business sponsor verbally agreed', const Color(0xFF1F2937), Colors.white),
-              _buildAcceptanceChip('Formal sign-off pending', const Color(0xFFF3F4F6), const Color(0xFF374151)),
-              _buildAcceptanceChip('Ops + support aligned', const Color(0xFFF3F4F6), const Color(0xFF374151)),
-            ],
+          TextButton.icon(
+            onPressed: _addCheckpoint,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add checkpoint'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1F2937),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              backgroundColor: const Color(0xFFFFF3C4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Acceptance signals',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 8),
+          if (_acceptanceTags.isEmpty)
+            const _InlineEmptyState(
+              title: 'No acceptance signals yet',
+              message: 'Add sponsor and operations acceptance signals.',
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: _acceptanceTags
+                  .map((tag) => _buildAcceptanceTag(tag))
+                  .toList(),
+            ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: _addAcceptanceTag,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add acceptance signal'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1F2937),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              backgroundColor: const Color(0xFFFFF3C4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCheckpointItem(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('•  ', style: TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
+  Widget _buildCheckpointRow(_CheckpointItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: TextFormField(
+              key: ValueKey('checkpoint-title-${item.id}'),
+              initialValue: item.title,
+              decoration: _inputDecoration('Checkpoint'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateCheckpoint(item.copyWith(title: value)),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('checkpoint-owner-${item.id}'),
+              initialValue: item.owner,
+              decoration: _inputDecoration('Owner'),
+              onChanged: (value) =>
+                  _updateCheckpoint(item.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: item.status,
+              decoration: _inputDecoration('Status', dense: true),
+              items: _checkpointStatuses
+                  .map((status) =>
+                      DropdownMenuItem(value: status, child: Text(status)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateCheckpoint(item.copyWith(status: value), notify: true);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteCheckpoint(item.id),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAcceptanceChip(String label, Color bgColor, Color textColor) {
+  Widget _buildAcceptanceTag(_AcceptanceTagItem tag) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 140,
+            child: TextFormField(
+              key: ValueKey('acceptance-tag-${tag.id}'),
+              initialValue: tag.label,
+              decoration: const InputDecoration(
+                hintText: 'Signal',
+                border: InputBorder.none,
+                isDense: true,
+              ),
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF374151)),
+              onChanged: (value) =>
+                  _updateAcceptanceTag(tag.copyWith(label: value)),
+            ),
+          ),
+          const SizedBox(width: 6),
+          DropdownButton<String>(
+            value: tag.status,
+            underline: const SizedBox(),
+            onChanged: (value) {
+              if (value == null) return;
+              _updateAcceptanceTag(tag.copyWith(status: value), notify: true);
+            },
+            items: _checkpointStatuses
+                .map((status) =>
+                    DropdownMenuItem(value: status, child: Text(status)))
+                .toList(),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF)),
+            onPressed: () => _deleteAcceptanceTag(tag.id),
+          ),
+        ],
       ),
     );
   }
@@ -559,9 +893,12 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'Not all changes need to be shown here — only the ones that meaningfully changed scope, budget, or timeline.',
-            style: TextStyle(fontSize: 14, color: const Color(0xFF6B7280), height: 1.5),
+          _buildLabeledField(
+            label: 'Change summary',
+            controller: _changeSummaryController,
+            hintText:
+                'Summarize the scope, budget, or timeline changes that mattered.',
+            maxLines: 3,
           ),
           const SizedBox(height: 14),
           const Text(
@@ -569,19 +906,42 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 8),
-          _buildChangeItem('Added: vendor integration health dashboard.'),
-          const SizedBox(height: 4),
-          _buildChangeItem('Removed: in-sprint legacy migration (moved to separate track).'),
-          const SizedBox(height: 4),
-          _buildChangeItem('Adjusted: training scope expanded for frontline teams.'),
+          if (_scopeChanges.isEmpty)
+            const _InlineEmptyState(
+              title: 'No scope changes yet',
+              message: 'Add the most impactful scope changes.',
+            )
+          else
+            ..._scopeChanges.map(_buildScopeChangeRow),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: _addScopeChange,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add scope change'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1F2937),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              backgroundColor: const Color(0xFFFFF3C4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
           const SizedBox(height: 14),
           Wrap(
             spacing: 8,
             runSpacing: 6,
             children: [
-              _buildChangeChip('Total approved changes: 6', const Color(0xFFF3F4F6), const Color(0xFF374151)),
-              _buildChangeChip('Unapproved changes: 0', const Color(0xFFFEE2E2), const Color(0xFFEF4444)),
-              _buildChangeChip('Open change requests: 1', const Color(0xFFF3F4F6), const Color(0xFF374151)),
+              _buildMetricChip(
+                label: 'Total approved changes',
+                controller: _approvedChangesController,
+              ),
+              _buildMetricChip(
+                label: 'Unapproved changes',
+                controller: _unapprovedChangesController,
+              ),
+              _buildMetricChip(
+                label: 'Open change requests',
+                controller: _openRequestsController,
+              ),
             ],
           ),
         ],
@@ -589,34 +949,246 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
     );
   }
 
-  Widget _buildChangeItem(String text) {
-    return Row(
+  Widget _buildScopeChangeRow(_ScopeChangeItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              key: ValueKey('scope-change-${item.id}'),
+              initialValue: item.detail,
+              decoration: _inputDecoration('Scope change'),
+              maxLines: 2,
+              onChanged: (value) =>
+                  _updateScopeChange(item.copyWith(detail: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteScopeChange(item.id),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricChip({
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label:',
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF374151)),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 60,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF111827)),
+              decoration: const InputDecoration(
+                hintText: '0',
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabeledField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+    int maxLines = 1,
+  }) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('•  ', style: TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
-          ),
+        Text(
+          label,
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF374151)),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: _inputDecoration(hintText),
         ),
       ],
     );
   }
 
-  Widget _buildChangeChip(String label, Color bgColor, Color textColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+  InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
+    return InputDecoration(
+      hintText: hintText,
+      isDense: dense,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: dense ? 8 : 12,
       ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF93C5FD)),
       ),
     );
   }
+
+  Widget _buildTableHeader(List<String> labels,
+      {List<int>? columnWidths}) {
+    final widths =
+        columnWidths ?? List<int>.filled(labels.length, 1, growable: false);
+    return Row(
+      children: List.generate(labels.length, (index) {
+        return Expanded(
+          flex: widths[index],
+          child: Text(
+            labels[index],
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  void _addWorkPackage() {
+    setState(() {
+      _workPackages.add(_WorkPackageItem(
+        id: _newId(),
+        title: '',
+        owner: '',
+        milestone: '',
+        status: _workStatuses.first,
+        impact: _impactLevels.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateWorkPackage(_WorkPackageItem item, {bool notify = false}) {
+    final index = _workPackages.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _workPackages[index] = item;
+    if (notify && mounted) {
+      setState(() {});
+    }
+    _scheduleSave();
+  }
+
+  void _deleteWorkPackage(String id) {
+    setState(() => _workPackages.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _addCheckpoint() {
+    setState(() {
+      _acceptanceCheckpoints.add(_CheckpointItem(
+        id: _newId(),
+        title: '',
+        owner: '',
+        status: _checkpointStatuses.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateCheckpoint(_CheckpointItem item, {bool notify = false}) {
+    final index =
+        _acceptanceCheckpoints.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _acceptanceCheckpoints[index] = item;
+    if (notify && mounted) {
+      setState(() {});
+    }
+    _scheduleSave();
+  }
+
+  void _deleteCheckpoint(String id) {
+    setState(
+        () => _acceptanceCheckpoints.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _addAcceptanceTag() {
+    setState(() {
+      _acceptanceTags.add(_AcceptanceTagItem(
+        id: _newId(),
+        label: '',
+        status: _checkpointStatuses.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateAcceptanceTag(_AcceptanceTagItem item, {bool notify = false}) {
+    final index = _acceptanceTags.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _acceptanceTags[index] = item;
+    if (notify && mounted) {
+      setState(() {});
+    }
+    _scheduleSave();
+  }
+
+  void _deleteAcceptanceTag(String id) {
+    setState(() => _acceptanceTags.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _addScopeChange() {
+    setState(() {
+      _scopeChanges.add(_ScopeChangeItem(id: _newId(), detail: ''));
+    });
+    _scheduleSave();
+  }
+
+  void _updateScopeChange(_ScopeChangeItem item) {
+    final index = _scopeChanges.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    _scopeChanges[index] = item;
+    _scheduleSave();
+  }
+
+  void _deleteScopeChange(String id) {
+    setState(() => _scopeChanges.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   Widget _buildFooterNavigation(BuildContext context) {
     return Container(
@@ -749,5 +1321,237 @@ class _AiHelperButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _InlineEmptyState extends StatelessWidget {
+  const _InlineEmptyState({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 18, color: Color(0xFF9CA3AF)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111827)),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkPackageItem {
+  _WorkPackageItem({
+    required this.id,
+    required this.title,
+    required this.owner,
+    required this.milestone,
+    required this.status,
+    required this.impact,
+  });
+
+  final String id;
+  final String title;
+  final String owner;
+  final String milestone;
+  final String status;
+  final String impact;
+
+  _WorkPackageItem copyWith({
+    String? title,
+    String? owner,
+    String? milestone,
+    String? status,
+    String? impact,
+  }) {
+    return _WorkPackageItem(
+      id: id,
+      title: title ?? this.title,
+      owner: owner ?? this.owner,
+      milestone: milestone ?? this.milestone,
+      status: status ?? this.status,
+      impact: impact ?? this.impact,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'owner': owner,
+        'milestone': milestone,
+        'status': status,
+        'impact': impact,
+      };
+
+  static List<_WorkPackageItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _WorkPackageItem(
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        title: map['title']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        milestone: map['milestone']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Delivered',
+        impact: map['impact']?.toString() ?? 'Medium',
+      );
+    }).toList();
+  }
+}
+
+class _CheckpointItem {
+  _CheckpointItem({
+    required this.id,
+    required this.title,
+    required this.owner,
+    required this.status,
+  });
+
+  final String id;
+  final String title;
+  final String owner;
+  final String status;
+
+  _CheckpointItem copyWith({String? title, String? owner, String? status}) {
+    return _CheckpointItem(
+      id: id,
+      title: title ?? this.title,
+      owner: owner ?? this.owner,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'owner': owner,
+        'status': status,
+      };
+
+  static List<_CheckpointItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _CheckpointItem(
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        title: map['title']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Pending',
+      );
+    }).toList();
+  }
+}
+
+class _AcceptanceTagItem {
+  _AcceptanceTagItem({
+    required this.id,
+    required this.label,
+    required this.status,
+  });
+
+  final String id;
+  final String label;
+  final String status;
+
+  _AcceptanceTagItem copyWith({String? label, String? status}) {
+    return _AcceptanceTagItem(
+      id: id,
+      label: label ?? this.label,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'label': label,
+        'status': status,
+      };
+
+  static List<_AcceptanceTagItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _AcceptanceTagItem(
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        label: map['label']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Pending',
+      );
+    }).toList();
+  }
+}
+
+class _ScopeChangeItem {
+  _ScopeChangeItem({required this.id, required this.detail});
+
+  final String id;
+  final String detail;
+
+  _ScopeChangeItem copyWith({String? detail}) {
+    return _ScopeChangeItem(id: id, detail: detail ?? this.detail);
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'detail': detail,
+      };
+
+  static List<_ScopeChangeItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _ScopeChangeItem(
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        detail: map['detail']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
+class _Debouncer {
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 600);
+
+  final Duration delay;
+  Timer? _timer;
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
   }
 }

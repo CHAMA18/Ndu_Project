@@ -7768,7 +7768,7 @@ class _ContractDocumentData {
   final Color accentColor;
   final IconData icon;
 
-  static const Map<int, IconData> _iconLookup = {
+  static final Map<int, IconData> _iconLookup = {
     Icons.description_outlined.codePoint: Icons.description_outlined,
     Icons.picture_as_pdf_outlined.codePoint: Icons.picture_as_pdf_outlined,
     Icons.table_chart_outlined.codePoint: Icons.table_chart_outlined,
