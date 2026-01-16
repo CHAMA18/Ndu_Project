@@ -4,6 +4,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,60 +15,53 @@ class TeamRolesResponsibilitiesScreen extends StatefulWidget {
   static Future<void> open(BuildContext context) {
     return Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const TeamRolesResponsibilitiesScreen()),
+      MaterialPageRoute(
+          builder: (_) => const TeamRolesResponsibilitiesScreen()),
     );
   }
 
   @override
-  State<TeamRolesResponsibilitiesScreen> createState() => _TeamRolesResponsibilitiesScreenState();
+  State<TeamRolesResponsibilitiesScreen> createState() =>
+      _TeamRolesResponsibilitiesScreenState();
 }
 
-class _TeamRolesResponsibilitiesScreenState extends State<TeamRolesResponsibilitiesScreen> {
-  late List<_RoleCardData> _members;
+class _TeamRolesResponsibilitiesScreenState
+    extends State<TeamRolesResponsibilitiesScreen> {
+  final _notesDebouncer = _Debouncer(milliseconds: 1000);
+  final TextEditingController _notesSectionController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // Reflect the current team: for now, only the project owner (signed-in user).
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName = ((user?.displayName?.trim().isNotEmpty ?? false)
-            ? user!.displayName!.trim()
-            : (user?.email?.trim().isNotEmpty ?? false)
-                ? user!.email!.trim()
-                : 'Owner')
-        .toString();
-    final ownerEmail = user?.email?.trim() ?? '';
+    _loadNotes();
+    _notesSectionController.addListener(_onNotesChanged);
+  }
 
-    final starterMember = _RoleCardData(
-      title: 'Project Owner',
-      subtitle: [
-        if (displayName.isNotEmpty) displayName,
-        'Core team',
-        'Full access',
-      ].join(' • '),
-      responsibilities: const [
-        'Define objectives and success criteria',
-        'Approve scope and budgets',
-        'Remove blockers and align stakeholders',
-      ],
-      workItems: const [
-        _WorkItem(name: 'Develop rollout plan', status: 'Done', isAltRow: false),
-        _WorkItem(name: 'Prepare kickoff agenda', status: 'In progress', isAltRow: true),
-      ],
-      fullName: displayName,
-      role: 'Owner',
-      email: ownerEmail,
-      phone: '',
-      department: '',
-      location: '',
-      startDate: DateTime.now(),
-      teamPlacement: 'Core team',
-      accessLevel: 'Full access',
-      notes: 'Default owner profile. Add members to expand your team.',
-    );
+  void _onNotesChanged() {
+    _notesDebouncer.run(() {
+      _saveNotes(_notesSectionController.text);
+    });
+  }
 
-    // Seed with only the owner.
-    _members = <_RoleCardData>[starterMember];
+  Future<void> _loadNotes() async {
+    final doc = await _rolesCollection.doc('metadata').get();
+    if (doc.exists && mounted) {
+      final data = doc.data() as Map<String, dynamic>;
+      _notesSectionController.text = data['notes'] ?? '';
+    }
+  }
+
+  Future<void> _saveNotes(String notes) async {
+    await _rolesCollection.doc('metadata').set({
+      'notes': notes,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  void dispose() {
+    _notesSectionController.dispose();
+    super.dispose();
   }
 
   @override
@@ -101,16 +95,16 @@ class _TeamRolesResponsibilitiesScreenState extends State<TeamRolesResponsibilit
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Back navigation placed before the title text
                             IconButton(
                               tooltip: 'Back',
                               onPressed: () => Navigator.of(context).maybePop(),
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1F1F1F)),
+                              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                                  color: Color(0xFF1F1F1F)),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                'Manage Roles & Responsibilites',
+                                'Roles & Responsibilities',
                                 style: theme.textTheme.titleLarge?.copyWith(
                                       fontWeight: FontWeight.w700,
                                       color: const Color(0xFF1F1F1F),
@@ -130,32 +124,189 @@ class _TeamRolesResponsibilitiesScreenState extends State<TeamRolesResponsibilit
                             ),
                           ],
                         ),
-                        const SizedBox(height: 32),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final maxWidth = constraints.maxWidth;
-                            const spacing = 24.0;
-                            final cardWidth = maxWidth >= 1080
-                                ? (maxWidth - spacing * 2) / 3
-                                : maxWidth >= 720
-                                    ? (maxWidth - spacing) / 2
-                                    : maxWidth;
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Clarify ownership across workstreams and decision points.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
 
-                            return Wrap(
-                              spacing: spacing,
-                              runSpacing: spacing,
-                              children: _members.asMap().entries.map((entry) {
-                                final index = entry.key;
-                                final data = entry.value;
-                                return SizedBox(
-                                  width: cardWidth,
-                                  child: _RoleCard(
-                                    data: data,
-                                    onEdit: () => _showMemberDialog(editIndex: index),
-                                    onDelete: () => _confirmDeleteMember(index),
+                        // Persistent Notes Section
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.02),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.auto_awesome,
+                                        color: Color(0xFFD97706), size: 18),
                                   ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Notes',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF111827),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Capture ownership, staffing needs, and role coverage.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF9FAFB),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFE5E7EB)),
+                                ),
+                                child: TextField(
+                                  controller: _notesSectionController,
+                                  maxLines: 4,
+                                  decoration: const InputDecoration(
+                                    hintText:
+                                        'Capture the key decisions and details for this section...',
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.all(16),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Roles List
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _rolesCollection
+                              .where('type', isNotEqualTo: 'metadata')
+                              .snapshots(), // Filter out metadata doc if needed, or better use subcollection or different ID check
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return const Center(
+                                  child: Text('Error loading roles'));
+                            }
+                            if (!snapshot.hasData) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            }
+
+                            final docs = snapshot.data!.docs
+                                .where((doc) => doc.id != 'metadata')
+                                .toList();
+
+                            if (docs.isEmpty) {
+                              return Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: const Color(0xFFE5E7EB)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF7ED),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.people_outline,
+                                          color: Color(0xFFEA580C), size: 20),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: const [
+                                          Text(
+                                            'No staffing details yet',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF111827),
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Add roles, responsibilities, and staffing notes to populate this view.',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Color(0xFF6B7280),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return LayoutBuilder(
+                              builder: (context, constraints) {
+                                final maxWidth = constraints.maxWidth;
+                                const spacing = 24.0;
+                                final cardWidth = maxWidth >= 1080
+                                    ? (maxWidth - spacing * 2) / 3
+                                    : maxWidth >= 720
+                                        ? (maxWidth - spacing) / 2
+                                        : maxWidth;
+
+                                return Wrap(
+                                  spacing: spacing,
+                                  runSpacing: spacing,
+                                  children: docs.map((doc) {
+                                    final data = _RoleCardData.fromMap(
+                                        doc.data() as Map<String, dynamic>);
+                                    return SizedBox(
+                                      width: cardWidth,
+                                      child: _RoleCard(
+                                        data: data,
+                                        onEdit: () => _showMemberDialog(
+                                            existingId: doc.id,
+                                            existingData: data),
+                                        onDelete: () => _confirmDeleteMember(
+                                            doc.id, data.title),
+                                      ),
+                                    );
+                                  }).toList(),
                                 );
-                              }).toList(),
+                              },
                             );
                           },
                         ),
@@ -173,32 +324,24 @@ class _TeamRolesResponsibilitiesScreenState extends State<TeamRolesResponsibilit
     );
   }
 
-  Future<void> _showMemberDialog({int? editIndex}) async {
-    final existing = editIndex != null ? _members[editIndex] : null;
+  Future<void> _showMemberDialog(
+      {String? existingId, _RoleCardData? existingData}) async {
     final result = await showDialog<_RoleCardData>(
       context: context,
       barrierColor: Colors.black.withOpacity(0.2),
-      builder: (_) => _TeamMemberDialog(initialData: existing),
+      builder: (_) => _TeamMemberDialog(initialData: existingData),
     );
 
-    if (result == null) {
-      return;
-    }
+    if (result == null) return;
 
-    setState(() {
-      final updated = List<_RoleCardData>.from(_members);
-      if (editIndex != null) {
-        updated[editIndex] = result;
-      } else {
-        updated.add(result);
-      }
-      _members = updated;
-    });
+    if (existingId != null) {
+      await _rolesCollection.doc(existingId).update(result.toMap());
+    } else {
+      await _rolesCollection.add(result.toMap());
+    }
   }
 
-  Future<void> _confirmDeleteMember(int index) async {
-    final member = _members[index];
-    final displayName = member.fullName.isNotEmpty ? member.fullName : member.title;
+  Future<void> _confirmDeleteMember(String docId, String name) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -207,7 +350,7 @@ class _TeamRolesResponsibilitiesScreenState extends State<TeamRolesResponsibilit
         return AlertDialog(
           title: const Text('Remove team member?'),
           content: Text(
-            'This will remove $displayName from the list.',
+            'This will remove $name from the list.',
           ),
           actions: [
             TextButton(
@@ -228,10 +371,7 @@ class _TeamRolesResponsibilitiesScreenState extends State<TeamRolesResponsibilit
     );
 
     if (shouldDelete == true) {
-      setState(() {
-        final updated = List<_RoleCardData>.from(_members)..removeAt(index);
-        _members = updated;
-      });
+      await _rolesCollection.doc(docId).delete();
     }
   }
 }
@@ -275,53 +415,56 @@ class _RoleCard extends StatelessWidget {
                   color: const Color(0xFFE4E7FF),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.business_center_outlined, color: Color(0xFF6C6CF3)),
+                child: const Icon(Icons.business_center_outlined,
+                    color: Color(0xFF6C6CF3)),
               ),
               const SizedBox(width: 12),
-               Expanded(
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Text(
-                       data.title,
-                       style: const TextStyle(
-                         fontSize: 18,
-                         fontWeight: FontWeight.w700,
-                         color: Color(0xFF202326),
-                       ),
-                     ),
-                     const SizedBox(height: 4),
-                     Text(
-                       data.subtitle,
-                       style: const TextStyle(
-                         fontSize: 13,
-                         height: 1.4,
-                         color: Color(0xFF5B6572),
-                       ),
-                     ),
-                   ],
-                 ),
-               ),
-               Row(
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                   IconButton(
-                     tooltip: 'Edit member',
-                     onPressed: onEdit,
-                     icon: const Icon(Icons.edit_outlined, color: Color(0xFF5B6572)),
-                   ),
-                   IconButton(
-                     tooltip: 'Delete member',
-                     onPressed: onDelete,
-                     icon: const Icon(Icons.delete_outline, color: Color(0xFFD64545)),
-                   ),
-                 ],
-               ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF202326),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      data.subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: Color(0xFF5B6572),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Edit member',
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined,
+                        color: Color(0xFF5B6572)),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete member',
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline,
+                        color: Color(0xFFD64545)),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 20),
-           const Text(
-             'Key Responsibilities',
+          const Text(
+            'Key Responsibilities',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -337,7 +480,8 @@ class _RoleCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Color(0xFF42D79E), size: 22),
+                    const Icon(Icons.check_circle,
+                        color: Color(0xFF42D79E), size: 22),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -369,7 +513,8 @@ class _RoleCard extends StatelessWidget {
           const SizedBox(height: 12),
           ...data.workItems.map((item) {
             return Padding(
-              padding: EdgeInsets.only(bottom: item == data.workItems.last ? 0 : 10),
+              padding:
+                  EdgeInsets.only(bottom: item == data.workItems.last ? 0 : 10),
               child: _WorkProgressRow(item: item),
             );
           }),
@@ -420,7 +565,8 @@ class _WorkProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = item.isAltRow ? const Color(0xFFF2F4F7) : Colors.transparent;
+    final background =
+        item.isAltRow ? const Color(0xFFF2F4F7) : Colors.transparent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
@@ -443,7 +589,8 @@ class _WorkProgressRow extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerRight,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE6F8EE),
                   borderRadius: BorderRadius.circular(30),
@@ -497,6 +644,46 @@ class _RoleCardData {
   final String teamPlacement;
   final String accessLevel;
   final String notes;
+  Map<String, dynamic> toMap() {
+    return {
+      'title': title,
+      'subtitle': subtitle,
+      'responsibilities': responsibilities,
+      'workItems': workItems.map((e) => e.toMap()).toList(),
+      'fullName': fullName,
+      'role': role,
+      'email': email,
+      'phone': phone,
+      'department': department,
+      'location': location,
+      'startDate': startDate?.toIso8601String(),
+      'teamPlacement': teamPlacement,
+      'accessLevel': accessLevel,
+      'notes': notes,
+    };
+  }
+
+  static _RoleCardData fromMap(Map<String, dynamic> map) {
+    return _RoleCardData(
+      title: map['title'] ?? '',
+      subtitle: map['subtitle'] ?? '',
+      responsibilities: List<String>.from(map['responsibilities'] ?? []),
+      workItems: (map['workItems'] as List<dynamic>? ?? [])
+          .map((e) => _WorkItem.fromMap(e as Map<String, dynamic>))
+          .toList(),
+      fullName: map['fullName'] ?? '',
+      role: map['role'] ?? '',
+      email: map['email'] ?? '',
+      phone: map['phone'] ?? '',
+      department: map['department'] ?? '',
+      location: map['location'] ?? '',
+      startDate:
+          map['startDate'] != null ? DateTime.tryParse(map['startDate']) : null,
+      teamPlacement: map['teamPlacement'] ?? 'Core team',
+      accessLevel: map['accessLevel'] ?? 'Full access',
+      notes: map['notes'] ?? '',
+    );
+  }
 }
 
 class _WorkItem {
@@ -509,10 +696,47 @@ class _WorkItem {
   final String name;
   final String status;
   final bool isAltRow;
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'status': status,
+      'isAltRow': isAltRow,
+    };
+  }
+
+  static _WorkItem fromMap(Map<String, dynamic> map) {
+    return _WorkItem(
+      name: map['name'] ?? '',
+      status: map['status'] ?? 'Not started',
+      isAltRow: map['isAltRow'] ?? false,
+    );
+  }
+}
+
+class _Debouncer {
+  final int milliseconds;
+  VoidCallback? _action;
+  _Debouncer({required this.milliseconds});
+
+  void run(VoidCallback action) {
+    if (_action != null) {
+      // In a real debouncer we'd cancel a timer.
+      // For simplicity in this widget-local helper we rely on a slightly different pattern
+      // or just trust the latest call wins if we had waiting logic.
+      // But standard debounce needs dart:async Timer.
+    }
+    // Actually let's just use dart:async Timer.
+    _timer?.cancel();
+    _timer = Timer(Duration(milliseconds: milliseconds), action);
+  }
+
+  Timer? _timer;
 }
 
 class _WorkProgressDraft {
-  _WorkProgressDraft({String initialName = '', String initialStatus = 'Not started'})
+  _WorkProgressDraft(
+      {String initialName = '', String initialStatus = 'Not started'})
       : nameController = TextEditingController(text: initialName),
         status = initialStatus;
 
@@ -574,21 +798,24 @@ class _WorkProgressEntryEditor extends StatelessWidget {
                 IconButton(
                   onPressed: onRemove,
                   splashRadius: 22,
-                  icon: Icon(Icons.delete_outline, color: colors.error.withOpacity(0.85)),
+                  icon: Icon(Icons.delete_outline,
+                      color: colors.error.withOpacity(0.85)),
                 ),
             ],
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: draft.nameController,
-            style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurface),
+            style:
+                theme.textTheme.bodyMedium?.copyWith(color: colors.onSurface),
             decoration: InputDecoration(
               labelText: 'Work item name',
               hintText: 'e.g. Draft integration plan',
               prefixIcon: Icon(Icons.task_alt_outlined, color: colors.primary),
               filled: true,
               fillColor: colors.surfaceContainerHighest.withOpacity(0.4),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(color: colors.outlineVariant),
@@ -618,13 +845,15 @@ class _WorkProgressEntryEditor extends StatelessWidget {
                   ),
                 )
                 .toList(),
-            style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurface),
+            style:
+                theme.textTheme.bodyMedium?.copyWith(color: colors.onSurface),
             decoration: InputDecoration(
               labelText: 'Status',
               prefixIcon: Icon(Icons.flag_outlined, color: colors.primary),
               filled: true,
               fillColor: colors.surfaceContainerHighest.withOpacity(0.4),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(color: colors.outlineVariant),
@@ -749,7 +978,8 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
                           color: colors.primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Icon(Icons.group_add_outlined, color: colors.primary),
+                        child: Icon(Icons.group_add_outlined,
+                            color: colors.primary),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -866,14 +1096,23 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
                   const SizedBox(height: 20),
                   _ChoicePills(
                     label: 'Team placement',
-                    options: const ['Core team', 'Extended team', 'External partner'],
+                    options: const [
+                      'Core team',
+                      'Extended team',
+                      'External partner'
+                    ],
                     selectedValue: _teamPlacement,
-                    onChanged: (value) => setState(() => _teamPlacement = value),
+                    onChanged: (value) =>
+                        setState(() => _teamPlacement = value),
                   ),
                   const SizedBox(height: 20),
                   _ChoicePills(
                     label: 'Access level',
-                    options: const ['Full access', 'Limited access', 'View only'],
+                    options: const [
+                      'Full access',
+                      'Limited access',
+                      'View only'
+                    ],
                     selectedValue: _accessLevel,
                     onChanged: (value) => setState(() => _accessLevel = value),
                   ),
@@ -895,13 +1134,15 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
                     final draft = entry.value;
                     return Padding(
                       padding: EdgeInsets.only(
-                        bottom: index == _workProgressEntries.length - 1 ? 0 : 12,
+                        bottom:
+                            index == _workProgressEntries.length - 1 ? 0 : 12,
                       ),
                       child: _WorkProgressEntryEditor(
                         index: index,
                         draft: draft,
                         statusOptions: _statusOptions,
-                        onStatusChanged: (value) => setState(() => draft.status = value),
+                        onStatusChanged: (value) =>
+                            setState(() => draft.status = value),
                         onRemove: _workProgressEntries.length > 1
                             ? () => _removeWorkProgressEntry(index)
                             : null,
@@ -947,6 +1188,7 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
       ),
     );
   }
+
   final _nameController = TextEditingController();
   final _roleController = TextEditingController();
   final _emailController = TextEditingController();
@@ -957,7 +1199,12 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
   final _notesController = TextEditingController();
   final List<_WorkProgressDraft> _workProgressEntries = [];
 
-  static const List<String> _statusOptions = ['Not started', 'In progress', 'Blocked', 'Done'];
+  static const List<String> _statusOptions = [
+    'Not started',
+    'In progress',
+    'Blocked',
+    'Done'
+  ];
 
   String _accessLevel = 'Full access';
   String _teamPlacement = 'Core team';
@@ -1002,16 +1249,20 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
     }
 
     if (_workProgressEntries.isEmpty) {
-      _workProgressEntries.add(_WorkProgressDraft(initialStatus: _statusOptions.first));
+      _workProgressEntries
+          .add(_WorkProgressDraft(initialStatus: _statusOptions.first));
     }
   }
 
   void _handleSaveMember() {
-    final responsibilities = _extractResponsibilities(_responsibilitiesController.text);
+    final responsibilities =
+        _extractResponsibilities(_responsibilitiesController.text);
 
     if (responsibilities.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one key responsibility before saving.')),
+        const SnackBar(
+            content:
+                Text('Add at least one key responsibility before saving.')),
       );
       return;
     }
@@ -1058,13 +1309,12 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
     subtitleParts.add(_teamPlacement);
     subtitleParts.add(_accessLevel);
 
-    final subtitle = subtitleParts.where((element) => element.trim().isNotEmpty).join(' • ');
+    final subtitle =
+        subtitleParts.where((element) => element.trim().isNotEmpty).join(' • ');
 
     final member = _RoleCardData(
       title: teamTitle,
-      subtitle: subtitle.isEmpty
-          ? 'Team member'
-          : subtitle,
+      subtitle: subtitle.isEmpty ? 'Team member' : subtitle,
       responsibilities: responsibilities,
       workItems: workItems,
       fullName: fullName,
@@ -1089,7 +1339,8 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
       final trimmed = line.trim();
       if (trimmed.isEmpty) continue;
       final match = RegExp(r'^\d+[\).\-]*\s*').firstMatch(trimmed);
-      final withoutNumber = match != null ? trimmed.substring(match.end).trimLeft() : trimmed;
+      final withoutNumber =
+          match != null ? trimmed.substring(match.end).trimLeft() : trimmed;
       if (withoutNumber.isNotEmpty) {
         cleaned.add(withoutNumber);
       }
@@ -1115,7 +1366,8 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
 
   void _addWorkProgressEntry() {
     setState(() {
-      _workProgressEntries.add(_WorkProgressDraft(initialStatus: _statusOptions.first));
+      _workProgressEntries
+          .add(_WorkProgressDraft(initialStatus: _statusOptions.first));
     });
   }
 
@@ -1127,7 +1379,8 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
       final removed = _workProgressEntries.removeAt(index);
       removed.dispose();
       if (_workProgressEntries.isEmpty) {
-        _workProgressEntries.add(_WorkProgressDraft(initialStatus: _statusOptions.first));
+        _workProgressEntries
+            .add(_WorkProgressDraft(initialStatus: _statusOptions.first));
       }
     });
   }
@@ -1148,7 +1401,10 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
       body: jsonEncode({
         'model': 'gpt-4',
         'messages': [
-          {'role': 'system', 'content': 'You are an expert HR assistant for software teams.'},
+          {
+            'role': 'system',
+            'content': 'You are an expert HR assistant for software teams.'
+          },
           {'role': 'user', 'content': prompt},
         ],
         'max_tokens': 60,
@@ -1234,8 +1490,10 @@ class _DialogTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final labelStyle = theme.textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant);
-    final hintTextStyle = theme.textTheme.bodyMedium?.copyWith(color: colors.outline);
+    final labelStyle =
+        theme.textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant);
+    final hintTextStyle =
+        theme.textTheme.bodyMedium?.copyWith(color: colors.outline);
     final inputBorderRadius = BorderRadius.circular(16);
 
     return TextFormField(
@@ -1252,7 +1510,8 @@ class _DialogTextField extends StatelessWidget {
         alignLabelWithHint: maxLines > 1,
         filled: true,
         fillColor: colors.surfaceContainerHighest.withOpacity(0.4),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         labelStyle: labelStyle,
         hintStyle: hintTextStyle,
         enabledBorder: OutlineInputBorder(
@@ -1289,7 +1548,8 @@ class _ChoicePills extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final chipColor = pillColor ?? colors.surfaceContainerHighest.withOpacity(0.6);
+    final chipColor =
+        pillColor ?? colors.surfaceContainerHighest.withOpacity(0.6);
     final activeColor = selectedColor ?? colors.primary;
     final labelStyle = theme.textTheme.labelMedium?.copyWith(
       fontWeight: FontWeight.w600,
@@ -1315,7 +1575,8 @@ class _ChoicePills extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? colors.onPrimary : colors.onSurfaceVariant,
+                  color:
+                      isSelected ? colors.onPrimary : colors.onSurfaceVariant,
                 ),
               ),
               selected: isSelected,
@@ -1323,7 +1584,8 @@ class _ChoicePills extends StatelessWidget {
               selectedColor: activeColor,
               backgroundColor: chipColor,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
             );
           }).toList(),
         ),
@@ -1349,7 +1611,8 @@ class _DateSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final labelStyle = theme.textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant);
+    final labelStyle =
+        theme.textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant);
     final borderRadius = BorderRadius.circular(16);
     final displayValue = value != null ? _formatDate(value!) : null;
 
@@ -1386,7 +1649,8 @@ class _DateSelector extends StatelessWidget {
           labelText: label,
           filled: true,
           fillColor: colors.surfaceContainerHighest.withOpacity(0.4),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           labelStyle: labelStyle,
           enabledBorder: OutlineInputBorder(
             borderRadius: borderRadius,
@@ -1410,7 +1674,8 @@ class _DateSelector extends StatelessWidget {
                 displayValue ?? hint,
                 style: TextStyle(
                   fontSize: 14,
-                  color: displayValue == null ? colors.outline : colors.onSurface,
+                  color:
+                      displayValue == null ? colors.outline : colors.onSurface,
                 ),
               ),
             ),
@@ -1444,7 +1709,8 @@ class _DateSelector extends StatelessWidget {
 }
 
 // --- Firestore CRUD for Roles & Responsibilities ---
-final _rolesCollection = FirebaseFirestore.instance.collection('organization_roles');
+final _rolesCollection =
+    FirebaseFirestore.instance.collection('organization_roles');
 
 Future<void> addOrUpdateRole(String docId, Map<String, dynamic> data) async {
   await _rolesCollection.doc(docId).set(data, SetOptions(merge: true));

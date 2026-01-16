@@ -49,7 +49,8 @@ class ContractDetailsDashboardScreen extends StatelessWidget {
                           isMobile: isMobile,
                           onAddContract: () {
                             Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const CreateContractScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const CreateContractScreen()),
                             );
                           },
                         ),
@@ -60,7 +61,8 @@ class ContractDetailsDashboardScreen extends StatelessWidget {
                           _ContractList(
                             isMobile: isMobile,
                             contracts: const [],
-                            emptyMessage: 'Open or create a project to view contracts.',
+                            emptyMessage:
+                                'Open or create a project to view contracts.',
                           )
                         else
                           StreamBuilder<List<ContractModel>>(
@@ -70,11 +72,14 @@ class ContractDetailsDashboardScreen extends StatelessWidget {
                                 return _ContractList(
                                   isMobile: isMobile,
                                   contracts: const [],
-                                  emptyMessage: 'Unable to load contracts right now.',
+                                  emptyMessage:
+                                      'Unable to load contracts right now.',
                                 );
                               }
-                              final contracts = snapshot.data ?? const <ContractModel>[];
-                              return _ContractList(isMobile: isMobile, contracts: contracts);
+                              final contracts =
+                                  snapshot.data ?? const <ContractModel>[];
+                              return _ContractList(
+                                  isMobile: isMobile, contracts: contracts);
                             },
                           ),
                       ],
@@ -101,14 +106,17 @@ class _Header extends StatelessWidget {
     final theme = Theme.of(context);
     final title = Text(
       'Contract',
-      style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
+      style:
+          theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
     );
 
     final navButtons = Row(
       children: [
-        _CircularIconButton(icon: Icons.arrow_back_ios_new_rounded, onTap: () {}),
+        _CircularIconButton(
+            icon: Icons.arrow_back_ios_new_rounded, onTap: () {}),
         const SizedBox(width: 12),
-        _CircularIconButton(icon: Icons.arrow_forward_ios_rounded, onTap: () {}),
+        _CircularIconButton(
+            icon: Icons.arrow_forward_ios_rounded, onTap: () {}),
       ],
     );
 
@@ -118,7 +126,8 @@ class _Header extends StatelessWidget {
       label: const Text('Add New Contract'),
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-        textStyle: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+        textStyle:
+            theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
 
@@ -127,7 +136,9 @@ class _Header extends StatelessWidget {
     final email = user?.email?.trim() ?? '';
     final subtitle = email.isNotEmpty ? email : 'Member';
     final userChip = _UserChip(
-      name: displayName.isNotEmpty ? displayName : (email.isNotEmpty ? email : 'User'),
+      name: displayName.isNotEmpty
+          ? displayName
+          : (email.isNotEmpty ? email : 'User'),
       subtitle: subtitle,
     );
 
@@ -163,7 +174,8 @@ class _Header extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 'Manage your contracts and track their progress',
-                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: Colors.grey[600]),
               ),
             ],
           ),
@@ -232,17 +244,22 @@ class _UserChip extends StatelessWidget {
             backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
             child: Text(
               _initials(name),
-              style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(name, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+              Text(name,
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               Text(
                 subtitle,
-                style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey[600]),
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: Colors.grey[600]),
               ),
             ],
           ),
@@ -254,7 +271,8 @@ class _UserChip extends StatelessWidget {
   String _initials(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return 'U';
-    final parts = trimmed.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts =
+        trimmed.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
@@ -266,12 +284,15 @@ class _GroupsTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tabTextStyle = theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600);
+    final tabTextStyle =
+        theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Groups', style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey[700])),
+        Text('Groups',
+            style:
+                theme.textTheme.titleMedium?.copyWith(color: Colors.grey[700])),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
@@ -288,22 +309,28 @@ class _GroupsTabs extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(32),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Text('Contract Management', style: tabTextStyle?.copyWith(color: Colors.grey[600])),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Text('Contract Management',
+                      style: tabTextStyle?.copyWith(color: Colors.grey[600])),
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.primary, width: 2),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: Text(
                     'Contract Details',
-                    style: tabTextStyle?.copyWith(color: Theme.of(context).colorScheme.primary),
+                    style: tabTextStyle?.copyWith(
+                        color: Theme.of(context).colorScheme.primary),
                   ),
                 ),
               ),
@@ -321,7 +348,8 @@ class _GroupsTabs extends StatelessWidget {
 }
 
 class _ContractList extends StatelessWidget {
-  const _ContractList({required this.isMobile, required this.contracts, this.emptyMessage});
+  const _ContractList(
+      {required this.isMobile, required this.contracts, this.emptyMessage});
 
   final bool isMobile;
   final List<ContractModel> contracts;
@@ -337,11 +365,14 @@ class _ContractList extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Contract List', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+              Text('Contract List',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(
                 'View all expected contract scopes for the project',
-                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: Colors.grey[600]),
               ),
             ],
           ),
@@ -383,14 +414,16 @@ class _ContractList extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 emptyMessage ?? 'No contracts added yet.',
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.grey[600]),
               ),
             )
           else
             ...List.generate(contracts.length, (index) {
               final row = _ContractRow.fromContract(contracts[index]);
               return Padding(
-                padding: EdgeInsets.only(bottom: index == contracts.length - 1 ? 8 : 20),
+                padding: EdgeInsets.only(
+                    bottom: index == contracts.length - 1 ? 8 : 20),
                 child: _ContractRowTile(row: row, isMobile: isMobile),
               );
             }),
@@ -446,16 +479,21 @@ class _GhostButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foreground = isSecondary ? theme.colorScheme.onSurface.withOpacity(0.8) : theme.colorScheme.primary;
+    final foreground = isSecondary
+        ? theme.colorScheme.onSurface.withOpacity(0.8)
+        : theme.colorScheme.primary;
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18, color: foreground),
-      label: Text(label, style: theme.textTheme.labelLarge?.copyWith(color: foreground)),
+      label: Text(label,
+          style: theme.textTheme.labelLarge?.copyWith(color: foreground)),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         side: BorderSide(color: AppSemanticColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        backgroundColor: isSecondary ? Colors.white : theme.colorScheme.primary.withOpacity(0.04),
+        backgroundColor: isSecondary
+            ? Colors.white
+            : theme.colorScheme.primary.withOpacity(0.04),
       ),
     );
   }
@@ -486,7 +524,8 @@ class _SearchField extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isMobile ? 12 : 16),
+        contentPadding:
+            EdgeInsets.symmetric(horizontal: 16, vertical: isMobile ? 12 : 16),
       ),
     );
   }
@@ -499,7 +538,15 @@ class _TableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final headers = ['Name', 'Type', 'Payment', 'Status', 'Progress', 'Value', 'Actions'];
+    final headers = [
+      'Name',
+      'Type',
+      'Payment',
+      'Status',
+      'Progress',
+      'Value',
+      'Actions'
+    ];
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -517,7 +564,11 @@ class _TableHeader extends StatelessWidget {
               children: [
                 for (final title in headers)
                   Expanded(
-                    flex: title == 'Name' ? 2 : title == 'Progress' ? 2 : 1,
+                    flex: title == 'Name'
+                        ? 2
+                        : title == 'Progress'
+                            ? 2
+                            : 1,
                     child: _HeaderLabel(title: title),
                   ),
               ],
@@ -582,7 +633,9 @@ class _ContractRowTile extends StatelessWidget {
           backgroundColor: theme.colorScheme.primary.withOpacity(0.12),
         ),
         const SizedBox(height: 6),
-        Text('${row.progress}%', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey[600])),
+        Text('${row.progress}%',
+            style:
+                theme.textTheme.labelSmall?.copyWith(color: Colors.grey[600])),
       ],
     );
 
@@ -610,12 +663,19 @@ class _ContractRowTile extends StatelessWidget {
           )
         : Row(
             children: [
-              Expanded(flex: 2, child: Text(row.name, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600))),
-              Expanded(child: Text(row.type, style: theme.textTheme.bodyMedium)),
-              Expanded(child: Text(row.payment, style: theme.textTheme.bodyMedium)),
+              Expanded(
+                  flex: 2,
+                  child: Text(row.name,
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600))),
+              Expanded(
+                  child: Text(row.type, style: theme.textTheme.bodyMedium)),
+              Expanded(
+                  child: Text(row.payment, style: theme.textTheme.bodyMedium)),
               Expanded(child: statusChip(row.status)),
               Expanded(flex: 2, child: progressBar),
-              Expanded(child: Text(row.value, style: theme.textTheme.bodyMedium)),
+              Expanded(
+                  child: Text(row.value, style: theme.textTheme.bodyMedium)),
               SizedBox(width: 120, child: Center(child: actions)),
             ],
           );
@@ -625,7 +685,10 @@ class _ContractRowTile extends StatelessWidget {
         border: Border.all(color: AppSemanticColors.border),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 14, offset: const Offset(0, 6)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 14,
+              offset: const Offset(0, 6)),
         ],
       ),
       child: Column(
@@ -641,7 +704,8 @@ class _ContractRowTile extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: isMobile ? 16 : 18),
+            padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 20, vertical: isMobile ? 16 : 18),
             child: content,
           ),
         ],
@@ -663,9 +727,17 @@ class _RowLabelValue extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.grey[600], letterSpacing: 0.2)),
+          Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: Colors.grey[600], letterSpacing: 0.2)),
           const SizedBox(height: 4),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          Text(value,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -685,7 +757,11 @@ class _RowLabelWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.grey[600], letterSpacing: 0.2)),
+          Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: Colors.grey[600], letterSpacing: 0.2)),
           const SizedBox(height: 4),
           child,
         ],
@@ -710,7 +786,8 @@ class _RoundIcon extends StatelessWidget {
         child: SizedBox(
           height: 40,
           width: 40,
-          child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          child: Icon(icon,
+              size: 18, color: Theme.of(context).colorScheme.primary),
         ),
       ),
     );
@@ -718,7 +795,8 @@ class _RoundIcon extends StatelessWidget {
 }
 
 class _ContractRow {
-  const _ContractRow(this.name, this.type, this.payment, this.status, this.progress, this.value);
+  const _ContractRow(this.name, this.type, this.payment, this.status,
+      this.progress, this.value);
 
   final String name;
   final String type;
@@ -735,7 +813,8 @@ class _ContractRow {
             ? 60
             : 20;
     final estimatedValue = contract.estimatedValue;
-    final formattedValue = estimatedValue > 0 ? '\$${estimatedValue.toStringAsFixed(0)}' : 'TBD';
+    final formattedValue =
+        estimatedValue > 0 ? '\$${estimatedValue.toStringAsFixed(0)}' : 'TBD';
     return _ContractRow(
       contract.name.isNotEmpty ? contract.name : 'Untitled contract',
       contract.contractType.isNotEmpty ? contract.contractType : 'Not set',

@@ -36,7 +36,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final data = ProjectDataHelper.getData(context);
-      _notesController.text = data.planningNotes['planning_schedule_notes'] ?? '';
+      _notesController.text =
+          data.planningNotes['planning_schedule_notes'] ?? '';
       _notesController.addListener(_handleNotesChanged);
     });
   }
@@ -121,7 +122,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         const SizedBox(height: 24),
                         _ProjectTimelineCard(
                           selectedTab: _timelineTabIndex,
-                          onTabChanged: (index) => setState(() => _timelineTabIndex = index),
+                          onTabChanged: (index) =>
+                              setState(() => _timelineTabIndex = index),
                         ),
                       ],
                     ),
@@ -167,7 +169,10 @@ class _NotesInputField extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFE5E7EB)),
             boxShadow: const [
-              BoxShadow(color: Color(0x11000000), blurRadius: 14, offset: Offset(0, 8)),
+              BoxShadow(
+                  color: Color(0x11000000),
+                  blurRadius: 14,
+                  offset: Offset(0, 8)),
             ],
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -219,7 +224,8 @@ class _ScheduleManagementCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 8)),
+          BoxShadow(
+              color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 8)),
         ],
       ),
       padding: const EdgeInsets.all(24),
@@ -241,7 +247,10 @@ class _ScheduleManagementCard extends StatelessWidget {
                   children: [
                     const Text(
                       'Schedule Management',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827)),
                     ),
                     const SizedBox(height: 8),
                     dropdown,
@@ -257,7 +266,10 @@ class _ScheduleManagementCard extends StatelessWidget {
                   const Expanded(
                     child: Text(
                       'Schedule Management',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                      style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827)),
                     ),
                   ),
                   const SizedBox(width: 20),
@@ -291,7 +303,8 @@ class _ScheduleManagementCard extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 260,
-                  child: _SummaryPanel(metrics: _metrics, utilization: _teamUtilization),
+                  child: _SummaryPanel(
+                      metrics: _metrics, utilization: _teamUtilization),
                 ),
                 const SizedBox(width: 28),
                 Expanded(child: _WbsSection(nodes: _wbsNodes)),
@@ -317,24 +330,29 @@ class _ScheduleActions extends StatelessWidget {
       children: [
         OutlinedButton.icon(
           onPressed: () {},
-          icon: const Icon(Icons.diversity_3_outlined, size: 18, color: Color(0xFF4B5563)),
+          icon: const Icon(Icons.diversity_3_outlined,
+              size: 18, color: Color(0xFF4B5563)),
           label: const Text('Team', style: TextStyle(color: Color(0xFF111827))),
           style: OutlinedButton.styleFrom(
             backgroundColor: Colors.white,
             side: const BorderSide(color: Color(0xFFE5E7EB)),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         OutlinedButton.icon(
           onPressed: () {},
-          icon: const Icon(Icons.trending_up_outlined, size: 18, color: Color(0xFF4B5563)),
-          label: const Text('Estimates', style: TextStyle(color: Color(0xFF111827))),
+          icon: const Icon(Icons.trending_up_outlined,
+              size: 18, color: Color(0xFF4B5563)),
+          label: const Text('Estimates',
+              style: TextStyle(color: Color(0xFF111827))),
           style: OutlinedButton.styleFrom(
             backgroundColor: Colors.white,
             side: const BorderSide(color: Color(0xFFE5E7EB)),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         ElevatedButton.icon(
@@ -345,7 +363,8 @@ class _ScheduleActions extends StatelessWidget {
             backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 0,
           ),
         ),
@@ -357,7 +376,8 @@ class _ScheduleActions extends StatelessWidget {
             backgroundColor: const Color(0xFFFFB020),
             foregroundColor: const Color(0xFF111827),
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 0,
           ),
         ),
@@ -384,11 +404,16 @@ class _MethodologyDropdown extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF4B5563)),
-          style: const TextStyle(fontSize: 14, color: Color(0xFF111827), fontWeight: FontWeight.w600),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF4B5563)),
+          style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF111827),
+              fontWeight: FontWeight.w600),
           onChanged: onChanged,
           items: _ScheduleManagementCard._methodologies
-              .map((option) => DropdownMenuItem<String>(value: option, child: Text(option)))
+              .map((option) =>
+                  DropdownMenuItem<String>(value: option, child: Text(option)))
               .toList(),
         ),
       ),
@@ -430,7 +455,10 @@ class _SummaryPanel extends StatelessWidget {
               children: [
                 Text(
                   'Critical Path Identified',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF9A3412)),
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF9A3412)),
                 ),
                 SizedBox(height: 6),
                 Text(
@@ -452,7 +480,10 @@ class _SummaryPanel extends StatelessWidget {
           const SizedBox(height: 12),
           const Text(
             'Team Utilization',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
           ),
           const SizedBox(height: 12),
           ...utilization.map((data) => Padding(
@@ -466,7 +497,8 @@ class _SummaryPanel extends StatelessWidget {
 }
 
 class _SectionEmptyState extends StatelessWidget {
-  const _SectionEmptyState({required this.title, required this.message, required this.icon});
+  const _SectionEmptyState(
+      {required this.title, required this.message, required this.icon});
 
   final String title;
   final String message;
@@ -498,9 +530,15 @@ class _SectionEmptyState extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827))),
                 const SizedBox(height: 6),
-                Text(message, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                Text(message,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF6B7280))),
               ],
             ),
           ),
@@ -536,12 +574,18 @@ class _MetricTile extends StatelessWidget {
             children: [
               Text(
                 metric.label,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280)),
               ),
               const SizedBox(height: 4),
               Text(
                 metric.value,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827)),
               ),
               const SizedBox(height: 4),
               Text(
@@ -569,8 +613,11 @@ class _UtilizationBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(data.label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-            Text('${(data.percent * 100).round()}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(data.label,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+            Text('${(data.percent * 100).round()}%',
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
         const SizedBox(height: 6),
@@ -602,7 +649,10 @@ class _WbsSection extends StatelessWidget {
           children: [
             const Text(
               'Work Breakdown Structure',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827)),
             ),
             const SizedBox(width: 12),
             Container(
@@ -613,7 +663,10 @@ class _WbsSection extends StatelessWidget {
               ),
               child: const Text(
                 'All Disciplines',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4B5563)),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4B5563)),
               ),
             ),
           ],
@@ -649,7 +702,8 @@ class _WbsTreeTile extends StatelessWidget {
           margin: EdgeInsets.only(left: level * 22.0, top: 8, bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: node.highlight ? const Color(0xFFFFFBEB) : Colors.transparent,
+            color:
+                node.highlight ? const Color(0xFFFFFBEB) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -657,7 +711,8 @@ class _WbsTreeTile extends StatelessWidget {
               if (node.children.isNotEmpty)
                 const Padding(
                   padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF6B7280)),
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 18, color: Color(0xFF6B7280)),
                 )
               else
                 Padding(
@@ -665,13 +720,17 @@ class _WbsTreeTile extends StatelessWidget {
                   child: Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(color: Color(0xFFCBD5F5), shape: BoxShape.circle),
+                    decoration: const BoxDecoration(
+                        color: Color(0xFFCBD5F5), shape: BoxShape.circle),
                   ),
                 ),
               Expanded(
                 child: Text(
                   node.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111827)),
                 ),
               ),
               if (node.badges.isNotEmpty)
@@ -680,15 +739,21 @@ class _WbsTreeTile extends StatelessWidget {
                   runSpacing: 6,
                   children: node.badges
                       .map((badge) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: badge.backgroundColor,
                               borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: badge.borderColor ?? Colors.transparent),
+                              border: Border.all(
+                                  color:
+                                      badge.borderColor ?? Colors.transparent),
                             ),
                             child: Text(
                               badge.label,
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: badge.textColor),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: badge.textColor),
                             ),
                           ))
                       .toList(),
@@ -697,21 +762,26 @@ class _WbsTreeTile extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   node.duration!,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4B5563)),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4B5563)),
                 ),
               ],
             ],
           ),
         ),
         if (node.children.isNotEmpty)
-          ...node.children.map((child) => _WbsTreeTile(node: child, level: level + 1)),
+          ...node.children
+              .map((child) => _WbsTreeTile(node: child, level: level + 1)),
       ],
     );
   }
 }
 
 class _ProjectTimelineCard extends StatelessWidget {
-  const _ProjectTimelineCard({required this.selectedTab, required this.onTabChanged});
+  const _ProjectTimelineCard(
+      {required this.selectedTab, required this.onTabChanged});
 
   final int selectedTab;
   final ValueChanged<int> onTabChanged;
@@ -728,7 +798,8 @@ class _ProjectTimelineCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 8)),
+          BoxShadow(
+              color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 8)),
         ],
       ),
       padding: const EdgeInsets.all(24),
@@ -739,7 +810,10 @@ class _ProjectTimelineCard extends StatelessWidget {
             children: [
               const Text(
                 'ProjectTimeline',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827)),
               ),
               const Spacer(),
               Container(
@@ -761,12 +835,16 @@ class _ProjectTimelineCard extends StatelessWidget {
                           labelStyle: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: selectedTab == i ? Colors.white : const Color(0xFF4B5563),
+                            color: selectedTab == i
+                                ? Colors.white
+                                : const Color(0xFF4B5563),
                           ),
                           selectedColor: const Color(0xFF111827),
                           backgroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
                   ],
@@ -777,10 +855,12 @@ class _ProjectTimelineCard extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              const Text('View:', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+              const Text('View:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.circular(12),
@@ -801,12 +881,16 @@ class _ProjectTimelineCard extends StatelessWidget {
               const Spacer(),
               OutlinedButton.icon(
                 onPressed: () {},
-                icon: const Icon(Icons.verified_outlined, size: 18, color: Color(0xFF2563EB)),
-                label: const Text('Validate', style: TextStyle(color: Color(0xFF2563EB))),
+                icon: const Icon(Icons.verified_outlined,
+                    size: 18, color: Color(0xFF2563EB)),
+                label: const Text('Validate',
+                    style: TextStyle(color: Color(0xFF2563EB))),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFFBFDBFE)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -817,7 +901,8 @@ class _ProjectTimelineCard extends StatelessWidget {
                 ),
                 child: IconButton(
                   onPressed: () {},
-                  icon: const Icon(Icons.file_upload_outlined, color: Color(0xFF4B5563)),
+                  icon: const Icon(Icons.file_upload_outlined,
+                      color: Color(0xFF4B5563)),
                 ),
               ),
             ],
@@ -826,7 +911,8 @@ class _ProjectTimelineCard extends StatelessWidget {
           if (_timelineItems.isEmpty)
             const _SectionEmptyState(
               title: 'No timeline data yet',
-              message: 'Add schedule items to view Gantt, list, or board timelines.',
+              message:
+                  'Add schedule items to view Gantt, list, or board timelines.',
               icon: Icons.timeline_outlined,
             )
           else
@@ -857,7 +943,8 @@ class _TimelineGanttView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double timelineWidth = _totalWeeks * _weekWidth;
-    final double chartHeight = _chartPaddingTop + (items.length * _rowHeight) + 32;
+    final double chartHeight =
+        _chartPaddingTop + (items.length * _rowHeight) + 32;
     final DateTime start = DateTime(2024, 1, 1);
     final DateTime end = DateTime(2024, 12, 31);
     final List<_TimelineSegment> months = _generateMonthSegments(start, end);
@@ -885,9 +972,15 @@ class _TimelineGanttView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
-                        Text('2024', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                        Text('2024',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF111827))),
                         SizedBox(height: 6),
-                        Text('Week', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                        Text('Week',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xFF6B7280))),
                       ],
                     ),
                   ),
@@ -902,7 +995,10 @@ class _TimelineGanttView extends StatelessWidget {
                                     width: segment.dayCount / 7 * _weekWidth,
                                     alignment: Alignment.centerLeft,
                                     padding: const EdgeInsets.only(bottom: 6),
-                                    child: Text(segment.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    child: Text(segment.label,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600)),
                                   ))
                               .toList(),
                         ),
@@ -912,7 +1008,10 @@ class _TimelineGanttView extends StatelessWidget {
                               .map((segment) => Container(
                                     width: segment.dayCount / 7 * _weekWidth,
                                     alignment: Alignment.center,
-                                    child: Text(segment.label, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                                    child: Text(segment.label,
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF9CA3AF))),
                                   ))
                               .toList(),
                         ),
@@ -993,28 +1092,40 @@ class _TimelineListHeader extends StatelessWidget {
         Expanded(
           child: Text(
             'Item',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280)),
           ),
         ),
         SizedBox(
           width: 110,
           child: Text(
             'Start',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280)),
           ),
         ),
         SizedBox(
           width: 100,
           child: Text(
             'Duration',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280)),
           ),
         ),
         SizedBox(
           width: 120,
           child: Text(
             'Status',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280)),
           ),
         ),
       ],
@@ -1067,19 +1178,26 @@ class _TimelineListRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     item.label,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827)),
                   ),
                 ),
                 if (item.isCritical)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text(
                       'Critical',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFDC2626)),
                     ),
                   ),
               ],
@@ -1104,14 +1222,16 @@ class _TimelineListRow extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   status,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700, color: color),
                 ),
               ),
             ),
@@ -1130,7 +1250,8 @@ class _TimelineBoardView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final todo = items.where((item) => item.progress == 0).toList();
-    final inProgress = items.where((item) => item.progress > 0 && item.progress < 1).toList();
+    final inProgress =
+        items.where((item) => item.progress > 0 && item.progress < 1).toList();
     final done = items.where((item) => item.progress >= 1).toList();
 
     return Container(
@@ -1146,11 +1267,20 @@ class _TimelineBoardView extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _TimelineBoardColumn(title: 'To Do', items: todo, background: const Color(0xFFF5F7FE)),
+            _TimelineBoardColumn(
+                title: 'To Do',
+                items: todo,
+                background: const Color(0xFFF5F7FE)),
             const SizedBox(width: 16),
-            _TimelineBoardColumn(title: 'In Progress', items: inProgress, background: const Color(0xFFEAF4FF)),
+            _TimelineBoardColumn(
+                title: 'In Progress',
+                items: inProgress,
+                background: const Color(0xFFEAF4FF)),
             const SizedBox(width: 16),
-            _TimelineBoardColumn(title: 'Done', items: done, background: const Color(0xFFE9F9F2)),
+            _TimelineBoardColumn(
+                title: 'Done',
+                items: done,
+                background: const Color(0xFFE9F9F2)),
           ],
         ),
       ),
@@ -1159,7 +1289,8 @@ class _TimelineBoardView extends StatelessWidget {
 }
 
 class _TimelineBoardColumn extends StatelessWidget {
-  const _TimelineBoardColumn({required this.title, required this.items, required this.background});
+  const _TimelineBoardColumn(
+      {required this.title, required this.items, required this.background});
 
   final String title;
   final List<_TimelineItem> items;
@@ -1182,7 +1313,10 @@ class _TimelineBoardColumn extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827)),
               ),
               const SizedBox(width: 8),
               Container(
@@ -1193,14 +1327,18 @@ class _TimelineBoardColumn extends StatelessWidget {
                 ),
                 child: Text(
                   items.length.toString(),
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF6B7280)),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6B7280)),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           if (items.isEmpty)
-            const Text('No items', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))
+            const Text('No items',
+                style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))
           else
             ...items.map((item) => _TimelineBoardCard(item: item)),
         ],
@@ -1232,19 +1370,26 @@ class _TimelineBoardCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.label,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827)),
                 ),
               ),
               if (item.isCritical)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFEE2E2),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: const Text(
                     'Critical',
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFDC2626)),
                   ),
                 ),
             ],
@@ -1315,12 +1460,18 @@ class _TimelineRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
                 boxShadow: const [
-                  BoxShadow(color: Color(0x1A000000), blurRadius: 12, offset: Offset(0, 6)),
+                  BoxShadow(
+                      color: Color(0x1A000000),
+                      blurRadius: 12,
+                      offset: Offset(0, 6)),
                 ],
               ),
               child: Text(
                 item.label,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827)),
               ),
             ),
           ],
@@ -1367,7 +1518,8 @@ class _TimelineRow extends StatelessWidget {
             ),
             Positioned.fill(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1376,7 +1528,10 @@ class _TimelineRow extends StatelessWidget {
                       item.progressLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white),
                     ),
                     Container(
                       height: 6,
@@ -1459,7 +1614,8 @@ class _ScheduleMetric {
 }
 
 class _TeamUtilization {
-  const _TeamUtilization({required this.label, required this.percent, required this.color});
+  const _TeamUtilization(
+      {required this.label, required this.percent, required this.color});
 
   final String label;
   final double percent;
@@ -1503,7 +1659,7 @@ class _TimelineItem {
     required this.startWeek,
     required this.durationWeeks,
     required this.color,
-    this.progress = 0,
+    this.progress = 0.0,
     this.isCritical = false,
     this.isMilestone = false,
   });
@@ -1544,9 +1700,11 @@ List<_TimelineSegment> _generateMonthSegments(DateTime start, DateTime end) {
     final DateTime bucketStart = cursor.isBefore(start) ? start : cursor;
     final DateTime nextMonth = DateTime(cursor.year, cursor.month + 1, 1);
     final DateTime bucketEnd = nextMonth.subtract(const Duration(days: 1));
-    final DateTime actualEnd = bucketEnd.isAfter(inclusiveEnd) ? inclusiveEnd : bucketEnd;
+    final DateTime actualEnd =
+        bucketEnd.isAfter(inclusiveEnd) ? inclusiveEnd : bucketEnd;
     final int dayCount = actualEnd.difference(bucketStart).inDays + 1;
-    segments.add(_TimelineSegment(label: _formatMonth(cursor), dayCount: dayCount));
+    segments
+        .add(_TimelineSegment(label: _formatMonth(cursor), dayCount: dayCount));
     cursor = nextMonth;
   }
 
@@ -1561,7 +1719,8 @@ List<_TimelineSegment> _generateWeekSegments(DateTime start, DateTime end) {
   int weekNumber = 1;
   while (!cursor.isAfter(inclusiveEnd)) {
     final DateTime potentialEnd = cursor.add(const Duration(days: 6));
-    final DateTime actualEnd = potentialEnd.isAfter(inclusiveEnd) ? inclusiveEnd : potentialEnd;
+    final DateTime actualEnd =
+        potentialEnd.isAfter(inclusiveEnd) ? inclusiveEnd : potentialEnd;
     final int dayCount = actualEnd.difference(cursor).inDays + 1;
     segments.add(_TimelineSegment(label: '$weekNumber', dayCount: dayCount));
     weekNumber++;

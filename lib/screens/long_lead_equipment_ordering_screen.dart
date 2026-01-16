@@ -796,7 +796,7 @@ class _DropdownCell extends StatelessWidget {
     final resolvedValue = options.contains(value) ? value : options.first;
     return DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
-      value: resolvedValue,
+      initialValue: resolvedValue,
       items: options.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
       onChanged: (value) {
         if (value != null) onChanged(value);

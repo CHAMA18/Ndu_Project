@@ -64,13 +64,15 @@ class _ProgramBasicsContentStateful extends StatefulWidget {
   const _ProgramBasicsContentStateful();
 
   @override
-  State<_ProgramBasicsContentStateful> createState() => _ProgramBasicsContentState();
+  State<_ProgramBasicsContentStateful> createState() =>
+      _ProgramBasicsContentState();
 }
 
 class _ProgramBasicsContentState extends State<_ProgramBasicsContentStateful> {
   bool _shownAiHint = false;
 
-  String _displayName() => FirebaseAuthService.displayNameOrEmail(fallback: 'User');
+  String _displayName() =>
+      FirebaseAuthService.displayNameOrEmail(fallback: 'User');
 
   @override
   void didChangeDependencies() {
@@ -139,7 +141,8 @@ class _ProgramBasicsContentState extends State<_ProgramBasicsContentStateful> {
                       ),
                       const SizedBox(width: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(26),
@@ -160,7 +163,10 @@ class _ProgramBasicsContentState extends State<_ProgramBasicsContentStateful> {
                               backgroundColor: _kSurfaceBorder,
                               child: Text(
                                 _displayName().trim().isNotEmpty
-                                    ? _displayName().trim().substring(0, 1).toUpperCase()
+                                    ? _displayName()
+                                        .trim()
+                                        .substring(0, 1)
+                                        .toUpperCase()
                                     : 'U',
                                 style: const TextStyle(
                                   color: _kTextPrimary,
@@ -206,7 +212,8 @@ class _ProgramBasicsContentState extends State<_ProgramBasicsContentStateful> {
                   const SizedBox(height: 24),
                   const _InputGroup(
                     label: 'Project Objective',
-                    hint: 'Describe your project\'s purpose and goals (e.g Launch an AI-powered chatbot for customer support)',
+                    hint:
+                        'Describe your project\'s purpose and goals (e.g Launch an AI-powered chatbot for customer support)',
                     maxLines: 6,
                   ),
                   const SizedBox(height: 42),
@@ -305,7 +312,8 @@ class _InputGroup extends StatelessWidget {
             ),
             filled: true,
             fillColor: const Color(0xFFF1F4F9),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: const BorderSide(color: _kSurfaceBorder),
@@ -367,7 +375,8 @@ class ProjectManagementFrameworkScreen extends StatelessWidget {
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProjectManagementFrameworkScreen()),
+      MaterialPageRoute(
+          builder: (_) => const ProjectManagementFrameworkScreen()),
     );
   }
 
@@ -399,10 +408,12 @@ class _ProjectManagementFrameworkContent extends StatefulWidget {
   const _ProjectManagementFrameworkContent();
 
   @override
-  State<_ProjectManagementFrameworkContent> createState() => _ProjectManagementFrameworkContentState();
+  State<_ProjectManagementFrameworkContent> createState() =>
+      _ProjectManagementFrameworkContentState();
 }
 
-class _ProjectManagementFrameworkContentState extends State<_ProjectManagementFrameworkContent> {
+class _ProjectManagementFrameworkContentState
+    extends State<_ProjectManagementFrameworkContent> {
   bool _shownAiHint = false;
 
   @override
@@ -455,8 +466,10 @@ void _showAiHintDialog(BuildContext context) {
       return Center(
         child: Dialog(
           backgroundColor: Colors.white,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -531,7 +544,9 @@ class _ProfileSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = FirebaseAuthService.displayNameOrEmail(fallback: 'User');
-    final initial = name.trim().isNotEmpty ? name.trim().substring(0, 1).toUpperCase() : 'U';
+    final initial = name.trim().isNotEmpty
+        ? name.trim().substring(0, 1).toUpperCase()
+        : 'U';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
@@ -619,7 +634,8 @@ class _NotesInput extends StatelessWidget {
         ),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(22),
           borderSide: const BorderSide(color: _kSurfaceBorder),
@@ -835,7 +851,8 @@ class _NextButton extends StatelessWidget {
           elevation: 8,
           backgroundColor: _kAccentColor,
           foregroundColor: _kTextPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 18),
           textStyle: const TextStyle(
             fontSize: 16,

@@ -38,8 +38,7 @@ class _AgileDevelopmentIterationsScreenState
       TextEditingController();
   final TextEditingController _overviewDependenciesController =
       TextEditingController();
-  final TextEditingController _boardSummaryController =
-      TextEditingController();
+  final TextEditingController _boardSummaryController = TextEditingController();
 
   final TextEditingController _iterationNameController =
       TextEditingController();
@@ -63,8 +62,7 @@ class _AgileDevelopmentIterationsScreenState
   String? _healthLevel;
 
   final TextEditingController _cadenceController = TextEditingController();
-  final TextEditingController _burndownNoteController =
-      TextEditingController();
+  final TextEditingController _burndownNoteController = TextEditingController();
   double _burndownProgress = 0.0;
 
   final List<_SimpleListItem> _overviewOutcomes = [];
@@ -189,10 +187,8 @@ class _AgileDevelopmentIterationsScreenState
           throughput['committed']?.toString() ?? '';
       _throughputInProgressController.text =
           throughput['inProgress']?.toString() ?? '';
-      _throughputDoneController.text =
-          throughput['done']?.toString() ?? '';
-      _throughputAtRiskController.text =
-          throughput['atRisk']?.toString() ?? '';
+      _throughputDoneController.text = throughput['done']?.toString() ?? '';
+      _throughputAtRiskController.text = throughput['atRisk']?.toString() ?? '';
       _healthLevel = _normalizeConfidence(health['level']?.toString());
       _healthPercentController.text =
           _formatNumber(health['percent'], fallback: '');
@@ -415,16 +411,6 @@ class _AgileDevelopmentIterationsScreenState
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF111827),
-              ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'See what is planned, what is moving, and what is at risk in the current and upcoming iterations.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF6B7280),
-                fontWeight: FontWeight.w400,
-                height: 1.5,
-                fontSize: 14,
               ),
         ),
       ],
@@ -672,7 +658,7 @@ class _AgileDevelopmentIterationsScreenState
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _healthLevel,
+                  initialValue: _healthLevel,
                   decoration: _inputDecoration('Select confidence'),
                   items: _confidenceLevels
                       .map((level) =>
@@ -1344,8 +1330,7 @@ class _AgileDevelopmentIterationsScreenState
               const SizedBox(width: 8),
               Text(
                 '${_burndownProgress.round()}%',
-                style:
-                    const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
               ),
             ],
           ),
@@ -1746,8 +1731,7 @@ class _AgileDevelopmentIterationsScreenState
     );
   }
 
-  Widget _buildTableHeader(List<String> labels,
-      {List<int>? columnWidths}) {
+  Widget _buildTableHeader(List<String> labels, {List<int>? columnWidths}) {
     final widths =
         columnWidths ?? List<int>.filled(labels.length, 1, growable: false);
     return Row(
@@ -1811,7 +1795,7 @@ class _AgileDevelopmentIterationsScreenState
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: item.status,
+              initialValue: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _milestoneStatuses
                   .map(
@@ -1849,8 +1833,7 @@ class _AgileDevelopmentIterationsScreenState
               initialValue: item.risk,
               decoration: _inputDecoration('Risk'),
               maxLines: 2,
-              onChanged: (value) =>
-                  _updateRisk(item.copyWith(risk: value)),
+              onChanged: (value) => _updateRisk(item.copyWith(risk: value)),
             ),
           ),
           const SizedBox(width: 8),
@@ -1861,8 +1844,7 @@ class _AgileDevelopmentIterationsScreenState
               initialValue: item.impact,
               decoration: _inputDecoration('Impact'),
               maxLines: 2,
-              onChanged: (value) =>
-                  _updateRisk(item.copyWith(impact: value)),
+              onChanged: (value) => _updateRisk(item.copyWith(impact: value)),
             ),
           ),
           const SizedBox(width: 8),
@@ -1873,8 +1855,7 @@ class _AgileDevelopmentIterationsScreenState
               initialValue: item.owner,
               decoration: _inputDecoration('Owner'),
               maxLines: 2,
-              onChanged: (value) =>
-                  _updateRisk(item.copyWith(owner: value)),
+              onChanged: (value) => _updateRisk(item.copyWith(owner: value)),
             ),
           ),
           const SizedBox(width: 8),
@@ -1893,7 +1874,7 @@ class _AgileDevelopmentIterationsScreenState
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: item.status,
+              initialValue: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _riskStatuses
                   .map(
@@ -2447,7 +2428,8 @@ class _InlineEmptyState extends StatelessWidget {
 }
 
 class _Debouncer {
-  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 600);
+  _Debouncer({Duration? delay})
+      : delay = delay ?? const Duration(milliseconds: 600);
 
   final Duration delay;
   Timer? _timer;
