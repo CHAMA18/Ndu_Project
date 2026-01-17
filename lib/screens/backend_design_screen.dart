@@ -726,16 +726,19 @@ class _CardShell extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.child,
+    this.onTap,
+    this.trailing,
   });
 
   final String title;
   final String subtitle;
   final Widget child;
+  final VoidCallback? onTap;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -777,6 +780,8 @@ class _CardShell extends StatelessWidget {
         ],
       ),
     );
+    if (onTap == null) return card;
+    return GestureDetector(onTap: onTap, child: card);
   }
 }
 
