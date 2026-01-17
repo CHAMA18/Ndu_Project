@@ -245,7 +245,7 @@ class _Header extends StatelessWidget {
           const Spacer(),
           if (!isMobile)
             const Text(
-              'Preferred Solution Comparison',
+              'Preferred Solution',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           const Spacer(),
@@ -764,7 +764,7 @@ class _MainContentState extends State<_MainContent> {
               children: [
                 const EditableContentText(
                   contentKey: 'executive_summary_heading',
-                  fallback: 'Preferred Solution Comparison',
+                  fallback: 'Preferred Solution',
                   category: 'business_case',
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
                 ),

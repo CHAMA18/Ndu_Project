@@ -5754,7 +5754,7 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _category,
+              initialValue: _category,
               decoration: _dialogDecoration(label: 'Category'),
               items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
               onChanged: (value) {
@@ -5959,7 +5959,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _category,
+                    initialValue: _category,
                     decoration: _dialogDecoration(label: 'Category'),
                     items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
                     onChanged: (value) {
@@ -5971,7 +5971,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<_ProcurementItemStatus>(
-                    value: _status,
+                    initialValue: _status,
                     decoration: _dialogDecoration(label: 'Status'),
                     items: _ProcurementItemStatus.values
                         .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
@@ -5986,7 +5986,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<_ProcurementPriority>(
-              value: _priority,
+              initialValue: _priority,
               decoration: _dialogDecoration(label: 'Priority'),
               items: _ProcurementPriority.values
                   .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
@@ -6191,7 +6191,7 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _category,
+                    initialValue: _category,
                     decoration: _dialogDecoration(label: 'Category'),
                     items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
                     onChanged: (value) {
@@ -6293,7 +6293,7 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<_RfqStatus>(
-                    value: _status,
+                    initialValue: _status,
                     decoration: _dialogDecoration(label: 'Status'),
                     items: _RfqStatus.values.map((option) => DropdownMenuItem(value: option, child: Text(option.label))).toList(),
                     onChanged: (value) {
@@ -6305,7 +6305,7 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<_ProcurementPriority>(
-                    value: _priority,
+                    initialValue: _priority,
                     decoration: _dialogDecoration(label: 'Priority'),
                     items: _ProcurementPriority.values
                         .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
@@ -6457,7 +6457,7 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _category,
+                    initialValue: _category,
                     decoration: _dialogDecoration(label: 'Category'),
                     items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
                     onChanged: (value) {
@@ -6540,7 +6540,7 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<_PurchaseOrderStatus>(
-              value: _status,
+              initialValue: _status,
               decoration: _dialogDecoration(label: 'Status'),
               items: _PurchaseOrderStatus.values
                   .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))

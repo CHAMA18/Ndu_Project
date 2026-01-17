@@ -966,7 +966,6 @@ class _LabeledField extends StatelessWidget {
     required this.controller,
     this.autofocus = false,
     this.enabled = true,
-    this.hintText,
   });
 
   @override

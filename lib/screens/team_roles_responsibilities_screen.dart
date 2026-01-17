@@ -533,7 +533,7 @@ class _TeamRolesResponsibilitiesScreenState
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _coverageStatusOptions.contains(row.status) ? row.status : _coverageStatusOptions.first,
+              initialValue: _coverageStatusOptions.contains(row.status) ? row.status : _coverageStatusOptions.first,
               decoration: _inlineInputDecoration('Status'),
               items: _coverageStatusOptions
                   .map((status) => DropdownMenuItem(value: status, child: Text(status)))
@@ -653,7 +653,7 @@ class _TeamRolesResponsibilitiesScreenState
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _hiringStatusOptions.contains(row.status) ? row.status : _hiringStatusOptions.first,
+              initialValue: _hiringStatusOptions.contains(row.status) ? row.status : _hiringStatusOptions.first,
               decoration: _inlineInputDecoration('Status'),
               items: _hiringStatusOptions.map((status) => DropdownMenuItem(value: status, child: Text(status))).toList(),
               onChanged: (value) => _updateHiring(row.copyWith(status: value ?? _hiringStatusOptions.first)),
@@ -2357,8 +2357,6 @@ class _DialogTextField extends StatelessWidget {
     this.icon,
     this.keyboardType,
     this.maxLines = 1,
-    this.onChanged,
-    this.suffixIcon,
   });
 
   @override
@@ -2408,8 +2406,6 @@ class _ChoicePills extends StatelessWidget {
     required this.options,
     required this.selectedValue,
     required this.onChanged,
-    this.pillColor,
-    this.selectedColor,
   });
 
   final String label;
