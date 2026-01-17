@@ -752,7 +752,6 @@ class _MetricCard extends StatelessWidget {
     this.progress,
     this.footer,
     this.footerIcon,
-    this.badges = const [],
   });
 
   final String title;

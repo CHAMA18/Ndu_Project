@@ -386,7 +386,7 @@ class _UserChip extends StatelessWidget {
 }
 
 class _OutlinedButton extends StatelessWidget {
-  const _OutlinedButton({required this.label, this.onPressed});
+  const _OutlinedButton({required this.label});
 
   final String label;
   final VoidCallback? onPressed;
@@ -409,7 +409,7 @@ class _OutlinedButton extends StatelessWidget {
 }
 
 class _YellowButton extends StatelessWidget {
-  const _YellowButton({required this.label, this.onPressed});
+  const _YellowButton({required this.label});
 
   final String label;
   final VoidCallback? onPressed;
@@ -843,12 +843,13 @@ class _TableRow extends StatelessWidget {
       required bool isHeader,
       required TextStyle headerStyle,
       required TextStyle cellStyle}) {
-    if (isHeader)
+    if (isHeader) {
       return _cell(text,
           flex: flex,
           isHeader: isHeader,
           headerStyle: headerStyle,
           cellStyle: cellStyle);
+    }
     return Expanded(
       flex: flex,
       child: Align(
@@ -874,12 +875,13 @@ class _TableRow extends StatelessWidget {
       required bool isHeader,
       required TextStyle headerStyle,
       required TextStyle cellStyle}) {
-    if (isHeader)
+    if (isHeader) {
       return _cell(text,
           flex: flex,
           isHeader: isHeader,
           headerStyle: headerStyle,
           cellStyle: cellStyle);
+    }
     return Expanded(
       flex: flex,
       child: Align(

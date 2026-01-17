@@ -3707,8 +3707,6 @@ class _MetricData {
     required this.label,
     required this.caption,
     this.suffix = '',
-    this.prefix = '',
-    this.decimals = 0,
   });
 
   final double value;

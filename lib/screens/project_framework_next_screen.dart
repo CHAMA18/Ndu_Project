@@ -88,7 +88,7 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
       final analysis = projectData.preferredSolutionAnalysis;
       // Heuristic: If selectedSolutionTitle exists, use it. Else first potential solution.
       if (analysis?.selectedSolutionTitle != null && analysis!.selectedSolutionTitle!.isNotEmpty) {
-        _potentialSolution = analysis?.selectedSolutionTitle ?? '';
+        _potentialSolution = analysis.selectedSolutionTitle ?? '';
       } else if (projectData.potentialSolutions.isNotEmpty) {
         _potentialSolution = projectData.potentialSolutions.first.title;
       }
@@ -125,10 +125,10 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
     if (targetIndex != null) {
       setState(() {
         _goalTitleControllers[targetIndex!].text = _goalTitleControllers[index].text;
-        _goalDescControllers[targetIndex!].text = _goalDescControllers[index].text;
-        _goalYearControllers[targetIndex!].text = _goalYearControllers[index].text;
-        _isHighPriority[targetIndex!] = _isHighPriority[index];
-        _goalMilestones[targetIndex!] = _goalMilestones[index].map((m) {
+        _goalDescControllers[targetIndex].text = _goalDescControllers[index].text;
+        _goalYearControllers[targetIndex].text = _goalYearControllers[index].text;
+        _isHighPriority[targetIndex] = _isHighPriority[index];
+        _goalMilestones[targetIndex] = _goalMilestones[index].map((m) {
           final newM = _Milestone();
           newM.titleController.text = m.titleController.text;
           newM.deadlineController.text = m.deadlineController.text;

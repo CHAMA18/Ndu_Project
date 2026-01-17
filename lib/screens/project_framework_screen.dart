@@ -7,7 +7,6 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'project_framework_next_screen.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';

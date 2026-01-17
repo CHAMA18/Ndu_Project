@@ -733,7 +733,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _riskStatusOptions.contains(signal.status) ? signal.status : _riskStatusOptions.first,
+                  initialValue: _riskStatusOptions.contains(signal.status) ? signal.status : _riskStatusOptions.first,
                   decoration: _inlineDecoration('Status'),
                   items: _riskStatusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                   onChanged: (value) => _updateRiskSignal(signal.copyWith(status: value ?? _riskStatusOptions.first)),
@@ -773,7 +773,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           SizedBox(
             width: 120,
             child: DropdownButtonFormField<String>(
-              value: _approvalStatusOptions.contains(checkpoint.status) ? checkpoint.status : _approvalStatusOptions.first,
+              initialValue: _approvalStatusOptions.contains(checkpoint.status) ? checkpoint.status : _approvalStatusOptions.first,
               decoration: _inlineDecoration('Status'),
               items: _approvalStatusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (value) => _updateApprovalCheckpoint(checkpoint.copyWith(status: value ?? _approvalStatusOptions.first)),

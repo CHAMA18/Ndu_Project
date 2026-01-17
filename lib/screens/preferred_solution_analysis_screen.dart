@@ -29,7 +29,6 @@ import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
-import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/select_project_kaz_button.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
