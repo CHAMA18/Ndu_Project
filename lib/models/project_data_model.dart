@@ -1823,6 +1823,20 @@ class DesignDeliverablesMetrics {
     this.atRisk = 0,
   });
 
+  DesignDeliverablesMetrics copyWith({
+    int? active,
+    int? inReview,
+    int? approved,
+    int? atRisk,
+  }) {
+    return DesignDeliverablesMetrics(
+      active: active ?? this.active,
+      inReview: inReview ?? this.inReview,
+      approved: approved ?? this.approved,
+      atRisk: atRisk ?? this.atRisk,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'active': active,
         'inReview': inReview,
@@ -1881,6 +1895,22 @@ class DesignDeliverableRegisterItem {
     this.due = '',
     this.risk = '',
   });
+
+  DesignDeliverableRegisterItem copyWith({
+    String? name,
+    String? owner,
+    String? status,
+    String? due,
+    String? risk,
+  }) {
+    return DesignDeliverableRegisterItem(
+      name: name ?? this.name,
+      owner: owner ?? this.owner,
+      status: status ?? this.status,
+      due: due ?? this.due,
+      risk: risk ?? this.risk,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'name': name,
