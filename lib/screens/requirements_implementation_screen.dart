@@ -91,12 +91,17 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final horizontalPadding = isMobile ? 16.0 : 40.0;
+    final ownerOptions = _ownerOptions();
 
     return ResponsiveScaffold(
       activeItemLabel: 'Requirements Implementation',
       body: Column(
         children: [
-          const PlanningPhaseHeader(title: 'Design'),
+          const PlanningPhaseHeader(
+            title: 'Design',
+            showImportButton: false,
+            showContentButton: false,
+          ),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -197,9 +202,9 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildRequirementsBreakdownCard(),
+                            _buildRequirementsBreakdownCard(ownerOptions),
                             const SizedBox(height: 24),
-                            _buildReadinessChecklistCard(),
+                            _buildReadinessChecklistCard(ownerOptions),
                           ],
                         ),
                       ],
@@ -221,7 +226,7 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
     );
   }
 
-  Widget _buildRequirementsBreakdownCard() {
+  Widget _buildRequirementsBreakdownCard(List<String> ownerOptions) {
     final rowCount = _requirementRows.length;
 
     return Container(
@@ -302,7 +307,12 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
           ),
           const SizedBox(height: 10),
           for (int i = 0; i < rowCount; i++) ...[
-            _buildRequirementRow(_requirementRows[i], isStriped: i.isOdd),
+            _buildRequirementRow(
+              _requirementRows[i],
+              index: i,
+              isStriped: i.isOdd,
+              ownerOptions: ownerOptions,
+            ),
             if (i != rowCount - 1) const SizedBox(height: 8),
           ],
           const SizedBox(height: 16),
@@ -345,7 +355,7 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
     );
   }
 
-  Widget _buildReadinessChecklistCard() {
+  Widget _buildReadinessChecklistCard(List<String> ownerOptions) {
     final rowCount = _checklistItems.length;
 
     return Container(
@@ -426,7 +436,12 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
           ),
           const SizedBox(height: 10),
           for (int i = 0; i < rowCount; i++) ...[
-            _buildChecklistRow(_checklistItems[i], index: i, isStriped: i.isOdd),
+            _buildChecklistRow(
+              _checklistItems[i],
+              index: i,
+              isStriped: i.isOdd,
+              ownerOptions: ownerOptions,
+            ),
             if (i != rowCount - 1) const SizedBox(height: 8),
           ],
           const SizedBox(height: 16),
@@ -524,7 +539,12 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
     );
   }
 
-  Widget _buildRequirementRow(_RequirementRow row, {required bool isStriped}) {
+  Widget _buildRequirementRow(
+    _RequirementRow row, {
+    required int index,
+    required bool isStriped,
+    required List<String> ownerOptions,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -544,9 +564,12 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
-            child: _buildTableField(
-              initialValue: row.owner,
-              hintText: 'Owner',
+            child: _buildOwnerDropdown(
+              value: row.owner,
+              options: ownerOptions,
+              onChanged: (value) {
+                setState(() => _requirementRows[index].owner = value);
+              },
             ),
           ),
           const SizedBox(width: 10),
@@ -563,14 +586,18 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF1D4ED8),
-                  side: const BorderSide(color: Color(0xFFD6DCE8)),
+              child: TextButton.icon(
+                onPressed: () async {
+                  final confirmed = await _confirmDelete('requirement');
+                  if (!confirmed) return;
+                  setState(() => _requirementRows.removeAt(index));
+                },
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Delete'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFB91C1C),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                 ),
-                child: const Text('Add note'),
               ),
             ),
           ),
@@ -579,7 +606,12 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
     );
   }
 
-  Widget _buildChecklistRow(_ChecklistItem item, {required int index, required bool isStriped}) {
+  Widget _buildChecklistRow(
+    _ChecklistItem item, {
+    required int index,
+    required bool isStriped,
+    required List<String> ownerOptions,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -613,9 +645,12 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
-            child: _buildTableField(
-              initialValue: '',
-              hintText: 'Owner',
+            child: _buildOwnerDropdown(
+              value: item.owner ?? '',
+              options: ownerOptions,
+              onChanged: (value) {
+                setState(() => _checklistItems[index].owner = value);
+              },
             ),
           ),
           const SizedBox(width: 10),
@@ -660,14 +695,18 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF16A34A),
-                  side: const BorderSide(color: Color(0xFFD6DCE8)),
+              child: TextButton.icon(
+                onPressed: () async {
+                  final confirmed = await _confirmDelete('checklist item');
+                  if (!confirmed) return;
+                  setState(() => _checklistItems.removeAt(index));
+                },
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Delete'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFB91C1C),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                 ),
-                child: const Text('Add evidence'),
               ),
             ),
           ),
@@ -684,6 +723,8 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
     return TextFormField(
       initialValue: initialValue,
       maxLines: maxLines,
+      textAlign: TextAlign.center,
+      textAlignVertical: TextAlignVertical.center,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(color: Colors.grey[500]),
@@ -705,6 +746,78 @@ class _RequirementsImplementationScreenState extends State<RequirementsImplement
         ),
       ),
     );
+  }
+
+  List<String> _ownerOptions() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final members = provider?.projectData.teamMembers ?? [];
+    final names = members
+        .map((member) => member.name.trim().isNotEmpty ? member.name.trim() : member.email.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (names.isEmpty) return const ['Owner'];
+    return names.toSet().toList();
+  }
+
+  Widget _buildOwnerDropdown({
+    required String value,
+    required List<String> options,
+    required ValueChanged<String> onChanged,
+  }) {
+    final normalized = value.trim();
+    final items = normalized.isEmpty || options.contains(normalized)
+        ? options
+        : [normalized, ...options];
+    return DropdownButtonFormField<String>(
+      value: items.first,
+      alignment: Alignment.center,
+      items: items.map((owner) => DropdownMenuItem(value: owner, child: Text(owner))).toList(),
+      onChanged: (newValue) {
+        if (newValue == null) return;
+        onChanged(newValue);
+      },
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF1D4ED8), width: 2),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmDelete(String label) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete row?'),
+        content: Text('Remove this $label from the table?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFB91C1C)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
   }
 
   String _statusLabel(ChecklistStatus status) {
@@ -786,25 +899,27 @@ class _TableColumn {
 }
 
 class _RequirementRow {
-  const _RequirementRow({
+  _RequirementRow({
     required this.title,
     required this.owner,
     required this.definition,
   });
 
-  final String title;
-  final String owner;
-  final String definition;
+  String title;
+  String owner;
+  String definition;
 }
 
 class _ChecklistItem {
   final String title;
   final String description;
   ChecklistStatus status;
+  String? owner;
 
   _ChecklistItem({
     required this.title,
     required this.description,
     required this.status,
+    this.owner,
   });
 }

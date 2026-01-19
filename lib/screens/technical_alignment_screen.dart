@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/ui_ux_design_screen.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
@@ -88,12 +89,17 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final padding = AppBreakpoints.pagePadding(context);
+    final ownerOptions = _ownerOptions();
 
     return ResponsiveScaffold(
       activeItemLabel: 'Technical Alignment',
       body: Column(
         children: [
-          const PlanningPhaseHeader(title: 'Design Phase'),
+          const PlanningPhaseHeader(
+            title: 'Design Phase',
+            showImportButton: false,
+            showContentButton: false,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -157,11 +163,11 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildConstraintsCard(),
+                      _buildConstraintsCard(ownerOptions),
                       const SizedBox(height: 20),
                       _buildRequirementMappingCard(),
                       const SizedBox(height: 20),
-                      _buildDependenciesCard(),
+                      _buildDependenciesCard(ownerOptions),
                     ],
                   ),
                   const SizedBox(height: 32),
@@ -198,7 +204,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  Widget _buildConstraintsCard() {
+  Widget _buildConstraintsCard(List<String> ownerOptions) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -265,7 +271,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             )
           else
             for (int i = 0; i < _constraints.length; i++) ...[
-              _buildConstraintRow(_constraints[i], index: i, isStriped: i.isOdd),
+              _buildConstraintRow(
+                _constraints[i],
+                index: i,
+                isStriped: i.isOdd,
+                ownerOptions: ownerOptions,
+              ),
               if (i != _constraints.length - 1) const SizedBox(height: 8),
             ],
         ],
@@ -350,7 +361,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  Widget _buildDependenciesCard() {
+  Widget _buildDependenciesCard(List<String> ownerOptions) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -417,7 +428,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             )
           else
             for (int i = 0; i < _dependencies.length; i++) ...[
-              _buildDependencyRow(_dependencies[i], index: i, isStriped: i.isOdd),
+              _buildDependencyRow(
+                _dependencies[i],
+                index: i,
+                isStriped: i.isOdd,
+                ownerOptions: ownerOptions,
+              ),
               if (i != _dependencies.length - 1) const SizedBox(height: 8),
             ],
           const SizedBox(height: 16),
@@ -510,6 +526,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                     letterSpacing: 0.4,
                     color: Color(0xFF475467),
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
@@ -518,7 +535,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  Widget _buildConstraintRow(_ConstraintRow row, {required int index, required bool isStriped}) {
+  Widget _buildConstraintRow(
+    _ConstraintRow row, {
+    required int index,
+    required bool isStriped,
+    required List<String> ownerOptions,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -549,9 +571,9 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
-            child: _buildTableField(
-              initialValue: row.owner,
-              hintText: 'Owner',
+            child: _buildOwnerDropdown(
+              value: row.owner,
+              options: ownerOptions,
               onChanged: (value) => row.owner = value,
             ),
           ),
@@ -569,16 +591,11 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: _buildRowActions(
-                primaryLabel: 'Attach',
-                accent: const Color(0xFF1D4ED8),
-                onPrimary: () {},
-                onDelete: () async {
-                  final confirmed = await _confirmDelete('constraint');
-                  if (!confirmed) return;
-                  setState(() => _constraints.removeAt(index));
-                },
-              ),
+              child: _buildDeleteAction(() async {
+                final confirmed = await _confirmDelete('constraint');
+                if (!confirmed) return;
+                setState(() => _constraints.removeAt(index));
+              }),
             ),
           ),
         ],
@@ -645,7 +662,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  Widget _buildDependencyRow(_DependencyDecisionRow row, {required int index, required bool isStriped}) {
+  Widget _buildDependencyRow(
+    _DependencyDecisionRow row, {
+    required int index,
+    required bool isStriped,
+    required List<String> ownerOptions,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -676,9 +698,9 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
-            child: _buildTableField(
-              initialValue: row.owner,
-              hintText: 'Owner',
+            child: _buildOwnerDropdown(
+              value: row.owner,
+              options: ownerOptions,
               onChanged: (value) => row.owner = value,
             ),
           ),
@@ -721,7 +743,11 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   }) {
     return TextFormField(
       initialValue: initialValue,
-      maxLines: maxLines,
+      minLines: 1,
+      maxLines: maxLines == 1 ? 1 : null,
+      textAlign: TextAlign.center,
+      textAlignVertical: TextAlignVertical.center,
+      keyboardType: maxLines == 1 ? TextInputType.text : TextInputType.multiline,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hintText,
@@ -753,6 +779,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   }) {
     return DropdownButtonFormField<String>(
       initialValue: value,
+      alignment: Alignment.center,
       items: _statusOptions
           .map((status) => DropdownMenuItem(value: status, child: Text(status)))
           .toList(),
@@ -777,6 +804,69 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: accent, width: 2),
         ),
+      ),
+    );
+  }
+
+  List<String> _ownerOptions() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final members = provider?.projectData.teamMembers ?? [];
+    final names = members
+        .map((member) => member.name.trim().isNotEmpty ? member.name.trim() : member.email.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (names.isEmpty) return const ['Owner'];
+    return names.toSet().toList();
+  }
+
+  Widget _buildOwnerDropdown({
+    required String value,
+    required List<String> options,
+    required ValueChanged<String> onChanged,
+  }) {
+    final normalized = value.trim();
+    final items = normalized.isEmpty || options.contains(normalized)
+        ? options
+        : [normalized, ...options];
+    return DropdownButtonFormField<String>(
+      value: items.first,
+      alignment: Alignment.center,
+      items: items.map((owner) => DropdownMenuItem(value: owner, child: Text(owner))).toList(),
+      onChanged: (newValue) {
+        if (newValue == null) return;
+        onChanged(newValue);
+      },
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF1D4ED8), width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAction(Future<void> Function() onDelete) {
+    return TextButton.icon(
+      onPressed: () async {
+        await onDelete();
+      },
+      icon: const Icon(Icons.delete_outline, size: 18),
+      label: const Text('Delete'),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFFB91C1C),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       ),
     );
   }
@@ -878,7 +968,7 @@ class _TableColumn {
   const _TableColumn({
     required this.label,
     this.flex = 1,
-    this.alignment = Alignment.centerLeft,
+    this.alignment = Alignment.center,
   });
 
   final String label;
