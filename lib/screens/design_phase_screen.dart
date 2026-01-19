@@ -228,6 +228,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     Icons.admin_panel_settings.codePoint: Icons.admin_panel_settings,
     Icons.link.codePoint: Icons.link,
     Icons.insert_drive_file_outlined.codePoint: Icons.insert_drive_file_outlined,
+    Icons.widgets_outlined.codePoint: Icons.widgets_outlined,
   };
 
   static IconData? _iconFromCode(int? codePoint, String? fontFamily) {
@@ -244,7 +245,11 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       activeItemLabel: widget.activeItemLabel,
       body: Column(
         children: [
-          const PlanningPhaseHeader(title: 'Design'),
+          const PlanningPhaseHeader(
+            title: 'Design',
+            showImportButton: false,
+            showContentButton: false,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -836,26 +841,65 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
   Widget _buildEditorSection() {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      height: 620,
+      height: 680,
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(color: Color(0x12000000), blurRadius: 18, offset: Offset(0, 10)),
+        ],
       ),
       child: Column(
         children: [
           // Editor Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: AppSemanticColors.border)),
             ),
             child: Row(
               children: [
-                const Text('System Architecture', style: TextStyle(fontWeight: FontWeight.w600)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('System Architecture', style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text('Design Editor · Output Document', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  ],
+                ),
                 const SizedBox(width: 12),
-                Text('Output Document', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text('Live canvas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                ),
                 const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    final node = ArchitectureNode(
+                      id: 'n_${_nodeCounter++}',
+                      label: 'New node',
+                      position: Offset(220 + (_nodes.length * 24).toDouble(), 160 + (_nodes.length * 24).toDouble()),
+                      color: Colors.white,
+                      icon: Icons.widgets_outlined,
+                    );
+                    setState(() => _nodes.add(node));
+                    _scheduleSave();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add node', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -926,7 +970,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                                   // Add node to center of visible canvas
                                   final centerPos = Offset(200 + (_nodes.length * 40).toDouble(), 200 + (_nodes.length * 40).toDouble());
                                   final newNode = ArchitectureNode(
-                                    id: 'n_[4mnodeCounter++}',
+                                    id: 'n_${_nodeCounter++}',
                                     label: item.label,
                                     position: centerPos,
                                     color: Colors.white,

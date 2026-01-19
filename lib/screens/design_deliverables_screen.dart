@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
@@ -29,17 +31,38 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   DesignDeliverablesData _data = DesignDeliverablesData();
   bool _loading = false;
   String? _error;
+  final _saveDebouncer = _Debouncer();
+  bool _saving = false;
+  DateTime? _lastSavedAt;
+  late final TextEditingController _activeController;
+  late final TextEditingController _inReviewController;
+  late final TextEditingController _approvedController;
+  late final TextEditingController _atRiskController;
 
   @override
   void initState() {
     super.initState();
+    _activeController = TextEditingController(text: '${_data.metrics.active}');
+    _inReviewController = TextEditingController(text: '${_data.metrics.inReview}');
+    _approvedController = TextEditingController(text: '${_data.metrics.approved}');
+    _atRiskController = TextEditingController(text: '${_data.metrics.atRisk}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final existing = ProjectDataHelper.getData(context).designDeliverablesData;
-      setState(() => _data = existing);
+      _applyData(existing);
       if (existing.isEmpty) {
         _generateFromAi();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _saveDebouncer.dispose();
+    _activeController.dispose();
+    _inReviewController.dispose();
+    _approvedController.dispose();
+    _atRiskController.dispose();
+    super.dispose();
   }
 
   Future<void> _generateFromAi() async {
@@ -76,6 +99,52 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
         _error = 'Unable to generate content. Please try again later.';
       });
     }
+  }
+
+  void _updateData(DesignDeliverablesData data) {
+    setState(() => _data = data);
+    ProjectDataHelper.getProvider(context).updateField(
+      (current) => current.copyWith(designDeliverablesData: data),
+    );
+    _scheduleSave();
+  }
+
+  void _applyData(DesignDeliverablesData data) {
+    setState(() => _data = data);
+    _setMetricControllerText(_activeController, data.metrics.active);
+    _setMetricControllerText(_inReviewController, data.metrics.inReview);
+    _setMetricControllerText(_approvedController, data.metrics.approved);
+    _setMetricControllerText(_atRiskController, data.metrics.atRisk);
+  }
+
+  void _setMetricControllerText(TextEditingController controller, int value) {
+    final text = value.toString();
+    if (controller.text != text) {
+      controller.text = text;
+    }
+  }
+
+  void _scheduleSave() {
+    _saveDebouncer.run(() async {
+      if (!mounted) return;
+      await _saveNow();
+    });
+  }
+
+  Future<void> _saveNow() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final success = await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'design_deliverables',
+      showSnackbar: false,
+      dataUpdater: (current) => current.copyWith(designDeliverablesData: _data),
+    );
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      if (success) _lastSavedAt = DateTime.now();
+    });
   }
 
   @override
@@ -121,7 +190,18 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                               description: 'Summarize key deliverables, approvals, and handoff criteria.',
                             ),
                             const SizedBox(height: 24),
-                            _MetricsRow(data: data),
+                            _MetricsRow(
+                              data: data,
+                              activeController: _activeController,
+                              inReviewController: _inReviewController,
+                              approvedController: _approvedController,
+                              atRiskController: _atRiskController,
+                              onChanged: (metrics) => _updateData(data.copyWith(metrics: metrics)),
+                            ),
+                            if (_saving || _lastSavedAt != null) ...[
+                              const SizedBox(height: 12),
+                              _SaveStatusChip(isSaving: _saving, savedAt: _lastSavedAt),
+                            ],
                             if (_loading || _error != null) ...[
                               const SizedBox(height: 12),
                               _StatusBanner(isLoading: _loading, error: _error),
@@ -129,24 +209,39 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                             const SizedBox(height: 24),
                             SizedBox(
                               width: cardWidth,
-                              child: _DeliverablePipelineCard(items: data.pipeline),
+                              child: _DeliverablePipelineCard(
+                                items: data.pipeline,
+                                onChanged: (items) => _updateData(data.copyWith(pipeline: items)),
+                              ),
                             ),
                             const SizedBox(height: 24),
                             SizedBox(
                               width: cardWidth,
-                              child: _ApprovalStatusCard(items: data.approvals),
+                              child: _ApprovalStatusCard(
+                                items: data.approvals,
+                                onChanged: (items) => _updateData(data.copyWith(approvals: items)),
+                              ),
                             ),
                             const SizedBox(height: 24),
-                            _DesignDeliverablesTable(rows: data.register),
+                            _DesignDeliverablesTable(
+                              rows: data.register,
+                              onChanged: (rows) => _updateData(data.copyWith(register: rows)),
+                            ),
                             const SizedBox(height: 24),
                             SizedBox(
                               width: cardWidth,
-                              child: _DesignDependenciesCard(items: data.dependencies),
+                              child: _DesignDependenciesCard(
+                                items: data.dependencies,
+                                onChanged: (items) => _updateData(data.copyWith(dependencies: items)),
+                              ),
                             ),
                             const SizedBox(height: 24),
                             SizedBox(
                               width: cardWidth,
-                              child: _DesignHandoffCard(items: data.handoffChecklist),
+                              child: _DesignHandoffCard(
+                                items: data.handoffChecklist,
+                                onChanged: (items) => _updateData(data.copyWith(handoffChecklist: items)),
+                              ),
                             ),
                             const SizedBox(height: 28),
                             Align(
@@ -286,9 +381,21 @@ class _UserChip extends StatelessWidget {
 }
 
 class _MetricsRow extends StatelessWidget {
-  const _MetricsRow({required this.data});
+  const _MetricsRow({
+    required this.data,
+    required this.activeController,
+    required this.inReviewController,
+    required this.approvedController,
+    required this.atRiskController,
+    required this.onChanged,
+  });
 
   final DesignDeliverablesData data;
+  final TextEditingController activeController;
+  final TextEditingController inReviewController;
+  final TextEditingController approvedController;
+  final TextEditingController atRiskController;
+  final ValueChanged<DesignDeliverablesMetrics> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -297,21 +404,47 @@ class _MetricsRow extends StatelessWidget {
       spacing: 16,
       runSpacing: 16,
       children: [
-        _MetricCard(label: 'Active Deliverables', value: '${metrics.active}', accent: const Color(0xFF2563EB)),
-        _MetricCard(label: 'In Review', value: '${metrics.inReview}', accent: const Color(0xFFF59E0B)),
-        _MetricCard(label: 'Approved', value: '${metrics.approved}', accent: const Color(0xFF10B981)),
-        _MetricCard(label: 'At Risk', value: '${metrics.atRisk}', accent: const Color(0xFFEF4444)),
+        _MetricCard(
+          label: 'Active Deliverables',
+          controller: activeController,
+          accent: const Color(0xFF2563EB),
+          onChanged: (value) => onChanged(metrics.copyWith(active: int.tryParse(value) ?? 0)),
+        ),
+        _MetricCard(
+          label: 'In Review',
+          controller: inReviewController,
+          accent: const Color(0xFFF59E0B),
+          onChanged: (value) => onChanged(metrics.copyWith(inReview: int.tryParse(value) ?? 0)),
+        ),
+        _MetricCard(
+          label: 'Approved',
+          controller: approvedController,
+          accent: const Color(0xFF10B981),
+          onChanged: (value) => onChanged(metrics.copyWith(approved: int.tryParse(value) ?? 0)),
+        ),
+        _MetricCard(
+          label: 'At Risk',
+          controller: atRiskController,
+          accent: const Color(0xFFEF4444),
+          onChanged: (value) => onChanged(metrics.copyWith(atRisk: int.tryParse(value) ?? 0)),
+        ),
       ],
     );
   }
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value, required this.accent});
+  const _MetricCard({
+    required this.label,
+    required this.controller,
+    required this.accent,
+    required this.onChanged,
+  });
 
   final String label;
-  final String value;
+  final TextEditingController controller;
   final Color accent;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -328,9 +461,31 @@ class _MetricCard extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
           const SizedBox(height: 6),
-          Text(
-            value,
+          TextFormField(
+            key: ValueKey('metric-$label'),
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: '0',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: accent),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              filled: true,
+              fillColor: const Color(0xFFF9FAFB),
+            ),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: accent),
+            onChanged: onChanged,
           ),
         ],
       ),
@@ -339,9 +494,26 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _DeliverablePipelineCard extends StatelessWidget {
-  const _DeliverablePipelineCard({required this.items});
+  const _DeliverablePipelineCard({required this.items, required this.onChanged});
 
   final List<DesignDeliverablePipelineItem> items;
+  final ValueChanged<List<DesignDeliverablePipelineItem>> onChanged;
+
+  List<DesignDeliverablePipelineItem> _updateItem(
+    List<DesignDeliverablePipelineItem> list,
+    int index,
+    DesignDeliverablePipelineItem item,
+  ) {
+    final next = [...list];
+    next[index] = item;
+    return next;
+  }
+
+  List<DesignDeliverablePipelineItem> _removeItem(List<DesignDeliverablePipelineItem> list, int index) {
+    final next = [...list];
+    next.removeAt(index);
+    return next;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -349,22 +521,41 @@ class _DeliverablePipelineCard extends StatelessWidget {
       title: 'Deliverable Pipeline',
       subtitle: 'Progress across design stages.',
       child: Column(
-        children: items.isNotEmpty
-            ? items
-                .map((item) => _PipelineRow(label: item.label, value: item.status))
-                .toList()
-            : const [
-                _EmptyStateRow(message: 'No pipeline updates yet.'),
-              ],
+        children: [
+          if (items.isNotEmpty)
+            ...items.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              return _EditablePipelineRow(
+                index: index,
+                item: item,
+                onChanged: (updated) => onChanged(_updateItem(items, index, updated)),
+                onRemove: () => onChanged(_removeItem(items, index)),
+              );
+            }),
+          if (items.isEmpty) const _EmptyStateRow(message: 'No pipeline updates yet.'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => onChanged([
+                ...items,
+                const DesignDeliverablePipelineItem(status: 'In progress'),
+              ]),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add pipeline item'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _ApprovalStatusCard extends StatelessWidget {
-  const _ApprovalStatusCard({required this.items});
+  const _ApprovalStatusCard({required this.items, required this.onChanged});
 
   final List<String> items;
+  final ValueChanged<List<String>> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -372,20 +563,44 @@ class _ApprovalStatusCard extends StatelessWidget {
       title: 'Approval Status',
       subtitle: 'Stakeholder sign-offs and gating items.',
       child: Column(
-        children: items.isNotEmpty
-            ? items.map((text) => _ChecklistRow(text: text)).toList()
-            : const [
-                _EmptyStateRow(message: 'No approvals tracked yet.'),
-              ],
+        children: [
+          if (items.isNotEmpty)
+            ...items.asMap().entries.map((entry) {
+              return _EditableChecklistRow(
+                index: entry.key,
+                value: entry.value,
+                onChanged: (value) {
+                  final next = [...items];
+                  next[entry.key] = value;
+                  onChanged(next);
+                },
+                onRemove: () {
+                  final next = [...items]..removeAt(entry.key);
+                  onChanged(next);
+                },
+              );
+            }),
+          if (items.isEmpty) const _EmptyStateRow(message: 'No approvals tracked yet.'),
+          if (items.isEmpty) const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => onChanged([...items, '']),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add approval'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _DesignDeliverablesTable extends StatelessWidget {
-  const _DesignDeliverablesTable({required this.rows});
+  const _DesignDeliverablesTable({required this.rows, required this.onChanged});
 
   final List<DesignDeliverableRegisterItem> rows;
+  final ValueChanged<List<DesignDeliverableRegisterItem>> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -399,15 +614,32 @@ class _DesignDeliverablesTable extends StatelessWidget {
           if (rows.isEmpty)
             const _EmptyStateRow(message: 'No deliverables registered yet.'),
           if (rows.isNotEmpty)
-            ...rows.map(
-              (row) => _RegisterRow(
-                name: row.name,
-                owner: row.owner,
-                status: row.status,
-                due: row.due,
-                risk: row.risk,
+            ...rows.asMap().entries.map(
+              (entry) => _EditableRegisterRow(
+                index: entry.key,
+                row: entry.value,
+                onChanged: (updated) {
+                  final next = [...rows];
+                  next[entry.key] = updated;
+                  onChanged(next);
+                },
+                onRemove: () {
+                  final next = [...rows]..removeAt(entry.key);
+                  onChanged(next);
+                },
               ),
             ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => onChanged([
+                ...rows,
+                const DesignDeliverableRegisterItem(),
+              ]),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add deliverable'),
+            ),
+          ),
         ],
       ),
     );
@@ -415,9 +647,10 @@ class _DesignDeliverablesTable extends StatelessWidget {
 }
 
 class _DesignDependenciesCard extends StatelessWidget {
-  const _DesignDependenciesCard({required this.items});
+  const _DesignDependenciesCard({required this.items, required this.onChanged});
 
   final List<String> items;
+  final ValueChanged<List<String>> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -425,20 +658,44 @@ class _DesignDependenciesCard extends StatelessWidget {
       title: 'Design Dependencies',
       subtitle: 'Items that unblock delivery.',
       child: Column(
-        children: items.isNotEmpty
-            ? items.map((text) => _BulletRow(text: text)).toList()
-            : const [
-                _EmptyStateRow(message: 'No dependencies captured yet.'),
-              ],
+        children: [
+          if (items.isNotEmpty)
+            ...items.asMap().entries.map((entry) {
+              return _EditableBulletRow(
+                index: entry.key,
+                value: entry.value,
+                onChanged: (value) {
+                  final next = [...items];
+                  next[entry.key] = value;
+                  onChanged(next);
+                },
+                onRemove: () {
+                  final next = [...items]..removeAt(entry.key);
+                  onChanged(next);
+                },
+              );
+            }),
+          if (items.isEmpty) const _EmptyStateRow(message: 'No dependencies captured yet.'),
+          if (items.isEmpty) const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => onChanged([...items, '']),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add dependency'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _DesignHandoffCard extends StatelessWidget {
-  const _DesignHandoffCard({required this.items});
+  const _DesignHandoffCard({required this.items, required this.onChanged});
 
   final List<String> items;
+  final ValueChanged<List<String>> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -446,11 +703,34 @@ class _DesignHandoffCard extends StatelessWidget {
       title: 'Design Handoff Checklist',
       subtitle: 'Ensure delivery-ready assets.',
       child: Column(
-        children: items.isNotEmpty
-            ? items.map((text) => _ChecklistRow(text: text)).toList()
-            : const [
-                _EmptyStateRow(message: 'No handoff items listed yet.'),
-              ],
+        children: [
+          if (items.isNotEmpty)
+            ...items.asMap().entries.map((entry) {
+              return _EditableChecklistRow(
+                index: entry.key,
+                value: entry.value,
+                onChanged: (value) {
+                  final next = [...items];
+                  next[entry.key] = value;
+                  onChanged(next);
+                },
+                onRemove: () {
+                  final next = [...items]..removeAt(entry.key);
+                  onChanged(next);
+                },
+              );
+            }),
+          if (items.isEmpty) const _EmptyStateRow(message: 'No handoff items listed yet.'),
+          if (items.isEmpty) const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => onChanged([...items, '']),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add handoff item'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -489,6 +769,78 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
+class _EditablePipelineRow extends StatelessWidget {
+  const _EditablePipelineRow({
+    required this.index,
+    required this.item,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final int index;
+  final DesignDeliverablePipelineItem item;
+  final ValueChanged<DesignDeliverablePipelineItem> onChanged;
+  final VoidCallback onRemove;
+
+  static const List<String> _statusOptions = [
+    'In progress',
+    'In review',
+    'Complete',
+    'Blocked',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final statusValue = item.status.trim().isEmpty ? _statusOptions.first : item.status;
+    final options = _statusOptions.contains(statusValue)
+        ? _statusOptions
+        : [statusValue, ..._statusOptions];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 5,
+            child: TextFormField(
+              key: ValueKey('pipeline-label-$index'),
+              initialValue: item.label,
+              decoration: _inlineInputDecoration('Stage or deliverable'),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              onChanged: (value) => onChanged(DesignDeliverablePipelineItem(
+                label: value,
+                status: item.status,
+              )),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: options.first,
+              decoration: _inlineInputDecoration('Status'),
+              items: options
+                  .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                onChanged(DesignDeliverablePipelineItem(
+                  label: item.label,
+                  status: value,
+                ));
+              },
+            ),
+          ),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PipelineRow extends StatelessWidget {
   const _PipelineRow({required this.label, required this.value});
 
@@ -519,10 +871,50 @@ class _PipelineRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditableChecklistRow extends StatelessWidget {
+  const _EditableChecklistRow({
+    required this.index,
+    required this.value,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final int index;
+  final String value;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF10B981)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextFormField(
+              key: ValueKey('checklist-$index'),
+              initialValue: value,
+              decoration: _inlineInputDecoration('Add item'),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              onChanged: onChanged,
+            ),
+          ),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
           ),
         ],
       ),
@@ -544,6 +936,159 @@ class _ChecklistRow extends StatelessWidget {
           const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF10B981)),
           const SizedBox(width: 8),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditableBulletRow extends StatelessWidget {
+  const _EditableBulletRow({
+    required this.index,
+    required this.value,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final int index;
+  final String value;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.circle, size: 8, color: Color(0xFF9CA3AF)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextFormField(
+              key: ValueKey('bullet-$index'),
+              initialValue: value,
+              decoration: _inlineInputDecoration('Add dependency'),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151), height: 1.4),
+              onChanged: onChanged,
+            ),
+          ),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditableRegisterRow extends StatelessWidget {
+  const _EditableRegisterRow({
+    required this.index,
+    required this.row,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final int index;
+  final DesignDeliverableRegisterItem row;
+  final ValueChanged<DesignDeliverableRegisterItem> onChanged;
+  final VoidCallback onRemove;
+
+  static const List<String> _statusOptions = [
+    'In progress',
+    'In review',
+    'Approved',
+    'Pending',
+  ];
+
+  static const List<String> _riskOptions = ['Low', 'Medium', 'High'];
+
+  List<String> _optionsFor(String value, List<String> defaults) {
+    if (value.isEmpty) return defaults;
+    return defaults.contains(value) ? defaults : [value, ...defaults];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusOptions = _optionsFor(row.status, _statusOptions);
+    final riskOptions = _optionsFor(row.risk, _riskOptions);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: TextFormField(
+              key: ValueKey('deliverable-name-$index'),
+              initialValue: row.name,
+              decoration: _inlineInputDecoration('Deliverable'),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF111827)),
+              onChanged: (value) => onChanged(row.copyWith(name: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              key: ValueKey('deliverable-owner-$index'),
+              initialValue: row.owner,
+              decoration: _inlineInputDecoration('Owner'),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              onChanged: (value) => onChanged(row.copyWith(owner: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: statusOptions.first,
+              decoration: _inlineInputDecoration('Status'),
+              items: statusOptions
+                  .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                onChanged(row.copyWith(status: value));
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey('deliverable-due-$index'),
+              initialValue: row.due,
+              decoration: _inlineInputDecoration('Due date'),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              keyboardType: TextInputType.datetime,
+              onChanged: (value) => onChanged(row.copyWith(due: value)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: riskOptions.first,
+              decoration: _inlineInputDecoration('Risk'),
+              items: riskOptions
+                  .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                onChanged(row.copyWith(risk: value));
+              },
+            ),
+          ),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+          ),
         ],
       ),
     );
@@ -686,9 +1231,9 @@ class _StatusBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -697,6 +1242,31 @@ class _StatusBanner extends StatelessWidget {
           Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: color))),
         ],
       ),
+    );
+  }
+}
+
+class _SaveStatusChip extends StatelessWidget {
+  const _SaveStatusChip({required this.isSaving, required this.savedAt});
+
+  final bool isSaving;
+  final DateTime? savedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isSaving
+        ? 'Saving...'
+        : savedAt == null
+            ? 'Not saved'
+            : 'Saved ${TimeOfDay.fromDateTime(savedAt!).format(context)}';
+    final color = isSaving ? const Color(0xFF64748B) : const Color(0xFF16A34A);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
     );
   }
 }
@@ -719,5 +1289,43 @@ class _BulletRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+InputDecoration _inlineInputDecoration(String hint) {
+  return InputDecoration(
+    isDense: true,
+    hintText: hint,
+    filled: true,
+    fillColor: const Color(0xFFF9FAFB),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Color(0xFF2563EB)),
+    ),
+  );
+}
+
+class _Debouncer {
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 700);
+
+  final Duration delay;
+  Timer? _timer;
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
   }
 }

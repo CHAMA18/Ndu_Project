@@ -114,23 +114,13 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 24),
-                  if (isMobile)
-                    Column(
-                      children: [
-                        _buildArchitectureCard(),
-                        const SizedBox(height: 16),
-                        _buildDatabaseCard(),
-                      ],
-                    )
-                  else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 2, child: _buildArchitectureCard()),
-                        const SizedBox(width: 20),
-                        Expanded(child: _buildDatabaseCard()),
-                      ],
-                    ),
+                  Column(
+                    children: [
+                      _buildArchitectureCard(),
+                      const SizedBox(height: 16),
+                      _buildDatabaseCard(),
+                    ],
+                  ),
                   const SizedBox(height: 28),
                   LaunchPhaseNavigation(
                     backLabel: 'Back: UI/UX design',

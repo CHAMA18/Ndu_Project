@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
@@ -6,6 +9,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/routing/app_router.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 
 class TechnicalDevelopmentScreen extends StatefulWidget {
   const TechnicalDevelopmentScreen({super.key});
@@ -16,36 +20,144 @@ class TechnicalDevelopmentScreen extends StatefulWidget {
 
 class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen> {
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _approachController = TextEditingController();
+  final _Debouncer _saveDebouncer = _Debouncer();
+  bool _isLoading = false;
+  bool _suspendSave = false;
 
   // Build strategy chips data
-  final List<String> _standardsChips = [
-    'Code guidelines defined',
-    'Branching model agreed',
-    'Definition of Ready',
-    'Definition of Done',
-  ];
+  List<_ChipItem> _standardsChips = [];
 
   // Workstreams data
-  final List<_WorkstreamItem> _workstreams = [
-    _WorkstreamItem('Core platform', 'APIs, auth, data access', 'Team staffed', _StatusType.green),
-    _WorkstreamItem('User experience', 'UI flows, accessibility, theming', 'Backlog ready', _StatusType.green),
-    _WorkstreamItem('Integration build', '3rd-party, internal systems', 'Depends on vendor access', _StatusType.orange),
-    _WorkstreamItem('Quality & automation', 'Test suites, pipelines, tooling', 'In planning', _StatusType.yellow),
-  ];
+  List<_WorkstreamItem> _workstreams = [];
 
   // Readiness checklist items
-  final List<_ReadinessItem> _readinessItems = [
-    _ReadinessItem('Critical user journeys documented', 'Product', 'Ready'),
-    _ReadinessItem('Architecture & data models approved', 'Lead engineer', 'In review'),
-    _ReadinessItem('Environments & pipelines available', 'DevOps', 'Partially ready'),
-    _ReadinessItem('Non-functional targets agreed', 'Architecture', 'Draft'),
+  List<_ReadinessItem> _readinessItems = [];
+
+  static const List<String> _workstreamStatusOptions = [
+    'Team staffed',
+    'Backlog ready',
+    'Depends on vendor access',
+    'In planning',
+    'At risk',
+    'Blocked',
   ];
+
+  static const List<String> _readinessStatusOptions = [
+    'Ready',
+    'In review',
+    'Partially ready',
+    'Draft',
+    'Blocked',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _standardsChips = _defaultStandards();
+    _workstreams = _defaultWorkstreams();
+    _readinessItems = _defaultReadinessItems();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
+    _notesController.addListener(_scheduleSave);
+    _approachController.addListener(_scheduleSave);
+  }
 
   @override
   void dispose() {
     _notesController.dispose();
+    _approachController.dispose();
+    _saveDebouncer.dispose();
     super.dispose();
   }
+
+  DocumentReference<Map<String, dynamic>> _docFor(String projectId) {
+    return FirebaseFirestore.instance
+        .collection('projects')
+        .doc(projectId)
+        .collection('design_phase_sections')
+        .doc('technical_development');
+  }
+
+  void _scheduleSave() {
+    if (_suspendSave) return;
+    _saveDebouncer.run(_saveToFirestore);
+  }
+
+  Future<void> _loadFromFirestore() async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final doc = await _docFor(projectId).get();
+      final data = doc.data() ?? {};
+      _suspendSave = true;
+      if (!mounted) return;
+      setState(() {
+        _notesController.text = data['notes']?.toString() ?? '';
+        _approachController.text = data['approach']?.toString() ?? '';
+        final chips = _ChipItem.fromList(data['standardsChips']);
+        final workstreams = _WorkstreamItem.fromList(data['workstreams']);
+        final readiness = _ReadinessItem.fromList(data['readinessItems']);
+        _standardsChips = chips.isEmpty ? _defaultStandards() : chips;
+        _workstreams = workstreams.isEmpty ? _defaultWorkstreams() : workstreams;
+        _readinessItems = readiness.isEmpty ? _defaultReadinessItems() : readiness;
+      });
+    } catch (error) {
+      debugPrint('Technical development load error: $error');
+    } finally {
+      _suspendSave = false;
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveToFirestore() async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await _docFor(projectId).set({
+        'notes': _notesController.text.trim(),
+        'approach': _approachController.text.trim(),
+        'standardsChips': _standardsChips.map((e) => e.toMap()).toList(),
+        'workstreams': _workstreams.map((e) => e.toMap()).toList(),
+        'readinessItems': _readinessItems.map((e) => e.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Technical development save error: $error');
+    }
+  }
+
+  List<_ChipItem> _defaultStandards() {
+    return [
+      _ChipItem(id: _newId(), label: 'Code guidelines defined'),
+      _ChipItem(id: _newId(), label: 'Branching model agreed'),
+      _ChipItem(id: _newId(), label: 'Definition of Ready'),
+      _ChipItem(id: _newId(), label: 'Definition of Done'),
+    ];
+  }
+
+  List<_WorkstreamItem> _defaultWorkstreams() {
+    return [
+      _WorkstreamItem(id: _newId(), title: 'Core platform', subtitle: 'APIs, auth, data access', status: 'Team staffed'),
+      _WorkstreamItem(id: _newId(), title: 'User experience', subtitle: 'UI flows, accessibility, theming', status: 'Backlog ready'),
+      _WorkstreamItem(id: _newId(), title: 'Integration build', subtitle: '3rd-party, internal systems', status: 'Depends on vendor access'),
+      _WorkstreamItem(id: _newId(), title: 'Quality & automation', subtitle: 'Test suites, pipelines, tooling', status: 'In planning'),
+    ];
+  }
+
+  List<_ReadinessItem> _defaultReadinessItems() {
+    return [
+      _ReadinessItem(id: _newId(), title: 'Critical user journeys documented', owner: 'Product', status: 'Ready'),
+      _ReadinessItem(id: _newId(), title: 'Architecture & data models approved', owner: 'Lead engineer', status: 'In review'),
+      _ReadinessItem(id: _newId(), title: 'Environments & pipelines available', owner: 'DevOps', status: 'Partially ready'),
+      _ReadinessItem(id: _newId(), title: 'Non-functional targets agreed', owner: 'Architecture', status: 'Draft'),
+    ];
+  }
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   @override
   Widget build(BuildContext context) {
@@ -58,13 +170,19 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
         children: [
           Column(
             children: [
-              const PlanningPhaseHeader(title: 'Design Phase'),
+              const PlanningPhaseHeader(
+                title: 'Design Phase',
+                showImportButton: false,
+                showContentButton: false,
+              ),
               Expanded(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.all(padding),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+                      if (_isLoading) const SizedBox(height: 16),
                       // Page Title
                       Text(
                         'TECHNICAL DEVELOPMENT',
@@ -165,8 +283,16 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
           // Approach section
           Text('Approach', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[800])),
           const SizedBox(height: 8),
-          Text(
-            'Incremental delivery by feature slice, with hard gates for security and performance before release.',
+          TextField(
+            controller: _approachController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Describe the delivery approach and release gates.',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
             style: TextStyle(fontSize: 13, color: Colors.grey[700]),
           ),
           const SizedBox(height: 16),
@@ -176,14 +302,17 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _standardsChips.map((chip) => _buildChip(chip)).toList(),
+            children: [
+              ..._standardsChips.map(_buildEditableChip),
+              _addChipButton(onTap: _addStandardChip),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildChip(String label) {
+  Widget _buildEditableChip(_ChipItem chip) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -191,7 +320,50 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[300]!),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 180,
+            child: TextFormField(
+              key: ValueKey('chip-${chip.id}'),
+              initialValue: chip.label,
+              decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+              onChanged: (value) => _updateStandardChip(chip.copyWith(label: value)),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteStandardChip(chip.id),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _addChipButton({required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.add, size: 14),
+            SizedBox(width: 6),
+            Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -211,6 +383,11 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
           Text('Who builds what, and how it aligns to design', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const SizedBox(height: 16),
           ..._workstreams.map((item) => _buildWorkstreamItem(item)),
+          TextButton.icon(
+            onPressed: _addWorkstream,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add workstream'),
+          ),
         ],
       ),
     );
@@ -231,40 +408,59 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                TextFormField(
+                  key: ValueKey('workstream-title-${item.id}'),
+                  initialValue: item.title,
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  onChanged: (value) => _updateWorkstream(item.copyWith(title: value)),
+                ),
                 const SizedBox(height: 4),
-                Text(item.subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                TextFormField(
+                  key: ValueKey('workstream-subtitle-${item.id}'),
+                  initialValue: item.subtitle,
+                  decoration: InputDecoration(
+                    hintText: 'Describe scope',
+                    hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  onChanged: (value) => _updateWorkstream(item.copyWith(subtitle: value)),
+                ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          _buildStatusBadge(item.status, item.statusType),
+          _buildStatusBadge(item),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteWorkstream(item.id),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatusBadge(String status, _StatusType type) {
+  Widget _buildStatusBadge(_WorkstreamItem item) {
+    final status = item.status;
     Color bgColor;
     Color dotColor;
     Color textColor;
 
-    switch (type) {
-      case _StatusType.green:
-        bgColor = Colors.green[50]!;
-        dotColor = Colors.green;
-        textColor = Colors.green[700]!;
-        break;
-      case _StatusType.orange:
-        bgColor = Colors.orange[50]!;
-        dotColor = Colors.orange;
-        textColor = Colors.orange[700]!;
-        break;
-      case _StatusType.yellow:
-        bgColor = Colors.yellow[50]!;
-        dotColor = Colors.yellow[700]!;
-        textColor = Colors.yellow[800]!;
-        break;
+    if (status.toLowerCase().contains('ready') || status.toLowerCase().contains('staffed')) {
+      bgColor = Colors.green[50]!;
+      dotColor = Colors.green;
+      textColor = Colors.green[700]!;
+    } else if (status.toLowerCase().contains('depends') || status.toLowerCase().contains('blocked')) {
+      bgColor = Colors.orange[50]!;
+      dotColor = Colors.orange;
+      textColor = Colors.orange[700]!;
+    } else {
+      bgColor = Colors.yellow[50]!;
+      dotColor = Colors.yellow[700]!;
+      textColor = Colors.yellow[800]!;
     }
 
     return Container(
@@ -285,11 +481,19 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
             ),
           ),
           const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              status,
-              style: TextStyle(fontSize: 11, color: textColor, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _workstreamStatusOptions.contains(status) ? status : _workstreamStatusOptions.first,
+              items: _workstreamStatusOptions
+                  .map((option) => DropdownMenuItem(
+                        value: option,
+                        child: Text(option, style: TextStyle(fontSize: 11, color: textColor, fontWeight: FontWeight.w500)),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateWorkstream(item.copyWith(status: value));
+              },
             ),
           ),
         ],
@@ -313,6 +517,11 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
           Text('Confirm we can safely start development', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const SizedBox(height: 16),
           ..._readinessItems.map((item) => _buildReadinessItem(item)),
+          TextButton.icon(
+            onPressed: _addReadinessItem,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add checklist item'),
+          ),
           const SizedBox(height: 16),
           // Export button
           SizedBox(
@@ -346,20 +555,117 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Text(item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            child: TextFormField(
+              key: ValueKey('readiness-title-${item.id}'),
+              initialValue: item.title,
+              decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              onChanged: (value) => _updateReadinessItem(item.copyWith(title: value)),
+            ),
           ),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('Owner: ${item.owner}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+              SizedBox(
+                width: 140,
+                child: TextFormField(
+                  key: ValueKey('readiness-owner-${item.id}'),
+                  initialValue: item.owner,
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  onChanged: (value) => _updateReadinessItem(item.copyWith(owner: value)),
+                ),
+              ),
               const SizedBox(height: 2),
-              Text('Status: ${item.status}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+              SizedBox(
+                width: 140,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _readinessStatusOptions.contains(item.status) ? item.status : _readinessStatusOptions.first,
+                    items: _readinessStatusOptions
+                        .map((status) => DropdownMenuItem(value: status, child: Text(status, style: TextStyle(fontSize: 11, color: Colors.grey[600]))))
+                        .toList(),
+                    onChanged: (value) => _updateReadinessItem(item.copyWith(status: value ?? _readinessStatusOptions.first)),
+                  ),
+                ),
+              ),
             ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteReadinessItem(item.id),
           ),
         ],
       ),
     );
+  }
+
+  void _addStandardChip() {
+    setState(() {
+      _standardsChips.add(_ChipItem(id: _newId(), label: ''));
+    });
+    _scheduleSave();
+  }
+
+  void _updateStandardChip(_ChipItem chip) {
+    final index = _standardsChips.indexWhere((item) => item.id == chip.id);
+    if (index == -1) return;
+    setState(() => _standardsChips[index] = chip);
+    _scheduleSave();
+  }
+
+  void _deleteStandardChip(String id) {
+    setState(() => _standardsChips.removeWhere((item) => item.id == id));
+    _scheduleSave();
+  }
+
+  void _addWorkstream() {
+    setState(() {
+      _workstreams.add(_WorkstreamItem(
+        id: _newId(),
+        title: '',
+        subtitle: '',
+        status: _workstreamStatusOptions.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateWorkstream(_WorkstreamItem item) {
+    final index = _workstreams.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    setState(() => _workstreams[index] = item);
+    _scheduleSave();
+  }
+
+  void _deleteWorkstream(String id) {
+    setState(() => _workstreams.removeWhere((item) => item.id == id));
+    _scheduleSave();
+  }
+
+  void _addReadinessItem() {
+    setState(() {
+      _readinessItems.add(_ReadinessItem(
+        id: _newId(),
+        title: '',
+        owner: '',
+        status: _readinessStatusOptions.first,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateReadinessItem(_ReadinessItem item) {
+    final index = _readinessItems.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    setState(() => _readinessItems[index] = item);
+    _scheduleSave();
+  }
+
+  void _deleteReadinessItem(String id) {
+    setState(() => _readinessItems.removeWhere((item) => item.id == id));
+    _scheduleSave();
   }
 
   Widget _buildBottomNavigation(bool isMobile) {
@@ -479,21 +785,129 @@ class _TechnicalDevelopmentScreenState extends State<TechnicalDevelopmentScreen>
   }
 }
 
-enum _StatusType { green, orange, yellow }
-
 class _WorkstreamItem {
+  final String id;
   final String title;
   final String subtitle;
   final String status;
-  final _StatusType statusType;
 
-  _WorkstreamItem(this.title, this.subtitle, this.status, this.statusType);
+  _WorkstreamItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.status,
+  });
+
+  _WorkstreamItem copyWith({String? title, String? subtitle, String? status}) {
+    return _WorkstreamItem(
+      id: id,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'subtitle': subtitle,
+        'status': status,
+      };
+
+  static List<_WorkstreamItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _WorkstreamItem(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        title: map['title']?.toString() ?? '',
+        subtitle: map['subtitle']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'In planning',
+      );
+    }).toList();
+  }
 }
 
 class _ReadinessItem {
+  final String id;
   final String title;
   final String owner;
   final String status;
 
-  _ReadinessItem(this.title, this.owner, this.status);
+  _ReadinessItem({
+    required this.id,
+    required this.title,
+    required this.owner,
+    required this.status,
+  });
+
+  _ReadinessItem copyWith({String? title, String? owner, String? status}) {
+    return _ReadinessItem(
+      id: id,
+      title: title ?? this.title,
+      owner: owner ?? this.owner,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'owner': owner,
+        'status': status,
+      };
+
+  static List<_ReadinessItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _ReadinessItem(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        title: map['title']?.toString() ?? '',
+        owner: map['owner']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Draft',
+      );
+    }).toList();
+  }
+}
+
+class _ChipItem {
+  final String id;
+  final String label;
+
+  _ChipItem({required this.id, required this.label});
+
+  _ChipItem copyWith({String? label}) => _ChipItem(id: id, label: label ?? this.label);
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'label': label,
+      };
+
+  static List<_ChipItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _ChipItem(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        label: map['label']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
+class _Debouncer {
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 700);
+
+  final Duration delay;
+  Timer? _timer;
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
+  }
 }

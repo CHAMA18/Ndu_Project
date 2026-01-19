@@ -48,10 +48,21 @@ class ArchitectureCanvas extends StatefulWidget {
   State<ArchitectureCanvas> createState() => _ArchitectureCanvasState();
 }
 
+const List<Color> _nodeColors = [
+  Color(0xFFFFFFFF),
+  Color(0xFFEFF6FF),
+  Color(0xFFF5F3FF),
+  Color(0xFFF0FDFA),
+  Color(0xFFFFF7ED),
+  Color(0xFFFFF1F2),
+];
+
 class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
   late TransformationController _transform;
   bool _connectMode = false;
   String? _selectedForConnection; // node id
+  String? _selectedNodeId;
+  bool _showGrid = true;
 
   @override
   void initState() {
@@ -76,6 +87,99 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
     setState(() {
       _transform.value = Matrix4.identity();
     });
+  }
+
+  void _zoom(double factor) {
+    final next = Matrix4.copy(_transform.value)..scale(factor);
+    setState(() => _transform.value = next);
+  }
+
+  void _toggleGrid() {
+    setState(() => _showGrid = !_showGrid);
+  }
+
+  void _selectNode(String id) {
+    setState(() => _selectedNodeId = id);
+  }
+
+  void _editSelectedNode() {
+    final id = _selectedNodeId;
+    if (id == null) return;
+    final node = widget.nodes.firstWhere((n) => n.id == id, orElse: () => widget.nodes.first);
+    _openNodeEditor(node);
+  }
+
+  void _deleteSelectedNode() {
+    final id = _selectedNodeId;
+    if (id == null) return;
+    final newNodes = widget.nodes.where((e) => e.id != id).toList();
+    final newEdges = widget.edges.where((e) => e.fromId != id && e.toId != id).toList();
+    widget.onNodesChanged(newNodes);
+    widget.onEdgesChanged(newEdges);
+    setState(() => _selectedNodeId = null);
+  }
+
+  Future<void> _openNodeEditor(ArchitectureNode node) async {
+    final controller = TextEditingController(text: node.label);
+    Color selectedColor = node.color ?? Theme.of(context).colorScheme.surface;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit node'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Label',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _nodeColors.map((color) {
+                  final isSelected = color.value == selectedColor.value;
+                  return InkWell(
+                    onTap: () => setState(() => selectedColor = color),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected ? Colors.black : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != true) return;
+    node.label = controller.text.trim().isEmpty ? node.label : controller.text.trim();
+    node.color = selectedColor;
+    widget.onNodesChanged(List.of(widget.nodes));
   }
 
   // Convert global drop position to canvas logical coordinates
@@ -118,7 +222,7 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                       minScale: 0.3,
                       maxScale: 2.5,
                       child: CustomPaint(
-                        painter: _GridPainter(),
+                        painter: _showGrid ? _GridPainter() : null,
                         child: Stack(children: [
                           // Edges under nodes
                           Positioned.fill(
@@ -133,23 +237,28 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                                 node: n,
                                 connectMode: _connectMode,
                                 selectedForConnection: _selectedForConnection == n.id,
+                                isSelected: _selectedNodeId == n.id,
                                 onDrag: (delta) {
                                   n.position += delta;
                                   widget.onNodesChanged(List.of(widget.nodes));
                                 },
                                 onTap: () {
-                                  if (!_connectMode) return;
-                                  setState(() {
-                                    if (_selectedForConnection == null) {
-                                      _selectedForConnection = n.id;
-                                    } else if (_selectedForConnection != n.id) {
-                                      final newEdges = [...widget.edges, ArchitectureEdge(fromId: _selectedForConnection!, toId: n.id)];
-                                      widget.onEdgesChanged(newEdges);
-                                      _selectedForConnection = null;
-                                      _connectMode = false;
-                                    }
-                                  });
+                                  if (_connectMode) {
+                                    setState(() {
+                                      if (_selectedForConnection == null) {
+                                        _selectedForConnection = n.id;
+                                      } else if (_selectedForConnection != n.id) {
+                                        final newEdges = [...widget.edges, ArchitectureEdge(fromId: _selectedForConnection!, toId: n.id)];
+                                        widget.onEdgesChanged(newEdges);
+                                        _selectedForConnection = null;
+                                        _connectMode = false;
+                                      }
+                                    });
+                                    return;
+                                  }
+                                  _selectNode(n.id);
                                 },
+                                onDoubleTap: () => _openNodeEditor(n),
                                 onDelete: () {
                                   final newNodes = widget.nodes.where((e) => e.id != n.id).toList();
                                   final newEdges = widget.edges.where((e) => e.fromId != n.id && e.toId != n.id).toList();
@@ -182,6 +291,16 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                   onPressed: _resetView,
                   icon: const Icon(Icons.center_focus_weak, color: Colors.black),
                 ),
+                IconButton(
+                  tooltip: 'Zoom in',
+                  onPressed: () => _zoom(1.1),
+                  icon: const Icon(Icons.zoom_in, color: Colors.black),
+                ),
+                IconButton(
+                  tooltip: 'Zoom out',
+                  onPressed: () => _zoom(0.9),
+                  icon: const Icon(Icons.zoom_out, color: Colors.black),
+                ),
                 const SizedBox(width: 4),
                 FilterChip(
                   selected: _connectMode,
@@ -192,6 +311,26 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                   checkmarkColor: Colors.black,
                   labelStyle: TextStyle(color: _connectMode ? Colors.black : Colors.grey[800], fontWeight: FontWeight.w700),
                 ),
+                const SizedBox(width: 6),
+                FilterChip(
+                  selected: _showGrid,
+                  onSelected: (_) => _toggleGrid(),
+                  label: const Text('Grid'),
+                  selectedColor: const Color(0xFFE2E8F0),
+                ),
+                const SizedBox(width: 6),
+                if (_selectedNodeId != null) ...[
+                  IconButton(
+                    tooltip: 'Edit node',
+                    onPressed: _editSelectedNode,
+                    icon: const Icon(Icons.edit, color: Colors.black),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete node',
+                    onPressed: _deleteSelectedNode,
+                    icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+                  ),
+                ],
                 const SizedBox(width: 6),
               ]),
             ),
@@ -272,16 +411,20 @@ class _NodeWidget extends StatelessWidget {
     required this.onDrag,
     required this.onDelete,
     required this.onTap,
+    required this.onDoubleTap,
     required this.connectMode,
     required this.selectedForConnection,
+    required this.isSelected,
   });
 
   final ArchitectureNode node;
   final void Function(Offset delta) onDrag;
   final VoidCallback onDelete;
   final VoidCallback onTap;
+  final VoidCallback onDoubleTap;
   final bool connectMode;
   final bool selectedForConnection;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -292,6 +435,7 @@ class _NodeWidget extends StatelessWidget {
       top: node.position.dy,
       child: GestureDetector(
         onTap: onTap,
+        onDoubleTap: onDoubleTap,
         onPanUpdate: (d) => onDrag(d.delta),
         child: Container(
           width: 160,
@@ -300,8 +444,12 @@ class _NodeWidget extends StatelessWidget {
             color: color,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selectedForConnection ? LightModeColors.accent : AppSemanticColors.border,
-              width: selectedForConnection ? 2 : 1,
+              color: selectedForConnection
+                  ? LightModeColors.accent
+                  : isSelected
+                      ? const Color(0xFF2563EB)
+                      : AppSemanticColors.border,
+              width: selectedForConnection || isSelected ? 2 : 1,
             ),
           ),
           child: Row(

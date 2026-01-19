@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/services/integration_oauth_service.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 
 class ToolsIntegrationScreen extends StatefulWidget {
   const ToolsIntegrationScreen({super.key});
@@ -17,10 +21,15 @@ class ToolsIntegrationScreen extends StatefulWidget {
 
 class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
   int _selectedPhase = 1; // Phase 2 is selected by default (0-indexed)
+
+  final _Debouncer _saveDebouncer = _Debouncer();
+  bool _isLoading = false;
+  bool _suspendSave = false;
   
   // Mock data for integrations
-  final List<_IntegrationItem> _integrations = [
+  List<_IntegrationItem> _integrations = [
     _IntegrationItem(
+      id: 'figma',
       provider: IntegrationProvider.figma,
       name: 'Figma integration',
       subtitle: 'Design files',
@@ -35,6 +44,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       lastSync: 'Last token refresh: 1 hr ago',
     ),
     _IntegrationItem(
+      id: 'drawio',
       provider: IntegrationProvider.drawio,
       name: 'Draw.io integration',
       subtitle: 'Architecture diagrams',
@@ -49,6 +59,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       errorInfo: '2 errors in last hour',
     ),
     _IntegrationItem(
+      id: 'miro',
       provider: IntegrationProvider.miro,
       name: 'Miro integration',
       subtitle: 'Workshops & ideation',
@@ -63,6 +74,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       events: 'Events: 34 / min',
     ),
     _IntegrationItem(
+      id: 'whiteboard',
       provider: IntegrationProvider.whiteboard,
       name: 'Whiteboard integration',
       subtitle: 'Live sessions',
@@ -78,10 +90,112 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     ),
   ];
 
+  List<_StatItem> _stats = [];
+
+  static const List<String> _statusOptions = [
+    'Connected',
+    'Degraded',
+    'Not connected',
+    'Expired',
+    'Paused',
+  ];
+
   @override
   void initState() {
     super.initState();
+    _stats = _defaultStats();
     _refreshIntegrationStatuses();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
+  }
+
+  @override
+  void dispose() {
+    _saveDebouncer.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _inlineDecoration(String hint) {
+    return InputDecoration(
+      isDense: true,
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF0EA5E9)),
+      ),
+    );
+  }
+
+  DocumentReference<Map<String, dynamic>> _docFor(String projectId) {
+    return FirebaseFirestore.instance
+        .collection('projects')
+        .doc(projectId)
+        .collection('design_phase_sections')
+        .doc('tools_integration');
+  }
+
+  void _scheduleSave() {
+    if (_suspendSave) return;
+    _saveDebouncer.run(_saveToFirestore);
+  }
+
+  Future<void> _loadFromFirestore() async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final doc = await _docFor(projectId).get();
+      final data = doc.data() ?? {};
+      _suspendSave = true;
+      if (!mounted) return;
+      setState(() {
+        final stats = _StatItem.fromList(data['stats']);
+        final integrations = _IntegrationItem.fromList(data['integrations']);
+        _stats = stats.isEmpty ? _defaultStats() : stats;
+        _integrations = integrations.isEmpty ? _integrations : integrations;
+      });
+    } catch (error) {
+      debugPrint('Tools integration load error: $error');
+    } finally {
+      _suspendSave = false;
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveToFirestore() async {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await _docFor(projectId).set({
+        'stats': _stats.map((e) => e.toMap()).toList(),
+        'integrations': _integrations.map((e) => e.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Tools integration save error: $error');
+    }
+  }
+
+  List<_StatItem> _defaultStats() {
+    return [
+      _StatItem(id: 'connected_tools', label: 'Connected tools', value: '4 / 4 healthy', valueColor: Colors.green),
+      _StatItem(id: 'health_score', label: 'Integration health score', value: '92 / 100', valueColor: const Color(0xFF0EA5E9)),
+      _StatItem(id: 'last_sync', label: 'Last full sync', value: '09:42 · every 15 min', valueColor: Colors.grey),
+      _StatItem(id: 'open_issues', label: 'Open integration issues', value: '4 items', valueColor: Colors.orange),
+    ];
   }
 
   @override
@@ -100,9 +214,42 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+                  if (_isLoading) const SizedBox(height: 16),
                   _buildHeader(isNarrow),
                   const SizedBox(height: 24),
-                  _buildStatsRow(isNarrow),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Integration health snapshot',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1A1D1F)),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildStatsRow(isNarrow),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _addStat,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Add metric'),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   _buildToolConnectionManager(isNarrow),
                 ],
@@ -120,7 +267,10 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       final state = await service.loadState(_integrations[i].provider);
       _integrations[i] = _applyAuthState(_integrations[i], state);
     }
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      _scheduleSave();
+    }
   }
 
   _IntegrationItem _applyAuthState(_IntegrationItem item, IntegrationAuthState state) {
@@ -145,6 +295,71 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
+  void _addIntegration() {
+    setState(() {
+      _integrations.add(_IntegrationItem(
+        id: _newId(),
+        provider: IntegrationProvider.figma,
+        name: '',
+        subtitle: '',
+        icon: Icons.link,
+        iconColor: const Color(0xFF94A3B8),
+        scopes: '',
+        features: '',
+        status: _statusOptions.first,
+        statusColor: Colors.grey,
+        mapsTo: '',
+        autoHandoff: null,
+        autoSummary: null,
+        autoTranscribe: null,
+        syncMode: null,
+        lastSync: null,
+        errorInfo: null,
+        events: null,
+        sessions: null,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _updateIntegration(_IntegrationItem item) {
+    final index = _integrations.indexWhere((entry) => entry.id == item.id);
+    if (index == -1) return;
+    setState(() => _integrations[index] = item);
+    _scheduleSave();
+  }
+
+  void _deleteIntegration(String id) {
+    setState(() => _integrations.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _updateStat(_StatItem stat) {
+    final index = _stats.indexWhere((entry) => entry.id == stat.id);
+    if (index == -1) return;
+    setState(() => _stats[index] = stat);
+    _scheduleSave();
+  }
+
+  void _deleteStat(String id) {
+    setState(() => _stats.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
+
+  void _addStat() {
+    setState(() {
+      _stats.add(_StatItem(
+        id: _newId(),
+        label: '',
+        value: '',
+        valueColor: Colors.grey,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
+
   Widget _buildHeader(bool isNarrow) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,30 +381,44 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
           ],
         ),
         const SizedBox(height: 24),
-        // Title and description
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Design Integration Control Center',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF1A1D1F)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Monitor, configure, and troubleshoot Figma, Draw.io, Miro, and whiteboard integrations in one place.',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
               ),
-            ),
-            if (!isNarrow) ...[
-              const SizedBox(width: 16),
-              _buildActionButtons(),
             ],
-          ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Design Integration Control Center',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF1A1D1F)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Monitor integration health, configure scopes, and coordinate sync rules across your design stack.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isNarrow) ...[
+                const SizedBox(width: 16),
+                _buildActionButtons(),
+              ],
+            ],
+          ),
         ),
         if (isNarrow) ...[
           const SizedBox(height: 16),
@@ -208,7 +437,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -339,23 +568,16 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
   }
 
   Widget _buildStatsRow(bool isNarrow) {
-    final stats = [
-      _StatItem('Connected tools', '4 / 4 healthy', Colors.green),
-      _StatItem('Integration health score', '92 / 100', const Color(0xFF0EA5E9)),
-      _StatItem('Last full sync', '09:42 · every 15 min', Colors.grey),
-      _StatItem('Open integration issues', '4 items', Colors.orange),
-    ];
-
     if (isNarrow) {
       return Wrap(
         spacing: 12,
         runSpacing: 12,
-        children: stats.map((stat) => _buildStatChip(stat, flex: false)).toList(),
+        children: _stats.map((stat) => _buildStatChip(stat, flex: false)).toList(),
       );
     }
 
     return Row(
-      children: stats.map((stat) => Expanded(child: Padding(
+      children: _stats.map((stat) => Expanded(child: Padding(
         padding: const EdgeInsets.only(right: 12),
         child: _buildStatChip(stat),
       ))).toList(),
@@ -373,11 +595,30 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       child: Row(
         mainAxisSize: flex ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          Text(stat.label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          Expanded(
+            child: TextFormField(
+              key: ValueKey('stat-label-${stat.id}'),
+              initialValue: stat.label,
+              decoration: _inlineDecoration('Label'),
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              onChanged: (value) => _updateStat(stat.copyWith(label: value)),
+            ),
+          ),
           const SizedBox(width: 8),
-          Text(
-            stat.value,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: stat.valueColor),
+          SizedBox(
+            width: 120,
+            child: TextFormField(
+              key: ValueKey('stat-value-${stat.id}'),
+              initialValue: stat.value,
+              decoration: _inlineDecoration('Value'),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: stat.valueColor),
+              textAlign: TextAlign.right,
+              onChanged: (value) => _updateStat(stat.copyWith(value: value)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+            onPressed: () => _deleteStat(stat.id),
           ),
         ],
       ),
@@ -422,6 +663,11 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
             ],
           ),
           const SizedBox(height: 20),
+          TextButton.icon(
+            onPressed: _addIntegration,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add integration'),
+          ),
           ..._integrations.asMap().entries.map((entry) => _buildIntegrationCard(entry.value, isNarrow, entry.key)),
           const SizedBox(height: 16),
           Row(
@@ -468,7 +714,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: item.iconColor.withValues(alpha: 0.1),
+            color: item.iconColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(item.icon, color: item.iconColor, size: 20),
@@ -481,57 +727,81 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
             children: [
               Row(
                 children: [
-                  Text(
-                    '${item.name} · ',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1D1F)),
+                  Expanded(
+                    child: TextFormField(
+                      key: ValueKey('integration-name-${item.id}'),
+                      initialValue: item.name,
+                      decoration: _inlineDecoration('Integration name'),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1D1F)),
+                      onChanged: (value) => _updateIntegration(item.copyWith(name: value)),
+                    ),
                   ),
-                  Text(
-                    item.subtitle,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      key: ValueKey('integration-subtitle-${item.id}'),
+                      initialValue: item.subtitle,
+                      decoration: _inlineDecoration('Scope'),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      onChanged: (value) => _updateIntegration(item.copyWith(subtitle: value)),
+                    ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Scopes: ${item.scopes} · ${item.features}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
               const SizedBox(height: 6),
               Row(
                 children: [
-                  _buildStatusBadge(item.status, item.statusColor),
-                  if (item.errorInfo != null) ...[
-                    const SizedBox(width: 12),
-                    Text(item.errorInfo!, style: const TextStyle(fontSize: 12, color: Colors.red)),
-                  ],
-                  if (item.lastSync != null) ...[
-                    const SizedBox(width: 12),
-                    Text(item.lastSync!, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                  ],
-                  if (item.events != null) ...[
-                    const SizedBox(width: 12),
-                    Text(item.events!, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                  ],
-                  if (item.sessions != null) ...[
-                    const SizedBox(width: 12),
-                    Text(item.sessions!, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                  ],
+                  Expanded(
+                    child: TextFormField(
+                      key: ValueKey('integration-scopes-${item.id}'),
+                      initialValue: item.scopes,
+                      decoration: _inlineDecoration('Scopes'),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      onChanged: (value) => _updateIntegration(item.copyWith(scopes: value)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      key: ValueKey('integration-features-${item.id}'),
+                      initialValue: item.features,
+                      decoration: _inlineDecoration('Features'),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      onChanged: (value) => _updateIntegration(item.copyWith(features: value)),
+                    ),
+                  ),
                 ],
               ),
+              const SizedBox(height: 6),
+              _buildMetaRow(item),
               const SizedBox(height: 6),
               _buildMappingRow(item),
             ],
           ),
         ),
         // Configure button
-        OutlinedButton(
-          onPressed: () => _openIntegrationConfig(item, index),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF64748B),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          ),
-          child: const Text('Configure', style: TextStyle(fontSize: 13)),
+        Column(
+          children: [
+            OutlinedButton(
+              onPressed: () => _openIntegrationConfig(item, index),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF64748B),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              child: const Text('Configure', style: TextStyle(fontSize: 13)),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => _deleteIntegration(item.id),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFEF4444),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              child: const Text('Remove', style: TextStyle(fontSize: 12)),
+            ),
+          ],
         ),
       ],
     );
@@ -547,7 +817,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: item.iconColor.withValues(alpha: 0.1),
+                color: item.iconColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(item.icon, color: item.iconColor, size: 18),
@@ -557,18 +827,40 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(item.subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  TextFormField(
+                    key: ValueKey('integration-name-narrow-${item.id}'),
+                    initialValue: item.name,
+                    decoration: _inlineDecoration('Integration name'),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    onChanged: (value) => _updateIntegration(item.copyWith(name: value)),
+                  ),
+                  TextFormField(
+                    key: ValueKey('integration-subtitle-narrow-${item.id}'),
+                    initialValue: item.subtitle,
+                    decoration: _inlineDecoration('Scope'),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    onChanged: (value) => _updateIntegration(item.copyWith(subtitle: value)),
+                  ),
                 ],
               ),
             ),
-            _buildStatusBadge(item.status, item.statusColor),
+            _buildStatusBadge(item),
           ],
         ),
         const SizedBox(height: 12),
-        Text('Scopes: ${item.scopes}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        TextFormField(
+          initialValue: item.scopes,
+          decoration: _inlineDecoration('Scopes'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          onChanged: (value) => _updateIntegration(item.copyWith(scopes: value)),
+        ),
         const SizedBox(height: 4),
-        Text(item.features, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        TextFormField(
+          initialValue: item.features,
+          decoration: _inlineDecoration('Features'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          onChanged: (value) => _updateIntegration(item.copyWith(features: value)),
+        ),
         const SizedBox(height: 8),
         _buildMappingRow(item),
         const SizedBox(height: 12),
@@ -581,6 +873,18 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
               side: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             child: const Text('Configure'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => _deleteIntegration(item.id),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFEF4444),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            child: const Text('Remove'),
           ),
         ),
       ],
@@ -635,7 +939,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.1),
+                                color: statusColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text('Status: $statusLabel', style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w600)),
@@ -870,11 +1174,13 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
         .toList();
   }
 
-  Widget _buildStatusBadge(String status, Color color) {
+  Widget _buildStatusBadge(_IntegrationItem item) {
+    final status = item.status;
+    final color = _statusColorFor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -886,41 +1192,163 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
-          Text(
-            'Status: $status',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _statusOptions.contains(status) ? status : _statusOptions.first,
+              items: _statusOptions
+                  .map((option) => DropdownMenuItem(
+                        value: option,
+                        child: Text(
+                          option,
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color),
+                        ),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateIntegration(item.copyWith(status: value));
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMappingRow(_IntegrationItem item) {
-    final chips = <Widget>[];
-    chips.add(_buildMappingChip('Maps to: ${item.mapsTo}'));
-    if (item.autoHandoff != null) chips.add(_buildMappingChip('Auto-handoff: ${item.autoHandoff}'));
-    if (item.syncMode != null) chips.add(_buildMappingChip('Sync mode: ${item.syncMode}'));
-    if (item.autoSummary != null) chips.add(_buildMappingChip('Auto-summary: ${item.autoSummary}'));
-    if (item.autoTranscribe != null) chips.add(_buildMappingChip('Auto-transcribe: ${item.autoTranscribe}'));
-
-    return Wrap(spacing: 8, runSpacing: 6, children: chips);
+  Widget _buildMetaRow(_IntegrationItem item) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _buildStatusBadge(item),
+        if (item.errorInfo != null)
+          _buildMetaField(
+            key: ValueKey('integration-error-${item.id}'),
+            value: item.errorInfo ?? '',
+            hint: 'Error info',
+            color: Colors.red,
+            onChanged: (value) => _updateIntegration(item.copyWith(errorInfo: value)),
+          ),
+        if (item.lastSync != null)
+          _buildMetaField(
+            key: ValueKey('integration-sync-${item.id}'),
+            value: item.lastSync ?? '',
+            hint: 'Last sync',
+            color: Colors.grey[500],
+            onChanged: (value) => _updateIntegration(item.copyWith(lastSync: value)),
+          ),
+        if (item.events != null)
+          _buildMetaField(
+            key: ValueKey('integration-events-${item.id}'),
+            value: item.events ?? '',
+            hint: 'Events',
+            color: Colors.grey[500],
+            onChanged: (value) => _updateIntegration(item.copyWith(events: value)),
+          ),
+        if (item.sessions != null)
+          _buildMetaField(
+            key: ValueKey('integration-sessions-${item.id}'),
+            value: item.sessions ?? '',
+            hint: 'Sessions',
+            color: Colors.grey[500],
+            onChanged: (value) => _updateIntegration(item.copyWith(sessions: value)),
+          ),
+      ],
+    );
   }
 
-  Widget _buildMappingChip(String label) {
+  Widget _buildMetaField({
+    required Key key,
+    required String value,
+    required String hint,
+    required Color? color,
+    required ValueChanged<String> onChanged,
+  }) {
+    return SizedBox(
+      width: 200,
+      child: TextFormField(
+        key: key,
+        initialValue: value,
+        maxLines: 1,
+        decoration: _inlineDecoration(hint),
+        style: TextStyle(fontSize: 12, color: color ?? Colors.grey[500]),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildMappingRow(_IntegrationItem item) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        _buildMappingChip(
+          label: 'Maps to',
+          value: item.mapsTo ?? '',
+          onChanged: (value) => _updateIntegration(item.copyWith(mapsTo: value)),
+        ),
+        if (item.autoHandoff != null)
+          _buildMappingChip(
+            label: 'Auto-handoff',
+            value: item.autoHandoff ?? '',
+            onChanged: (value) => _updateIntegration(item.copyWith(autoHandoff: value)),
+          ),
+        if (item.syncMode != null)
+          _buildMappingChip(
+            label: 'Sync mode',
+            value: item.syncMode ?? '',
+            onChanged: (value) => _updateIntegration(item.copyWith(syncMode: value)),
+          ),
+        if (item.autoSummary != null)
+          _buildMappingChip(
+            label: 'Auto-summary',
+            value: item.autoSummary ?? '',
+            onChanged: (value) => _updateIntegration(item.copyWith(autoSummary: value)),
+          ),
+        if (item.autoTranscribe != null)
+          _buildMappingChip(
+            label: 'Auto-transcribe',
+            value: item.autoTranscribe ?? '',
+            onChanged: (value) => _updateIntegration(item.copyWith(autoTranscribe: value)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMappingChip({
+    required String label,
+    required String value,
+    required ValueChanged<String> onChanged,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFE2E8F0),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF475569))),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$label: ', style: const TextStyle(fontSize: 11, color: Color(0xFF475569))),
+          SizedBox(
+            width: 120,
+            child: TextFormField(
+              initialValue: value,
+              maxLines: 1,
+              decoration: _inlineDecoration(''),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _IntegrationItem {
-  static const Object _unset = Object();
-
+  final String id;
   final IntegrationProvider provider;
   final String name;
   final String subtitle;
@@ -930,7 +1358,7 @@ class _IntegrationItem {
   final String features;
   final String status;
   final Color statusColor;
-  final String mapsTo;
+  final String? mapsTo;
   final String? autoHandoff;
   final String? syncMode;
   final String? autoSummary;
@@ -941,6 +1369,7 @@ class _IntegrationItem {
   final String? sessions;
 
   const _IntegrationItem({
+    required this.id,
     required this.provider,
     required this.name,
     required this.subtitle,
@@ -950,7 +1379,7 @@ class _IntegrationItem {
     required this.features,
     required this.status,
     required this.statusColor,
-    required this.mapsTo,
+    this.mapsTo,
     this.autoHandoff,
     this.syncMode,
     this.autoSummary,
@@ -962,25 +1391,35 @@ class _IntegrationItem {
   });
 
   _IntegrationItem copyWith({
+    String? id,
+    IntegrationProvider? provider,
+    String? name,
+    String? subtitle,
+    IconData? icon,
+    Color? iconColor,
+    String? scopes,
+    String? features,
     String? status,
     Color? statusColor,
-    String? scopes,
     String? mapsTo,
     String? autoHandoff,
     String? syncMode,
     String? autoSummary,
     String? autoTranscribe,
-    Object? lastSync = _unset,
+    String? lastSync,
+    String? errorInfo,
+    String? events,
+    String? sessions,
   }) {
-    final resolvedLastSync = identical(lastSync, _unset) ? this.lastSync : lastSync as String?;
     return _IntegrationItem(
-      provider: provider,
-      name: name,
-      subtitle: subtitle,
-      icon: icon,
-      iconColor: iconColor,
+      id: id ?? this.id,
+      provider: provider ?? this.provider,
+      name: name ?? this.name,
+      subtitle: subtitle ?? this.subtitle,
+      icon: icon ?? this.icon,
+      iconColor: iconColor ?? this.iconColor,
       scopes: scopes ?? this.scopes,
-      features: features,
+      features: features ?? this.features,
       status: status ?? this.status,
       statusColor: statusColor ?? this.statusColor,
       mapsTo: mapsTo ?? this.mapsTo,
@@ -988,18 +1427,134 @@ class _IntegrationItem {
       syncMode: syncMode ?? this.syncMode,
       autoSummary: autoSummary ?? this.autoSummary,
       autoTranscribe: autoTranscribe ?? this.autoTranscribe,
-      lastSync: resolvedLastSync,
-      errorInfo: errorInfo,
-      events: events,
-      sessions: sessions,
+      lastSync: lastSync ?? this.lastSync,
+      errorInfo: errorInfo ?? this.errorInfo,
+      events: events ?? this.events,
+      sessions: sessions ?? this.sessions,
     );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'provider': provider.name,
+        'name': name,
+        'subtitle': subtitle,
+        'icon': icon.codePoint,
+        'iconColor': iconColor.value,
+        'scopes': scopes,
+        'features': features,
+        'status': status,
+        'mapsTo': mapsTo,
+        'autoHandoff': autoHandoff,
+        'syncMode': syncMode,
+        'autoSummary': autoSummary,
+        'autoTranscribe': autoTranscribe,
+        'lastSync': lastSync,
+        'errorInfo': errorInfo,
+        'events': events,
+        'sessions': sessions,
+      };
+
+  static List<_IntegrationItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      final providerName = map['provider']?.toString() ?? IntegrationProvider.figma.name;
+      final provider = IntegrationProvider.values.firstWhere(
+        (value) => value.name == providerName,
+        orElse: () => IntegrationProvider.figma,
+      );
+      return _IntegrationItem(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        provider: provider,
+        name: map['name']?.toString() ?? '',
+        subtitle: map['subtitle']?.toString() ?? '',
+        icon: IconData(
+          map['icon'] is int ? map['icon'] as int : Icons.link.codePoint,
+          fontFamily: 'MaterialIcons',
+        ),
+        iconColor: Color(map['iconColor'] is int ? map['iconColor'] as int : const Color(0xFF94A3B8).value),
+        scopes: map['scopes']?.toString() ?? '',
+        features: map['features']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Not connected',
+        statusColor: _statusColorForLabel(map['status']?.toString() ?? 'Not connected'),
+        mapsTo: map['mapsTo']?.toString(),
+        autoHandoff: map['autoHandoff']?.toString(),
+        syncMode: map['syncMode']?.toString(),
+        autoSummary: map['autoSummary']?.toString(),
+        autoTranscribe: map['autoTranscribe']?.toString(),
+        lastSync: map['lastSync']?.toString(),
+        errorInfo: map['errorInfo']?.toString(),
+        events: map['events']?.toString(),
+        sessions: map['sessions']?.toString(),
+      );
+    }).toList();
   }
 }
 
 class _StatItem {
+  final String id;
   final String label;
   final String value;
   final Color valueColor;
 
-  const _StatItem(this.label, this.value, this.valueColor);
+  const _StatItem({
+    required this.id,
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
+
+  _StatItem copyWith({String? label, String? value, Color? valueColor}) {
+    return _StatItem(
+      id: id,
+      label: label ?? this.label,
+      value: value ?? this.value,
+      valueColor: valueColor ?? this.valueColor,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'label': label,
+        'value': value,
+        'valueColor': valueColor.value,
+      };
+
+  static List<_StatItem> fromList(dynamic data) {
+    if (data is! List) return [];
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map? ?? {});
+      return _StatItem(
+        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        label: map['label']?.toString() ?? '',
+        value: map['value']?.toString() ?? '',
+        valueColor: Color(map['valueColor'] is int ? map['valueColor'] as int : Colors.grey.value),
+      );
+    }).toList();
+  }
+}
+
+class _Debouncer {
+  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 700);
+
+  final Duration delay;
+  Timer? _timer;
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(delay, action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
+  }
+}
+
+Color _statusColorForLabel(String status) {
+  final normalized = status.toLowerCase();
+  if (normalized.contains('connected')) return Colors.green;
+  if (normalized.contains('degraded') || normalized.contains('retry')) return Colors.orange;
+  if (normalized.contains('paused') || normalized.contains('disconnected')) return Colors.grey;
+  return const Color(0xFF64748B);
 }

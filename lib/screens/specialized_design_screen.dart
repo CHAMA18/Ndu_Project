@@ -177,12 +177,17 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final padding = AppBreakpoints.pagePadding(context);
+    final ownerOptions = _ownerOptions();
 
     return ResponsiveScaffold(
       activeItemLabel: 'Specialized Design',
       body: Column(
         children: [
-          const PlanningPhaseHeader(title: 'Design Phase'),
+          const PlanningPhaseHeader(
+            title: 'Design Phase',
+            showImportButton: false,
+            showContentButton: false,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -277,11 +282,11 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSecurityPatternsCard(),
+                      _buildSecurityPatternsCard(ownerOptions),
                       const SizedBox(height: 20),
                       _buildPerformancePatternsCard(),
                       const SizedBox(height: 20),
-                      _buildIntegrationFlowsCard(),
+                      _buildIntegrationFlowsCard(ownerOptions),
                     ],
                   ),
                   const SizedBox(height: 32),
@@ -297,7 +302,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     );
   }
 
-  Widget _buildSecurityPatternsCard() {
+  Widget _buildSecurityPatternsCard(List<String> ownerOptions) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -366,7 +371,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             )
           else
             for (int i = 0; i < _securityRows.length; i++) ...[
-              _buildSecurityRow(_securityRows[i], index: i, isStriped: i.isOdd),
+              _buildSecurityRow(
+                _securityRows[i],
+                index: i,
+                isStriped: i.isOdd,
+                ownerOptions: ownerOptions,
+              ),
               if (i != _securityRows.length - 1) const SizedBox(height: 8),
             ],
         ],
@@ -451,7 +461,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     );
   }
 
-  Widget _buildIntegrationFlowsCard() {
+  Widget _buildIntegrationFlowsCard(List<String> ownerOptions) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -520,7 +530,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             )
           else
             for (int i = 0; i < _integrationRows.length; i++) ...[
-              _buildIntegrationRow(_integrationRows[i], index: i, isStriped: i.isOdd),
+              _buildIntegrationRow(
+                _integrationRows[i],
+                index: i,
+                isStriped: i.isOdd,
+                ownerOptions: ownerOptions,
+              ),
               if (i != _integrationRows.length - 1) const SizedBox(height: 8),
             ],
           const SizedBox(height: 16),
@@ -621,7 +636,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     );
   }
 
-  Widget _buildSecurityRow(_SecurityPatternRow row, {required int index, required bool isStriped}) {
+  Widget _buildSecurityRow(
+    _SecurityPatternRow row, {
+    required int index,
+    required bool isStriped,
+    required List<String> ownerOptions,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -658,9 +678,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
-            child: _buildTableField(
-              initialValue: row.owner,
-              hintText: 'Owner',
+            child: _buildOwnerDropdown(
+              value: row.owner,
+              options: ownerOptions,
               onChanged: (value) {
                 row.owner = value;
                 _scheduleSave();
@@ -684,17 +704,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: _buildRowActions(
-                primaryLabel: 'Add note',
-                accent: const Color(0xFF1D4ED8),
-                onPrimary: () {},
-                onDelete: () async {
-                  final confirmed = await _confirmDelete('security pattern');
-                  if (!confirmed) return;
-                  setState(() => _securityRows.removeAt(index));
-                  _scheduleSave();
-                },
-              ),
+              child: _buildDeleteAction(() async {
+                final confirmed = await _confirmDelete('security pattern');
+                if (!confirmed) return;
+                setState(() => _securityRows.removeAt(index));
+                _scheduleSave();
+              }),
             ),
           ),
         ],
@@ -765,17 +780,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: _buildRowActions(
-                primaryLabel: 'Attach',
-                accent: const Color(0xFF0F766E),
-                onPrimary: () {},
-                onDelete: () async {
-                  final confirmed = await _confirmDelete('performance pattern');
-                  if (!confirmed) return;
-                  setState(() => _performanceRows.removeAt(index));
-                  _scheduleSave();
-                },
-              ),
+              child: _buildDeleteAction(() async {
+                final confirmed = await _confirmDelete('performance pattern');
+                if (!confirmed) return;
+                setState(() => _performanceRows.removeAt(index));
+                _scheduleSave();
+              }),
             ),
           ),
         ],
@@ -783,7 +793,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     );
   }
 
-  Widget _buildIntegrationRow(_IntegrationFlowRow row, {required int index, required bool isStriped}) {
+  Widget _buildIntegrationRow(
+    _IntegrationFlowRow row, {
+    required int index,
+    required bool isStriped,
+    required List<String> ownerOptions,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -808,9 +823,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
-            child: _buildTableField(
-              initialValue: row.owner,
-              hintText: 'Owner',
+            child: _buildOwnerDropdown(
+              value: row.owner,
+              options: ownerOptions,
               onChanged: (value) {
                 row.owner = value;
                 _scheduleSave();
@@ -846,17 +861,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: _buildRowActions(
-                primaryLabel: 'Evidence',
-                accent: const Color(0xFF9333EA),
-                onPrimary: () {},
-                onDelete: () async {
-                  final confirmed = await _confirmDelete('integration flow');
-                  if (!confirmed) return;
-                  setState(() => _integrationRows.removeAt(index));
-                  _scheduleSave();
-                },
-              ),
+              child: _buildDeleteAction(() async {
+                final confirmed = await _confirmDelete('integration flow');
+                if (!confirmed) return;
+                setState(() => _integrationRows.removeAt(index));
+                _scheduleSave();
+              }),
             ),
           ),
         ],
@@ -873,10 +883,63 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return TextFormField(
       initialValue: initialValue,
       maxLines: maxLines,
+      textAlign: TextAlign.center,
+      textAlignVertical: TextAlignVertical.center,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(color: Colors.grey[500]),
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF1D4ED8), width: 2),
+        ),
+      ),
+    );
+  }
+
+  List<String> _ownerOptions() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final members = provider?.projectData.teamMembers ?? [];
+    final names = members
+        .map((member) => member.name.trim().isNotEmpty ? member.name.trim() : member.email.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (names.isEmpty) {
+      return const ['Owner'];
+    }
+    return names.toSet().toList();
+  }
+
+  Widget _buildOwnerDropdown({
+    required String value,
+    required List<String> options,
+    required ValueChanged<String> onChanged,
+  }) {
+    final normalized = value.trim();
+    final items = normalized.isEmpty || options.contains(normalized)
+        ? options
+        : [normalized, ...options];
+    return DropdownButtonFormField<String>(
+      value: items.first,
+      alignment: Alignment.center,
+      items: items.map((owner) => DropdownMenuItem(value: owner, child: Text(owner))).toList(),
+      onChanged: (newValue) {
+        if (newValue == null) return;
+        onChanged(newValue);
+      },
+      decoration: InputDecoration(
         isDense: true,
         filled: true,
         fillColor: Colors.white,
@@ -938,6 +1001,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
   }) {
     return DropdownButtonFormField<String>(
       initialValue: value,
+      alignment: Alignment.center,
       items: _statusOptions
           .map((status) => DropdownMenuItem(value: status, child: Text(status)))
           .toList(),
@@ -966,37 +1030,17 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     );
   }
 
-  Widget _buildRowActions({
-    required String primaryLabel,
-    required Color accent,
-    required VoidCallback onPrimary,
-    required Future<void> Function() onDelete,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        OutlinedButton(
-          onPressed: onPrimary,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: accent,
-            side: const BorderSide(color: Color(0xFFD6DCE8)),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          ),
-          child: Text(primaryLabel),
-        ),
-        const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: () async {
-            await onDelete();
-          },
-          icon: const Icon(Icons.delete_outline, size: 18),
-          label: const Text('Delete'),
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFFB91C1C),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-        ),
-      ],
+  Widget _buildDeleteAction(Future<void> Function() onDelete) {
+    return TextButton.icon(
+      onPressed: () async {
+        await onDelete();
+      },
+      icon: const Icon(Icons.delete_outline, size: 18),
+      label: const Text('Delete'),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFFB91C1C),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      ),
     );
   }
 
