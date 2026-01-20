@@ -9,6 +9,9 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/services/api_key_manager.dart';
 
 class ProjectCharterScreen extends StatefulWidget {
   const ProjectCharterScreen({super.key});
@@ -27,18 +30,129 @@ class ProjectCharterScreen extends StatefulWidget {
 
 class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
   ProjectDataModel? _projectData;
+  bool _isGenerating = false;
+  late final OpenAiServiceSecure _openAi;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _openAi = OpenAiServiceSecure();
+    ApiKeyManager.initializeApiKey();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = ProjectDataInherited.of(context);
       if (mounted) {
         setState(() {
           _projectData = provider.projectData;
         });
+
+        // Auto-generate charter content if needed
+        if (_projectData != null) {
+          await _ensureCharterContent();
+        }
       }
     });
+  }
+
+  Future<void> _ensureCharterContent() async {
+    if (_projectData == null || _isGenerating) return;
+
+    // Check if we need to generate content
+    final needsOverview = _projectData!.businessCase.trim().isEmpty &&
+        _projectData!.solutionDescription.trim().isEmpty;
+    final needsGoals = _projectData!.projectGoals.isEmpty &&
+        _projectData!.planningGoals.isEmpty;
+
+    if (!needsOverview && !needsGoals) return;
+
+    setState(() => _isGenerating = true);
+
+    try {
+      final projectContext = ProjectDataHelper.buildFepContext(_projectData!);
+
+      if (projectContext.trim().isNotEmpty) {
+        // Generate overview if needed
+        if (needsOverview) {
+          try {
+            final overview = await _openAi.generateFepSectionText(
+              section: 'Project Overview',
+              context: projectContext,
+              maxTokens: 600,
+            );
+
+            if (mounted && overview.isNotEmpty && _projectData != null) {
+              final provider = ProjectDataInherited.of(context);
+              provider.updateField((data) {
+                if (data.businessCase.trim().isEmpty) {
+                  return data.copyWith(businessCase: overview);
+                }
+                return data;
+              });
+
+              setState(() {
+                _projectData = provider.projectData;
+              });
+            }
+          } catch (e) {
+            debugPrint('Error generating charter overview: $e');
+          }
+        }
+
+        // Generate goals if needed
+        if (needsGoals) {
+          try {
+            final goalsText = await _openAi.generateFepSectionText(
+              section: 'Project Goals and Objectives',
+              context: projectContext,
+              maxTokens: 500,
+            );
+
+            // Parse goals from text and add to project goals
+            if (mounted && goalsText.isNotEmpty && _projectData != null) {
+              final lines = goalsText
+                  .split('\n')
+                  .map((l) => l.trim())
+                  .where((l) =>
+                      l.isNotEmpty && !l.startsWith('-') && !l.startsWith('•'))
+                  .take(5)
+                  .toList();
+
+              if (lines.isNotEmpty) {
+                final provider = ProjectDataInherited.of(context);
+                final newGoals = lines.map((line) {
+                  // Remove bullet points if present
+                  final cleanLine = line.replaceAll(RegExp(r'^[-•]\s*'), '');
+                  return ProjectGoal(
+                    name: cleanLine.length > 50
+                        ? cleanLine.substring(0, 50)
+                        : cleanLine,
+                    description: cleanLine.length > 50 ? cleanLine : '',
+                  );
+                }).toList();
+
+                provider.updateField((data) {
+                  if (data.projectGoals.isEmpty) {
+                    return data.copyWith(projectGoals: newGoals);
+                  }
+                  return data;
+                });
+
+                setState(() {
+                  _projectData = provider.projectData;
+                });
+              }
+            }
+          } catch (e) {
+            debugPrint('Error generating charter goals: $e');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error ensuring charter content: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
   }
 
   @override
@@ -49,47 +163,66 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     return ResponsiveScaffold(
       activeItemLabel: 'Project Charter',
       backgroundColor: AppSemanticColors.subtle,
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(pagePadding).copyWith(top: pagePadding + (isMobile ? 16 : 32), bottom: 48),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Project Charter',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontSize: isMobile ? 24 : 32,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-            ),
-            const SizedBox(height: 32),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.08),
-                    blurRadius: 24,
-                    offset: const Offset(0, 18),
+      body: _isGenerating
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Generating project charter...',
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ],
               ),
-              child: _CharterContent(isStacked: isMobile, projectData: _projectData),
+            )
+          : SingleChildScrollView(
+              padding: EdgeInsets.all(pagePadding).copyWith(
+                  top: pagePadding + (isMobile ? 16 : 32), bottom: 48),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Project Charter',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontSize: isMobile ? 24 : 32,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                  ),
+                  const SizedBox(height: 32),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .shadow
+                              .withValues(alpha: 0.08),
+                          blurRadius: 24,
+                          offset: const Offset(0, 18),
+                        ),
+                      ],
+                    ),
+                    child: _CharterContent(
+                        isStacked: isMobile, projectData: _projectData),
+                  ),
+                  const SizedBox(height: 32),
+                  LaunchPhaseNavigation(
+                    backLabel: 'Back',
+                    nextLabel: 'Next: Project framework',
+                    onBack: () => Navigator.pop(context),
+                    onNext: () => ProjectFrameworkScreen.open(context),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
-            LaunchPhaseNavigation(
-              backLabel: 'Back',
-              nextLabel: 'Next: Project framework',
-              onBack: () => Navigator.pop(context),
-              onNext: () => ProjectFrameworkScreen.open(context),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -117,14 +250,17 @@ class _CharterContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _CharterSummaryPanel(isStacked: false, projectData: projectData),
-        Expanded(child: _CharterDetailsPanel(isStacked: false, projectData: projectData)),
+        Expanded(
+            child: _CharterDetailsPanel(
+                isStacked: false, projectData: projectData)),
       ],
     );
   }
 }
 
 class _CharterSummaryPanel extends StatelessWidget {
-  const _CharterSummaryPanel({required this.isStacked, required this.projectData});
+  const _CharterSummaryPanel(
+      {required this.isStacked, required this.projectData});
 
   final bool isStacked;
   final ProjectDataModel? projectData;
@@ -133,14 +269,15 @@ class _CharterSummaryPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final borderRadius = isStacked
-        ? const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))
-        : const BorderRadius.only(topLeft: Radius.circular(24), bottomLeft: Radius.circular(24));
+        ? const BorderRadius.only(
+            topLeft: Radius.circular(24), topRight: Radius.circular(24))
+        : const BorderRadius.only(
+            topLeft: Radius.circular(24), bottomLeft: Radius.circular(24));
 
     return Container(
       width: isMobile ? double.infinity : 300,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
       decoration: BoxDecoration(
-        // Use themed primary container for the left summary panel
         color: Theme.of(context).colorScheme.primaryContainer,
         borderRadius: borderRadius,
       ),
@@ -196,26 +333,28 @@ class _CharterSummaryPanel extends StatelessWidget {
 
   static String _extractProjectManager(ProjectDataModel? data) {
     if (data == null) return 'Add Name Here';
-    
+
     // Try to find Project Manager from team members
     final manager = data.teamMembers.firstWhere(
-      (m) => m.role.toLowerCase().contains('manager') || m.role.toLowerCase().contains('pm'),
+      (m) =>
+          m.role.toLowerCase().contains('manager') ||
+          m.role.toLowerCase().contains('pm'),
       orElse: () => TeamMember(),
     );
-    
+
     if (manager.name.isNotEmpty) return manager.name;
     return 'Add Name Here';
   }
 
   static String _extractProjectSponsor(ProjectDataModel? data) {
     if (data == null) return 'Add Name Here';
-    
+
     // Try to find Project Sponsor from team members
     final sponsor = data.teamMembers.firstWhere(
       (m) => m.role.toLowerCase().contains('sponsor'),
       orElse: () => TeamMember(),
     );
-    
+
     if (sponsor.name.isNotEmpty) return sponsor.name;
     return 'Add Name Here';
   }
@@ -227,7 +366,7 @@ class _CharterSummaryPanel extends StatelessWidget {
 
   static String _extractEndDate(ProjectDataModel? data) {
     if (data == null) return 'Not specified';
-    
+
     // Try to get the latest milestone date
     if (data.keyMilestones.isNotEmpty) {
       final latestMilestone = data.keyMilestones.reduce((a, b) {
@@ -241,21 +380,26 @@ class _CharterSummaryPanel extends StatelessWidget {
           return a;
         }
       });
-      
+
       if (latestMilestone.dueDate.isNotEmpty) {
-        return latestMilestone.dueDate;
+        try {
+          final date = DateTime.parse(latestMilestone.dueDate);
+          return _formatDate(date) ?? latestMilestone.dueDate;
+        } catch (e) {
+          return latestMilestone.dueDate;
+        }
       }
     }
-    
+
     return 'Not specified';
   }
 
   static String _extractTotalCost(ProjectDataModel? data) {
     if (data == null) return 'Not calculated';
-    
+
     // Sum up costs from preferred solution analysis
     double totalCost = 0.0;
-    
+
     if (data.preferredSolutionAnalysis != null) {
       for (final analysis in data.preferredSolutionAnalysis!.solutionAnalyses) {
         for (final cost in analysis.costs) {
@@ -263,7 +407,7 @@ class _CharterSummaryPanel extends StatelessWidget {
         }
       }
     }
-    
+
     // Add cost analysis data if available
     if (data.costAnalysisData != null) {
       for (final solution in data.costAnalysisData!.solutionCosts) {
@@ -274,14 +418,14 @@ class _CharterSummaryPanel extends StatelessWidget {
         }
       }
     }
-    
+
     if (totalCost > 0) {
       return '\$${totalCost.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'\\B(?=(\\d{3})+(?!\\d))'),
-        (match) => ',',
-      )}';
+            RegExp(r'\B(?=(\d{3})+(?!\d))'),
+            (match) => ',',
+          )}';
     }
-    
+
     return 'Not calculated';
   }
 }
@@ -331,6 +475,8 @@ class _ProjectBudgetChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final slices = _extractBudgetSlices(projectData);
+    final totalPercentage =
+        slices.fold<double>(0.0, (sum, slice) => sum + slice.value);
 
     return Center(
       child: SizedBox(
@@ -364,7 +510,7 @@ class _ProjectBudgetChart extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '100%',
+                  '${totalPercentage.toStringAsFixed(0)}%',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -388,7 +534,7 @@ class _ProjectBudgetChart extends StatelessWidget {
     }
 
     final Map<String, double> costBreakdown = {};
-    
+
     // Extract costs from preferred solution analysis
     if (data.preferredSolutionAnalysis != null) {
       for (final analysis in data.preferredSolutionAnalysis!.solutionAnalyses) {
@@ -398,42 +544,63 @@ class _ProjectBudgetChart extends StatelessWidget {
         }
       }
     }
-    
+
     // Extract from cost analysis data
     if (data.costAnalysisData != null) {
       for (final solution in data.costAnalysisData!.solutionCosts) {
         for (final row in solution.costRows) {
-          final costStr = row.cost.replaceAll(RegExp(r'[^\\d.]'), '');
+          final costStr = row.cost.replaceAll(RegExp(r'[^\d.]'), '');
           final cost = double.tryParse(costStr) ?? 0.0;
           final key = row.itemName.isEmpty ? 'Miscellaneous' : row.itemName;
           costBreakdown[key] = (costBreakdown[key] ?? 0.0) + cost;
         }
       }
     }
-    
+
     if (costBreakdown.isEmpty) {
       return const [
         _ChartSlice(color: Colors.transparent, value: 100, label: 'No data'),
       ];
     }
-    
+
     // Convert to slices
-    final totalCost = costBreakdown.values.fold<double>(0.0, (sum, val) => sum + val);
+    final totalCost =
+        costBreakdown.values.fold<double>(0.0, (sum, val) => sum + val);
+    if (totalCost == 0) {
+      return const [
+        _ChartSlice(color: Colors.transparent, value: 100, label: 'No data'),
+      ];
+    }
+
     final entries = costBreakdown.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     final slices = <_ChartSlice>[];
+    double remainingPercentage = 100.0;
+
+    // Take top 7 items, ensuring percentages sum to 100%
     for (int i = 0; i < entries.length && i < 7; i++) {
       final entry = entries[i];
       final percentage = (entry.value / totalCost) * 100;
-      // Temporarily set transparent color; will be mapped in painter using theme
+
+      // For the last item, use remaining percentage to ensure total is 100%
+      if (i == entries.length - 1 || i == 6) {
+        slices.add(_ChartSlice(
+          color: Colors.transparent,
+          value: remainingPercentage,
+          label: entry.key,
+        ));
+        break;
+      }
+
       slices.add(_ChartSlice(
         color: Colors.transparent,
         value: percentage,
         label: entry.key,
       ));
+      remainingPercentage -= percentage;
     }
-    
+
     return slices;
   }
 }
@@ -460,7 +627,8 @@ class _BudgetLegend extends StatelessWidget {
     final entries = <_ChartSlice>[];
     for (int i = 0; i < slices.length; i++) {
       final s = slices[i];
-      final color = s.color == Colors.transparent ? palette[i % palette.length] : s.color;
+      final color =
+          s.color == Colors.transparent ? palette[i % palette.length] : s.color;
       entries.add(_ChartSlice(
         color: color,
         value: s.value,
@@ -493,7 +661,8 @@ class _BudgetLegend extends StatelessWidget {
 }
 
 class _CharterDetailsPanel extends StatelessWidget {
-  const _CharterDetailsPanel({required this.isStacked, required this.projectData});
+  const _CharterDetailsPanel(
+      {required this.isStacked, required this.projectData});
 
   final bool isStacked;
   final ProjectDataModel? projectData;
@@ -501,8 +670,10 @@ class _CharterDetailsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderRadius = isStacked
-        ? const BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24))
-        : const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24));
+        ? const BorderRadius.only(
+            bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24))
+        : const BorderRadius.only(
+            topRight: Radius.circular(24), bottomRight: Radius.circular(24));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 36),
@@ -555,66 +726,94 @@ class _CharterDetailsPanel extends StatelessWidget {
   }
 
   static String _extractProjectOverview(ProjectDataModel? data) {
-    if (data == null) return 'No project overview available. Please complete the business case section to generate a comprehensive project charter.';
-    
+    if (data == null) {
+      return 'This project charter outlines the key objectives, scope, and approach for delivering the proposed solution. The project aims to address identified business needs through a structured implementation approach, ensuring alignment with organizational goals and stakeholder expectations.';
+    }
+
     final parts = <String>[];
-    
+
     // Add business case
     if (data.businessCase.isNotEmpty) {
       parts.add(data.businessCase);
     }
-    
+
     // Add solution description from preferred solution
     if (data.preferredSolutionAnalysis?.selectedSolutionTitle != null) {
       final analyses = data.preferredSolutionAnalysis!.solutionAnalyses;
       if (analyses.isNotEmpty) {
         final selectedSolution = analyses.firstWhere(
-          (s) => s.solutionTitle == data.preferredSolutionAnalysis!.selectedSolutionTitle,
+          (s) =>
+              s.solutionTitle ==
+              data.preferredSolutionAnalysis!.selectedSolutionTitle,
           orElse: () => analyses.first,
         );
         if (selectedSolution.solutionDescription.isNotEmpty) {
-          parts.add('\\n\\nSelected Solution: ${selectedSolution.solutionDescription}');
+          parts.add(
+              '\n\nSelected Solution: ${selectedSolution.solutionDescription}');
         }
       }
     } else if (data.solutionDescription.isNotEmpty) {
-      parts.add('\\n\\n${data.solutionDescription}');
+      parts.add('\n\n${data.solutionDescription}');
     }
-    
+
     // Add project objective
     if (data.projectObjective.isNotEmpty) {
-      parts.add('\\n\\nObjective: ${data.projectObjective}');
+      parts.add('\n\nObjective: ${data.projectObjective}');
     }
-    
+
     if (parts.isEmpty) {
-      return 'No project overview available. Please complete the business case section to generate a comprehensive project charter.';
+      // Generate fallback overview
+      final projectName = data.projectName.trim().isEmpty
+          ? 'this project'
+          : data.projectName.trim();
+      return 'This project charter outlines the key objectives, scope, and approach for delivering $projectName. The project aims to address identified business needs through a structured implementation approach, ensuring alignment with organizational goals and stakeholder expectations. Key focus areas include delivering value-driven outcomes, managing risks effectively, and maintaining quality standards throughout the project lifecycle.';
     }
-    
+
     return parts.join('');
   }
 
   static List<String> _extractGoals(ProjectDataModel? data) {
-    if (data == null) return ['Define project goals in the planning phase'];
-    
+    if (data == null) {
+      return [
+        'Deliver the proposed solution within budget and timeline constraints',
+        'Ensure alignment with organizational strategic objectives',
+        'Maintain quality standards throughout project execution',
+        'Manage project risks effectively and proactively',
+      ];
+    }
+
     final goals = <String>[];
-    
+
     // Extract from project goals
     for (final goal in data.projectGoals) {
       if (goal.name.isNotEmpty) {
-        goals.add('${goal.name}${goal.description.isNotEmpty ? ': ${goal.description}' : ''}');
+        goals.add(
+            '${goal.name}${goal.description.isNotEmpty ? ': ${goal.description}' : ''}');
       }
     }
-    
+
     // Extract from planning goals
     for (final goal in data.planningGoals) {
       if (goal.title.isNotEmpty) {
-        goals.add('${goal.title}${goal.description.isNotEmpty ? ': ${goal.description}' : ''}');
+        goals.add(
+            '${goal.title}${goal.description.isNotEmpty ? ': ${goal.description}' : ''}');
       }
     }
-    
+
     if (goals.isEmpty) {
-      return ['Define project goals in the planning phase'];
+      // Provide fallback goals
+      final projectName = data.projectName.trim().isEmpty
+          ? 'the project'
+          : data.projectName.trim();
+      return [
+        'Successfully deliver $projectName within established budget and timeline',
+        'Ensure alignment with organizational strategic objectives and stakeholder expectations',
+        'Maintain high quality standards throughout project execution',
+        'Effectively manage and mitigate project risks',
+        'Achieve defined project success criteria and deliverables',
+      ];
     }
-    
+
     return goals.take(10).toList();
   }
 }
@@ -655,7 +854,9 @@ class _BulletList extends StatelessWidget {
               children: [
                 Text(
                   '•',
-                  style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
+                  style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -715,9 +916,14 @@ class _CardRow extends StatelessWidget {
   static List<_CardData> _extractCardData(ProjectDataModel? data) {
     if (data == null) {
       return const [
-        _CardData(title: 'Assumptions', bullets: ['Complete business case to populate']),
-        _CardData(title: 'Constraints', bullets: ['Complete business case to populate']),
-        _CardData(title: 'Risks', bullets: ['Complete business case to populate']),
+        _CardData(
+            title: 'Assumptions',
+            bullets: ['Complete business case to populate']),
+        _CardData(
+            title: 'Constraints',
+            bullets: ['Complete business case to populate']),
+        _CardData(
+            title: 'Risks', bullets: ['Complete business case to populate']),
       ];
     }
 
@@ -739,7 +945,8 @@ class _CardRow extends StatelessWidget {
     // Extract constraints (from infrastructure, IT, or general notes)
     final constraints = <String>[];
     if (data.infrastructureConsiderationsData != null) {
-      for (final infra in data.infrastructureConsiderationsData!.solutionInfrastructureData) {
+      for (final infra in data
+          .infrastructureConsiderationsData!.solutionInfrastructureData) {
         if (infra.majorInfrastructure.isNotEmpty) {
           constraints.add('Infrastructure: ${infra.majorInfrastructure}');
         }
@@ -847,7 +1054,8 @@ class _MilestoneGrid extends StatelessWidget {
         for (int i = 0; i < milestones.length; i++)
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: i == milestones.length - 1 ? 0 : 18),
+              padding:
+                  EdgeInsets.only(right: i == milestones.length - 1 ? 0 : 18),
               child: _MilestoneTile(milestone: milestones[i]),
             ),
           ),
@@ -857,40 +1065,59 @@ class _MilestoneGrid extends StatelessWidget {
 
   static List<_MilestoneData> _extractMilestones(ProjectDataModel? data) {
     if (data == null) {
-      return const [
-        _MilestoneData(title: 'Milestone 1', description: 'Define milestones in the planning phase'),
-        _MilestoneData(title: 'Milestone 2', description: 'Define milestones in the planning phase'),
-        _MilestoneData(title: 'Milestone 3', description: 'Define milestones in the planning phase'),
-        _MilestoneData(title: 'Milestone 4', description: 'Define milestones in the planning phase'),
+      final now = DateTime.now();
+      return [
+        _MilestoneData(
+          title: 'Project Initiation',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 30)))}',
+        ),
+        _MilestoneData(
+          title: 'Planning Completion',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 60)))}',
+        ),
+        _MilestoneData(
+          title: 'Design Phase',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 90)))}',
+        ),
+        _MilestoneData(
+          title: 'Implementation Start',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 120)))}',
+        ),
       ];
     }
 
     final milestones = <_MilestoneData>[];
-    
+
     // Extract from key milestones
     for (final milestone in data.keyMilestones) {
       if (milestone.name.isNotEmpty) {
         final description = [
-          if (milestone.discipline.isNotEmpty) 'Discipline: ${milestone.discipline}',
+          if (milestone.discipline.isNotEmpty)
+            'Discipline: ${milestone.discipline}',
           if (milestone.dueDate.isNotEmpty) 'Due: ${milestone.dueDate}',
           if (milestone.comments.isNotEmpty) milestone.comments,
         ].join(' • ');
-        
+
         milestones.add(_MilestoneData(
           title: milestone.name,
-          description: description.isNotEmpty ? description : 'No description available',
+          description:
+              description.isNotEmpty ? description : 'No description available',
         ));
       }
     }
-    
+
     // Extract from planning goals milestones
     for (final goal in data.planningGoals) {
       for (final milestone in goal.milestones) {
         if (milestone.title.isNotEmpty) {
-          final description = milestone.deadline.isNotEmpty 
-            ? 'Due: ${milestone.deadline}' 
-            : 'No deadline specified';
-          
+          final description = milestone.deadline.isNotEmpty
+              ? 'Due: ${milestone.deadline}'
+              : 'No deadline specified';
+
           milestones.add(_MilestoneData(
             title: milestone.title,
             description: description,
@@ -898,16 +1125,36 @@ class _MilestoneGrid extends StatelessWidget {
         }
       }
     }
-    
+
     if (milestones.isEmpty) {
-      return const [
-        _MilestoneData(title: 'Milestone 1', description: 'Define milestones in the planning phase'),
-        _MilestoneData(title: 'Milestone 2', description: 'Define milestones in the planning phase'),
-        _MilestoneData(title: 'Milestone 3', description: 'Define milestones in the planning phase'),
-        _MilestoneData(title: 'Milestone 4', description: 'Define milestones in the planning phase'),
+      // Provide fallback milestones
+      final now = DateTime.now();
+      final projectName =
+          data.projectName.trim().isEmpty ? 'Project' : data.projectName.trim();
+      return [
+        _MilestoneData(
+          title: '$projectName Initiation',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 30)))}',
+        ),
+        _MilestoneData(
+          title: 'Planning Phase Completion',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 60)))}',
+        ),
+        _MilestoneData(
+          title: 'Design Phase Completion',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 90)))}',
+        ),
+        _MilestoneData(
+          title: 'Implementation Start',
+          description:
+              'Due: ${DateFormat('MMM dd, yyyy').format(now.add(const Duration(days: 120)))}',
+        ),
       ];
     }
-    
+
     return milestones.take(8).toList();
   }
 }
@@ -952,7 +1199,8 @@ class _MilestoneTile extends StatelessWidget {
 }
 
 class _ChartSlice {
-  const _ChartSlice({required this.color, required this.value, required this.label});
+  const _ChartSlice(
+      {required this.color, required this.value, required this.label});
 
   final Color color;
   final double value;
@@ -1007,5 +1255,4 @@ class _DonutChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-
 }

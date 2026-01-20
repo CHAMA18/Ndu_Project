@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -112,7 +111,8 @@ class _TeamRolesResponsibilitiesScreenState
         final coverage = _CoverageRow.fromList(data['coverageRows']);
         final hiring = _HiringRow.fromList(data['hiringRows']);
         final decisions = _DecisionRow.fromList(data['decisionRows']);
-        _staffingMetrics = metrics.isEmpty ? _defaultStaffingMetrics() : metrics;
+        _staffingMetrics =
+            metrics.isEmpty ? _defaultStaffingMetrics() : metrics;
         _coverageRows = coverage.isEmpty ? _defaultCoverageRows() : coverage;
         _hiringRows = hiring.isEmpty ? _defaultHiringRows() : hiring;
         _decisionRows = decisions.isEmpty ? _defaultDecisionRows() : decisions;
@@ -154,19 +154,36 @@ class _TeamRolesResponsibilitiesScreenState
 
   List<_CoverageRow> _defaultCoverageRows() {
     return [
-      _CoverageRow(id: _newId(), area: 'Product', owner: '', backup: '', status: 'On track', notes: ''),
+      _CoverageRow(
+          id: _newId(),
+          area: 'Product',
+          owner: '',
+          backup: '',
+          status: 'On track',
+          notes: ''),
     ];
   }
 
   List<_HiringRow> _defaultHiringRows() {
     return [
-      _HiringRow(id: _newId(), role: 'QA Lead', headcount: '1', startDate: '', rampPlan: '', status: 'Planned'),
+      _HiringRow(
+          id: _newId(),
+          role: 'QA Lead',
+          headcount: '1',
+          startDate: '',
+          rampPlan: '',
+          status: 'Planned'),
     ];
   }
 
   List<_DecisionRow> _defaultDecisionRows() {
     return [
-      _DecisionRow(id: _newId(), decision: 'Release readiness', owner: '', approver: '', cadence: 'Weekly'),
+      _DecisionRow(
+          id: _newId(),
+          decision: 'Release readiness',
+          owner: '',
+          approver: '',
+          cadence: 'Weekly'),
     ];
   }
 
@@ -202,7 +219,8 @@ class _TeamRolesResponsibilitiesScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+                        if (_isLoading)
+                          const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -417,7 +435,11 @@ class _TeamRolesResponsibilitiesScreenState
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           const gap = 16.0;
-          final columns = width >= 1020 ? 4 : width >= 720 ? 2 : 1;
+          final columns = width >= 1020
+              ? 4
+              : width >= 720
+                  ? 2
+                  : 1;
           final cardWidth = (width - gap * (columns - 1)) / columns;
           return Wrap(
             spacing: gap,
@@ -428,13 +450,15 @@ class _TeamRolesResponsibilitiesScreenState
                 child: _MetricCard(
                   metric: metric,
                   onChanged: (updated) {
-                    final index = _staffingMetrics.indexWhere((item) => item.id == updated.id);
+                    final index = _staffingMetrics
+                        .indexWhere((item) => item.id == updated.id);
                     if (index == -1) return;
                     setState(() => _staffingMetrics[index] = updated);
                     _scheduleSave();
                   },
                   onDelete: () {
-                    setState(() => _staffingMetrics.removeWhere((item) => item.id == metric.id));
+                    setState(() => _staffingMetrics
+                        .removeWhere((item) => item.id == metric.id));
                     _scheduleSave();
                   },
                 ),
@@ -445,7 +469,8 @@ class _TeamRolesResponsibilitiesScreenState
                   width: cardWidth,
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      setState(() => _staffingMetrics.add(_StaffingMetric(id: _newId(), label: '', value: '')));
+                      setState(() => _staffingMetrics.add(
+                          _StaffingMetric(id: _newId(), label: '', value: '')));
                       _scheduleSave();
                     },
                     icon: const Icon(Icons.add, size: 18),
@@ -527,18 +552,23 @@ class _TeamRolesResponsibilitiesScreenState
             child: TextFormField(
               initialValue: row.backup,
               decoration: _inlineInputDecoration('Backup'),
-              onChanged: (value) => _updateCoverage(row.copyWith(backup: value)),
+              onChanged: (value) =>
+                  _updateCoverage(row.copyWith(backup: value)),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _coverageStatusOptions.contains(row.status) ? row.status : _coverageStatusOptions.first,
+              initialValue: _coverageStatusOptions.contains(row.status)
+                  ? row.status
+                  : _coverageStatusOptions.first,
               decoration: _inlineInputDecoration('Status'),
               items: _coverageStatusOptions
-                  .map((status) => DropdownMenuItem(value: status, child: Text(status)))
+                  .map((status) =>
+                      DropdownMenuItem(value: status, child: Text(status)))
                   .toList(),
-              onChanged: (value) => _updateCoverage(row.copyWith(status: value ?? _coverageStatusOptions.first)),
+              onChanged: (value) => _updateCoverage(
+                  row.copyWith(status: value ?? _coverageStatusOptions.first)),
             ),
           ),
           const SizedBox(width: 12),
@@ -553,7 +583,8 @@ class _TeamRolesResponsibilitiesScreenState
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Color(0xFFD64545)),
             onPressed: () {
-              setState(() => _coverageRows.removeWhere((item) => item.id == row.id));
+              setState(
+                  () => _coverageRows.removeWhere((item) => item.id == row.id));
               _scheduleSave();
             },
           ),
@@ -630,7 +661,8 @@ class _TeamRolesResponsibilitiesScreenState
               initialValue: row.headcount,
               decoration: _inlineInputDecoration('Headcount'),
               keyboardType: TextInputType.number,
-              onChanged: (value) => _updateHiring(row.copyWith(headcount: value)),
+              onChanged: (value) =>
+                  _updateHiring(row.copyWith(headcount: value)),
             ),
           ),
           const SizedBox(width: 12),
@@ -638,7 +670,8 @@ class _TeamRolesResponsibilitiesScreenState
             child: TextFormField(
               initialValue: row.startDate,
               decoration: _inlineInputDecoration('Start date'),
-              onChanged: (value) => _updateHiring(row.copyWith(startDate: value)),
+              onChanged: (value) =>
+                  _updateHiring(row.copyWith(startDate: value)),
             ),
           ),
           const SizedBox(width: 12),
@@ -647,22 +680,30 @@ class _TeamRolesResponsibilitiesScreenState
             child: TextFormField(
               initialValue: row.rampPlan,
               decoration: _inlineInputDecoration('Ramp plan'),
-              onChanged: (value) => _updateHiring(row.copyWith(rampPlan: value)),
+              onChanged: (value) =>
+                  _updateHiring(row.copyWith(rampPlan: value)),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _hiringStatusOptions.contains(row.status) ? row.status : _hiringStatusOptions.first,
+              initialValue: _hiringStatusOptions.contains(row.status)
+                  ? row.status
+                  : _hiringStatusOptions.first,
               decoration: _inlineInputDecoration('Status'),
-              items: _hiringStatusOptions.map((status) => DropdownMenuItem(value: status, child: Text(status))).toList(),
-              onChanged: (value) => _updateHiring(row.copyWith(status: value ?? _hiringStatusOptions.first)),
+              items: _hiringStatusOptions
+                  .map((status) =>
+                      DropdownMenuItem(value: status, child: Text(status)))
+                  .toList(),
+              onChanged: (value) => _updateHiring(
+                  row.copyWith(status: value ?? _hiringStatusOptions.first)),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Color(0xFFD64545)),
             onPressed: () {
-              setState(() => _hiringRows.removeWhere((item) => item.id == row.id));
+              setState(
+                  () => _hiringRows.removeWhere((item) => item.id == row.id));
               _scheduleSave();
             },
           ),
@@ -728,7 +769,8 @@ class _TeamRolesResponsibilitiesScreenState
             child: TextFormField(
               initialValue: row.decision,
               decoration: _inlineInputDecoration('Decision area'),
-              onChanged: (value) => _updateDecision(row.copyWith(decision: value)),
+              onChanged: (value) =>
+                  _updateDecision(row.copyWith(decision: value)),
             ),
           ),
           const SizedBox(width: 12),
@@ -744,7 +786,8 @@ class _TeamRolesResponsibilitiesScreenState
             child: TextFormField(
               initialValue: row.approver,
               decoration: _inlineInputDecoration('Approver'),
-              onChanged: (value) => _updateDecision(row.copyWith(approver: value)),
+              onChanged: (value) =>
+                  _updateDecision(row.copyWith(approver: value)),
             ),
           ),
           const SizedBox(width: 12),
@@ -752,13 +795,15 @@ class _TeamRolesResponsibilitiesScreenState
             child: TextFormField(
               initialValue: row.cadence,
               decoration: _inlineInputDecoration('Cadence'),
-              onChanged: (value) => _updateDecision(row.copyWith(cadence: value)),
+              onChanged: (value) =>
+                  _updateDecision(row.copyWith(cadence: value)),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Color(0xFFD64545)),
             onPressed: () {
-              setState(() => _decisionRows.removeWhere((item) => item.id == row.id));
+              setState(
+                  () => _decisionRows.removeWhere((item) => item.id == row.id));
               _scheduleSave();
             },
           ),
@@ -1129,12 +1174,16 @@ class _SectionCardShell extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827)),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF6B7280)),
                     ),
                   ],
                 ),
@@ -1232,21 +1281,30 @@ class _MetricCard extends StatelessWidget {
         children: [
           TextFormField(
             initialValue: metric.value,
-            decoration: const InputDecoration(border: InputBorder.none, hintText: 'Value'),
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            decoration: const InputDecoration(
+                border: InputBorder.none, hintText: 'Value'),
+            style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827)),
             onChanged: (value) => onChanged(metric.copyWith(value: value)),
           ),
           const SizedBox(height: 6),
           TextFormField(
             initialValue: metric.label,
-            decoration: const InputDecoration(border: InputBorder.none, hintText: 'Label'),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+            decoration: const InputDecoration(
+                border: InputBorder.none, hintText: 'Label'),
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280)),
             onChanged: (value) => onChanged(metric.copyWith(label: value)),
           ),
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(
-              icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFD64545)),
+              icon: const Icon(Icons.delete_outline,
+                  size: 18, color: Color(0xFFD64545)),
               onPressed: onDelete,
             ),
           ),
@@ -1304,7 +1362,8 @@ class _StaffingMetric {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _StaffingMetric(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         label: map['label']?.toString() ?? '',
         value: map['value']?.toString() ?? '',
       );
@@ -1360,7 +1419,8 @@ class _CoverageRow {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _CoverageRow(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         area: map['area']?.toString() ?? '',
         owner: map['owner']?.toString() ?? '',
         backup: map['backup']?.toString() ?? '',
@@ -1419,7 +1479,8 @@ class _HiringRow {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _HiringRow(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         role: map['role']?.toString() ?? '',
         headcount: map['headcount']?.toString() ?? '',
         startDate: map['startDate']?.toString() ?? '',
@@ -1473,7 +1534,8 @@ class _DecisionRow {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _DecisionRow(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: map['id']?.toString() ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         decision: map['decision']?.toString() ?? '',
         owner: map['owner']?.toString() ?? '',
         approver: map['approver']?.toString() ?? '',

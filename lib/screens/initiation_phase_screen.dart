@@ -32,6 +32,7 @@ import 'package:ndu_project/widgets/select_project_kaz_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/project_service.dart';
+import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 
 class InitiationPhaseScreen extends StatefulWidget {
   final bool scrollToBusinessCase;
@@ -128,6 +129,10 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     _notesFocusNode.addListener(_handleNotesFocusChange);
     _businessFocusNode.addListener(_handleBusinessFocusChange);
     
+    // Enable auto-bullet for multi-line fields
+    _notesController.enableAutoBullet();
+    _businessCaseController.enableAutoBullet();
+    
     // Load existing data from provider
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final projectData = ProjectDataHelper.getData(context);
@@ -167,6 +172,9 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     if (_notesInvalid && _meetsNotesMinimum(value)) {
       setState(() => _notesInvalid = false);
     }
+    // Update provider state immediately for persistence
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.updateInitiationData(notes: value.trim());
   }
 
   void _onBusinessChanged(String value) {
@@ -174,6 +182,9 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       setState(() => _businessInvalid = false);
     }
     _scheduleBusinessSuggestions(value);
+    // Update provider state immediately for persistence
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.updateInitiationData(businessCase: value.trim());
     // Also rebuild so sidebar enable/disable state reflects current input
     setState(() {});
   }
@@ -445,10 +456,74 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     );
   }
 
+  bool _isGeneratingAI = false;
+
   Future<void> _handleSkipPressed() async {
     FocusScope.of(context).unfocus();
 
-    // Show modal explaining skip requirements
+    // If business case is empty, generate it with AI
+    if (_businessCaseController.text.trim().isEmpty) {
+      if (!mounted) return;
+      
+      // Show loading overlay
+      setState(() => _isGeneratingAI = true);
+      
+      try {
+        final provider = ProjectDataHelper.getProvider(context);
+        final projectData = provider.projectData;
+        
+        // Generate business case using AI
+        final openAiService = OpenAiServiceSecure();
+        final generatedBusinessCase = await openAiService.generateBusinessCase(
+          projectName: projectData.projectName,
+          notes: _notesController.text.trim(),
+          solutionTitle: projectData.solutionTitle,
+          solutionDescription: projectData.solutionDescription,
+        );
+        
+        if (!mounted) return;
+        
+        // Populate the controller
+        _businessCaseController.text = generatedBusinessCase;
+        
+        // Update provider state
+        provider.updateInitiationData(
+          notes: _notesController.text.trim(),
+          businessCase: generatedBusinessCase,
+        );
+        
+        // Save to Firebase
+        await provider.saveToFirebase(checkpoint: 'business_case');
+        
+        if (!mounted) return;
+        setState(() => _isGeneratingAI = false);
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Business Case generated successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+        return; // Don't proceed to skip flow, user can now review/edit the generated content
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isGeneratingAI = false);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate Business Case: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+    }
+
+    // If business case already exists, show modal explaining skip requirements
     final shouldProceed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -1043,6 +1118,30 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
           ),
           const KazAiChatBubble(),
           const AdminEditToggle(),
+          // Loading overlay for AI generation
+          if (_isGeneratingAI)
+            Container(
+              color: Colors.black.withValues(alpha: 0.5),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Generating Business Case with AI...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

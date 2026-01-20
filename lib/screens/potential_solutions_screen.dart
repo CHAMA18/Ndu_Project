@@ -26,6 +26,7 @@ import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/access_policy.dart';
+import 'package:ndu_project/services/user_service.dart';
 
 class PotentialSolutionsScreen extends StatefulWidget {
   const PotentialSolutionsScreen({super.key});
@@ -35,6 +36,7 @@ class PotentialSolutionsScreen extends StatefulWidget {
 }
 
 class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
+  // ignore: unused_field
   static const List<_SidebarItem> _sidebarItems = [
     _SidebarItem(icon: Icons.home, title: 'Home', enabled: true),
     _SidebarItem(
@@ -51,9 +53,11 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _notesController = TextEditingController();
   late final String _incomingBusinessCase;
+  late final TextEditingController _projectNameController;
   final List<SolutionRow> _solutions = [];
   final OpenAiServiceSecure _openAiService = OpenAiServiceSecure();
   bool _isLoadingSolutions = true;
+  // ignore: unused_field
   String? _loadingError;
   // Anchor to allow sidebar sub-item to scroll to the solutions section
   final GlobalKey _solutionsSectionKey = GlobalKey();
@@ -62,13 +66,24 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   bool _initiationExpanded = true;
   bool _businessCaseExpanded = true;
   bool _frontEndExpanded = true;
+  
+    // Admin status
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
+    _projectNameController = TextEditingController();
     
     // Initialize API key manager
     ApiKeyManager.initializeApiKey();
+    
+    // Check admin status
+    UserService.isCurrentUserAdmin().then((isAdmin) {
+      if (mounted) {
+        setState(() => _isAdmin = isAdmin);
+      }
+    });
     
     // Load data from provider and defer generation
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -162,7 +177,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
       final aiSolutions = await _openAiService.generateSolutionsFromBusinessCase(_incomingBusinessCase);
       _applySolutions(aiSolutions);
     } catch (e) {
-      print('Error generating solutions: $e');
+      debugPrint('Error generating solutions: $e');
       _applyFallback(e.toString());
     }
   }
@@ -247,6 +262,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildTopHeader() {
     final isMobile = AppBreakpoints.isMobile(context);
     return Container(
@@ -349,6 +365,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSidebar() {
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
     final double bannerHeight = AppBreakpoints.isMobile(context) ? 72 : 96;
@@ -572,6 +589,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSubMenuItemLikeRisk(String title, {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
@@ -683,6 +701,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     );
   }
 
+  // ignore: unused_element
   void _openBusinessCase() {
     Navigator.push(
       context,
@@ -801,6 +820,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     }
   }
 
+  // ignore: unused_element
   void _handleMenuTap(String title) {
     if (title == 'Home') {
       HomeScreen.open(context);
@@ -810,7 +830,6 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   }
 
   Widget _buildMainContent() {
-    final isMobile = AppBreakpoints.isMobile(context);
     final pagePadding = AppBreakpoints.pagePadding(context);
     final sectionGap = AppBreakpoints.sectionGap(context);
     final fieldGap = AppBreakpoints.fieldGap(context);
@@ -882,7 +901,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
                       child: EditableContentText(
                         contentKey: 'potential_solutions_description',
                         fallback: AccessPolicy.isRestrictedAdminHost()
-                            ? '(5 AI-generated solutions + add more as needed)'
+                            ? '(5 AI-generated solutions)'
                             : '(Maximum 3 solutions)',
                         category: 'business_case',
                         style: const TextStyle(
@@ -922,25 +941,10 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     }
 
     if (AppBreakpoints.isMobile(context)) {
+      final displayCount = _isAdmin ? _solutions.length : (_solutions.length > 3 ? 3 : _solutions.length);
       return Column(
         children: [
-          for (int i = 0; i < _solutions.length; i++) _buildSolutionCardMobile(_solutions[i], i),
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: ElevatedButton.icon(
-              onPressed: _isLoadingSolutions ? null : _addSolution,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Solution'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black87,
-                side: BorderSide(color: Colors.grey.shade400),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              ),
-            ),
-          ),
+          for (int i = 0; i < displayCount; i++) _buildSolutionCardMobile(_solutions[i], i),
         ],
       );
     }
@@ -999,35 +1003,12 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
           ),
           child: Column(
             children: [
-              for (int i = 0; i < _solutions.length; i++)
+              for (int i = 0; i < (_isAdmin ? _solutions.length : (_solutions.length > 3 ? 3 : _solutions.length)); i++)
                 _buildSolutionRow(
                   _solutions[i],
                   index: i,
-                  isLast: i == _solutions.length - 1,
+                  isLast: i == (_isAdmin ? _solutions.length - 1 : ((_solutions.length > 3 ? 3 : _solutions.length) - 1)),
                 ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              const Text('0/230', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(width: 20),
-              ElevatedButton.icon(
-                onPressed: _isLoadingSolutions ? null : _addSolution,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Solution'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade400),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                ),
-              ),
             ],
           ),
         ),
@@ -1139,11 +1120,6 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
           Wrap(
             spacing: 12,
             children: [
-              OutlinedButton.icon(
-                onPressed: _isLoadingSolutions ? null : _addSolution,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Solution'),
-              ),
               FilledButton.icon(
                 onPressed: _isLoadingSolutions
                     ? null
@@ -1165,9 +1141,6 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   }
 
   Widget _buildSolutionRow(SolutionRow solution, {required int index, bool isLast = false}) {
-    final isAdmin = AccessPolicy.isRestrictedAdminHost();
-    final canDelete = isAdmin && !solution.isAiGenerated;
-    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
@@ -1193,7 +1166,11 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
                   ),
                   child: Text(
                     '${index + 1}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      fontSize: 13, 
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1231,30 +1208,22 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
               ),
             ),
           ),
-          if (canDelete)
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: Colors.red[400], size: 20),
-              onPressed: () => _deleteSolution(index),
-              tooltip: 'Delete solution',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
         ],
       ),
     );
   }
 
   Widget _buildSolutionCardMobile(SolutionRow solution, int index) {
-    final isAdmin = AccessPolicy.isRestrictedAdminHost();
-    final canDelete = isAdmin && !solution.isAiGenerated;
-    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1263,14 +1232,6 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Solution ${index + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black54)),
-              if (canDelete)
-                IconButton(
-                  icon: Icon(Icons.delete_outline, color: Colors.red[400], size: 20),
-                  onPressed: () => _deleteSolution(index),
-                  tooltip: 'Delete solution',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
             ],
           ),
           const SizedBox(height: 6),
@@ -1349,6 +1310,8 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     );
 
     if (!mounted) return;
+    
+    // Navigate to Risk Identification
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RiskIdentificationScreen(
@@ -1360,35 +1323,10 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     );
   }
 
-  void _addSolution() {
-    setState(() {
-      _solutions.add(
-        SolutionRow(
-          titleController: TextEditingController(),
-          descriptionController: TextEditingController(),
-          isAiGenerated: false,
-        ),
-      );
-    });
-  }
-
-  void _deleteSolution(int index) {
-    if (index < 0 || index >= _solutions.length) return;
-    final solution = _solutions[index];
-    
-    // Only allow deletion of user-added solutions on admin host
-    if (!AccessPolicy.isRestrictedAdminHost() || solution.isAiGenerated) return;
-    
-    setState(() {
-      solution.titleController.dispose();
-      solution.descriptionController.dispose();
-      _solutions.removeAt(index);
-    });
-  }
-
   @override
   void dispose() {
     _notesController.dispose();
+    _projectNameController.dispose();
     for (var solution in _solutions) {
       solution.titleController.dispose();
       solution.descriptionController.dispose();

@@ -8,6 +8,9 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/user_access_chip.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 
 /// Front End Planning – Security screen
 /// Mirrors the provided layout with shared workspace chrome,
@@ -29,18 +32,120 @@ class _FrontEndPlanningSecurityScreenState extends State<FrontEndPlanningSecurit
   final TextEditingController _notes = TextEditingController();
   final TextEditingController _securityNotes = TextEditingController();
   bool _isSyncReady = false;
+  bool _isGenerating = false;
+  late final OpenAiServiceSecure _openAi;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _openAi = OpenAiServiceSecure();
+    ApiKeyManager.initializeApiKey();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final data = ProjectDataHelper.getData(context);
       _securityNotes.text = data.frontEndPlanning.security;
       _securityNotes.addListener(_syncSecurityToProvider);
       _isSyncReady = true;
       _syncSecurityToProvider();
+      
+      // Auto-generate security content if empty
+      if (_securityNotes.text.trim().isEmpty) {
+        await _generateSecurityContent();
+      }
+      
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _generateSecurityContent() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+
+    try {
+      final data = ProjectDataHelper.getData(context);
+      final projectContext = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Security');
+      
+      if (projectContext.trim().isNotEmpty) {
+        try {
+          final generatedText = await _openAi.generateFepSectionText(
+            section: 'Security',
+            context: projectContext,
+            maxTokens: 800,
+          );
+          
+          if (mounted && generatedText.isNotEmpty) {
+            setState(() {
+              _securityNotes.text = generatedText;
+              _syncSecurityToProvider();
+            });
+          }
+        } catch (e) {
+          debugPrint('Error generating security content: $e');
+          // Use fallback content
+          if (mounted) {
+            setState(() {
+              _securityNotes.text = _getFallbackSecurityContent(data);
+              _syncSecurityToProvider();
+            });
+          }
+        }
+      } else {
+        // Use fallback if no context available
+        if (mounted) {
+          setState(() {
+            _securityNotes.text = _getFallbackSecurityContent(data);
+            _syncSecurityToProvider();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in security generation: $e');
+      // Use fallback content
+      if (mounted) {
+        final data = ProjectDataHelper.getData(context);
+        setState(() {
+          _securityNotes.text = _getFallbackSecurityContent(data);
+          _syncSecurityToProvider();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
+  }
+
+  String _getFallbackSecurityContent(ProjectDataModel data) {
+    return '''Security Considerations and Requirements
+
+Access Control and Authentication:
+- Implement role-based access control (RBAC) to ensure users have appropriate permissions
+- Establish multi-factor authentication (MFA) for sensitive systems and data access
+- Define user access policies and review access rights regularly
+
+Data Protection:
+- Encrypt sensitive data at rest and in transit using industry-standard encryption protocols
+- Implement data classification policies to identify and protect confidential information
+- Establish secure data backup and recovery procedures
+
+Network Security:
+- Deploy firewalls and intrusion detection/prevention systems
+- Implement network segmentation to isolate critical systems
+- Establish secure VPN access for remote users
+
+Compliance and Governance:
+- Ensure compliance with relevant security standards and regulations (e.g., ISO 27001, GDPR)
+- Conduct regular security audits and vulnerability assessments
+- Establish incident response procedures and security monitoring
+
+Physical Security:
+- Secure physical access to facilities and equipment
+- Implement environmental controls for data centers and server rooms
+- Establish visitor access policies and procedures
+
+Security Training:
+- Provide security awareness training for all project team members
+- Establish clear security policies and procedures
+- Conduct regular security reviews and updates''';
   }
 
   @override

@@ -3,11 +3,14 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/screens/front_end_planning_screen.dart';
+import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/user_access_chip.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 
 /// Front End Planning – Allowance screen
 /// Mirrors the provided layout with shared workspace chrome,
@@ -17,30 +20,137 @@ class FrontEndPlanningAllowanceScreen extends StatefulWidget {
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const FrontEndPlanningAllowanceScreen()),
+      MaterialPageRoute(
+          builder: (_) => const FrontEndPlanningAllowanceScreen()),
     );
   }
 
   @override
-  State<FrontEndPlanningAllowanceScreen> createState() => _FrontEndPlanningAllowanceScreenState();
+  State<FrontEndPlanningAllowanceScreen> createState() =>
+      _FrontEndPlanningAllowanceScreenState();
 }
 
-class _FrontEndPlanningAllowanceScreenState extends State<FrontEndPlanningAllowanceScreen> {
+class _FrontEndPlanningAllowanceScreenState
+    extends State<FrontEndPlanningAllowanceScreen> {
   final TextEditingController _notes = TextEditingController();
   final TextEditingController _allowanceNotes = TextEditingController();
   bool _isSyncReady = false;
+  bool _isGenerating = false;
+  late final OpenAiServiceSecure _openAi;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _openAi = OpenAiServiceSecure();
+    ApiKeyManager.initializeApiKey();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final data = ProjectDataHelper.getData(context);
       _allowanceNotes.text = data.frontEndPlanning.allowance;
       _allowanceNotes.addListener(_syncAllowanceToProvider);
       _isSyncReady = true;
       _syncAllowanceToProvider();
+
+      // Auto-generate allowance content if empty
+      if (_allowanceNotes.text.trim().isEmpty) {
+        await _generateAllowanceContent();
+      }
+
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _generateAllowanceContent() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+
+    try {
+      final data = ProjectDataHelper.getData(context);
+      final projectContext =
+          ProjectDataHelper.buildFepContext(data, sectionLabel: 'Allowance');
+
+      if (projectContext.trim().isNotEmpty) {
+        try {
+          final generatedText = await _openAi.generateFepSectionText(
+            section: 'Allowance',
+            context: projectContext,
+            maxTokens: 800,
+          );
+
+          if (mounted && generatedText.isNotEmpty) {
+            setState(() {
+              _allowanceNotes.text = generatedText;
+              _syncAllowanceToProvider();
+            });
+          }
+        } catch (e) {
+          debugPrint('Error generating allowance content: $e');
+          // Use fallback content
+          if (mounted) {
+            setState(() {
+              _allowanceNotes.text = _getFallbackAllowanceContent(data);
+              _syncAllowanceToProvider();
+            });
+          }
+        }
+      } else {
+        // Use fallback if no context available
+        if (mounted) {
+          setState(() {
+            _allowanceNotes.text = _getFallbackAllowanceContent(data);
+            _syncAllowanceToProvider();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in allowance generation: $e');
+      // Use fallback content
+      if (mounted) {
+        final data = ProjectDataHelper.getData(context);
+        setState(() {
+          _allowanceNotes.text = _getFallbackAllowanceContent(data);
+          _syncAllowanceToProvider();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
+  }
+
+  String _getFallbackAllowanceContent(ProjectDataModel data) {
+    return '''Budget Allowances and Contingencies
+
+Project Budget Allocation:
+- Allocate 10-15% of total project budget as contingency reserve for unforeseen expenses
+- Set aside 5-10% for scope changes and requirement modifications
+- Reserve 3-5% for risk mitigation activities
+
+Cost Categories:
+- Labor costs: Include buffer for overtime, training, and knowledge transfer
+- Material and equipment: Account for price fluctuations and delivery delays
+- Third-party services: Include contingency for vendor cost overruns
+- Infrastructure: Reserve funds for additional capacity or upgrades
+
+Contingency Management:
+- Establish approval process for accessing contingency funds
+- Track contingency usage against project milestones
+- Review and adjust contingency allocation based on project progress
+
+Risk-Based Allowances:
+- High-risk areas: Allocate additional 10-15% contingency
+- Medium-risk areas: Standard 5-10% contingency
+- Low-risk areas: Minimal 2-5% contingency
+
+Change Management:
+- Budget for approved change requests and scope expansions
+- Maintain separate change order budget tracking
+- Document all budget adjustments and approvals
+
+Financial Controls:
+- Implement regular budget reviews and variance analysis
+- Establish spending thresholds and approval limits
+- Monitor actual costs against budgeted amounts monthly''';
   }
 
   @override
@@ -87,15 +197,19 @@ class _FrontEndPlanningAllowanceScreenState extends State<FrontEndPlanningAllowa
                       const FrontEndPlanningHeader(),
                       Expanded(
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 24),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                        _roundedField(controller: _notes, hint: 'Input your notes here...', minLines: 3),
-                        const SizedBox(height: 24),
-                        const _SectionTitle(),
-                        const SizedBox(height: 18),
-                        _AllowancePanel(controller: _allowanceNotes),
+                              _roundedField(
+                                  controller: _notes,
+                                  hint: 'Input your notes here...',
+                                  minLines: 3),
+                              const SizedBox(height: 24),
+                              const _SectionTitle(),
+                              const SizedBox(height: 18),
+                              _AllowancePanel(controller: _allowanceNotes),
                               const SizedBox(height: 140),
                             ],
                           ),
@@ -131,12 +245,18 @@ class _TopBar extends StatelessWidget {
       child: Row(
         children: [
           Row(children: [
-            _circleButton(icon: Icons.arrow_back_ios_new_rounded, onTap: () => Navigator.maybePop(context)),
+            _circleButton(
+                icon: Icons.arrow_back_ios_new_rounded,
+                onTap: () => Navigator.maybePop(context)),
             const SizedBox(width: 8),
             _circleButton(icon: Icons.arrow_forward_ios_rounded, onTap: () {}),
           ]),
           const Spacer(),
-          const Text('Front End Planning', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black87)),
+          const Text('Front End Planning',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87)),
           const Spacer(),
           const UserAccessChip(),
         ],
@@ -179,7 +299,8 @@ class _SectionTitle extends StatelessWidget {
             ),
           ),
           TextSpan(
-            text: '(Identify budget allowances and contingencies for the project.)',
+            text:
+                '(Identify budget allowances and contingencies for the project.)',
             style: TextStyle(
               fontSize: 14,
               color: Color(0xFF6B7280),
@@ -222,7 +343,7 @@ class _AllowancePanel extends StatelessWidget {
 
 class _BottomOverlay extends StatelessWidget {
   const _BottomOverlay({required this.allowanceController});
-  
+
   final TextEditingController allowanceController;
 
   @override
@@ -238,7 +359,8 @@ class _BottomOverlay extends StatelessWidget {
               child: Container(
                 width: 48,
                 height: 48,
-                decoration: const BoxDecoration(color: Color(0xFFB3D9FF), shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                    color: Color(0xFFB3D9FF), shape: BoxShape.circle),
                 child: const Icon(Icons.info_outline, color: Colors.white),
               ),
             ),
@@ -248,7 +370,8 @@ class _BottomOverlay extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 16),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE6F1FF),
                       borderRadius: BorderRadius.circular(14),
@@ -259,7 +382,10 @@ class _BottomOverlay extends StatelessWidget {
                       children: const [
                         Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
                         SizedBox(width: 10),
-                        Text('AI', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+                        Text('AI',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF2563EB))),
                         SizedBox(width: 12),
                         Text(
                           'Define budget allowances and contingency plans.',
@@ -274,7 +400,7 @@ class _BottomOverlay extends StatelessWidget {
                       await ProjectDataHelper.saveAndNavigate(
                         context: context,
                         checkpoint: 'fep_allowance',
-                        nextScreenBuilder: () => const FrontEndPlanningScreen(),
+                        nextScreenBuilder: () => const ProjectCharterScreen(),
                         dataUpdater: (data) => data.copyWith(
                           frontEndPlanning: ProjectDataHelper.updateFEPField(
                             current: data.frontEndPlanning,
@@ -282,15 +408,19 @@ class _BottomOverlay extends StatelessWidget {
                           ),
                         ),
                       );
-                    }, 
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFC812),
                       foregroundColor: const Color(0xFF111827),
-                      padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 34, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22)),
                       elevation: 0,
                     ),
-                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    child: const Text('Next',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -302,7 +432,10 @@ class _BottomOverlay extends StatelessWidget {
   }
 }
 
-Widget _roundedField({required TextEditingController controller, required String hint, int minLines = 1}) {
+Widget _roundedField(
+    {required TextEditingController controller,
+    required String hint,
+    int minLines = 1}) {
   return Container(
     width: double.infinity,
     decoration: BoxDecoration(

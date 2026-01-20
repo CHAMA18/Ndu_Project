@@ -176,18 +176,44 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
                           minLines: 3,
                         ),
                         const SizedBox(height: 20),
-                        const EditableContentText(
-                          contentKey: 'fep_requirements_title',
-                          fallback: 'Project Requirements',
-                          category: 'front_end_planning',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
-                        ),
-                        const SizedBox(height: 6),
-                        const EditableContentText(
-                          contentKey: 'fep_requirements_subtitle',
-                          fallback: 'Identify actual needs, conditions, or capabilities that this project must meet to be\nconsidered successful',
-                          category: 'front_end_planning',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.2),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const EditableContentText(
+                                    contentKey: 'fep_requirements_title',
+                                    fallback: 'Project Requirements',
+                                    category: 'front_end_planning',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const EditableContentText(
+                                    contentKey: 'fep_requirements_subtitle',
+                                    fallback: 'Identify actual needs, conditions, or capabilities that this project must meet to be\nconsidered successful',
+                                    category: 'front_end_planning',
+                                    style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Refresh icon in top-right of card header
+                            IconButton(
+                              icon: _isGeneratingRequirements
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                                    )
+                                  : const Icon(Icons.refresh, size: 20, color: Color(0xFF2563EB)),
+                              onPressed: _isGeneratingRequirements ? null : _confirmRegenerate,
+                              tooltip: 'Regenerate requirements',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 14),
                         _buildRequirementsTable(context),
@@ -231,6 +257,7 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
           1: FlexColumnWidth(2.5),
           2: FixedColumnWidth(220),
           3: FlexColumnWidth(2.5),
+          4: FixedColumnWidth(60),
         },
         border: TableBorder(
           horizontalInside: border,
@@ -249,12 +276,33 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
               _th('Requirement', headerStyle),
               _th('Requirement type', headerStyle),
               _th('Comments', headerStyle),
+              _th('', headerStyle), // Empty header for delete column
             ],
           ),
-          ..._rows.map((r) => r.buildRow(context)),
+          ..._rows.asMap().entries.map((entry) {
+            final index = entry.key;
+            final row = entry.value;
+            return row.buildRow(context, index, _deleteRow);
+          }),
         ],
       ),
     );
+  }
+  
+  void _deleteRow(int index) {
+    if (index < 0 || index >= _rows.length) return;
+    
+    setState(() {
+      _rows[index].dispose();
+      _rows.removeAt(index);
+      // Renumber remaining rows
+      for (int i = 0; i < _rows.length; i++) {
+        _rows[i].number = i + 1;
+      }
+    });
+    
+    // Update provider state and Firebase
+    _commitAutoSave(showSnack: false);
   }
 
   Widget _th(String text, TextStyle style) {
@@ -288,30 +336,6 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             ),
             child: const Text('Add another', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-          ),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          height: 44,
-          child: OutlinedButton.icon(
-            onPressed: _isGeneratingRequirements ? null : _confirmRegenerate,
-            icon: _isGeneratingRequirements
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
-                  )
-                : const Icon(Icons.auto_awesome, size: 18),
-            label: Text(
-              _isGeneratingRequirements ? 'Generating...' : 'Regenerate',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF2563EB),
-              side: const BorderSide(color: Color(0xFFBFDBFE)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
           ),
         ),
       ],
@@ -448,11 +472,15 @@ class _FrontEndPlanningRequirementsScreenState extends State<FrontEndPlanningReq
 }
 
 class _RequirementRow {
-  _RequirementRow({required this.number, this.onChanged})
-      : descriptionController = TextEditingController(),
+  _RequirementRow({required int number, this.onChanged})
+      : _number = number,
+        descriptionController = TextEditingController(),
         commentsController = TextEditingController();
 
-  final int number;
+  int _number;
+  int get number => _number;
+  set number(int value) => _number = value;
+  
   final TextEditingController descriptionController;
   final TextEditingController commentsController;
   String? selectedType;
@@ -463,7 +491,7 @@ class _RequirementRow {
     commentsController.dispose();
   }
 
-  TableRow buildRow(BuildContext context) {
+  TableRow buildRow(BuildContext context, int index, void Function(int) onDelete) {
     return TableRow(
       children: [
         Padding(
@@ -510,6 +538,16 @@ class _RequirementRow {
               isDense: true,
             ),
             style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFEF4444)),
+            onPressed: () => onDelete(index),
+            tooltip: 'Delete requirement',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ),
       ],

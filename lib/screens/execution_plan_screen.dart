@@ -15,6 +15,7 @@ import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 
 class ExecutionPlanScreen extends StatefulWidget {
   const ExecutionPlanScreen({super.key});
@@ -330,13 +331,23 @@ class _ExecutionPlanFormState extends State<_ExecutionPlanForm> {
       final trimmed = value.trim();
       final success = await ProjectDataHelper.updateAndSave(
         context: context,
-        checkpoint: 'planning_$noteKey',
-        dataUpdater: (data) => data.copyWith(
-          planningNotes: {
-            ...data.planningNotes,
-            noteKey: trimmed,
-          },
-        ),
+        checkpoint: 'execution_$noteKey',
+        dataUpdater: (data) {
+          final currentExecutionData = data.executionPhaseData ?? ExecutionPhaseData();
+          final updatedExecutionData = (noteKey == 'execution_plan_outline')
+              ? currentExecutionData.copyWith(executionPlanOutline: trimmed)
+              : (noteKey == 'execution_plan_strategy')
+                  ? currentExecutionData.copyWith(executionPlanStrategy: trimmed)
+                  : currentExecutionData;
+          
+          return data.copyWith(
+            executionPhaseData: updatedExecutionData,
+            planningNotes: {
+              ...data.planningNotes,
+              noteKey: trimmed, // Keep in planningNotes for backward compatibility
+            },
+          );
+        },
         showSnackbar: false,
       );
       if (mounted && success) {
@@ -349,8 +360,21 @@ class _ExecutionPlanFormState extends State<_ExecutionPlanForm> {
   Widget build(BuildContext context) {
     final noteKey = widget.noteKey;
     if (noteKey != null && _currentText.isEmpty) {
-      final saved =
-          ProjectDataHelper.getData(context).planningNotes[noteKey] ?? '';
+      final projectData = ProjectDataHelper.getData(context);
+      String saved = '';
+      
+      // Try to load from executionPhaseData first
+      if (noteKey == 'execution_plan_outline') {
+        saved = projectData.executionPhaseData?.executionPlanOutline ?? '';
+      } else if (noteKey == 'execution_plan_strategy') {
+        saved = projectData.executionPhaseData?.executionPlanStrategy ?? '';
+      }
+      
+      // Fallback to planningNotes for backward compatibility
+      if (saved.isEmpty) {
+        saved = projectData.planningNotes[noteKey] ?? '';
+      }
+      
       if (saved.trim().isNotEmpty) {
         _currentText = saved;
       }
@@ -366,7 +390,19 @@ class _ExecutionPlanFormState extends State<_ExecutionPlanForm> {
           showLabel: true,
           initialText: noteKey == null
               ? null
-              : ProjectDataHelper.getData(context).planningNotes[noteKey],
+              : () {
+                  final projectData = ProjectDataHelper.getData(context);
+                  // Try executionPhaseData first
+                  if (noteKey == 'execution_plan_outline') {
+                    return projectData.executionPhaseData?.executionPlanOutline ?? 
+                           projectData.planningNotes[noteKey];
+                  } else if (noteKey == 'execution_plan_strategy') {
+                    return projectData.executionPhaseData?.executionPlanStrategy ?? 
+                           projectData.planningNotes[noteKey];
+                  }
+                  // Fallback to planningNotes
+                  return projectData.planningNotes[noteKey];
+                }(),
           autoGenerate: true,
           autoGenerateSection: widget.title,
           onChanged: _handleChanged,
@@ -1208,6 +1244,7 @@ class _EarlyWorksTable extends StatelessWidget {
     _showToolDialog(context, null, projectId);
   }
 
+  // ignore: unused_element
   static void showEditDialog(BuildContext context, ExecutionToolModel tool) {
     final projectId = _getProjectIdStatic(context);
     if (projectId == null) {
@@ -1220,6 +1257,7 @@ class _EarlyWorksTable extends StatelessWidget {
     _showToolDialog(context, tool, projectId);
   }
 
+  // ignore: unused_element
   static void showDeleteDialog(BuildContext context, ExecutionToolModel tool) {
     final projectId = _getProjectIdStatic(context);
     if (projectId == null) {
@@ -3401,6 +3439,7 @@ class _BestPracticesTable extends StatelessWidget {
         context, null, projectId, 'BP');
   }
 
+  // ignore: unused_element
   static void showEditDialog(
       BuildContext context, ExecutionIssueModel request) {
     final projectId = _getProjectIdStatic(context);
@@ -3415,6 +3454,7 @@ class _BestPracticesTable extends StatelessWidget {
         context, request, projectId, 'BP');
   }
 
+  // ignore: unused_element
   static void showDeleteDialog(
       BuildContext context, ExecutionIssueModel request) {
     final projectId = _getProjectIdStatic(context);

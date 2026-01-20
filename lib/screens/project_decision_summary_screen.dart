@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ndu_project/screens/initiation_phase_screen.dart';
+import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -29,19 +29,24 @@ class ProjectDecisionSummaryScreen extends StatefulWidget {
   });
 
   @override
-  State<ProjectDecisionSummaryScreen> createState() => _ProjectDecisionSummaryScreenState();
+  State<ProjectDecisionSummaryScreen> createState() =>
+      _ProjectDecisionSummaryScreenState();
 }
 
-class _ProjectDecisionSummaryScreenState extends State<ProjectDecisionSummaryScreen> {
+class _ProjectDecisionSummaryScreenState
+    extends State<ProjectDecisionSummaryScreen> {
   String? _selectedSolutionTitle;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadExistingSelection());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _loadExistingSelection());
   }
 
-  String get _safeProjectName => widget.projectName.trim().isEmpty ? widget.selectedSolution.title : widget.projectName.trim();
+  String get _safeProjectName => widget.projectName.trim().isEmpty
+      ? widget.selectedSolution.title
+      : widget.projectName.trim();
 
   Future<void> _loadExistingSelection() async {
     try {
@@ -92,7 +97,7 @@ class _ProjectDecisionSummaryScreenState extends State<ProjectDecisionSummaryScr
     try {
       final provider = ProjectDataHelper.getProvider(context);
       final currentAnalysis = provider.projectData.preferredSolutionAnalysis;
-      
+
       final updatedAnalysis = PreferredSolutionAnalysis(
         workingNotes: currentAnalysis?.workingNotes ?? '',
         solutionAnalyses: currentAnalysis?.solutionAnalyses ?? [],
@@ -120,6 +125,7 @@ class _ProjectDecisionSummaryScreenState extends State<ProjectDecisionSummaryScr
 
   @override
   Widget build(BuildContext context) {
+    // ignore: unused_local_variable
     final isMobile = AppBreakpoints.isMobile(context);
     return Scaffold(
       backgroundColor: Colors.white,
@@ -129,7 +135,8 @@ class _ProjectDecisionSummaryScreenState extends State<ProjectDecisionSummaryScr
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Preferred Solutions'),
+              child: const InitiationLikeSidebar(
+                  activeItemLabel: 'Preferred Solutions'),
             ),
             Expanded(
               child: Stack(
@@ -187,14 +194,14 @@ class _ProjectDecisionSummaryScreenState extends State<ProjectDecisionSummaryScr
     try {
       final provider = ProjectDataHelper.getProvider(context);
       final updatedData = provider.projectData.copyWith(
-        currentCheckpoint: 'executive_summary',
+        currentCheckpoint: 'fep_summary',
       );
       provider.updateProjectData(updatedData);
 
       if (provider.projectData.projectId != null) {
         await ProjectService.updateCheckpoint(
           projectId: provider.projectData.projectId!,
-          checkpointRoute: 'executive_summary',
+          checkpointRoute: 'fep_summary',
         );
       }
     } catch (e) {
@@ -206,11 +213,11 @@ class _ProjectDecisionSummaryScreenState extends State<ProjectDecisionSummaryScr
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
 
-    // Navigate to Executive Summary (InitiationPhaseScreen)
+    // Navigate to Front End Planning Summary
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const InitiationPhaseScreen(),
+        builder: (_) => const FrontEndPlanningSummaryScreen(),
       ),
     );
   }
@@ -261,8 +268,7 @@ class _Header extends StatelessWidget {
                   radius: 18,
                   backgroundColor: Colors.blue[400],
                   child: Text(
-                    FirebaseAuthService
-                        .displayNameOrEmail(fallback: 'U')
+                    FirebaseAuthService.displayNameOrEmail(fallback: 'U')
                         .characters
                         .first
                         .toUpperCase(),
@@ -279,14 +285,18 @@ class _Header extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        FirebaseAuthService.displayNameOrEmail(fallback: 'User'),
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        FirebaseAuthService.displayNameOrEmail(
+                            fallback: 'User'),
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
                       ),
-                      const Text('Owner', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      const Text('Owner',
+                          style: TextStyle(fontSize: 10, color: Colors.grey)),
                     ],
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey),
+                  const Icon(Icons.keyboard_arrow_down,
+                      size: 18, color: Colors.grey),
                 ],
               ],
             ),
@@ -325,7 +335,8 @@ class _MainContent extends StatefulWidget {
 }
 
 class _MainContentState extends State<_MainContent> {
-  int _activeTab = 0; // 0=Business Case, 1=Preferred Solution, 2=Risk Identification, 3=Core Stakeholders
+  int _activeTab =
+      0; // 0=Business Case, 1=Preferred Solution, 2=Risk Identification, 3=Core Stakeholders
   String? _riskSummary;
   String? _stakeholderSummary;
   bool _loadingRisks = false;
@@ -344,10 +355,14 @@ class _MainContentState extends State<_MainContent> {
     try {
       final openAi = OpenAiServiceSecure();
       final map = await openAi.generateRisksForSolutions([
-        AiSolutionItem(title: widget.selectedSolution.title, description: widget.selectedSolution.description),
+        AiSolutionItem(
+            title: widget.selectedSolution.title,
+            description: widget.selectedSolution.description),
       ], contextNotes: widget.notes);
       final risks = map[widget.selectedSolution.title] ?? const <String>[];
-      final text = risks.isEmpty ? 'No risks captured yet.' : 'Top risks: ${risks.join('; ')}.';
+      final text = risks.isEmpty
+          ? 'No risks captured yet.'
+          : 'Top risks: ${risks.join('; ')}.';
       setState(() {
         _riskSummary = text;
         _riskError = null;
@@ -368,10 +383,14 @@ class _MainContentState extends State<_MainContent> {
     try {
       final openAi = OpenAiServiceSecure();
       final map = await openAi.generateStakeholdersForSolutions([
-        AiSolutionItem(title: widget.selectedSolution.title, description: widget.selectedSolution.description),
+        AiSolutionItem(
+            title: widget.selectedSolution.title,
+            description: widget.selectedSolution.description),
       ], contextNotes: widget.notes);
       final list = map[widget.selectedSolution.title] ?? const <String>[];
-      final text = list.isEmpty ? 'No stakeholders captured yet.' : 'Key stakeholders: ${list.join('; ')}.';
+      final text = list.isEmpty
+          ? 'No stakeholders captured yet.'
+          : 'Key stakeholders: ${list.join('; ')}.';
       setState(() {
         _stakeholderSummary = text;
         _stakeholderError = null;
@@ -386,6 +405,7 @@ class _MainContentState extends State<_MainContent> {
     }
   }
 
+  // ignore: unused_element
   void _onTabSelected(int index) {
     setState(() => _activeTab = index);
     if (index == 2) {
@@ -418,12 +438,12 @@ class _MainContentState extends State<_MainContent> {
   }
 
   Widget _buildComparisonCards() {
-    final solutions = widget.allSolutions.isNotEmpty 
-        ? widget.allSolutions 
-        : [widget.selectedSolution];
-    
+    // Show ONLY the selected preferred solution.
+    final solutions = <AiSolutionItem>[widget.selectedSolution];
+
     if (solutions.isEmpty) {
-      return const Center(child: Text('No solutions available for comparison.'));
+      return const Center(
+          child: Text('No solutions available for comparison.'));
     }
 
     // Get analysis data from context
@@ -446,23 +466,28 @@ class _MainContentState extends State<_MainContent> {
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: solutions.map((solution) => _buildSolutionCard(
-        solution,
-        analysisData: getAnalysisForSolution(solution.title),
-        isSelected: widget.selectedSolutionTitle == solution.title,
-      )).toList(),
+      children: solutions
+          .map((solution) => _buildSolutionCard(
+                solution,
+                analysisData: getAnalysisForSolution(solution.title),
+                isSelected: true,
+              ))
+          .toList(),
     );
   }
 
-  Widget _buildSolutionCard(AiSolutionItem solution, {required bool isSelected, required SolutionAnalysisItem? analysisData}) {
-    final solutionTitle = solution.title.isNotEmpty ? solution.title : 'Potential Opportunity';
-    
+  Widget _buildSolutionCard(AiSolutionItem solution,
+      {required bool isSelected, required SolutionAnalysisItem? analysisData}) {
+    final solutionTitle =
+        solution.title.isNotEmpty ? solution.title : 'Potential Opportunity';
+
     // Check if THIS specific solution is the selected one
-    final isThisSolutionSelected = widget.selectedSolutionTitle == solutionTitle;
-    
+    final isThisSolutionSelected =
+        widget.selectedSolutionTitle == solutionTitle;
+
     // Use actual data if available, otherwise use placeholder
-    final stakeholders = analysisData?.stakeholders.isNotEmpty == true 
-        ? analysisData!.stakeholders 
+    final stakeholders = analysisData?.stakeholders.isNotEmpty == true
+        ? analysisData!.stakeholders
         : [
             'Regulatory authority (industry-specific)',
             'Data protection authority / privacy office',
@@ -470,7 +495,7 @@ class _MainContentState extends State<_MainContent> {
             'External vendors / systems integrators',
             'Compliance & internal audit',
           ];
-    
+
     final risks = analysisData?.risks.isNotEmpty == true
         ? analysisData!.risks
         : [
@@ -478,97 +503,101 @@ class _MainContentState extends State<_MainContent> {
             'Integration challenges with existing systems and data.',
             'Resource constraints or skill gaps delay milestones.',
           ];
-    
+
     return Expanded(
       child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isThisSolutionSelected ? const Color(0xFFFFD700) : Colors.grey.withValues(alpha: 0.2),
-          width: isThisSolutionSelected ? 2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isThisSolutionSelected ? 0.08 : 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isThisSolutionSelected
+                ? const Color(0xFFFFD700)
+                : Colors.grey.withValues(alpha: 0.2),
+            width: isThisSolutionSelected ? 2 : 1,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  solutionTitle,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFD700),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.auto_awesome, size: 14),
-                    SizedBox(width: 4),
-                    Text('AI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            solution.description.isNotEmpty ? solution.description : 'Discipline',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 20),
-          _buildComparisonSection('Engage these stakeholders', stakeholders),
-          const SizedBox(height: 20),
-          _buildComparisonSection('Risks to monitor', risks),
-          const SizedBox(height: 20),
-          _buildFinancialSignals(analysisData),
-          const SizedBox(height: 20),
-          if (analysisData?.costs != null && analysisData!.costs.isNotEmpty) ...[
-            for (var cost in analysisData.costs.take(2))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _buildPhaseFromCost(cost),
-              ),
-          ] else ...[
-            _buildPhase('Discovery & Planning', 'Workshops, requirements, roadmap and governance setup', '\$25,000', '12.0%', '\$8,000'),
-            const SizedBox(height: 16),
-            _buildPhase('MVP Build', 'Design, engineering, testing for initial release', '\$120,000', '16.3%', '\$24,000'),
-          ],
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: isThisSolutionSelected ? null : () => widget.onSelectSolution(solutionTitle),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isThisSolutionSelected ? Colors.grey[300] : const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                elevation: 0,
-              ),
-              child: Text(
-                isThisSolutionSelected ? 'Selected' : 'Select Project',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black
+                  .withValues(alpha: isThisSolutionSelected ? 0.08 : 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    solutionTitle,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD700),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, size: 14),
+                      SizedBox(width: 4),
+                      Text('AI',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              solution.description.isNotEmpty
+                  ? solution.description
+                  : 'Discipline',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
+            _buildComparisonSection('Engage these stakeholders', stakeholders),
+            const SizedBox(height: 20),
+            _buildComparisonSection('Risks to monitor', risks),
+            const SizedBox(height: 20),
+            _buildFinancialSignals(analysisData),
+            const SizedBox(height: 20),
+            if (analysisData?.costs != null &&
+                analysisData!.costs.isNotEmpty) ...[
+              for (var cost in analysisData.costs.take(2))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _buildPhaseFromCost(cost),
+                ),
+            ] else ...[
+              _buildPhase(
+                  'Discovery & Planning',
+                  'Workshops, requirements, roadmap and governance setup',
+                  '\$25,000',
+                  '12.0%',
+                  '\$8,000'),
+              const SizedBox(height: 16),
+              _buildPhase(
+                  'MVP Build',
+                  'Design, engineering, testing for initial release',
+                  '\$120,000',
+                  '16.3%',
+                  '\$24,000'),
+            ],
+            const SizedBox(height: 24),
+            // Selection happens in Preferred Solution Analysis; this page is read-only.
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -576,18 +605,21 @@ class _MainContentState extends State<_MainContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         ...items.map((item) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('- ', style: TextStyle(fontSize: 13)),
-              Expanded(child: Text(item, style: const TextStyle(fontSize: 13, height: 1.4))),
-            ],
-          ),
-        )),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('- ', style: TextStyle(fontSize: 13)),
+                  Expanded(
+                      child: Text(item,
+                          style: const TextStyle(fontSize: 13, height: 1.4))),
+                ],
+              ),
+            )),
       ],
     );
   }
@@ -597,7 +629,8 @@ class _MainContentState extends State<_MainContent> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Financial signals', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          const Text('Financial signals',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -621,9 +654,11 @@ class _MainContentState extends State<_MainContent> {
     }
 
     final costs = analysisData.costs;
-    final totalInvestment = costs.fold<double>(0, (sum, cost) => sum + cost.estimatedCost);
-    final avgRoi = costs.fold<double>(0, (sum, cost) => sum + cost.roiPercent) / costs.length;
-    
+    final totalInvestment =
+        costs.fold<double>(0, (sum, cost) => sum + cost.estimatedCost);
+    final avgRoi = costs.fold<double>(0, (sum, cost) => sum + cost.roiPercent) /
+        costs.length;
+
     // Calculate best NPV from year 5 across all costs
     double bestNpv = 0;
     for (var cost in costs) {
@@ -632,21 +667,25 @@ class _MainContentState extends State<_MainContent> {
         if (npv > bestNpv) bestNpv = npv;
       }
     }
-    
-    final largestCost = costs.reduce((a, b) => a.estimatedCost > b.estimatedCost ? a : b);
+
+    final largestCost =
+        costs.reduce((a, b) => a.estimatedCost > b.estimatedCost ? a : b);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Financial signals', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const Text('Financial signals',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildFinancialChip('Total investment: \$${totalInvestment.toStringAsFixed(0)}'),
+            _buildFinancialChip(
+                'Total investment: \$${totalInvestment.toStringAsFixed(0)}'),
             _buildFinancialChip('Avg ROI ${avgRoi.toStringAsFixed(1)}%'),
-            _buildFinancialChip('Best NPV (5yr) \$${bestNpv.toStringAsFixed(0)}'),
+            _buildFinancialChip(
+                'Best NPV (5yr) \$${bestNpv.toStringAsFixed(0)}'),
           ],
         ),
         const SizedBox(height: 12),
@@ -654,7 +693,8 @@ class _MainContentState extends State<_MainContent> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildFinancialChip('Largest cost driver: ${largestCost.item} - \$${largestCost.estimatedCost.toStringAsFixed(0)}'),
+            _buildFinancialChip(
+                'Largest cost driver: ${largestCost.item} - \$${largestCost.estimatedCost.toStringAsFixed(0)}'),
           ],
         ),
       ],
@@ -666,15 +706,18 @@ class _MainContentState extends State<_MainContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(cost.item, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(cost.item,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
-        Text(cost.description, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(cost.description,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildFinancialChip('Est. cost \$${cost.estimatedCost.toStringAsFixed(0)}'),
+            _buildFinancialChip(
+                'Est. cost \$${cost.estimatedCost.toStringAsFixed(0)}'),
             _buildFinancialChip('ROI ${cost.roiPercent.toStringAsFixed(1)}%'),
             _buildFinancialChip('NPV (5yr) \$${npv5yr.toStringAsFixed(0)}'),
           ],
@@ -689,19 +732,24 @@ class _MainContentState extends State<_MainContent> {
       decoration: BoxDecoration(
         color: const Color(0xFFFFFBE6),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.3)),
+        border:
+            Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.3)),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+      child: Text(text,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
     );
   }
 
-  Widget _buildPhase(String title, String description, String cost, String roi, String npv) {
+  Widget _buildPhase(
+      String title, String description, String cost, String roi, String npv) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
-        Text(description, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(description,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
@@ -719,6 +767,7 @@ class _MainContentState extends State<_MainContent> {
   @override
   Widget build(BuildContext context) {
     final padding = AppBreakpoints.pagePadding(context);
+    // ignore: unused_local_variable
     final sectionGap = AppBreakpoints.sectionGap(context);
     final displayBusinessCase = widget.businessCase.isNotEmpty
         ? widget.businessCase
@@ -726,10 +775,12 @@ class _MainContentState extends State<_MainContent> {
     final preferredSolution = widget.selectedSolution.description.isNotEmpty
         ? widget.selectedSolution.description
         : 'Summarize how this chosen solution unlocks the expected outcomes and the primary tradeoffs to track.';
+    // ignore: unused_local_variable
     final infoCallout = widget.notes.isNotEmpty
         ? widget.notes
         : 'Capture lessons, open questions, or action items to revisit during the next phase review.';
 
+    // ignore: unused_element
     String contentForActiveTab() {
       switch (_activeTab) {
         case 0:
@@ -738,11 +789,13 @@ class _MainContentState extends State<_MainContent> {
           return preferredSolution;
         case 2:
           if (_loadingRisks) return 'Summarizing risks...';
-          if (_riskError != null) return 'Unable to summarize risks. Tap to retry.';
+          if (_riskError != null)
+            return 'Unable to summarize risks. Tap to retry.';
           return _riskSummary ?? 'No risks captured yet.';
         case 3:
           if (_loadingStakeholders) return 'Summarizing stakeholders...';
-          if (_stakeholderError != null) return 'Unable to summarize stakeholders. Tap to retry.';
+          if (_stakeholderError != null)
+            return 'Unable to summarize stakeholders. Tap to retry.';
           return _stakeholderSummary ?? 'No stakeholders captured yet.';
         case 4:
           return 'Outline infrastructure constraints, dependencies, environments, and rollout considerations.';
@@ -771,14 +824,16 @@ class _MainContentState extends State<_MainContent> {
                 const SizedBox(height: 8),
                 const EditableContentText(
                   contentKey: 'executive_summary_subtitle1',
-                  fallback: 'Side-by-side comparison ready for export or print.',
+                  fallback:
+                      'Side-by-side comparison ready for export or print.',
                   category: 'business_case',
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 const SizedBox(height: 8),
                 const EditableContentText(
                   contentKey: 'executive_summary_subtitle2',
-                  fallback: 'Confirm the best approach with the full picture in view.',
+                  fallback:
+                      'Confirm the best approach with the full picture in view.',
                   category: 'business_case',
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
@@ -788,7 +843,8 @@ class _MainContentState extends State<_MainContent> {
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                    border:
+                        Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     children: [
@@ -806,10 +862,12 @@ class _MainContentState extends State<_MainContent> {
                         icon: const Icon(Icons.print, size: 18),
                         label: const Text('Print tips'),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                           side: const BorderSide(color: Colors.black87),
                           foregroundColor: Colors.black87,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                     ],
@@ -831,6 +889,7 @@ class _MainContentState extends State<_MainContent> {
   }
 }
 
+// ignore: unused_element
 class _SummaryCard extends StatelessWidget {
   final String text;
 
@@ -855,12 +914,14 @@ class _SummaryCard extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 14.5, height: 1.5, color: Colors.black87),
+        style:
+            const TextStyle(fontSize: 14.5, height: 1.5, color: Colors.black87),
       ),
     );
   }
 }
 
+// ignore: unused_element
 class _SummaryTabs extends StatelessWidget {
   final int activeIndex;
   final ValueChanged<int> onSelected;
@@ -909,7 +970,8 @@ class _TabButton extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive ? activeColor : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isActive ? activeColor : Colors.grey.withOpacity(0.2)),
+        border: Border.all(
+            color: isActive ? activeColor : Colors.grey.withOpacity(0.2)),
         boxShadow: isActive
             ? [
                 BoxShadow(
@@ -932,6 +994,7 @@ class _TabButton extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _InfoBadge extends StatelessWidget {
   final String text;
 
@@ -949,12 +1012,14 @@ class _InfoBadge extends StatelessWidget {
       alignment: Alignment.center,
       child: Tooltip(
         message: text,
-        child: const Icon(Icons.info_outline, size: 28, color: Color(0xFF0B77D0)),
+        child:
+            const Icon(Icons.info_outline, size: 28, color: Color(0xFF0B77D0)),
       ),
     );
   }
 }
 
+// ignore: unused_element
 class _AiCallout extends StatelessWidget {
   final String solutionTitle;
 
@@ -962,7 +1027,9 @@ class _AiCallout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final focusText = solutionTitle.trim().isEmpty ? 'this potential solution' : solutionTitle.trim();
+    final focusText = solutionTitle.trim().isEmpty
+        ? 'this potential solution'
+        : solutionTitle.trim();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -980,7 +1047,8 @@ class _AiCallout extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.auto_awesome, size: 20, color: Colors.white),
+            child:
+                const Icon(Icons.auto_awesome, size: 20, color: Colors.white),
           ),
           const SizedBox(width: 12),
           Expanded(

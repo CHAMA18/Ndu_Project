@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:ndu_project/screens/front_end_planning_technology_personnel_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_technology_screen.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -33,9 +34,144 @@ class FrontEndPlanningInfrastructureScreen extends StatefulWidget {
 
 class _FrontEndPlanningInfrastructureScreenState extends State<FrontEndPlanningInfrastructureScreen> {
   final TextEditingController _notes = TextEditingController();
+  Timer? _infrastructurePromptTimer;
+  bool _hasShownPrompt = false;
+  DateTime? _lastActivityTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastActivityTime = DateTime.now();
+    
+    // Listen to text field changes to track activity
+    _notes.addListener(_onTextChanged);
+    
+    // Start timer for infrastructure prompt (60 seconds of inactivity)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startInactivityTimer();
+    });
+  }
+
+  void _onTextChanged() {
+    _lastActivityTime = DateTime.now();
+    // Reset timer if user is typing
+    _infrastructurePromptTimer?.cancel();
+    _startInactivityTimer();
+  }
+
+  void _startInactivityTimer() {
+    _infrastructurePromptTimer?.cancel();
+    _infrastructurePromptTimer = Timer(const Duration(seconds: 60), () {
+      if (mounted && !_hasShownPrompt) {
+        _checkAndShowInfrastructurePrompt();
+      }
+    });
+  }
+
+  void _checkAndShowInfrastructurePrompt() {
+    // Check if notes field is empty
+    if (_notes.text.trim().isEmpty && mounted && !_hasShownPrompt) {
+      _hasShownPrompt = true;
+      _showInfrastructureDialog().then((_) {
+        // Reset flag after dialog is closed so it can show again if needed
+        if (mounted) {
+          _hasShownPrompt = false;
+          _startInactivityTimer(); // Restart timer
+        }
+      });
+    }
+  }
+
+  Future<String?> _showInfrastructureDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.info_outline, color: Colors.black87, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Project Infrastructure :',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Provide more information on identified infrastructure. Identify additional infrastructure if applicable',
+                style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: controller,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Enter infrastructure details here...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final text = controller.text.trim();
+                    Navigator.of(context).pop(text.isEmpty ? null : text);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[200],
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Sure Continue !', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
+    _infrastructurePromptTimer?.cancel();
+    _notes.removeListener(_onTextChanged);
     _notes.dispose();
     super.dispose();
   }
