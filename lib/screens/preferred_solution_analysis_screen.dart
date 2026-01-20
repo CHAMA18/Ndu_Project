@@ -37,13 +37,20 @@ class PreferredSolutionAnalysisScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
   final String businessCase;
-  const PreferredSolutionAnalysisScreen({super.key, required this.notes, required this.solutions, this.businessCase = ''});
+  const PreferredSolutionAnalysisScreen(
+      {super.key,
+      required this.notes,
+      required this.solutions,
+      this.businessCase = ''});
 
   @override
-  State<PreferredSolutionAnalysisScreen> createState() => _PreferredSolutionAnalysisScreenState();
+  State<PreferredSolutionAnalysisScreen> createState() =>
+      _PreferredSolutionAnalysisScreenState();
 }
 
-class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnalysisScreen> with SingleTickerProviderStateMixin {
+class _PreferredSolutionAnalysisScreenState
+    extends State<PreferredSolutionAnalysisScreen>
+    with SingleTickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late final TextEditingController _notesController;
   late List<AiSolutionItem> _solutions;
@@ -64,7 +71,10 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     ApiKeyManager.initializeApiKey();
     _openAi = OpenAiServiceSecure();
     _solutions = widget.solutions.isNotEmpty
-        ? widget.solutions.map((s) => AiSolutionItem(title: s.title, description: s.description)).toList()
+        ? widget.solutions
+            .map((s) =>
+                AiSolutionItem(title: s.title, description: s.description))
+            .toList()
         : _fallbackSolutions();
     _tabController = TabController(length: _solutions.length, vsync: this);
     _notesController = TextEditingController(text: widget.notes);
@@ -94,7 +104,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     // Check if already marked as having feasibility study
     if (projectId != null) {
       try {
-        final projectRecord = await ProjectService.getProjectById(projectId);
+        await ProjectService.getProjectById(projectId);
         // Check if there's a custom field indicating feasibility study exists
         // For now, we'll show the dialog on first visit
       } catch (e) {
@@ -104,7 +114,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
 
     // Show dialog asking about feasibility study
     if (!mounted) return;
-    
+
     final hasFeasibility = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -153,29 +163,32 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       // Update Firestore and skip to Risk Identification
       final provider = ProjectDataHelper.getProvider(context);
       final projectId = provider.projectData.projectId;
-      
+
       if (projectId != null) {
         try {
-          await FirebaseFirestore.instance.collection('projects').doc(projectId).update({
+          await FirebaseFirestore.instance
+              .collection('projects')
+              .doc(projectId)
+              .update({
             'hasFeasibilityStudy': true,
             'checkpointRoute': 'risk_identification',
             'checkpointAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
-          
+
           // Update provider
           provider.updateField((data) => data.copyWith(
-            currentCheckpoint: 'risk_identification',
-          ));
-          
+                currentCheckpoint: 'risk_identification',
+              ));
+
           // Navigate to Risk Identification
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (_) => RiskIdentificationScreen(
-                  notes: projectData.notes ?? '',
+                  notes: projectData.notes,
                   solutions: widget.solutions,
-                  businessCase: projectData.businessCase ?? '',
+                  businessCase: projectData.businessCase,
                 ),
               ),
             );
@@ -197,27 +210,31 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     try {
       final provider = ProjectDataHelper.getProvider(context);
       final existingData = provider.projectData.preferredSolutionAnalysis;
-      
+
       if (existingData != null && existingData.solutionAnalyses.isNotEmpty) {
         _notesController.text = existingData.workingNotes;
-        
+
         final loadedAnalyses = existingData.solutionAnalyses.map((item) {
           return _SolutionAnalysisData(
-            solution: AiSolutionItem(title: item.solutionTitle, description: item.solutionDescription),
+            solution: AiSolutionItem(
+                title: item.solutionTitle,
+                description: item.solutionDescription),
             stakeholders: item.stakeholders,
             risks: item.risks,
             technologies: item.technologies,
             infrastructure: item.infrastructure,
-            costs: item.costs.map((c) => AiCostItem(
-              item: c.item,
-              description: c.description,
-              estimatedCost: c.estimatedCost,
-              roiPercent: c.roiPercent,
-              npvByYear: c.npvByYear,
-            )).toList(),
+            costs: item.costs
+                .map((c) => AiCostItem(
+                      item: c.item,
+                      description: c.description,
+                      estimatedCost: c.estimatedCost,
+                      roiPercent: c.roiPercent,
+                      npvByYear: c.npvByYear,
+                    ))
+                .toList(),
           );
         }).toList();
-        
+
         if (mounted) {
           setState(() {
             _analysis = loadedAnalyses;
@@ -235,9 +252,13 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   @override
   void didUpdateWidget(covariant PreferredSolutionAnalysisScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.solutions != widget.solutions || oldWidget.notes != widget.notes) {
+    if (oldWidget.solutions != widget.solutions ||
+        oldWidget.notes != widget.notes) {
       final updatedSolutions = widget.solutions.isNotEmpty
-          ? widget.solutions.map((s) => AiSolutionItem(title: s.title, description: s.description)).toList()
+          ? widget.solutions
+              .map((s) =>
+                  AiSolutionItem(title: s.title, description: s.description))
+              .toList()
           : _fallbackSolutions();
       _tabController.dispose();
       setState(() {
@@ -277,11 +298,15 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     try {
       final notes = _notesController.text.trim();
       final results = await Future.wait([
-        _openAi.generateStakeholdersForSolutions(_solutions, contextNotes: notes),
+        _openAi.generateStakeholdersForSolutions(_solutions,
+            contextNotes: notes),
         _openAi.generateRisksForSolutions(_solutions, contextNotes: notes),
-        _openAi.generateTechnologiesForSolutions(_solutions, contextNotes: notes),
-        _openAi.generateInfrastructureForSolutions(_solutions, contextNotes: notes),
-        _openAi.generateCostBreakdownForSolutions(_solutions, contextNotes: notes),
+        _openAi.generateTechnologiesForSolutions(_solutions,
+            contextNotes: notes),
+        _openAi.generateInfrastructureForSolutions(_solutions,
+            contextNotes: notes),
+        _openAi.generateCostBreakdownForSolutions(_solutions,
+            contextNotes: notes),
       ]);
 
       final stakeholdersMap = results[0] as Map<String, List<String>>;
@@ -297,10 +322,13 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         data.add(
           _SolutionAnalysisData(
             solution: solution,
-            stakeholders: List<String>.from(stakeholdersMap[key] ?? const <String>[]),
+            stakeholders:
+                List<String>.from(stakeholdersMap[key] ?? const <String>[]),
             risks: List<String>.from(risksMap[key] ?? const <String>[]),
-            technologies: List<String>.from(technologiesMap[key] ?? const <String>[]),
-            infrastructure: List<String>.from(infrastructureMap[key] ?? const <String>[]),
+            technologies:
+                List<String>.from(technologiesMap[key] ?? const <String>[]),
+            infrastructure:
+                List<String>.from(infrastructureMap[key] ?? const <String>[]),
             costs: List<AiCostItem>.from(costsMap[key] ?? const <AiCostItem>[]),
           ),
         );
@@ -326,20 +354,27 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
 
   @override
   Widget build(BuildContext context) {
+    // ignore: unused_local_variable
     final isMobile = AppBreakpoints.isMobile(context);
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.grey[50],
-      drawer: isMobile ? const Drawer(child: InitiationLikeSidebar(activeItemLabel: 'Preferred Solution Analysis')) : null,
+      drawer: isMobile
+          ? const Drawer(
+              child: InitiationLikeSidebar(
+                  activeItemLabel: 'Preferred Solution Analysis'))
+          : null,
       body: Stack(
         children: [
           Column(children: [
             BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(child: Row(children: [
+            Expanded(
+                child: Row(children: [
               DraggableSidebar(
                 openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(activeItemLabel: 'Preferred Solution Analysis'),
+                child: const InitiationLikeSidebar(
+                    activeItemLabel: 'Preferred Solution Analysis'),
               ),
               Expanded(child: _buildMainContent()),
             ])),
@@ -351,6 +386,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
+  // ignore: unused_element
   Widget _buildTopHeader() {
     final isMobile = AppBreakpoints.isMobile(context);
     return Container(
@@ -359,23 +395,45 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       child: Row(children: [
         Row(children: [
-          if (isMobile) IconButton(icon: const Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
+          if (isMobile)
+            IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer()),
           if (!isMobile) ...[
-            IconButton(icon: const Icon(Icons.arrow_back_ios, size: 16), onPressed: () => Navigator.pop(context)),
+            IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 16),
+                onPressed: () => Navigator.pop(context)),
           ],
         ]),
         const Spacer(),
         if (!isMobile)
-          const Text('Initiation Phase', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black)),
+          const Text('Initiation Phase',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black)),
         const Spacer(),
         Row(children: [
-          Container(width: 40, height: 40, decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle), child: const Icon(Icons.person, color: Colors.white, size: 20)),
+          Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                  color: Colors.blue, shape: BoxShape.circle),
+              child: const Icon(Icons.person, color: Colors.white, size: 20)),
           if (!isMobile) ...[
             const SizedBox(width: 12),
-            Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(FirebaseAuthService.displayNameOrEmail(fallback: 'User'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black)),
-              const Text('Owner', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ]),
+            Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(FirebaseAuthService.displayNameOrEmail(fallback: 'User'),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black)),
+                  const Text('Owner',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ]),
             const SizedBox(width: 8),
             const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 20),
           ],
@@ -384,6 +442,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
+  // ignore: unused_element
   Widget _buildSidebar() {
     // Match CostAnalysisScreen sidebar styling and structure
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
@@ -404,16 +463,21 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
             builder: (builderContext) {
               final provider = ProjectDataHelper.getProvider(builderContext);
               final projectName = provider.projectData.projectName;
-              final displayName = (projectName.isNotEmpty) ? projectName : 'Untitled Project';
-              
+              final displayName =
+                  (projectName.isNotEmpty) ? projectName : 'Untitled Project';
+
               return Container(
                 padding: const EdgeInsets.all(24),
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Color(0xFFFFD700), width: 1)),
+                  border: Border(
+                      bottom: BorderSide(color: Color(0xFFFFD700), width: 1)),
                 ),
                 child: Text(
                   displayName,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -424,12 +488,14 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
-                _buildMenuItem(Icons.home_outlined, 'Home', onTap: () => HomeScreen.open(context)),
+                _buildMenuItem(Icons.home_outlined, 'Home',
+                    onTap: () => HomeScreen.open(context)),
                 _buildExpandableHeader(
                   Icons.flag_outlined,
                   'Initiation Phase',
                   expanded: _initiationExpanded,
-                  onTap: () => setState(() => _initiationExpanded = !_initiationExpanded),
+                  onTap: () => setState(
+                      () => _initiationExpanded = !_initiationExpanded),
                   isActive: true,
                 ),
                 if (_initiationExpanded) ...[
@@ -437,28 +503,41 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
                     Icons.business_center_outlined,
                     'Business Case',
                     expanded: _businessCaseExpanded,
-                    onTap: () => setState(() => _businessCaseExpanded = !_businessCaseExpanded),
+                    onTap: () => setState(
+                        () => _businessCaseExpanded = !_businessCaseExpanded),
                     isActive: false,
                   ),
                   if (_businessCaseExpanded) ...[
-                    _buildNestedSubMenuItem('Business Case', onTap: _openBusinessCase),
-                    _buildNestedSubMenuItem('Potential Solutions', onTap: _openPotentialSolutions),
-                    _buildNestedSubMenuItem('Risk Identification', onTap: _openRiskIdentification),
-                    _buildNestedSubMenuItem('IT Considerations', onTap: _openITConsiderations),
-                    _buildNestedSubMenuItem('Infrastructure Considerations', onTap: _openInfrastructureConsiderations),
-                    _buildNestedSubMenuItem('Core Stakeholders', onTap: _openCoreStakeholders),
-                    _buildNestedSubMenuItem('Cost Benefit Analysis & Financial Metrics', onTap: _openCostAnalysis),
-                    _buildNestedSubMenuItem('Preferred Solution Analysis', isActive: true),
+                    _buildNestedSubMenuItem('Business Case',
+                        onTap: _openBusinessCase),
+                    _buildNestedSubMenuItem('Potential Solutions',
+                        onTap: _openPotentialSolutions),
+                    _buildNestedSubMenuItem('Risk Identification',
+                        onTap: _openRiskIdentification),
+                    _buildNestedSubMenuItem('IT Considerations',
+                        onTap: _openITConsiderations),
+                    _buildNestedSubMenuItem('Infrastructure Considerations',
+                        onTap: _openInfrastructureConsiderations),
+                    _buildNestedSubMenuItem('Core Stakeholders',
+                        onTap: _openCoreStakeholders),
+                    _buildNestedSubMenuItem(
+                        'Cost Benefit Analysis & Financial Metrics',
+                        onTap: _openCostAnalysis),
+                    _buildNestedSubMenuItem('Preferred Solution Analysis',
+                        isActive: true),
                   ],
                 ],
-                _buildMenuItem(Icons.timeline, 'Initiation: Front End Planning'),
+                _buildMenuItem(
+                    Icons.timeline, 'Initiation: Front End Planning'),
                 _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
                 _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
                 _buildMenuItem(Icons.description_outlined, 'Contracting'),
                 _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
                 const SizedBox(height: 20),
-                _buildMenuItem(Icons.settings_outlined, 'Settings', onTap: () => SettingsScreen.open(context)),
-                _buildMenuItem(Icons.logout_outlined, 'LogOut', onTap: () => AuthNav.signOutAndExit(context)),
+                _buildMenuItem(Icons.settings_outlined, 'Settings',
+                    onTap: () => SettingsScreen.open(context)),
+                _buildMenuItem(Icons.logout_outlined, 'LogOut',
+                    onTap: () => AuthNav.signOutAndExit(context)),
               ],
             ),
           ),
@@ -467,6 +546,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
+  // ignore: unused_element
   Drawer _buildMobileDrawer() {
     // Match CostAnalysisScreen drawer look and behavior
     return Drawer(
@@ -475,7 +555,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
           builder: (builderContext) {
             final provider = ProjectDataHelper.getProvider(builderContext);
             final projectName = provider.projectData.projectName;
-            final displayName = (projectName.isNotEmpty) ? projectName : 'Untitled Project';
+            final displayName =
+                (projectName.isNotEmpty) ? projectName : 'Untitled Project';
 
             return ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -484,74 +565,84 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
                   padding: const EdgeInsets.all(16),
                   child: Text(
                     displayName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const Divider(height: 1),
-            _buildMenuItem(Icons.home_outlined, 'Home', onTap: () {
-              Navigator.of(context).maybePop();
-              HomeScreen.open(context);
-            }),
-            _buildExpandableHeader(
-              Icons.flag_outlined,
-              'Initiation Phase',
-              expanded: _initiationExpanded,
-              onTap: () => setState(() => _initiationExpanded = !_initiationExpanded),
-              isActive: true,
-            ),
-            if (_initiationExpanded) ...[
-              _buildExpandableHeaderLikeCost(
-                Icons.business_center_outlined,
-                'Business Case',
-                expanded: _businessCaseExpanded,
-                onTap: () => setState(() => _businessCaseExpanded = !_businessCaseExpanded),
-                isActive: false,
-              ),
-              if (_businessCaseExpanded) ...[
-                _buildNestedSubMenuItem('Business Case', onTap: () {
+                _buildMenuItem(Icons.home_outlined, 'Home', onTap: () {
                   Navigator.of(context).maybePop();
-                  _openBusinessCase();
+                  HomeScreen.open(context);
                 }),
-                _buildNestedSubMenuItem('Potential Solutions', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openPotentialSolutions();
-                }),
-                _buildNestedSubMenuItem('Risk Identification', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openRiskIdentification();
-                }),
-                _buildNestedSubMenuItem('IT Considerations', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openITConsiderations();
-                }),
-                _buildNestedSubMenuItem('Infrastructure Considerations', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openInfrastructureConsiderations();
-                }),
-                _buildNestedSubMenuItem('Core Stakeholders', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openCoreStakeholders();
-                }),
-                _buildNestedSubMenuItem('Cost Benefit Analysis & Financial Metrics', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openCostAnalysis();
-                }),
-                _buildNestedSubMenuItem('Preferred Solution Analysis', isActive: true),
-              ],
-            ],
-            _buildMenuItem(Icons.timeline, 'Initiation: Front End Planning'),
-            _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
-            _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
-            _buildMenuItem(Icons.description_outlined, 'Contracting'),
-            _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
-            const Divider(height: 1),
+                _buildExpandableHeader(
+                  Icons.flag_outlined,
+                  'Initiation Phase',
+                  expanded: _initiationExpanded,
+                  onTap: () => setState(
+                      () => _initiationExpanded = !_initiationExpanded),
+                  isActive: true,
+                ),
+                if (_initiationExpanded) ...[
+                  _buildExpandableHeaderLikeCost(
+                    Icons.business_center_outlined,
+                    'Business Case',
+                    expanded: _businessCaseExpanded,
+                    onTap: () => setState(
+                        () => _businessCaseExpanded = !_businessCaseExpanded),
+                    isActive: false,
+                  ),
+                  if (_businessCaseExpanded) ...[
+                    _buildNestedSubMenuItem('Business Case', onTap: () {
+                      Navigator.of(context).maybePop();
+                      _openBusinessCase();
+                    }),
+                    _buildNestedSubMenuItem('Potential Solutions', onTap: () {
+                      Navigator.of(context).maybePop();
+                      _openPotentialSolutions();
+                    }),
+                    _buildNestedSubMenuItem('Risk Identification', onTap: () {
+                      Navigator.of(context).maybePop();
+                      _openRiskIdentification();
+                    }),
+                    _buildNestedSubMenuItem('IT Considerations', onTap: () {
+                      Navigator.of(context).maybePop();
+                      _openITConsiderations();
+                    }),
+                    _buildNestedSubMenuItem('Infrastructure Considerations',
+                        onTap: () {
+                      Navigator.of(context).maybePop();
+                      _openInfrastructureConsiderations();
+                    }),
+                    _buildNestedSubMenuItem('Core Stakeholders', onTap: () {
+                      Navigator.of(context).maybePop();
+                      _openCoreStakeholders();
+                    }),
+                    _buildNestedSubMenuItem(
+                        'Cost Benefit Analysis & Financial Metrics', onTap: () {
+                      Navigator.of(context).maybePop();
+                      _openCostAnalysis();
+                    }),
+                    _buildNestedSubMenuItem('Preferred Solution Analysis',
+                        isActive: true),
+                  ],
+                ],
+                _buildMenuItem(
+                    Icons.timeline, 'Initiation: Front End Planning'),
+                _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
+                _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
+                _buildMenuItem(Icons.description_outlined, 'Contracting'),
+                _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
+                const Divider(height: 1),
                 _buildMenuItem(Icons.settings_outlined, 'Settings', onTap: () {
                   Navigator.of(context).maybePop();
                   SettingsScreen.open(context);
                 }),
-                _buildMenuItem(Icons.logout_outlined, 'LogOut', onTap: () => AuthNav.signOutAndExit(context)),
+                _buildMenuItem(Icons.logout_outlined, 'LogOut',
+                    onTap: () => AuthNav.signOutAndExit(context)),
               ],
             );
           },
@@ -560,7 +651,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, {bool disabled = false, VoidCallback? onTap, bool isActive = false}) {
+  Widget _buildMenuItem(IconData icon, String title,
+      {bool disabled = false, VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
@@ -569,18 +661,25 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(icon, size: 20, color: isActive ? primary : (disabled ? Colors.grey[400] : Colors.black87)),
+            Icon(icon,
+                size: 20,
+                color: isActive
+                    ? primary
+                    : (disabled ? Colors.grey[400] : Colors.black87)),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
                 style: TextStyle(
                   fontSize: 14,
-                  color: isActive ? primary : (disabled ? Colors.grey[500] : Colors.black87),
+                  color: isActive
+                      ? primary
+                      : (disabled ? Colors.grey[500] : Colors.black87),
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 ),
                 softWrap: true,
@@ -594,7 +693,10 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
-  Widget _buildExpandableHeader(IconData icon, String title, {required bool expanded, required VoidCallback onTap, bool isActive = false}) {
+  Widget _buildExpandableHeader(IconData icon, String title,
+      {required bool expanded,
+      required VoidCallback onTap,
+      bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
@@ -603,7 +705,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -622,14 +725,17 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey[700], size: 20),
+            Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                color: Colors.grey[700], size: 20),
           ]),
         ),
       ),
     );
   }
 
-  Widget _buildSubMenuItem(String title, {VoidCallback? onTap, bool isActive = false}) {
+  // ignore: unused_element
+  Widget _buildSubMenuItem(String title,
+      {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
@@ -638,14 +744,23 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(Icons.circle, size: 8, color: isActive ? primary : Colors.grey[500]),
+            Icon(Icons.circle,
+                size: 8, color: isActive ? primary : Colors.grey[500]),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(title, style: TextStyle(fontSize: 13, color: isActive ? primary : Colors.black87, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal), maxLines: 2, overflow: TextOverflow.ellipsis),
+              child: Text(title,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: isActive ? primary : Colors.black87,
+                      fontWeight:
+                          isActive ? FontWeight.w600 : FontWeight.normal),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ),
           ]),
         ),
@@ -653,7 +768,10 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
-  Widget _buildExpandableHeaderLikeCost(IconData icon, String title, {required bool expanded, required VoidCallback onTap, bool isActive = false}) {
+  Widget _buildExpandableHeaderLikeCost(IconData icon, String title,
+      {required bool expanded,
+      required VoidCallback onTap,
+      bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
@@ -662,11 +780,13 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(Icons.circle, size: 8, color: isActive ? primary : Colors.grey[500]),
+            Icon(Icons.circle,
+                size: 8, color: isActive ? primary : Colors.grey[500]),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -680,14 +800,16 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey[600], size: 18),
+            Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                color: Colors.grey[600], size: 18),
           ]),
         ),
       ),
     );
   }
 
-  Widget _buildNestedSubMenuItem(String title, {VoidCallback? onTap, bool isActive = false}) {
+  Widget _buildNestedSubMenuItem(String title,
+      {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(left: 72, right: 24, top: 2, bottom: 2),
@@ -696,11 +818,13 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
+            color:
+                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
-            Icon(Icons.circle, size: 6, color: isActive ? primary : Colors.grey[400]),
+            Icon(Icons.circle,
+                size: 6, color: isActive ? primary : Colors.grey[400]),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -800,11 +924,13 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   }
 
   Widget _buildMainContent() {
+    // ignore: unused_local_variable
     final isMobile = AppBreakpoints.isMobile(context);
     return SingleChildScrollView(
       padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Initiation Phase', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        const Text('Initiation Phase',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
         _buildHeaderRow(),
         const SizedBox(height: 16),
@@ -833,6 +959,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
+  // ignore: unused_element
   Widget _buildNextButton() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -843,7 +970,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
             backgroundColor: const Color(0xFFFFD700),
             foregroundColor: Colors.black,
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 0,
           ),
           child: const Text(
@@ -894,10 +1022,14 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
 
   Widget _buildHeaderRow() {
     final isMobile = AppBreakpoints.isMobile(context);
-    final heading = Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-      Text('Preferred Solution Analysis', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+    final heading =
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+      Text('Preferred Solution Analysis',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
       SizedBox(height: 6),
-      Text('Review stakeholders, risks, and costs together so you can back a preferred path with confidence.', style: TextStyle(fontSize: 13, color: Colors.black54)),
+      Text(
+          'Review stakeholders, risks, and costs together so you can back a preferred path with confidence.',
+          style: TextStyle(fontSize: 13, color: Colors.black54)),
     ]);
 
     if (isMobile) {
@@ -915,14 +1047,22 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Working notes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const Text('Working notes',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         TextField(
           controller: _notesController,
           style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-          decoration: const InputDecoration(hintText: 'Capture rationale, assumptions, or follow-ups here...', border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
+          decoration: const InputDecoration(
+              hintText: 'Capture rationale, assumptions, or follow-ups here...',
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero),
           minLines: 1,
           maxLines: null,
         ),
@@ -934,11 +1074,20 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
       child: Row(children: const [
-        SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3)),
+        SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(strokeWidth: 3)),
         SizedBox(width: 16),
-        Expanded(child: Text('Gathering stakeholders, risks, and cost insights for each solution...', style: TextStyle(fontSize: 14))),
+        Expanded(
+            child: Text(
+                'Gathering stakeholders, risks, and cost insights for each solution...',
+                style: TextStyle(fontSize: 14))),
       ]),
     );
   }
@@ -947,16 +1096,25 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.red.withValues(alpha: 0.2))),
+      decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.2))),
       child: Row(children: [
         const Icon(Icons.error_outline, color: Colors.red, size: 18),
         const SizedBox(width: 8),
-        Expanded(child: Text(_error ?? 'Unable to refresh analysis details right now.', style: const TextStyle(fontSize: 13, color: Colors.red))),
-        TextButton(onPressed: _isLoading ? null : _loadAnalysis, child: const Text('Retry')),
+        Expanded(
+            child: Text(
+                _error ?? 'Unable to refresh analysis details right now.',
+                style: const TextStyle(fontSize: 13, color: Colors.red))),
+        TextButton(
+            onPressed: _isLoading ? null : _loadAnalysis,
+            child: const Text('Retry')),
       ]),
     );
   }
 
+  // ignore: unused_element
   Widget _buildTabSection() {
     if (_analysis.isEmpty) {
       return _buildEmptyState();
@@ -965,7 +1123,10 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
         child: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -975,7 +1136,9 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
           indicatorWeight: 3,
           tabs: List.generate(_analysis.length, (index) {
             final solution = _analysis[index].solution;
-            final label = solution.title.isNotEmpty ? solution.title : 'Solution ${index + 1}';
+            final label = solution.title.isNotEmpty
+                ? solution.title
+                : 'Solution ${index + 1}';
             return Tab(text: label);
           }),
         ),
@@ -984,7 +1147,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       AnimatedBuilder(
         animation: _tabController,
         builder: (context, _) {
-          final safeIndex = (_analysis.isEmpty ? 0 : _tabController.index).clamp(0, _analysis.length - 1);
+          final safeIndex = (_analysis.isEmpty ? 0 : _tabController.index)
+              .clamp(0, _analysis.length - 1);
           final data = _analysis[safeIndex];
           return _buildSolutionDetail(data: data, index: safeIndex);
         },
@@ -992,20 +1156,35 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     ]);
   }
 
-  Widget _buildSolutionDetail({required _SolutionAnalysisData data, required int index}) {
-    final title = data.solution.title.isNotEmpty ? data.solution.title : 'Solution ${index + 1}';
-    final description = data.solution.description.isNotEmpty ? data.solution.description : 'Discipline';
+  Widget _buildSolutionDetail(
+      {required _SolutionAnalysisData data, required int index}) {
+    final title = data.solution.title.isNotEmpty
+        ? data.solution.title
+        : 'Solution ${index + 1}';
+    final description = data.solution.description.isNotEmpty
+        ? data.solution.description
+        : 'Discipline';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Text(description, style: const TextStyle(fontSize: 14, color: Colors.black54)),
-          ])),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                Text(description,
+                    style:
+                        const TextStyle(fontSize: 14, color: Colors.black54)),
+              ])),
           const _AiTag(),
         ]),
         const SizedBox(height: 20),
@@ -1018,14 +1197,18 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
-  Widget _buildSectionBlock({required String title, required List<String> items}) {
+  Widget _buildSectionBlock(
+      {required String title, required List<String> items}) {
     final hasContent = items.any((e) => e.trim().isNotEmpty);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      Text(title,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
       const SizedBox(height: 10),
       hasContent
           ? _buildBulletList(items)
-          : const Text('No insights captured yet. Add notes or rerun AI to populate this section.', style: TextStyle(fontSize: 13, color: Colors.black45)),
+          : const Text(
+              'No insights captured yet. Add notes or rerun AI to populate this section.',
+              style: TextStyle(fontSize: 13, color: Colors.black45)),
     ]);
   }
 
@@ -1039,10 +1222,17 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       children: filtered
           .map((item) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('- ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                  Expanded(child: Text(item, style: const TextStyle(fontSize: 14, color: Colors.black87))),
-                ]),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('- ',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
+                      Expanded(
+                          child: Text(item,
+                              style: const TextStyle(
+                                  fontSize: 14, color: Colors.black87))),
+                    ]),
               ))
           .toList(),
     );
@@ -1050,15 +1240,21 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
 
   Widget _buildCostsSection(List<AiCostItem> items) {
     if (items.isEmpty) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-        Text('Investment overview', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        SizedBox(height: 10),
-        Text('No cost analysis generated yet. Capture financial assumptions before finalizing.', style: TextStyle(fontSize: 13, color: Colors.black45)),
-      ]);
+      return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Investment overview',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            SizedBox(height: 10),
+            Text(
+                'No cost analysis generated yet. Capture financial assumptions before finalizing.',
+                style: TextStyle(fontSize: 13, color: Colors.black45)),
+          ]);
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Investment overview', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      const Text('Investment overview',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
       const SizedBox(height: 10),
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1071,12 +1267,20 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: const Color(0xFFF9FBFC), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.withValues(alpha: 0.15))),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item.item.isNotEmpty ? item.item : 'Cost item', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFF9FBFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.15))),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.item.isNotEmpty ? item.item : 'Cost item',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600)),
               if (item.description.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(item.description, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                Text(item.description,
+                    style:
+                        const TextStyle(fontSize: 13, color: Colors.black54)),
               ],
               const SizedBox(height: 10),
               Wrap(spacing: 8, runSpacing: 6, children: metrics),
@@ -1090,11 +1294,20 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   Widget _buildCostBadge(String label, String value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: const Color(0xFFFFF7CC), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.6))),
+      decoration: BoxDecoration(
+          color: const Color(0xFFFFF7CC),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: const Color(0xFFFFD700).withValues(alpha: 0.6))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87)),
         const SizedBox(width: 6),
-        Text(value, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+        Text(value,
+            style: const TextStyle(fontSize: 12, color: Colors.black87)),
       ]),
     );
   }
@@ -1109,12 +1322,12 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     ]);
   }
 
-
+  // ignore: unused_element
   Widget _buildComparisonMatrix() {
     final headers = [
       for (var i = 0; i < _analysis.length; i++)
         '${i + 1}. '
-        '${_analysis[i].solution.title.isNotEmpty ? _analysis[i].solution.title : 'Solution ${i + 1}'}',
+            '${_analysis[i].solution.title.isNotEmpty ? _analysis[i].solution.title : 'Solution ${i + 1}'}',
     ];
 
     return Container(
@@ -1182,7 +1395,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     summaryRows.add(
       TableRow(children: [
         _buildMatrixCellText('Category', isHeader: true),
-        for (final header in headers) _buildMatrixCellText(header, isHeader: true),
+        for (final header in headers)
+          _buildMatrixCellText(header, isHeader: true),
       ]),
     );
 
@@ -1190,54 +1404,68 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       TableRow(children: [
         _buildMatrixCellText('Solution Description', emphasize: true),
         for (final data in _analysis)
-          _buildMatrixCellText(data.solution.description.isNotEmpty ? data.solution.description : 'N/A')
+          _buildMatrixCellText(data.solution.description.isNotEmpty
+              ? data.solution.description
+              : 'N/A')
       ]),
     );
 
     summaryRows.add(
       TableRow(children: [
         _buildMatrixCellText('Risk Identification', emphasize: true),
-        for (final data in _analysis) _buildMatrixCellText(_getRiskDataForSolution(projectData, data.solution.title))
+        for (final data in _analysis)
+          _buildMatrixCellText(
+              _getRiskDataForSolution(projectData, data.solution.title))
       ]),
     );
 
     summaryRows.add(
       TableRow(children: [
         _buildMatrixCellText('IT Considerations', emphasize: true),
-        for (final data in _analysis) _buildMatrixCellText(_getITDataForSolution(projectData, data.solution.title))
+        for (final data in _analysis)
+          _buildMatrixCellText(
+              _getITDataForSolution(projectData, data.solution.title))
       ]),
     );
 
     summaryRows.add(
       TableRow(children: [
         _buildMatrixCellText('Infrastructure Considerations', emphasize: true),
-        for (final data in _analysis) _buildMatrixCellText(_getInfrastructureDataForSolution(projectData, data.solution.title))
+        for (final data in _analysis)
+          _buildMatrixCellText(_getInfrastructureDataForSolution(
+              projectData, data.solution.title))
       ]),
     );
 
     summaryRows.add(
       TableRow(children: [
         _buildMatrixCellText('Core Stakeholders', emphasize: true),
-        for (final data in _analysis) _buildMatrixCellText(_getStakeholderDataForSolution(projectData, data.solution.title))
+        for (final data in _analysis)
+          _buildMatrixCellText(
+              _getStakeholderDataForSolution(projectData, data.solution.title))
       ]),
     );
 
     summaryRows.add(
       TableRow(children: [
         _buildMatrixCellText('Cost Benefit Analysis Overview', emphasize: true),
-        for (final data in _analysis) _buildMatrixCellText(_getCostBenefitDataForSolution(projectData, data.solution.title))
+        for (final data in _analysis)
+          _buildMatrixCellText(
+              _getCostBenefitDataForSolution(projectData, data.solution.title))
       ]),
     );
 
     return Table(
-      border: TableBorder.all(color: Colors.grey.withValues(alpha: 0.3), width: 0.7),
+      border: TableBorder.all(
+          color: Colors.grey.withValues(alpha: 0.3), width: 0.7),
       columnWidths: columnWidths,
       defaultVerticalAlignment: TableCellVerticalAlignment.top,
       children: summaryRows,
     );
   }
 
-  Widget _buildMatrixCellText(String text, {bool isHeader = false, bool emphasize = false}) {
+  Widget _buildMatrixCellText(String text,
+      {bool isHeader = false, bool emphasize = false}) {
     final style = TextStyle(
       fontSize: 12,
       fontWeight: isHeader
@@ -1258,6 +1486,7 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
+  // ignore: unused_element
   Widget _buildInlineSelection(List<String> headers) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1270,7 +1499,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Choose a project to progress', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const Text('Choose a project to progress',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           const Text(
             'Pick the solution you want to advance and give your project a memorable name.',
@@ -1283,12 +1513,17 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
             children: [
               for (int i = 0; i < _analysis.length; i++)
                 ChoiceChip(
-                  label: Text(_analysis[i].solution.title.isNotEmpty ? _analysis[i].solution.title : 'Solution ${i + 1}'),
+                  label: Text(_analysis[i].solution.title.isNotEmpty
+                      ? _analysis[i].solution.title
+                      : 'Solution ${i + 1}'),
                   selected: _selectedSolutionIndex == i,
                   onSelected: (_) => _onInlineSelect(i),
                   selectedColor: const Color(0xFFFFF8DC),
                   labelStyle: const TextStyle(color: Colors.black87),
-                  side: BorderSide(color: _selectedSolutionIndex == i ? const Color(0xFFFFD700) : Colors.grey.withValues(alpha: 0.3)),
+                  side: BorderSide(
+                      color: _selectedSolutionIndex == i
+                          ? const Color(0xFFFFD700)
+                          : Colors.grey.withValues(alpha: 0.3)),
                 ),
             ],
           ),
@@ -1302,10 +1537,12 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
             },
             decoration: InputDecoration(
               labelText: 'Project name',
-              hintText: _selectedSolutionIndex != null && _selectedSolutionIndex! < _analysis.length
+              hintText: _selectedSolutionIndex != null &&
+                      _selectedSolutionIndex! < _analysis.length
                   ? _analysis[_selectedSolutionIndex!].solution.title
                   : 'People Operations Transformation',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               errorText: _projectNameError,
             ),
           ),
@@ -1318,11 +1555,15 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFD700),
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
-                child: const Text('Save & Continue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                child: const Text('Save & Continue',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               ),
             ],
           )
@@ -1334,7 +1575,10 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   // Add KAZ Select Project button below the inline selection container
   Widget _buildSelectProjectButton() {
     final options = _analysis
-        .map((d) => SolutionOption(title: d.solution.title, description: d.solution.description, projectName: null))
+        .map((d) => SolutionOption(
+            title: d.solution.title,
+            description: d.solution.description,
+            projectName: null))
         .toList(growable: false);
 
     return Padding(
@@ -1343,7 +1587,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         solutions: options,
         onSolutionSelected: (selected) async {
           await _createProjectAndNavigate(
-            selectedSolution: AiSolutionItem(title: selected.title, description: selected.description),
+            selectedSolution: AiSolutionItem(
+                title: selected.title, description: selected.description),
             projectName: selected.projectName ?? selected.title,
           );
         },
@@ -1351,36 +1596,50 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
+  // ignore: unused_element
   String _formatListForMatrix(List<String> items, {int maxItems = 4}) {
-    final trimmed = items.where((e) => e.trim().isNotEmpty).take(maxItems).toList();
+    final trimmed =
+        items.where((e) => e.trim().isNotEmpty).take(maxItems).toList();
     if (trimmed.isEmpty) return 'N/A';
     return trimmed.map((value) => '- ${value.trim()}').join('\n');
   }
 
+  // ignore: unused_element
   List<String> _topStrings(List<String> source, {int maxItems = 4}) {
-    return source.where((e) => e.trim().isNotEmpty).map((e) => e.trim()).take(maxItems).toList();
+    return source
+        .where((e) => e.trim().isNotEmpty)
+        .map((e) => e.trim())
+        .take(maxItems)
+        .toList();
   }
 
+  // ignore: unused_element
   String _financialSummaryText(_SolutionAnalysisData data) {
     final costs = data.costs;
     if (costs.isEmpty) {
       return 'No financial insights available yet.';
     }
-    final totalCost = costs.fold<double>(0.0, (sum, item) => sum + item.estimatedCost);
-    final avgRoi = costs.map((item) => item.roiPercent).reduce((a, b) => a + b) / costs.length;
+    final totalCost =
+        costs.fold<double>(0.0, (sum, item) => sum + item.estimatedCost);
+    final avgRoi =
+        costs.map((item) => item.roiPercent).reduce((a, b) => a + b) /
+            costs.length;
     final bestNpv = costs.map((item) => item.npv).reduce(math.max);
     return 'Total: ${_formatCurrency(totalCost)}\nAvg ROI: ${avgRoi.toStringAsFixed(1)}%\nBest NPV: ${_formatCurrency(bestNpv)}';
   }
 
+  // ignore: unused_element
   Widget _buildFooterActions({required bool isMobile}) {
     final info = Container(
       width: 48,
       height: 48,
-      decoration: const BoxDecoration(color: Color(0xFFB3D9FF), shape: BoxShape.circle),
+      decoration:
+          const BoxDecoration(color: Color(0xFFB3D9FF), shape: BoxShape.circle),
       child: const Icon(Icons.info_outline, color: Colors.white, size: 24),
     );
 
-    final buttonChild = const Text('Next', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black));
+    final buttonChild = const Text('Next',
+        style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black));
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: const Color(0xFFFFD700),
       foregroundColor: Colors.black,
@@ -1398,7 +1657,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
             child: SizedBox(
               height: 48,
               child: ElevatedButton(
-                onPressed: _canNavigateToComparison ? _openComparisonPage : null,
+                onPressed:
+                    _canNavigateToComparison ? _openComparisonPage : null,
                 style: buttonStyle,
                 child: buttonChild,
               ),
@@ -1421,32 +1681,38 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     );
   }
 
-  bool get _canNavigateToComparison => !_isLoading && _error == null && _analysis.isNotEmpty;
+  bool get _canNavigateToComparison =>
+      !_isLoading && _error == null && _analysis.isNotEmpty;
 
   Future<void> _openComparisonPage() async {
     if (!_canNavigateToComparison) {
       if (_isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hold on while we finish preparing the comparison.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Hold on while we finish preparing the comparison.')));
         return;
       }
       if (_error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resolve the analysis error before continuing.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Resolve the analysis error before continuing.')));
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add solution details to view the comparison.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Add solution details to view the comparison.')));
       return;
     }
 
     // 1. Save data FIRST before validation
     await _saveAnalysisData();
     if (!mounted) return;
-    
+
     // 2. Validate data completeness
     // Note: Provider is updated by _saveAnalysisData
     final provider = ProjectDataInherited.of(context);
     if (provider.projectData.preferredSolutionAnalysis == null) {
       if (mounted) {
-         ProjectDataHelper.showMissingDataMessage(context, 'Please complete the preferred solution analysis before continuing.');
+        ProjectDataHelper.showMissingDataMessage(context,
+            'Please complete the preferred solution analysis before continuing.');
       }
       return;
     }
@@ -1467,7 +1733,9 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     final analysis = _analysis
         .map(
           (item) => _SolutionAnalysisData(
-            solution: AiSolutionItem(title: item.solution.title, description: item.solution.description),
+            solution: AiSolutionItem(
+                title: item.solution.title,
+                description: item.solution.description),
             stakeholders: List<String>.from(item.stakeholders),
             risks: List<String>.from(item.risks),
             technologies: List<String>.from(item.technologies),
@@ -1494,7 +1762,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
           notes: _notesController.text,
           analysis: analysis,
           solutions: _solutions
-              .map((solution) => AiSolutionItem(title: solution.title, description: solution.description))
+              .map((solution) => AiSolutionItem(
+                  title: solution.title, description: solution.description))
               .toList(growable: false),
           businessCase: widget.businessCase,
         ),
@@ -1505,7 +1774,9 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   Future<void> _saveAnalysisData() async {
     try {
       final provider = ProjectDataHelper.getProvider(context);
-      
+      final currentAnalysis = provider.projectData.preferredSolutionAnalysis;
+
+      // Preserve selectedSolutionTitle if it exists
       final analysisData = PreferredSolutionAnalysis(
         workingNotes: _notesController.text.trim(),
         solutionAnalyses: _analysis.map((item) {
@@ -1516,20 +1787,24 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
             risks: item.risks,
             technologies: item.technologies,
             infrastructure: item.infrastructure,
-            costs: item.costs.map((c) => CostItem(
-              item: c.item,
-              description: c.description,
-              estimatedCost: c.estimatedCost,
-              roiPercent: c.roiPercent,
-              npvByYear: c.npvByYear,
-            )).toList(),
+            costs: item.costs
+                .map((c) => CostItem(
+                      item: c.item,
+                      description: c.description,
+                      estimatedCost: c.estimatedCost,
+                      roiPercent: c.roiPercent,
+                      npvByYear: c.npvByYear,
+                    ))
+                .toList(),
           );
         }).toList(),
+        selectedSolutionTitle:
+            currentAnalysis?.selectedSolutionTitle, // Preserve selection
       );
 
       provider.updateField((data) => data.copyWith(
-        preferredSolutionAnalysis: analysisData,
-      ));
+            preferredSolutionAnalysis: analysisData,
+          ));
 
       await provider.saveToFirebase(checkpoint: 'preferred_solution_analysis');
     } catch (e) {
@@ -1544,10 +1819,35 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       if (_projectNameController.text.trim().isEmpty) {
         _projectNameController
           ..text = _analysis[index].solution.title
-          ..selection = TextSelection.collapsed(offset: _projectNameController.text.length);
+          ..selection = TextSelection.collapsed(
+              offset: _projectNameController.text.length);
       }
       _projectNameError = null;
     });
+
+    // Immediately save selectedSolutionTitle to provider for state persistence
+    final selectedTitle = _analysis[index].solution.title;
+    final provider = ProjectDataHelper.getProvider(context);
+    final currentAnalysis = provider.projectData.preferredSolutionAnalysis;
+
+    final updatedAnalysis = PreferredSolutionAnalysis(
+      workingNotes:
+          currentAnalysis?.workingNotes ?? _notesController.text.trim(),
+      solutionAnalyses: currentAnalysis?.solutionAnalyses ?? [],
+      selectedSolutionTitle: selectedTitle,
+    );
+
+    provider.updateField((data) => data.copyWith(
+          preferredSolutionAnalysis: updatedAnalysis,
+        ));
+
+    // Save to Firebase in background without blocking UI
+    provider.saveToFirebase(checkpoint: 'preferred_solution_analysis').then(
+      (_) {},
+      onError: (e) {
+        debugPrint('Error saving selected solution: $e');
+      },
+    );
   }
 
   Future<void> _handleInlineContinue() async {
@@ -1559,7 +1859,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
 
     final name = _projectNameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _projectNameError = 'Give your project a name to continue.');
+      setState(
+          () => _projectNameError = 'Give your project a name to continue.');
       return;
     }
 
@@ -1568,7 +1869,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
       description: _analysis[index].solution.description,
     );
 
-    await _createProjectAndNavigate(selectedSolution: selected, projectName: name);
+    await _createProjectAndNavigate(
+        selectedSolution: selected, projectName: name);
   }
 
   Future<void> _createProjectAndNavigate({
@@ -1576,13 +1878,17 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     required String projectName,
   }) async {
     final filteredSolutions = _solutions
-        .map((solution) => AiSolutionItem(title: solution.title.trim(), description: solution.description.trim()))
+        .map((solution) => AiSolutionItem(
+            title: solution.title.trim(),
+            description: solution.description.trim()))
         .where((item) => item.title.isNotEmpty || item.description.isNotEmpty)
         .toList();
 
     if (filteredSolutions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one solution option before continuing.')),
+        const SnackBar(
+            content:
+                Text('Add at least one solution option before continuing.')),
       );
       return;
     }
@@ -1593,26 +1899,36 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
 
     if (user == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sign in to save your project.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign in to save your project.')));
       return;
     }
 
-    final ownerName = FirebaseAuthService.displayNameOrEmail(fallback: 'Leader');
+    final ownerName =
+        FirebaseAuthService.displayNameOrEmail(fallback: 'Leader');
     final tags = {
       'Initiation',
-      if (selectedSolution.title.trim().isNotEmpty) selectedSolution.title.trim(),
+      if (selectedSolution.title.trim().isNotEmpty)
+        selectedSolution.title.trim(),
     }.toList();
 
-    // Check for duplicate project name before proceeding
-    final existing = await ProjectService.projectNameExists(ownerId: user.uid, name: projectName.trim());
-    if (existing) {
-      if (mounted) {
-        setState(() => _projectNameError = 'A project with this name already exists. Choose a different name.');
+    // Allow duplicate project names (do not block the user).
+    // We still create a new project document with a new id, even if the name matches an existing one.
+    try {
+      final existing = await ProjectService.projectNameExists(
+          ownerId: user.uid, name: projectName.trim());
+      if (existing && mounted) {
+        setState(() => _projectNameError = null);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Project name already exists. Please choose a different name.')),
+          const SnackBar(
+            content: Text(
+              'Project name already exists. Continuing anyway (projects can share the same name).',
+            ),
+          ),
         );
       }
-      return;
+    } catch (_) {
+      // If uniqueness check fails, do not block project creation.
     }
 
     bool dialogShown = false;
@@ -1645,7 +1961,8 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
         Navigator.of(context, rootNavigator: true).pop();
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to save project. Try again.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to save project. Try again.')));
       return;
     }
 
@@ -1670,11 +1987,18 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-        Text('No solutions available yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+      child:
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+        Text('No solutions available yet',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         SizedBox(height: 8),
-        Text('Add potential solutions to see their stakeholders, risks, and cost signals in one place.', style: TextStyle(fontSize: 13, color: Colors.black54)),
+        Text(
+            'Add potential solutions to see their stakeholders, risks, and cost signals in one place.',
+            style: TextStyle(fontSize: 13, color: Colors.black54)),
       ]),
     );
   }
@@ -1683,11 +2007,16 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   String _formatCurrencyLegacy(double value) {
     if (value == 0) return ' 24 30';
     final absValue = value.abs();
-    final decimals = absValue >= 1000 ? 0 : absValue >= 100 ? 1 : 2;
+    final decimals = absValue >= 1000
+        ? 0
+        : absValue >= 100
+            ? 1
+            : 2;
     var text = absValue.toStringAsFixed(decimals);
     final parts = text.split('.');
     final whole = parts.first;
-    final withCommas = whole.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
+    final withCommas =
+        whole.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
     final hasDecimals = parts.length > 1 && int.tryParse(parts[1]) != 0;
     final decimalPart = hasDecimals ? '.${parts[1]}' : '';
     final symbol = value < 0 ? '- 24' : ' 24';
@@ -1697,11 +2026,16 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   String _formatCurrency(double value) {
     if (value == 0) return r'$0';
     final absValue = value.abs();
-    final decimals = absValue >= 1000 ? 0 : absValue >= 100 ? 1 : 2;
+    final decimals = absValue >= 1000
+        ? 0
+        : absValue >= 100
+            ? 1
+            : 2;
     final text = absValue.toStringAsFixed(decimals);
     final parts = text.split('.');
     final whole = parts.first;
-    final withCommas = whole.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
+    final withCommas =
+        whole.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
     final hasDecimals = parts.length > 1 && int.tryParse(parts[1]) != 0;
     final decimalPart = hasDecimals ? '.${parts[1]}' : '';
     final symbol = value < 0 ? '-\$' : '\$';
@@ -1709,78 +2043,106 @@ class _PreferredSolutionAnalysisScreenState extends State<PreferredSolutionAnaly
   }
 
   // Helper methods to extract data from project model for each solution
-  String _getRiskDataForSolution(ProjectDataModel projectData, String solutionTitle) {
+  String _getRiskDataForSolution(
+      ProjectDataModel projectData, String solutionTitle) {
     final solutionRisk = projectData.solutionRisks.firstWhere(
-      (risk) => risk.solutionTitle.trim().toLowerCase() == solutionTitle.trim().toLowerCase(),
+      (risk) =>
+          risk.solutionTitle.trim().toLowerCase() ==
+          solutionTitle.trim().toLowerCase(),
       orElse: () => SolutionRisk(solutionTitle: solutionTitle),
     );
-    
+
     final risks = solutionRisk.risks.where((r) => r.trim().isNotEmpty).toList();
     if (risks.isEmpty) return 'No risks identified';
-    
+
     return risks.take(4).map((risk) => '- $risk').join('\n');
   }
 
-  String _getITDataForSolution(ProjectDataModel projectData, String solutionTitle) {
-    if (projectData.itConsiderationsData == null) return 'No IT considerations recorded';
-    
+  String _getITDataForSolution(
+      ProjectDataModel projectData, String solutionTitle) {
+    if (projectData.itConsiderationsData == null)
+      return 'No IT considerations recorded';
+
     final itData = projectData.itConsiderationsData!.solutionITData.firstWhere(
-      (it) => it.solutionTitle.trim().toLowerCase() == solutionTitle.trim().toLowerCase(),
+      (it) =>
+          it.solutionTitle.trim().toLowerCase() ==
+          solutionTitle.trim().toLowerCase(),
       orElse: () => SolutionITData(solutionTitle: solutionTitle),
     );
-    
-    if (itData.coreTechnology.trim().isEmpty) return 'No IT considerations recorded';
+
+    if (itData.coreTechnology.trim().isEmpty)
+      return 'No IT considerations recorded';
     return itData.coreTechnology;
   }
 
-  String _getInfrastructureDataForSolution(ProjectDataModel projectData, String solutionTitle) {
-    if (projectData.infrastructureConsiderationsData == null) return 'No infrastructure considerations recorded';
-    
-    final infraData = projectData.infrastructureConsiderationsData!.solutionInfrastructureData.firstWhere(
-      (infra) => infra.solutionTitle.trim().toLowerCase() == solutionTitle.trim().toLowerCase(),
+  String _getInfrastructureDataForSolution(
+      ProjectDataModel projectData, String solutionTitle) {
+    if (projectData.infrastructureConsiderationsData == null)
+      return 'No infrastructure considerations recorded';
+
+    final infraData = projectData
+        .infrastructureConsiderationsData!.solutionInfrastructureData
+        .firstWhere(
+      (infra) =>
+          infra.solutionTitle.trim().toLowerCase() ==
+          solutionTitle.trim().toLowerCase(),
       orElse: () => SolutionInfrastructureData(solutionTitle: solutionTitle),
     );
-    
-    if (infraData.majorInfrastructure.trim().isEmpty) return 'No infrastructure considerations recorded';
+
+    if (infraData.majorInfrastructure.trim().isEmpty)
+      return 'No infrastructure considerations recorded';
     return infraData.majorInfrastructure;
   }
 
-  String _getStakeholderDataForSolution(ProjectDataModel projectData, String solutionTitle) {
-    if (projectData.coreStakeholdersData == null) return 'No stakeholders identified';
-    
-    final stakeholderData = projectData.coreStakeholdersData!.solutionStakeholderData.firstWhere(
-      (sh) => sh.solutionTitle.trim().toLowerCase() == solutionTitle.trim().toLowerCase(),
+  String _getStakeholderDataForSolution(
+      ProjectDataModel projectData, String solutionTitle) {
+    if (projectData.coreStakeholdersData == null)
+      return 'No stakeholders identified';
+
+    final stakeholderData =
+        projectData.coreStakeholdersData!.solutionStakeholderData.firstWhere(
+      (sh) =>
+          sh.solutionTitle.trim().toLowerCase() ==
+          solutionTitle.trim().toLowerCase(),
       orElse: () => SolutionStakeholderData(solutionTitle: solutionTitle),
     );
-    
-    if (stakeholderData.notableStakeholders.trim().isEmpty) return 'No stakeholders identified';
+
+    if (stakeholderData.notableStakeholders.trim().isEmpty)
+      return 'No stakeholders identified';
     return stakeholderData.notableStakeholders;
   }
 
-  String _getCostBenefitDataForSolution(ProjectDataModel projectData, String solutionTitle) {
-    if (projectData.costAnalysisData == null) return 'No cost analysis available';
-    
+  String _getCostBenefitDataForSolution(
+      ProjectDataModel projectData, String solutionTitle) {
+    if (projectData.costAnalysisData == null)
+      return 'No cost analysis available';
+
     final costData = projectData.costAnalysisData!.solutionCosts.firstWhere(
-      (cost) => cost.solutionTitle.trim().toLowerCase() == solutionTitle.trim().toLowerCase(),
+      (cost) =>
+          cost.solutionTitle.trim().toLowerCase() ==
+          solutionTitle.trim().toLowerCase(),
       orElse: () => SolutionCostData(solutionTitle: solutionTitle),
     );
-    
+
     if (costData.costRows.isEmpty) return 'No cost analysis available';
-    
+
     final lines = <String>[];
-    
+
     // Add project value if available
     if (projectData.costAnalysisData!.projectValueAmount.trim().isNotEmpty) {
-      lines.add('Project Value: ${projectData.costAnalysisData!.projectValueAmount}');
+      lines.add(
+          'Project Value: ${projectData.costAnalysisData!.projectValueAmount}');
     }
-    
+
     // Add top cost items
-    final topCosts = costData.costRows.take(3).where((row) => row.itemName.trim().isNotEmpty);
+    final topCosts = costData.costRows
+        .take(3)
+        .where((row) => row.itemName.trim().isNotEmpty);
     for (final cost in topCosts) {
       final costStr = cost.cost.trim().isNotEmpty ? cost.cost : 'TBD';
       lines.add('- ${cost.itemName}: $costStr');
     }
-    
+
     return lines.isEmpty ? 'No cost analysis available' : lines.join('\n');
   }
 
@@ -1815,7 +2177,8 @@ class _ProjectSelectionResult {
   final AiSolutionItem solution;
   final String projectName;
 
-  const _ProjectSelectionResult({required this.solution, required this.projectName});
+  const _ProjectSelectionResult(
+      {required this.solution, required this.projectName});
 }
 
 class _ProjectSelectionDialog extends StatefulWidget {
@@ -1824,7 +2187,8 @@ class _ProjectSelectionDialog extends StatefulWidget {
   const _ProjectSelectionDialog({required this.solutions});
 
   @override
-  State<_ProjectSelectionDialog> createState() => _ProjectSelectionDialogState();
+  State<_ProjectSelectionDialog> createState() =>
+      _ProjectSelectionDialogState();
 }
 
 class _ProjectSelectionDialogState extends State<_ProjectSelectionDialog> {
@@ -1865,7 +2229,8 @@ class _ProjectSelectionDialogState extends State<_ProjectSelectionDialog> {
                   const Expanded(
                     child: Text(
                       'Choose a project to progress',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                     ),
                   ),
                   IconButton(
@@ -1910,8 +2275,10 @@ class _ProjectSelectionDialogState extends State<_ProjectSelectionDialog> {
                 },
                 decoration: InputDecoration(
                   labelText: 'Project name',
-                  hintText: 'e.g. ${_selectedIndex != null ? widget.solutions[_selectedIndex!].title : 'People Operations Transformation'}',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  hintText:
+                      'e.g. ${_selectedIndex != null ? widget.solutions[_selectedIndex!].title : 'People Operations Transformation'}',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   errorText: _error,
                 ),
               ),
@@ -1929,11 +2296,15 @@ class _ProjectSelectionDialogState extends State<_ProjectSelectionDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFD700),
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    child: const Text('Save & Continue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    child: const Text('Save & Continue',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -1952,7 +2323,8 @@ class _ProjectSelectionDialogState extends State<_ProjectSelectionDialog> {
         _suppressNameChange = true;
         _nameController
           ..text = widget.solutions[index].title
-          ..selection = TextSelection.collapsed(offset: _nameController.text.length);
+          ..selection =
+              TextSelection.collapsed(offset: _nameController.text.length);
         _suppressNameChange = false;
         _nameManuallyEdited = false;
       }
@@ -1994,7 +2366,8 @@ class _ProjectOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isSelected ? const Color(0xFFFFD700) : Colors.grey.withOpacity(0.2);
+    final borderColor =
+        isSelected ? const Color(0xFFFFD700) : Colors.grey.withOpacity(0.2);
     final background = isSelected ? const Color(0xFFFFF8DC) : Colors.white;
 
     return Container(
@@ -2024,7 +2397,8 @@ class _ProjectOptionCard extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isSelected ? const Color(0xFFFFD700) : Colors.grey[200],
+                  color:
+                      isSelected ? const Color(0xFFFFD700) : Colors.grey[200],
                 ),
                 alignment: Alignment.center,
                 child: Icon(
@@ -2038,15 +2412,19 @@ class _ProjectOptionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      solution.title.isNotEmpty ? solution.title : 'Untitled Solution',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      solution.title.isNotEmpty
+                          ? solution.title
+                          : 'Untitled Solution',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       solution.description.isNotEmpty
                           ? solution.description
                           : 'Describe the outcomes, value proposition, and key enablers for this option.',
-                      style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black87),
+                      style: const TextStyle(
+                          fontSize: 14, height: 1.5, color: Colors.black87),
                     ),
                   ],
                 ),
@@ -2127,11 +2505,15 @@ class PreferredSolutionComparisonScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFD700),
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
-                child: const Text('Next', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                child: const Text('Next',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -2146,18 +2528,22 @@ class PreferredSolutionComparisonScreen extends StatelessWidget {
 
     if (projectData.preferredSolutionAnalysis == null) {
       if (context.mounted) {
-        ProjectDataHelper.showMissingDataMessage(context, 'Please complete the preferred solution analysis.');
+        ProjectDataHelper.showMissingDataMessage(
+            context, 'Please complete the preferred solution analysis.');
       }
       return;
     }
 
     // Smart Checkpoint Check
-    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('preferred_solution_analysis');
+    final nextCheckpoint = SidebarNavigationService.instance
+        .getNextItem('preferred_solution_analysis');
     if (nextCheckpoint?.checkpoint != 'fep_summary') {
-      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'fep_summary');
+      final isLocked =
+          ProjectDataHelper.isDestinationLocked(context, 'fep_summary');
       if (isLocked) {
         if (context.mounted) {
-          ProjectDataHelper.showLockedDestinationMessage(context, 'Front End Planning Summary');
+          ProjectDataHelper.showLockedDestinationMessage(
+              context, 'Front End Planning Summary');
         }
         return;
       }
@@ -2171,7 +2557,6 @@ class PreferredSolutionComparisonScreen extends StatelessWidget {
       );
     }
   }
-
 }
 
 class _ComparisonContent extends StatelessWidget {
@@ -2192,7 +2577,8 @@ class _ComparisonContent extends StatelessWidget {
         const SizedBox(height: 20),
         LayoutBuilder(
           builder: (context, constraints) {
-            final canDisplayColumns = constraints.maxWidth >= 900 && analysis.length <= 3;
+            final canDisplayColumns =
+                constraints.maxWidth >= 900 && analysis.length <= 3;
             if (canDisplayColumns) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2200,8 +2586,10 @@ class _ComparisonContent extends StatelessWidget {
                   for (var i = 0; i < analysis.length; i++)
                     Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(right: i == analysis.length - 1 ? 0 : 16),
-                        child: _buildComparisonCard(context, data: analysis[i], index: i),
+                        padding: EdgeInsets.only(
+                            right: i == analysis.length - 1 ? 0 : 16),
+                        child: _buildComparisonCard(context,
+                            data: analysis[i], index: i),
                       ),
                     ),
                 ],
@@ -2213,8 +2601,10 @@ class _ComparisonContent extends StatelessWidget {
               children: [
                 for (var i = 0; i < analysis.length; i++)
                   Padding(
-                    padding: EdgeInsets.only(bottom: i == analysis.length - 1 ? 0 : 16),
-                    child: _buildComparisonCard(context, data: analysis[i], index: i),
+                    padding: EdgeInsets.only(
+                        bottom: i == analysis.length - 1 ? 0 : 16),
+                    child: _buildComparisonCard(context,
+                        data: analysis[i], index: i),
                   ),
               ],
             );
@@ -2236,7 +2626,8 @@ class _ComparisonContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
-          Text('No solutions available yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text('No solutions available yet',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           SizedBox(height: 8),
           Text(
             'Add potential solutions to see their stakeholders, risks, and cost signals in one place.',
@@ -2272,12 +2663,14 @@ class _ComparisonContent extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () => _showPrintDialog(context),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 side: BorderSide(color: Colors.grey.withValues(alpha: 0.4)),
                 foregroundColor: Colors.black,
               ),
               icon: const Icon(Icons.print_outlined, size: 18),
-              label: const Text('Print tips', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              label: const Text('Print tips',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ),
           ),
         ],
@@ -2305,17 +2698,31 @@ class _ComparisonContent extends StatelessWidget {
     );
   }
 
-  static Widget _buildComparisonCard(BuildContext context, {required _SolutionAnalysisData data, required int index}) {
-    final title = data.solution.title.isNotEmpty ? data.solution.title : 'Solution ${index + 1}';
-    final description = data.solution.description.isNotEmpty ? data.solution.description : 'Discipline';
+  static Widget _buildComparisonCard(BuildContext context,
+      {required _SolutionAnalysisData data, required int index}) {
+    final title = data.solution.title.isNotEmpty
+        ? data.solution.title
+        : 'Solution ${index + 1}';
+    final description = data.solution.description.isNotEmpty
+        ? data.solution.description
+        : 'Discipline';
     final stakeholders = _topStrings(data.stakeholders, maxItems: 5);
     final risks = _topStrings(data.risks, maxItems: 5);
     final costs = data.costs;
     final hasCosts = costs.isNotEmpty;
-    final totalCost = hasCosts ? costs.fold<double>(0.0, (sum, item) => sum + item.estimatedCost) : 0.0;
-    final averageRoi = hasCosts ? costs.map((item) => item.roiPercent).reduce((a, b) => a + b) / costs.length : 0.0;
-    final bestNpv = hasCosts ? costs.map((item) => item.npv).reduce(math.max) : 0.0;
-    final strongestCost = hasCosts ? costs.reduce((prev, next) => next.estimatedCost > prev.estimatedCost ? next : prev) : null;
+    final totalCost = hasCosts
+        ? costs.fold<double>(0.0, (sum, item) => sum + item.estimatedCost)
+        : 0.0;
+    final averageRoi = hasCosts
+        ? costs.map((item) => item.roiPercent).reduce((a, b) => a + b) /
+            costs.length
+        : 0.0;
+    final bestNpv =
+        hasCosts ? costs.map((item) => item.npv).reduce(math.max) : 0.0;
+    final strongestCost = hasCosts
+        ? costs.reduce((prev, next) =>
+            next.estimatedCost > prev.estimatedCost ? next : prev)
+        : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -2335,9 +2742,13 @@ class _ComparisonContent extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      Text(title,
+                          style: const TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 6),
-                      Text(description, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                      Text(description,
+                          style: const TextStyle(
+                              fontSize: 13, color: Colors.black54)),
                     ],
                   ),
                 ),
@@ -2347,12 +2758,16 @@ class _ComparisonContent extends StatelessWidget {
             const SizedBox(height: 18),
             _buildCardSection(
               title: 'Engage these stakeholders',
-              child: stakeholders.isEmpty ? _buildCardPlaceholder('No stakeholder insights yet.') : _buildCardList(stakeholders),
+              child: stakeholders.isEmpty
+                  ? _buildCardPlaceholder('No stakeholder insights yet.')
+                  : _buildCardList(stakeholders),
             ),
             const SizedBox(height: 18),
             _buildCardSection(
               title: 'Risks to monitor',
-              child: risks.isEmpty ? _buildCardPlaceholder('No risk considerations generated.') : _buildCardList(risks),
+              child: risks.isEmpty
+                  ? _buildCardPlaceholder('No risk considerations generated.')
+                  : _buildCardList(risks),
             ),
             const SizedBox(height: 18),
             _buildCardSection(
@@ -2361,36 +2776,51 @@ class _ComparisonContent extends StatelessWidget {
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildFinancialHighlights(totalCost: totalCost, averageRoi: averageRoi, bestNpv: bestNpv, strongestCost: strongestCost),
+                        _buildFinancialHighlights(
+                            totalCost: totalCost,
+                            averageRoi: averageRoi,
+                            bestNpv: bestNpv,
+                            strongestCost: strongestCost),
                         const SizedBox(height: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: costs.take(5).map((item) {
-                            final label = item.item.isNotEmpty ? item.item : 'Cost item';
+                            final label =
+                                item.item.isNotEmpty ? item.item : 'Cost item';
                             return Container(
                               margin: const EdgeInsets.only(bottom: 10),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF9FBFC),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+                                border: Border.all(
+                                    color: Colors.grey.withValues(alpha: 0.15)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  Text(label,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600)),
                                   if (item.description.isNotEmpty) ...[
                                     const SizedBox(height: 6),
-                                    Text(item.description, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    Text(item.description,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black54)),
                                   ],
                                   const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 6,
                                     children: [
-                                      _buildCostBadge('Est. cost', _formatCurrency(item.estimatedCost)),
-                                      _buildCostBadge('ROI', '${item.roiPercent.toStringAsFixed(1)}%'),
-                                      _buildCostBadge('NPV (5yr)', _formatCurrency(item.npvForYear(5))),
+                                      _buildCostBadge('Est. cost',
+                                          _formatCurrency(item.estimatedCost)),
+                                      _buildCostBadge('ROI',
+                                          '${item.roiPercent.toStringAsFixed(1)}%'),
+                                      _buildCostBadge('NPV (5yr)',
+                                          _formatCurrency(item.npvForYear(5))),
                                     ],
                                   ),
                                 ],
@@ -2408,11 +2838,13 @@ class _ComparisonContent extends StatelessWidget {
     );
   }
 
-  static Widget _buildCardSection({required String title, required Widget child}) {
+  static Widget _buildCardSection(
+      {required String title, required Widget child}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        Text(title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
         child,
       ],
@@ -2420,7 +2852,8 @@ class _ComparisonContent extends StatelessWidget {
   }
 
   static Widget _buildCardPlaceholder(String message) {
-    return Text(message, style: const TextStyle(fontSize: 12, color: Colors.black38));
+    return Text(message,
+        style: const TextStyle(fontSize: 12, color: Colors.black38));
   }
 
   static Widget _buildCardList(List<String> items) {
@@ -2433,8 +2866,13 @@ class _ComparisonContent extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('- ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  Expanded(child: Text(item, style: const TextStyle(fontSize: 13, color: Colors.black87))),
+                  const Text('- ',
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Expanded(
+                      child: Text(item,
+                          style: const TextStyle(
+                              fontSize: 13, color: Colors.black87))),
                 ],
               ),
             ),
@@ -2443,7 +2881,11 @@ class _ComparisonContent extends StatelessWidget {
     );
   }
 
-  static Widget _buildFinancialHighlights({required double totalCost, required double averageRoi, required double bestNpv, AiCostItem? strongestCost}) {
+  static Widget _buildFinancialHighlights(
+      {required double totalCost,
+      required double averageRoi,
+      required double bestNpv,
+      AiCostItem? strongestCost}) {
     final badges = <Widget>[
       _buildCostBadge('Total investment', _formatCurrency(totalCost)),
       _buildCostBadge('Avg ROI', '${averageRoi.toStringAsFixed(1)}%'),
@@ -2451,8 +2893,10 @@ class _ComparisonContent extends StatelessWidget {
     ];
 
     if (strongestCost != null) {
-      final label = strongestCost.item.isNotEmpty ? strongestCost.item : 'Cost item';
-      badges.add(_buildCostBadge('Largest cost driver', '$label - ${_formatCurrency(strongestCost.estimatedCost)}'));
+      final label =
+          strongestCost.item.isNotEmpty ? strongestCost.item : 'Cost item';
+      badges.add(_buildCostBadge('Largest cost driver',
+          '$label - ${_formatCurrency(strongestCost.estimatedCost)}'));
     }
 
     return Wrap(
@@ -2468,20 +2912,28 @@ class _ComparisonContent extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFFF7CC),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.6)),
+        border:
+            Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87)),
           const SizedBox(width: 6),
-          Text(value, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+          Text(value,
+              style: const TextStyle(fontSize: 12, color: Colors.black87)),
         ],
       ),
     );
   }
 
-  static Widget _buildComparisonMatrix(BuildContext context, List<_SolutionAnalysisData> analysis) {
+  // ignore: unused_element
+  static Widget _buildComparisonMatrix(
+      BuildContext context, List<_SolutionAnalysisData> analysis) {
     final headers = [
       for (var i = 0; i < analysis.length; i++)
         '${i + 1}. ${analysis[i].solution.title.isNotEmpty ? analysis[i].solution.title : 'Solution ${i + 1}'}',
@@ -2500,7 +2952,8 @@ class _ComparisonContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               color: Colors.grey[100],
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: const Text(
               'Side-by-side summary',
@@ -2514,7 +2967,8 @@ class _ComparisonContent extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: _buildMatrixTable(analysis, headers, availableWidth: available),
+                  child: _buildMatrixTable(analysis, headers,
+                      availableWidth: available),
                 ),
               );
             },
@@ -2524,9 +2978,13 @@ class _ComparisonContent extends StatelessWidget {
     );
   }
 
-  static Table _buildMatrixTable(List<_SolutionAnalysisData> analysis, List<String> headers, {double? availableWidth}) {
+  static Table _buildMatrixTable(
+      List<_SolutionAnalysisData> analysis, List<String> headers,
+      {double? availableWidth}) {
     const leftCol = 220.0;
-    final columnWidths = <int, TableColumnWidth>{0: const FixedColumnWidth(leftCol)};
+    final columnWidths = <int, TableColumnWidth>{
+      0: const FixedColumnWidth(leftCol)
+    };
     final count = headers.length;
     double perCol = 300;
     if (availableWidth != null && availableWidth > leftCol + 100) {
@@ -2543,7 +3001,8 @@ class _ComparisonContent extends StatelessWidget {
       TableRow(
         children: [
           _buildMatrixCellText('Category', isHeader: true),
-          for (final header in headers) _buildMatrixCellText(header, isHeader: true),
+          for (final header in headers)
+            _buildMatrixCellText(header, isHeader: true),
         ],
       ),
     );
@@ -2552,7 +3011,9 @@ class _ComparisonContent extends StatelessWidget {
       TableRow(
         children: [
           _buildMatrixCellText('Focus summary', emphasize: true),
-          for (final data in analysis) _buildMatrixCellText(_formatListForMatrix([data.solution.description])),
+          for (final data in analysis)
+            _buildMatrixCellText(
+                _formatListForMatrix([data.solution.description])),
         ],
       ),
     );
@@ -2561,7 +3022,9 @@ class _ComparisonContent extends StatelessWidget {
       TableRow(
         children: [
           _buildMatrixCellText('Core stakeholders', emphasize: true),
-          for (final data in analysis) _buildMatrixCellText(_formatListForMatrix(_topStrings(data.stakeholders, maxItems: 6))),
+          for (final data in analysis)
+            _buildMatrixCellText(_formatListForMatrix(
+                _topStrings(data.stakeholders, maxItems: 6))),
         ],
       ),
     );
@@ -2570,7 +3033,9 @@ class _ComparisonContent extends StatelessWidget {
       TableRow(
         children: [
           _buildMatrixCellText('Risk identification', emphasize: true),
-          for (final data in analysis) _buildMatrixCellText(_formatListForMatrix(_topStrings(data.risks, maxItems: 6))),
+          for (final data in analysis)
+            _buildMatrixCellText(
+                _formatListForMatrix(_topStrings(data.risks, maxItems: 6))),
         ],
       ),
     );
@@ -2579,7 +3044,9 @@ class _ComparisonContent extends StatelessWidget {
       TableRow(
         children: [
           _buildMatrixCellText('IT considerations', emphasize: true),
-          for (final data in analysis) _buildMatrixCellText(_formatListForMatrix(_topStrings(data.technologies, maxItems: 6))),
+          for (final data in analysis)
+            _buildMatrixCellText(_formatListForMatrix(
+                _topStrings(data.technologies, maxItems: 6))),
         ],
       ),
     );
@@ -2587,8 +3054,11 @@ class _ComparisonContent extends StatelessWidget {
     rows.add(
       TableRow(
         children: [
-          _buildMatrixCellText('Infrastructure considerations', emphasize: true),
-          for (final data in analysis) _buildMatrixCellText(_formatListForMatrix(_topStrings(data.infrastructure, maxItems: 6))),
+          _buildMatrixCellText('Infrastructure considerations',
+              emphasize: true),
+          for (final data in analysis)
+            _buildMatrixCellText(_formatListForMatrix(
+                _topStrings(data.infrastructure, maxItems: 6))),
         ],
       ),
     );
@@ -2596,8 +3066,10 @@ class _ComparisonContent extends StatelessWidget {
     rows.add(
       TableRow(
         children: [
-          _buildMatrixCellText('Cost-benefit & financial metrics', emphasize: true),
-          for (final data in analysis) _buildMatrixCellText(_financialSummaryText(data)),
+          _buildMatrixCellText('Cost-benefit & financial metrics',
+              emphasize: true),
+          for (final data in analysis)
+            _buildMatrixCellText(_financialSummaryText(data)),
         ],
       ),
     );
@@ -2610,7 +3082,8 @@ class _ComparisonContent extends StatelessWidget {
             _buildMatrixCellText(
               _formatListForMatrix(
                 data.costs
-                    .map((e) => '${e.item.isNotEmpty ? e.item : 'Cost item'} - ${_formatCurrency(e.estimatedCost)}')
+                    .map((e) =>
+                        '${e.item.isNotEmpty ? e.item : 'Cost item'} - ${_formatCurrency(e.estimatedCost)}')
                     .toList(),
                 maxItems: 5,
               ),
@@ -2620,14 +3093,16 @@ class _ComparisonContent extends StatelessWidget {
     );
 
     return Table(
-      border: TableBorder.all(color: Colors.grey.withValues(alpha: 0.3), width: 0.7),
+      border: TableBorder.all(
+          color: Colors.grey.withValues(alpha: 0.3), width: 0.7),
       columnWidths: columnWidths,
       defaultVerticalAlignment: TableCellVerticalAlignment.top,
       children: rows,
     );
   }
 
-  static Widget _buildMatrixCellText(String text, {bool isHeader = false, bool emphasize = false}) {
+  static Widget _buildMatrixCellText(String text,
+      {bool isHeader = false, bool emphasize = false}) {
     final style = TextStyle(
       fontSize: 12,
       fontWeight: isHeader
@@ -2645,13 +3120,18 @@ class _ComparisonContent extends StatelessWidget {
   }
 
   static String _formatListForMatrix(List<String> items, {int maxItems = 4}) {
-    final trimmed = items.where((e) => e.trim().isNotEmpty).take(maxItems).toList();
+    final trimmed =
+        items.where((e) => e.trim().isNotEmpty).take(maxItems).toList();
     if (trimmed.isEmpty) return 'N/A';
     return trimmed.map((value) => '- ${value.trim()}').join('\n');
   }
 
   static List<String> _topStrings(List<String> source, {int maxItems = 4}) {
-    return source.where((e) => e.trim().isNotEmpty).map((e) => e.trim()).take(maxItems).toList();
+    return source
+        .where((e) => e.trim().isNotEmpty)
+        .map((e) => e.trim())
+        .take(maxItems)
+        .toList();
   }
 
   static String _financialSummaryText(_SolutionAnalysisData data) {
@@ -2659,8 +3139,11 @@ class _ComparisonContent extends StatelessWidget {
     if (costs.isEmpty) {
       return 'No financial insights available yet.';
     }
-    final totalCost = costs.fold<double>(0.0, (sum, item) => sum + item.estimatedCost);
-    final avgRoi = costs.map((item) => item.roiPercent).reduce((a, b) => a + b) / costs.length;
+    final totalCost =
+        costs.fold<double>(0.0, (sum, item) => sum + item.estimatedCost);
+    final avgRoi =
+        costs.map((item) => item.roiPercent).reduce((a, b) => a + b) /
+            costs.length;
     final bestNpv = costs.map((item) => item.npv).reduce(math.max);
     return 'Total: ${_formatCurrency(totalCost)}\nAvg ROI: ${avgRoi.toStringAsFixed(1)}%\nBest NPV: ${_formatCurrency(bestNpv)}';
   }
@@ -2668,11 +3151,16 @@ class _ComparisonContent extends StatelessWidget {
   static String _formatCurrency(double value) {
     if (value == 0) return r'$0';
     final absValue = value.abs();
-    final decimals = absValue >= 1000 ? 0 : absValue >= 100 ? 1 : 2;
+    final decimals = absValue >= 1000
+        ? 0
+        : absValue >= 100
+            ? 1
+            : 2;
     final text = absValue.toStringAsFixed(decimals);
     final parts = text.split('.');
     final whole = parts.first;
-    final withCommas = whole.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
+    final withCommas =
+        whole.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
     final hasDecimals = parts.length > 1 && int.tryParse(parts[1]) != 0;
     final decimalPart = hasDecimals ? '.${parts[1]}' : '';
     final symbol = value < 0 ? '-\$' : '\$';
@@ -2686,7 +3174,9 @@ class _AiTag extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: const BoxDecoration(color: Color(0xFFFFD700), borderRadius: BorderRadius.all(Radius.circular(4))),
+      decoration: const BoxDecoration(
+          color: Color(0xFFFFD700),
+          borderRadius: BorderRadius.all(Radius.circular(4))),
       child: const Text('AI', style: TextStyle(fontWeight: FontWeight.bold)),
     );
   }

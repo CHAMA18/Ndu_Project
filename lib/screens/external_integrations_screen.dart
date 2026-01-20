@@ -29,7 +29,7 @@ class _ExternalIntegrationsScreenState extends State<ExternalIntegrationsScreen>
     setState(() {
       _items
         ..clear()
-        ..addAll(provider.projectData.externalIntegrations);
+        ..addAll(provider.projectData.aiIntegrations);
       _loading = false;
     });
   }
@@ -37,7 +37,7 @@ class _ExternalIntegrationsScreenState extends State<ExternalIntegrationsScreen>
   Future<void> _save() async {
     final provider = ProjectDataInherited.maybeOf(context);
     if (provider == null) return;
-    provider.updateField((d) => d.copyWith(externalIntegrations: _items));
+    provider.updateField((d) => d.copyWith(aiIntegrations: _items));
     await provider.saveToFirebase(checkpoint: 'external_integrations');
   }
 

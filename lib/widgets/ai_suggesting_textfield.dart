@@ -7,13 +7,15 @@ import 'package:ndu_project/utils/text_sanitizer.dart';
 
 /// Debouncer utility to limit API calls while typing
 class _Debouncer {
-  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 400);
+  _Debouncer({Duration? delay})
+      : delay = delay ?? const Duration(milliseconds: 400);
   final Duration delay;
   Timer? _timer;
   void run(void Function() action) {
     _timer?.cancel();
     _timer = Timer(delay, action);
   }
+
   void dispose() => _timer?.cancel();
 }
 
@@ -120,7 +122,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
   void initState() {
     super.initState();
     if ((widget.initialText ?? '').isNotEmpty) {
-  _controller.text = TextSanitizer.sanitizeAiText(widget.initialText);
+      _controller.text = TextSanitizer.sanitizeAiText(widget.initialText);
     }
     _controller.addListener(_onTextChanged);
     if (_aiEnabled && widget.autoGenerate) {
@@ -156,9 +158,11 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
         : widget.sectionLabel.trim();
     final data = ProjectDataHelper.getData(context);
     final sectionLower = section.toLowerCase();
-    final useExecutiveContext = sectionLower.contains('executive') || sectionLower.contains('execution plan');
+    final useExecutiveContext = sectionLower.contains('executive') ||
+        sectionLower.contains('execution plan');
     final contextText = useExecutiveContext
-        ? ProjectDataHelper.buildExecutivePlanContext(data, sectionLabel: section)
+        ? ProjectDataHelper.buildExecutivePlanContext(data,
+            sectionLabel: section)
         : ProjectDataHelper.buildFepContext(data, sectionLabel: section);
     if (contextText.trim().isEmpty) return;
 
@@ -174,7 +178,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
       if (!mounted) return;
       _recordAiUsage();
       if (_controller.text.trim().isEmpty && text.trim().isNotEmpty) {
-  _controller.text = TextSanitizer.sanitizeAiText(text);
+        _controller.text = TextSanitizer.sanitizeAiText(text);
         _controller.selection = TextSelection.fromPosition(
           TextPosition(offset: _controller.text.length),
         );
@@ -205,10 +209,15 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
       return;
     }
 
-    final contextText = ProjectDataHelper.buildFepContext(
-      ProjectDataHelper.getData(context),
-      sectionLabel: widget.sectionLabel,
-    );
+    final data = ProjectDataHelper.getData(context);
+    final sectionLower = widget.sectionLabel.toLowerCase();
+    final useExecutiveContext = sectionLower.contains('executive') ||
+        sectionLower.contains('execution plan');
+    final contextText = useExecutiveContext
+        ? ProjectDataHelper.buildExecutivePlanContext(data,
+            sectionLabel: widget.sectionLabel)
+        : ProjectDataHelper.buildFepContext(data,
+            sectionLabel: widget.sectionLabel);
 
     setState(() {
       _loading = true;
@@ -224,7 +233,8 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
       );
       if (!mounted) return;
       setState(() {
-        _suggestions = items.map((s) => TextSanitizer.sanitizeAiText(s)).toList();
+        _suggestions =
+            items.map((s) => TextSanitizer.sanitizeAiText(s)).toList();
         _loading = false;
       });
       _recordAiUsage();
@@ -233,7 +243,8 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
       setState(() {
         // Check if OpenAI is configured
         if (!OpenAiConfig.isConfigured) {
-          _error = 'OpenAI API key not configured. Please add your API key to enable AI suggestions.';
+          _error =
+              'OpenAI API key not configured. Please add your API key to enable AI suggestions.';
         } else {
           final warn = OpenAiConfig.configurationWarning();
           _error = warn ?? e.toString();
@@ -245,10 +256,14 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
 
   void _applySuggestion(String suggestion) {
     final current = _controller.text.trimRight();
-    final needsSpace = current.isNotEmpty && !current.endsWith('\n') && !current.endsWith(' ');
-  final next = current + (needsSpace ? ' ' : '') + TextSanitizer.sanitizeAiText(suggestion);
-  _controller.text = next;
-    _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+    final needsSpace =
+        current.isNotEmpty && !current.endsWith('\n') && !current.endsWith(' ');
+    final next = current +
+        (needsSpace ? ' ' : '') +
+        TextSanitizer.sanitizeAiText(suggestion);
+    _controller.text = next;
+    _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length));
     widget.onChanged?.call(_controller.text);
   }
 
@@ -277,8 +292,10 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
               minLines: 8,
               decoration: InputDecoration(
                 hintText: widget.hintText,
-                hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                hintStyle:
+                    const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 filled: true,
                 fillColor: Colors.white,
                 enabledBorder: OutlineInputBorder(
@@ -287,26 +304,64 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFFFFD700), width: 1.6),
+                  borderSide:
+                      const BorderSide(color: Color(0xFFFFD700), width: 1.6),
                 ),
                 suffixIcon: _aiEnabled
-                    ? IconButton(
-                        tooltip: 'AI suggest',
-                        icon: _loading
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.auto_awesome, color: Color(0xFFF59E0B)),
-                        onPressed: (_loading || _aiLimitReached) ? null : _fetchSuggestions,
-                      )
+                    ? (_autoGenerating
+                        ? const Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
+                          )
+                        : IconButton(
+                            tooltip: 'AI suggest',
+                            icon: _loading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.auto_awesome,
+                                    color: Color(0xFFF59E0B)),
+                            onPressed: (_loading || _aiLimitReached)
+                                ? null
+                                : _fetchSuggestions,
+                          ))
                     : null,
               ),
-              style: const TextStyle(fontSize: 14, color: Color(0xFF111827), height: 1.5),
+              style: const TextStyle(
+                  fontSize: 14, color: Color(0xFF111827), height: 1.5),
             ),
           ],
         ),
+        if (_aiEnabled && _autoGenerating && !_autoGenerated) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 8),
+              Text(
+                'AI is generating content...',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ],
         if (_aiEnabled && _isBasicPlanProject && _aiLimitReached) ...[
           const SizedBox(height: 10),
           _AiLimitBanner(
-            message: 'AI suggestions are not available for this section on the Basic plan.',
+            message:
+                'AI suggestions are not available for this section on the Basic plan.',
             background: const Color(0xFFF3F4F6),
             border: const Color(0xFFE5E7EB),
             textColor: const Color(0xFF6B7280),
@@ -333,12 +388,14 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFB91C1C)),
+                const Icon(Icons.warning_amber_rounded,
+                    size: 18, color: Color(0xFFB91C1C)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _error!,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFFB91C1C), height: 1.4),
+                    style: const TextStyle(
+                        fontSize: 13, color: Color(0xFFB91C1C), height: 1.4),
                   ),
                 ),
               ],
@@ -351,12 +408,17 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
             children: _suggestions
                 .map((s) => ActionChip(
                       backgroundColor: const Color(0xFFE1EEFF),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999)),
                       label: Text(
                         s,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1F2937)),
                       ),
-                      avatar: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF1F2937)),
+                      avatar: const Icon(Icons.add_rounded,
+                          size: 16, color: Color(0xFF1F2937)),
                       onPressed: () => _applySuggestion(s),
                     ))
                 .toList(),

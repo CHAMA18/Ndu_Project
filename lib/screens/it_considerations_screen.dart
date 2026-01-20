@@ -27,6 +27,8 @@ import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
+import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
+import 'package:ndu_project/services/user_service.dart';
 
 class ITConsiderationsScreen extends StatefulWidget {
   final String notes;
@@ -50,26 +52,45 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   bool _initiationExpanded = true;
   bool _businessCaseExpanded = true;
   bool _frontEndExpanded = true;
+  bool _isAdmin = false;
+  bool _didInitFromProvider = false;
 
+  // ignore: unused_element
   void _addNewItem() {
+    if (!_isAdmin) return; // Only admins can add items
     setState(() {
       _solutions.add(AiSolutionItem(
           title: '', description: '')); // Add a new solution item
-      _techControllers.add(TextEditingController()); // Add a new controller
+      final newController = TextEditingController();
+      newController.enableAutoBullet(); // Enable auto-bullet for new field
+      _techControllers.add(newController); // Add a new controller
     });
   }
 
   @override
   void initState() {
     super.initState();
+    // IMPORTANT: don't read inherited widgets in initState (causes dependOnInheritedWidget errors).
+    // We'll hydrate from provider in didChangeDependencies.
     _notesController = TextEditingController(text: widget.notes);
+    _notesController.enableAutoBullet(); // Enable auto-bullet for notes
+
     _solutions = List.from(widget.solutions); // Create mutable copy
     // Initialize with at least one empty item if solutions list is empty
     if (_solutions.isEmpty) {
       _solutions.add(AiSolutionItem(title: '', description: ''));
     }
-    _techControllers =
-        List.generate(_solutions.length, (_) => TextEditingController());
+    _techControllers = List.generate(_solutions.length, (_) {
+      final controller = TextEditingController();
+      controller.enableAutoBullet(); // Enable auto-bullet for each tech field
+      return controller;
+    });
+
+    // Check admin status
+    UserService.isCurrentUserAdmin().then((isAdmin) {
+      if (mounted) setState(() => _isAdmin = isAdmin);
+    });
+
     ApiKeyManager.initializeApiKey();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -79,6 +100,19 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         _generateTechnologies();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didInitFromProvider) return;
+    _didInitFromProvider = true;
+
+    final provider = ProjectDataInherited.maybeOf(context);
+    final existingNotes = provider?.projectData.itConsiderationsData?.notes;
+    if (existingNotes != null && existingNotes.trim().isNotEmpty) {
+      _notesController.text = existingNotes;
+    }
   }
 
   void _loadExistingData() {
@@ -94,14 +128,20 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       }
 
       // Load IT data for each solution
-      // Ensure we have enough controllers and solutions
-      while (_techControllers.length < itData.solutionITData.length) {
+      // Limit to 3 items for non-admins
+      final maxItems = _isAdmin
+          ? itData.solutionITData.length
+          : (itData.solutionITData.length > 3
+              ? 3
+              : itData.solutionITData.length);
+
+      while (_techControllers.length < maxItems) {
         _solutions.add(AiSolutionItem(title: '', description: ''));
-        _techControllers.add(TextEditingController());
+        final newController = TextEditingController();
+        newController.enableAutoBullet(); // Enable auto-bullet for new field
+        _techControllers.add(newController);
       }
-      for (int i = 0;
-          i < itData.solutionITData.length && i < _techControllers.length;
-          i++) {
+      for (int i = 0; i < maxItems && i < _techControllers.length; i++) {
         final solutionIT = itData.solutionITData[i];
         if (i < _solutions.length) {
           _solutions[i] = AiSolutionItem(
@@ -222,6 +262,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildTopHeader() {
     final isMobile = AppBreakpoints.isMobile(context);
     return Container(
@@ -276,6 +317,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSidebar() {
     final isMobile = AppBreakpoints.isMobile(context);
     final double bannerHeight = isMobile ? 72 : 96;
@@ -530,6 +572,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSubMenuItem(String title,
       {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -645,6 +688,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
+  // ignore: unused_element
   void _openBusinessCase() {
     Navigator.push(
       context,
@@ -679,29 +723,33 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     // 1. Save data FIRST before validation
     await _saveITConsiderationsData();
     if (!mounted) return;
-    
+
     // 2. Validate data completeness
     final provider = ProjectDataInherited.of(context);
     final projectData = provider.projectData;
     final hasITData = projectData.itConsiderationsData != null &&
         projectData.itConsiderationsData!.solutionITData.isNotEmpty &&
-        projectData.itConsiderationsData!.solutionITData.any((item) => 
-          item.coreTechnology.trim().isNotEmpty);
+        projectData.itConsiderationsData!.solutionITData
+            .any((item) => item.coreTechnology.trim().isNotEmpty);
 
     if (!hasITData) {
       if (mounted) {
-        ProjectDataHelper.showMissingDataMessage(context, 'Please add IT considerations for at least one solution before proceeding.');
+        ProjectDataHelper.showMissingDataMessage(context,
+            'Please add IT considerations for at least one solution before proceeding.');
       }
       return;
     }
 
     // 3. Smart checkpoint check
-    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('it_considerations');
+    final nextCheckpoint =
+        SidebarNavigationService.instance.getNextItem('it_considerations');
     if (nextCheckpoint?.checkpoint != 'infrastructure_considerations') {
       // Use standard lock check for non-sequential navigation
-      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'infrastructure_considerations');
+      final isLocked = ProjectDataHelper.isDestinationLocked(
+          context, 'infrastructure_considerations');
       if (isLocked) {
-        ProjectDataHelper.showLockedDestinationMessage(context, 'Infrastructure Considerations');
+        ProjectDataHelper.showLockedDestinationMessage(
+            context, 'Infrastructure Considerations');
         return;
       }
     }
@@ -932,30 +980,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                     List.generate(_techControllers.length, (i) => _row(i))),
           ),
         ],
-        const SizedBox(height: 16),
-        // Add Item button
-        Row(children: [
-          Tooltip(
-            message:
-                'While AI suggestions are helpful, we strongly encourage you to make the required adjustments for the best possible results',
-            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: _addNewItem,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Item'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ]),
         const SizedBox(height: 24),
 
         // Navigation Buttons

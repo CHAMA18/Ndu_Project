@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
@@ -50,67 +51,196 @@ class _FrontEndPlanningRisksScreenState
       _notesController.addListener(_syncRisksToProvider);
       _isSyncReady = true;
       _syncRisksToProvider();
-      _generateRequirementsFromBusinessCase();
+
+      // Load existing risks from saved data if available
+      _loadSavedRisks(projectData);
+
+      // Generate risks if no existing risks OR if risks exist but have empty risk fields
+      if (_rows.isEmpty ||
+          _rows.any((r) => r.risk.isEmpty || r.category.isEmpty)) {
+        _generateRequirementsFromBusinessCase();
+      }
+
       if (mounted) setState(() {});
     });
   }
 
+  void _loadSavedRisks(ProjectDataModel data) {
+    // Try to load from saved risks text first
+    final savedRisksText = data.frontEndPlanning.risks.trim();
+    if (savedRisksText.isNotEmpty) {
+      // Parse risks from text format (if any)
+      // For now, we'll rely on AI generation or manual entry
+    }
+
+    // Load requirements from Project Requirements collection
+    final requirements = data.frontEndPlanning.requirementItems;
+    if (requirements.isNotEmpty) {
+      // Create risk items from requirements
+      _rows = requirements.asMap().entries.map((entry) {
+        final req = entry.value;
+        return _RiskItem(
+          id: _generateId(entry.key + 1),
+          requirement: req.description,
+          requirementType: req.requirementType,
+          risk: '', // Will be filled by AI or user
+          description: '',
+          category: '',
+          probability: '',
+          impact: '',
+          riskValue: '',
+          riskLevel: '',
+          mitigation: '',
+          discipline: '',
+          owner: '',
+          status: 'Identified',
+        );
+      }).toList();
+    }
+  }
+
   Future<void> _generateRequirementsFromBusinessCase() async {
     setState(() => _isGeneratingRequirements = true);
+    final data = ProjectDataHelper.getData(context);
+    final requirements = data.frontEndPlanning.requirementItems;
+
     try {
-      final data = ProjectDataHelper.getData(context);
       final ctx = ProjectDataHelper.buildFepContext(data,
           sectionLabel: 'Project Risks');
       final aiService = OpenAiServiceSecure();
 
       // Generate risks with all fields (Title, Category, Probability, Impact)
-      final risks = await aiService.generateFepRisks(ctx);
+      // Request enough risks to match the number of requirements (or at least 8)
+      final riskCount = requirements.isNotEmpty ? requirements.length : 8;
+      final risks = await aiService.generateFepRisks(ctx, minCount: riskCount);
 
       if (!mounted) return;
       setState(() {
-        _rows = risks.asMap().entries.map((entry) {
-          final riskData = entry.value;
-          // Calculate risk level from probability and impact
-          final prob = riskData['probability']?.toLowerCase() ?? 'medium';
-          final impact = riskData['impact']?.toLowerCase() ?? 'medium';
-          String riskLevel = 'Medium';
-          if ((prob == 'high' && impact == 'high') ||
-              (prob == 'high' && impact == 'medium') ||
-              (prob == 'medium' && impact == 'high')) {
-            riskLevel = 'High';
-          } else if ((prob == 'low' && impact == 'low') ||
-              (prob == 'low' && impact == 'medium') ||
-              (prob == 'medium' && impact == 'low')) {
-            riskLevel = 'Low';
-          }
+        // If we have requirements, map risks to requirements
+        if (requirements.isNotEmpty) {
+          // Ensure we have at least as many risks as requirements
+          // If we have fewer risks than requirements, cycle through risks
+          _rows = requirements.asMap().entries.map((entry) {
+            final reqIndex = entry.key;
+            final req = entry.value;
+            final riskIndex =
+                reqIndex < risks.length ? reqIndex : reqIndex % risks.length;
+            final riskData = risks[riskIndex];
 
-          return _RiskItem(
-            id: _generateId(entry.key + 1),
-            requirement: '',
-            requirementType: '',
-            risk: riskData['title'] ?? '',
-            description:
-                riskData['title'] ?? '', // Use title as description initially
-            category: riskData['category'] ?? '',
-            probability: riskData['probability'] ?? '',
-            impact: riskData['impact'] ?? '',
-            riskValue: '',
-            riskLevel: riskLevel,
-            mitigation: '',
-            discipline: '',
-            owner: '',
-            status: 'Identified',
-          );
-        }).toList();
+            // Calculate risk level from probability and impact
+            final prob = riskData['probability']?.toLowerCase() ?? 'medium';
+            final impact = riskData['impact']?.toLowerCase() ?? 'medium';
+            String riskLevel = 'Medium';
+            if ((prob == 'high' && impact == 'high') ||
+                (prob == 'high' && impact == 'medium') ||
+                (prob == 'medium' && impact == 'high')) {
+              riskLevel = 'High';
+            } else if ((prob == 'low' && impact == 'low') ||
+                (prob == 'low' && impact == 'medium') ||
+                (prob == 'medium' && impact == 'low')) {
+              riskLevel = 'Low';
+            }
+
+            // Generate a more detailed description based on the risk title and requirement
+            final riskTitle = riskData['title'] ?? '';
+            final riskDescription = riskTitle.isNotEmpty
+                ? '$riskTitle. This risk is associated with: ${req.description}'
+                : req.description;
+
+            return _RiskItem(
+              id: _generateId(entry.key + 1),
+              requirement: req.description, // Pull from requirements
+              requirementType: req.requirementType, // Pull from requirements
+              risk: riskTitle,
+              description: riskDescription,
+              category: riskData['category'] ?? '',
+              probability: riskData['probability'] ?? '',
+              impact: riskData['impact'] ?? '',
+              riskValue: '', // Can be calculated later if needed
+              riskLevel: riskLevel,
+              mitigation: '', // Can be filled by user or AI later
+              discipline: '', // Can be filled by user later
+              owner: '', // Can be filled by user later
+              status: 'Identified',
+            );
+          }).toList();
+        } else {
+          // No requirements, generate risks without requirement mapping
+          _rows = risks.asMap().entries.map((entry) {
+            final riskData = entry.value;
+            // Calculate risk level from probability and impact
+            final prob = riskData['probability']?.toLowerCase() ?? 'medium';
+            final impact = riskData['impact']?.toLowerCase() ?? 'medium';
+            String riskLevel = 'Medium';
+            if ((prob == 'high' && impact == 'high') ||
+                (prob == 'high' && impact == 'medium') ||
+                (prob == 'medium' && impact == 'high')) {
+              riskLevel = 'High';
+            } else if ((prob == 'low' && impact == 'low') ||
+                (prob == 'low' && impact == 'medium') ||
+                (prob == 'medium' && impact == 'low')) {
+              riskLevel = 'Low';
+            }
+
+            return _RiskItem(
+              id: _generateId(entry.key + 1),
+              requirement: '',
+              requirementType: '',
+              risk: riskData['title'] ?? '',
+              description:
+                  riskData['title'] ?? '', // Use title as description initially
+              category: riskData['category'] ?? '',
+              probability: riskData['probability'] ?? '',
+              impact: riskData['impact'] ?? '',
+              riskValue: '',
+              riskLevel: riskLevel,
+              mitigation: '',
+              discipline: '',
+              owner: '',
+              status: 'Identified',
+            );
+          }).toList();
+        }
         _isGeneratingRequirements = false;
       });
       _syncRisksToProvider();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isGeneratingRequirements = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate risks: $e')),
-      );
+      debugPrint('Risk generation failed: $e');
+      // Even on error, risks should have been generated via fallback
+      // But if _rows is still empty, create some basic risks from requirements
+      if (_rows.isEmpty) {
+        final requirements = data.frontEndPlanning.requirementItems;
+        if (requirements.isNotEmpty) {
+          setState(() {
+            _rows = requirements.asMap().entries.map((entry) {
+              final req = entry.value;
+              return _RiskItem(
+                id: _generateId(entry.key + 1),
+                requirement: req.description,
+                requirementType: req.requirementType,
+                risk: 'Risk associated with ${req.description}',
+                description: 'Potential risk related to: ${req.description}',
+                category: 'Technical',
+                probability: 'Medium',
+                impact: 'Medium',
+                riskValue: '',
+                riskLevel: 'Medium',
+                mitigation: '',
+                discipline: '',
+                owner: '',
+                status: 'Identified',
+              );
+            }).toList();
+            _isGeneratingRequirements = false;
+          });
+          _syncRisksToProvider();
+        } else {
+          setState(() => _isGeneratingRequirements = false);
+        }
+      } else {
+        setState(() => _isGeneratingRequirements = false);
+      }
     }
   }
 
@@ -632,115 +762,140 @@ class _FrontEndPlanningRisksScreenState
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 1980),
-          child: Table(
-            columnWidths: const {
-              0: FixedColumnWidth(60),
-              1: FixedColumnWidth(150),
-              2: FixedColumnWidth(150),
-              3: FixedColumnWidth(150),
-              4: FixedColumnWidth(200),
-              5: FixedColumnWidth(100),
-              6: FixedColumnWidth(100),
-              7: FixedColumnWidth(100),
-              8: FixedColumnWidth(100),
-              9: FixedColumnWidth(120),
-              10: FixedColumnWidth(150),
-              11: FixedColumnWidth(100),
-              12: FixedColumnWidth(100),
-              13: FixedColumnWidth(100),
-              14: FixedColumnWidth(80),
-            },
-            border: TableBorder(
-              horizontalInside: border,
-              verticalInside: border,
-              top: border,
-              bottom: border,
-              left: border,
-              right: border,
-            ),
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            children: [
-              TableRow(
-                decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculate minimum width needed for all columns
+          final minTableWidth = 1980.0;
+          final tableWidth = constraints.maxWidth < minTableWidth
+              ? minTableWidth
+              : constraints.maxWidth;
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: tableWidth,
+              child: Table(
+                columnWidths: const {
+                  0: FixedColumnWidth(60),
+                  1: FixedColumnWidth(150),
+                  2: FixedColumnWidth(150),
+                  3: FixedColumnWidth(150),
+                  4: FixedColumnWidth(200),
+                  5: FixedColumnWidth(100),
+                  6: FixedColumnWidth(100),
+                  7: FixedColumnWidth(100),
+                  8: FixedColumnWidth(100),
+                  9: FixedColumnWidth(120),
+                  10: FixedColumnWidth(150),
+                  11: FixedColumnWidth(100),
+                  12: FixedColumnWidth(100),
+                  13: FixedColumnWidth(100),
+                  14: FixedColumnWidth(80),
+                },
+                border: TableBorder(
+                  horizontalInside: border,
+                  verticalInside: border,
+                  top: border,
+                  bottom: border,
+                  left: border,
+                  right: border,
+                ),
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 children: [
-                  _th('ID', headerStyle),
-                  _th('Requirement', headerStyle),
-                  _th('Requirement Type', headerStyle),
-                  _th('Risk Title', headerStyle),
-                  _th('Description', headerStyle),
-                  _th('Category', headerStyle),
-                  _th('Probability', headerStyle),
-                  _th('Impact', headerStyle),
-                  _th('Risk Value', headerStyle),
-                  _th('Risk Level', headerStyle),
-                  _th('Mitigation', headerStyle),
-                  _th('Discipline', headerStyle),
-                  _th('Owner', headerStyle),
-                  _th('Status', headerStyle),
-                  _th('Ac', headerStyle),
+                  TableRow(
+                    decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
+                    children: [
+                      _th('ID', headerStyle),
+                      _th('Requirement', headerStyle),
+                      _th('Requirement Type', headerStyle),
+                      _th('Risk Title', headerStyle),
+                      _th('Description', headerStyle),
+                      _th('Category', headerStyle),
+                      _th('Probability', headerStyle),
+                      _th('Impact', headerStyle),
+                      _th('Risk Value', headerStyle),
+                      _th('Risk Level', headerStyle),
+                      _th('Mitigation', headerStyle),
+                      _th('Discipline', headerStyle),
+                      _th('Owner', headerStyle),
+                      _th('Status', headerStyle),
+                      _th('Ac', headerStyle),
+                    ],
+                  ),
+                  ...List.generate(_rows.length, (i) {
+                    final r = _rows[i];
+                    return TableRow(children: [
+                      _td(Text(r.id, style: cellStyle)),
+                      _td(Text(
+                        r.requirement,
+                        style: cellStyle,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      )),
+                      _td(r.requirementType.isEmpty
+                          ? const SizedBox.shrink()
+                          : _chip(r.requirementType, const Color(0xFFDCFCE7),
+                              const Color(0xFF16A34A))),
+                      _td(Text(
+                        r.risk,
+                        style: cellStyle,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      )),
+                      _td(Text(
+                        r.description,
+                        style: cellStyle,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      )),
+                      _td(r.category.isEmpty
+                          ? const SizedBox.shrink()
+                          : _chip(r.category, const Color(0xFFF3E8FF),
+                              const Color(0xFF7C3AED))),
+                      _td(Text(r.probability, style: cellStyle)),
+                      _td(Text(r.impact, style: cellStyle)),
+                      _td(Text(r.riskValue, style: cellStyle)),
+                      _td(r.riskLevel.isEmpty
+                          ? const SizedBox.shrink()
+                          : _chip(r.riskLevel, const Color(0xFFFFE4E6),
+                              const Color(0xFFDC2626))),
+                      _td(Text(r.mitigation, style: cellStyle)),
+                      _td(Text(r.discipline, style: cellStyle)),
+                      _td(Text(r.owner, style: cellStyle)),
+                      _td(r.status.isEmpty
+                          ? const SizedBox.shrink()
+                          : _statusPill(r.status)),
+                      _td(Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          InkWell(
+                            onTap: () => _showEditRiskSheet(i),
+                            borderRadius: BorderRadius.circular(8),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Icon(Icons.edit,
+                                  size: 18, color: Color(0xFF6B7280)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          InkWell(
+                            onTap: () => _confirmAndDeleteRow(i),
+                            borderRadius: BorderRadius.circular(8),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Icon(Icons.delete_outline,
+                                  size: 18, color: Color(0xFF6B7280)),
+                            ),
+                          ),
+                        ],
+                      )),
+                    ]);
+                  }),
                 ],
               ),
-              ...List.generate(_rows.length, (i) {
-                final r = _rows[i];
-                return TableRow(children: [
-                  _td(Text(r.id, style: cellStyle)),
-                  _td(Text(r.requirement, style: cellStyle)),
-                  _td(r.requirementType.isEmpty
-                      ? const SizedBox.shrink()
-                      : _chip(r.requirementType, const Color(0xFFDCFCE7),
-                          const Color(0xFF16A34A))),
-                  _td(Text(r.risk, style: cellStyle)),
-                  _td(Text(r.description, style: cellStyle)),
-                  _td(r.category.isEmpty
-                      ? const SizedBox.shrink()
-                      : _chip(r.category, const Color(0xFFF3E8FF),
-                          const Color(0xFF7C3AED))),
-                  _td(Text(r.probability, style: cellStyle)),
-                  _td(Text(r.impact, style: cellStyle)),
-                  _td(Text(r.riskValue, style: cellStyle)),
-                  _td(r.riskLevel.isEmpty
-                      ? const SizedBox.shrink()
-                      : _chip(r.riskLevel, const Color(0xFFFFE4E6),
-                          const Color(0xFFDC2626))),
-                  _td(Text(r.mitigation, style: cellStyle)),
-                  _td(Text(r.discipline, style: cellStyle)),
-                  _td(Text(r.owner, style: cellStyle)),
-                  _td(r.status.isEmpty
-                      ? const SizedBox.shrink()
-                      : _statusPill(r.status)),
-                  _td(Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: () => _showEditRiskSheet(i),
-                        borderRadius: BorderRadius.circular(8),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(Icons.edit,
-                              size: 18, color: Color(0xFF6B7280)),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      InkWell(
-                        onTap: () => _confirmAndDeleteRow(i),
-                        borderRadius: BorderRadius.circular(8),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(Icons.delete_outline,
-                              size: 18, color: Color(0xFF6B7280)),
-                        ),
-                      ),
-                    ],
-                  )),
-                ]);
-              }),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

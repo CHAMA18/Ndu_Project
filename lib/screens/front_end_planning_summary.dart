@@ -5,6 +5,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/screens/front_end_planning_requirements_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/user_access_chip.dart';
@@ -33,14 +34,73 @@ class _FrontEndPlanningSummaryScreenState extends State<FrontEndPlanningSummaryS
   @override
   void initState() {
     super.initState();
+    // Enable auto-bullet for multi-line fields
+    _notes.enableAutoBullet();
+    _summaryNotes.enableAutoBullet();
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _summaryNotes.addListener(_syncSummaryToProvider);
       _isSyncReady = true;
       final data = ProjectDataHelper.getData(context);
-      _summaryNotes.text = data.frontEndPlanning.summary;
+      
+      // Auto-populate summary if it's empty, concatenating from:
+      // Project Vision (notes) + Core Stakeholders + Business Case + Selected Preferred Solution
+      if (data.frontEndPlanning.summary.isEmpty) {
+        final summary = _buildMasterSummary(data);
+        _summaryNotes.text = summary;
+      } else {
+        _summaryNotes.text = data.frontEndPlanning.summary;
+      }
+      
       _syncSummaryToProvider();
       if (mounted) setState(() {});
     });
+  }
+  
+  /// Builds the master summary by concatenating Project Vision, Core Stakeholders,
+  /// Business Case, and Selected Preferred Solution
+  String _buildMasterSummary(dynamic data) {
+    final parts = <String>[];
+    
+    // 1. Project Vision (from notes field)
+    if (data.notes.isNotEmpty) {
+      parts.add('Project Vision:');
+      parts.add(data.notes);
+      parts.add('');
+    }
+    
+    // 2. Core Stakeholders
+    if (data.coreStakeholdersData != null) {
+      final stakeholders = data.coreStakeholdersData;
+      if (stakeholders.solutionStakeholderData.isNotEmpty) {
+        parts.add('Core Stakeholders:');
+        for (final stakeholderData in stakeholders.solutionStakeholderData) {
+          if (stakeholderData.solutionTitle.isNotEmpty) {
+            parts.add('${stakeholderData.solutionTitle}:');
+          }
+          if (stakeholderData.notableStakeholders.isNotEmpty) {
+            parts.add(stakeholderData.notableStakeholders);
+          }
+        }
+        parts.add('');
+      }
+    }
+    
+    // 3. Business Case
+    if (data.businessCase.isNotEmpty) {
+      parts.add('Business Case:');
+      parts.add(data.businessCase);
+      parts.add('');
+    }
+    
+    // 4. Selected Preferred Solution
+    if (data.preferredSolutionAnalysis?.selectedSolutionTitle != null &&
+        data.preferredSolutionAnalysis!.selectedSolutionTitle!.isNotEmpty) {
+      parts.add('Selected Preferred Solution:');
+      parts.add(data.preferredSolutionAnalysis!.selectedSolutionTitle!);
+    }
+    
+    return parts.join('\n');
   }
 
   @override

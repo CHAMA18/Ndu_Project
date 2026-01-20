@@ -34,6 +34,7 @@ class LaunchEditableSection extends StatelessWidget {
     required this.entries,
     required this.onAdd,
     required this.onRemove,
+    this.onEdit,
     this.description,
     this.emptyLabel = 'No entries yet. Add details to get started.',
     this.showStatusChip = true,
@@ -44,6 +45,7 @@ class LaunchEditableSection extends StatelessWidget {
   final List<LaunchEntry> entries;
   final Future<void> Function() onAdd;
   final void Function(int index) onRemove;
+  final Future<void> Function(int index, LaunchEntry entry)? onEdit;
   final String emptyLabel;
   final bool showStatusChip;
 
@@ -145,13 +147,14 @@ class LaunchEditableSection extends StatelessWidget {
       );
     }
 
-    return Column(
+      return Column(
       children: [
         for (int i = 0; i < entries.length; i++) ...[
           _LaunchEntryCard(
             entry: entries[i],
             showStatusChip: showStatusChip,
             onRemove: () => onRemove(i),
+            onEdit: onEdit != null ? () => onEdit!(i, entries[i]) : null,
           ),
           if (i != entries.length - 1) const SizedBox(height: 12),
         ],
@@ -179,16 +182,16 @@ class LaunchEditableSection extends StatelessWidget {
     );
 
     final columns = showStatusChip
-        ? const [
-            _TableColumn(label: 'Item', flex: 4),
-            _TableColumn(label: 'Details', flex: 6),
-            _TableColumn(label: 'Status', flex: 3),
-            _TableColumn(label: 'Action', flex: 2, align: TextAlign.center),
+        ? [
+            const _TableColumn(label: 'Item', flex: 4),
+            const _TableColumn(label: 'Details', flex: 5),
+            const _TableColumn(label: 'Status', flex: 3),
+            _TableColumn(label: 'Action', flex: onEdit != null ? 2 : 1, align: TextAlign.center),
           ]
-        : const [
-            _TableColumn(label: 'Item', flex: 5),
-            _TableColumn(label: 'Details', flex: 7),
-            _TableColumn(label: 'Action', flex: 2, align: TextAlign.center),
+        : [
+            const _TableColumn(label: 'Item', flex: 5),
+            const _TableColumn(label: 'Details', flex: 6),
+            _TableColumn(label: 'Action', flex: onEdit != null ? 2 : 1, align: TextAlign.center),
           ];
 
     return Column(
@@ -297,12 +300,25 @@ class LaunchEditableSection extends StatelessWidget {
                             flex: columns.last.flex,
                             child: Align(
                               alignment: Alignment.topCenter,
-                              child: IconButton(
-                                onPressed: () => onRemove(i),
-                                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF9CA3AF)),
-                                tooltip: 'Remove',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (onEdit != null)
+                                    IconButton(
+                                      onPressed: () => onEdit!(i, entries[i]),
+                                      icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                                      tooltip: 'Edit',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                    ),
+                                  IconButton(
+                                    onPressed: () => onRemove(i),
+                                    icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF9CA3AF)),
+                                    tooltip: 'Remove',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -326,10 +342,12 @@ class _LaunchEntryCard extends StatelessWidget {
     required this.entry,
     required this.onRemove,
     required this.showStatusChip,
+    this.onEdit,
   });
 
   final LaunchEntry entry;
   final VoidCallback onRemove;
+  final VoidCallback? onEdit;
   final bool showStatusChip;
 
   @override
@@ -357,6 +375,12 @@ class _LaunchEntryCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onEdit != null)
+                IconButton(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                  tooltip: 'Edit',
+                ),
               IconButton(
                 onPressed: onRemove,
                 icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF9CA3AF)),
@@ -416,10 +440,11 @@ Future<LaunchEntry?> showLaunchEntryDialog(
   String titleLabel = 'Title',
   String detailsLabel = 'Details',
   bool includeStatus = true,
+  LaunchEntry? initialEntry,
 }) {
-  final titleController = TextEditingController();
-  final detailsController = TextEditingController();
-  final statusController = TextEditingController();
+  final titleController = TextEditingController(text: initialEntry?.title ?? '');
+  final detailsController = TextEditingController(text: initialEntry?.details ?? '');
+  final statusController = TextEditingController(text: initialEntry?.status ?? '');
   final formKey = GlobalKey<FormState>();
 
   return showDialog<LaunchEntry>(
@@ -449,7 +474,7 @@ Future<LaunchEntry?> showLaunchEntryDialog(
         titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
         contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
         actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-        title: const Text('Add entry'),
+        title: Text(initialEntry == null ? 'Add entry' : 'Edit entry'),
         content: SizedBox(
           width: dialogWidth,
           child: Form(

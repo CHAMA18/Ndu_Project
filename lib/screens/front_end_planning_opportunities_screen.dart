@@ -5,6 +5,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
@@ -12,6 +13,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
+
 /// Front End Planning – Project Opportunities page
 /// Built to match the provided screenshot exactly:
 /// - Left ProgramWorkspaceSidebar
@@ -27,20 +29,24 @@ class FrontEndPlanningOpportunitiesScreen extends StatefulWidget {
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const FrontEndPlanningOpportunitiesScreen()),
+      MaterialPageRoute(
+          builder: (_) => const FrontEndPlanningOpportunitiesScreen()),
     );
   }
 
   @override
-  State<FrontEndPlanningOpportunitiesScreen> createState() => _FrontEndPlanningOpportunitiesScreenState();
+  State<FrontEndPlanningOpportunitiesScreen> createState() =>
+      _FrontEndPlanningOpportunitiesScreenState();
 }
 
-class _FrontEndPlanningOpportunitiesScreenState extends State<FrontEndPlanningOpportunitiesScreen> {
+class _FrontEndPlanningOpportunitiesScreenState
+    extends State<FrontEndPlanningOpportunitiesScreen> {
   final TextEditingController _notes = TextEditingController();
   bool _isSyncReady = false;
 
   // Backing rows for the table; built from incoming requirements (if any).
   late List<_OpportunityItem> _rows;
+  bool _isGeneratingOpportunities = false;
 
   @override
   void initState() {
@@ -52,11 +58,113 @@ class _FrontEndPlanningOpportunitiesScreenState extends State<FrontEndPlanningOp
       _notes.addListener(_syncOpportunitiesToProvider);
       _isSyncReady = true;
       _syncOpportunitiesToProvider();
-      if (_rows.isEmpty) {
+
+      // Check if selectedSolutionTitle exists, warn if missing
+      final selectedSolution =
+          projectData.preferredSolutionAnalysis?.selectedSolutionTitle;
+      if (selectedSolution == null || selectedSolution.trim().isEmpty) {
+        debugPrint(
+            'Warning: selectedSolutionTitle is missing. State may not have persisted from selection page.');
+      }
+
+      // Load saved opportunities from text
+      _loadSavedOpportunities(projectData);
+
+      // Generate opportunities if empty OR if opportunities exist but have empty fields
+      if (_rows.isEmpty ||
+          _rows.any((r) =>
+              r.opportunity.isEmpty ||
+              r.discipline.isEmpty ||
+              r.stakeholder.isEmpty ||
+              r.potentialCost1.isEmpty ||
+              r.potentialCost2.isEmpty)) {
         _generateOpportunitiesFromContext();
       }
       if (mounted) setState(() {});
     });
+  }
+
+  void _loadSavedOpportunities(ProjectDataModel data) {
+    final savedOpportunitiesText = data.frontEndPlanning.opportunities.trim();
+    if (savedOpportunitiesText.isNotEmpty) {
+      // Parse opportunities from text format: "opportunity: discipline"
+      final lines = savedOpportunitiesText
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+
+      if (lines.isNotEmpty) {
+        _rows = lines.map((line) {
+          // Try to parse "opportunity: discipline" format
+          final parts = line.split(':');
+          final opportunity = parts.isNotEmpty ? parts[0].trim() : '';
+          final discipline = parts.length > 1 ? parts[1].trim() : '';
+
+          return _OpportunityItem(
+            opportunity: opportunity,
+            discipline: discipline,
+            stakeholder: '',
+            potentialCost1: '',
+            potentialCost2: '',
+          );
+        }).toList();
+      }
+    }
+  }
+
+  void _useFallbackOpportunities() {
+    if (!mounted) return;
+    final fallbackList = [
+      {
+        'opportunity': 'Automate manual data entry processes',
+        'discipline': 'IT',
+        'stakeholder': 'IT Operations Manager',
+        'potentialCost1': '50,000',
+        'potentialCost2': '4 weeks',
+      },
+      {
+        'opportunity': 'Consolidate vendor contracts for better pricing',
+        'discipline': 'Procurement',
+        'stakeholder': 'Procurement Director',
+        'potentialCost1': '75,000',
+        'potentialCost2': '6 weeks',
+      },
+      {
+        'opportunity': 'Implement early risk detection mechanisms',
+        'discipline': 'Project Management',
+        'stakeholder': 'Program Manager',
+        'potentialCost1': '30,000',
+        'potentialCost2': '2 weeks',
+      },
+      {
+        'opportunity': 'Streamline approval workflows',
+        'discipline': 'Operations',
+        'stakeholder': 'Operations Lead',
+        'potentialCost1': '40,000',
+        'potentialCost2': '3 weeks',
+      },
+      {
+        'opportunity': 'Leverage existing infrastructure investments',
+        'discipline': 'IT',
+        'stakeholder': 'IT Infrastructure Manager',
+        'potentialCost1': '100,000',
+        'potentialCost2': '8 weeks',
+      },
+    ];
+
+    setState(() {
+      _rows = fallbackList
+          .map((e) => _OpportunityItem(
+                opportunity: (e['opportunity'] ?? '').toString(),
+                discipline: (e['discipline'] ?? '').toString(),
+                stakeholder: (e['stakeholder'] ?? '').toString(),
+                potentialCost1: (e['potentialCost1'] ?? '').toString(),
+                potentialCost2: (e['potentialCost2'] ?? '').toString(),
+              ))
+          .toList();
+    });
+    _syncOpportunitiesToProvider();
   }
 
   @override
@@ -87,28 +195,192 @@ class _FrontEndPlanningOpportunitiesScreenState extends State<FrontEndPlanningOp
   }
 
   Future<void> _generateOpportunitiesFromContext() async {
+    if (_isGeneratingOpportunities) return; // Prevent duplicate calls
+    setState(() {
+      _isGeneratingOpportunities = true;
+    });
+
     try {
       final data = ProjectDataHelper.getData(context);
-      final ctx = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Project Opportunities');
+
+      // Verify selectedSolutionTitle exists - if not, log warning
+      final selectedSolution =
+          data.preferredSolutionAnalysis?.selectedSolutionTitle;
+      if (selectedSolution == null || selectedSolution.trim().isEmpty) {
+        debugPrint(
+            'Warning: selectedSolutionTitle is blank. Opportunities generation may be incomplete.');
+        // Still proceed with generation, but context will be missing selected solution
+      }
+
+      final ctx = ProjectDataHelper.buildFepContext(data,
+          sectionLabel: 'Project Opportunities');
       final ai = OpenAiServiceSecure();
       final list = await ai.generateOpportunitiesFromContext(ctx);
       if (!mounted) return;
       if (list.isNotEmpty) {
         setState(() {
-          _rows = list
-              .map((e) => _OpportunityItem(
-                    opportunity: (e['opportunity'] ?? '').toString(),
-                    discipline: (e['discipline'] ?? '').toString(),
-                    stakeholder: (e['stakeholder'] ?? '').toString(),
-                    potentialCost1: (e['potentialCost1'] ?? e['potential_cost_savings'] ?? '').toString(),
-                    potentialCost2: (e['potentialCost2'] ?? e['potential_cost_schedule_savings'] ?? '').toString(),
-                  ))
-              .toList();
+          // If we have existing rows with empty fields, merge generated data into them
+          // Otherwise, replace with new generated opportunities
+          if (_rows.isNotEmpty &&
+              _rows.any((r) =>
+                  r.opportunity.isEmpty ||
+                  r.stakeholder.isEmpty ||
+                  r.potentialCost1.isEmpty ||
+                  r.potentialCost2.isEmpty)) {
+            // Merge: fill empty fields with generated ones
+            final generatedList = list.toList();
+            _rows = _rows.asMap().entries.map((entry) {
+              final index = entry.key;
+              final existing = entry.value;
+
+              // If any critical field is empty, use generated data
+              if (index < generatedList.length) {
+                final generated = generatedList[index];
+                return _OpportunityItem(
+                  opportunity:
+                      (generated['opportunity'] ?? existing.opportunity)
+                              .toString()
+                              .isEmpty
+                          ? existing.opportunity
+                          : (generated['opportunity'] ?? existing.opportunity)
+                              .toString(),
+                  discipline: (generated['discipline'] ?? existing.discipline)
+                          .toString()
+                          .isEmpty
+                      ? existing.discipline
+                      : (generated['discipline'] ?? existing.discipline)
+                          .toString(),
+                  stakeholder:
+                      (generated['stakeholder'] ?? existing.stakeholder)
+                              .toString()
+                              .isEmpty
+                          ? existing.stakeholder
+                          : (generated['stakeholder'] ?? existing.stakeholder)
+                              .toString(),
+                  potentialCost1: (generated['potentialCost1'] ??
+                              generated['potential_cost_savings'] ??
+                              existing.potentialCost1)
+                          .toString()
+                          .isEmpty
+                      ? existing.potentialCost1
+                      : (generated['potentialCost1'] ??
+                              generated['potential_cost_savings'] ??
+                              existing.potentialCost1)
+                          .toString(),
+                  potentialCost2: (generated['potentialCost2'] ??
+                              generated['potential_cost_schedule_savings'] ??
+                              existing.potentialCost2)
+                          .toString()
+                          .isEmpty
+                      ? existing.potentialCost2
+                      : (generated['potentialCost2'] ??
+                              generated['potential_cost_schedule_savings'] ??
+                              existing.potentialCost2)
+                          .toString(),
+                );
+              }
+              // If no generated data available, fill empty fields with fallback
+              if (existing.stakeholder.isEmpty ||
+                  existing.potentialCost1.isEmpty ||
+                  existing.potentialCost2.isEmpty) {
+                final fallbackData = <Map<String, String>>[
+                  {
+                    'stakeholder': 'IT Operations Manager',
+                    'potentialCost1': '50,000',
+                    'potentialCost2': '4 weeks',
+                  },
+                  {
+                    'stakeholder': 'Procurement Director',
+                    'potentialCost1': '75,000',
+                    'potentialCost2': '6 weeks',
+                  },
+                  {
+                    'stakeholder': 'Program Manager',
+                    'potentialCost1': '30,000',
+                    'potentialCost2': '2 weeks',
+                  },
+                  {
+                    'stakeholder': 'Operations Lead',
+                    'potentialCost1': '40,000',
+                    'potentialCost2': '3 weeks',
+                  },
+                  {
+                    'stakeholder': 'IT Infrastructure Manager',
+                    'potentialCost1': '100,000',
+                    'potentialCost2': '8 weeks',
+                  },
+                ];
+                final fallbackIndex = (index as int) % fallbackData.length;
+                final fallback = fallbackData[fallbackIndex];
+                return _OpportunityItem(
+                  opportunity: existing.opportunity,
+                  discipline: existing.discipline,
+                  stakeholder: existing.stakeholder.isEmpty
+                      ? (fallback['stakeholder'] as String)
+                      : existing.stakeholder,
+                  potentialCost1: existing.potentialCost1.isEmpty
+                      ? (fallback['potentialCost1'] as String)
+                      : existing.potentialCost1,
+                  potentialCost2: existing.potentialCost2.isEmpty
+                      ? (fallback['potentialCost2'] as String)
+                      : existing.potentialCost2,
+                );
+              }
+              return existing;
+            }).toList();
+
+            // Add any additional generated opportunities beyond existing rows
+            if (generatedList.length > _rows.length) {
+              _rows.addAll(
+                  generatedList.skip(_rows.length).map((e) => _OpportunityItem(
+                        opportunity: (e['opportunity'] ?? '').toString(),
+                        discipline: (e['discipline'] ?? '').toString(),
+                        stakeholder: (e['stakeholder'] ?? '').toString(),
+                        potentialCost1: (e['potentialCost1'] ??
+                                e['potential_cost_savings'] ??
+                                '')
+                            .toString(),
+                        potentialCost2: (e['potentialCost2'] ??
+                                e['potential_cost_schedule_savings'] ??
+                                '')
+                            .toString(),
+                      )));
+            }
+          } else {
+            // Replace with new generated opportunities
+            _rows = list
+                .map((e) => _OpportunityItem(
+                      opportunity: (e['opportunity'] ?? '').toString(),
+                      discipline: (e['discipline'] ?? '').toString(),
+                      stakeholder: (e['stakeholder'] ?? '').toString(),
+                      potentialCost1: (e['potentialCost1'] ??
+                              e['potential_cost_savings'] ??
+                              '')
+                          .toString(),
+                      potentialCost2: (e['potentialCost2'] ??
+                              e['potential_cost_schedule_savings'] ??
+                              '')
+                          .toString(),
+                    ))
+                .toList();
+          }
         });
         _syncOpportunitiesToProvider();
+      } else {
+        // If generation returned empty, use fallback
+        debugPrint('No opportunities generated, using fallback');
+        _useFallbackOpportunities();
       }
     } catch (e) {
       debugPrint('AI opportunities suggestion failed: $e');
+      // On error, use fallback opportunities
+      _useFallbackOpportunities();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingOpportunities = false;
+        });
+      }
     }
   }
 
@@ -124,7 +396,8 @@ class _FrontEndPlanningOpportunitiesScreenState extends State<FrontEndPlanningOp
             // Use the same sidebar pattern as PreferredSolutionAnalysisScreen
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Project Opportunities'),
+              child: const InitiationLikeSidebar(
+                  activeItemLabel: 'Project Opportunities'),
             ),
             Expanded(
               child: Stack(
@@ -135,37 +408,50 @@ class _FrontEndPlanningOpportunitiesScreenState extends State<FrontEndPlanningOp
                       const FrontEndPlanningHeader(),
                       Expanded(
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 24),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                        _roundedField(controller: _notes, hint: 'Input your notes here…', minLines: 3),
-                        const SizedBox(height: 22),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Expanded(
-                              child: _SectionTitle(),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              height: 40,
-                              child: OutlinedButton.icon(
-                                onPressed: _showAddOpportunityDialog,
-                                icon: const Icon(Icons.add, size: 18, color: Color(0xFF111827)),
-                                label: const Text('Add', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF2F4F7),
-                                  side: const BorderSide(color: Color(0xFFE5E7EB)),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                                ),
+                              _roundedField(
+                                  controller: _notes,
+                                  hint: 'Input your notes here…',
+                                  minLines: 3),
+                              const SizedBox(height: 22),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const Expanded(
+                                    child: _SectionTitle(),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  SizedBox(
+                                    height: 40,
+                                    child: OutlinedButton.icon(
+                                      onPressed: _showAddOpportunityDialog,
+                                      icon: const Icon(Icons.add,
+                                          size: 18, color: Color(0xFF111827)),
+                                      label: const Text('Add',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF111827))),
+                                      style: OutlinedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFF2F4F7),
+                                        side: const BorderSide(
+                                            color: Color(0xFFE5E7EB)),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        _OpportunityTable(rows: _rows),
+                              const SizedBox(height: 14),
+                              _OpportunityTable(rows: _rows),
                               const SizedBox(height: 140),
                             ],
                           ),
@@ -209,10 +495,13 @@ class _OpportunityTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final border = const BorderSide(color: Color(0xFFE5E7EB));
-    final headerStyle = const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563));
+    final headerStyle = const TextStyle(
+        fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563));
     final cellStyle = const TextStyle(fontSize: 14, color: Color(0xFF111827));
 
-    Widget td(Widget child) => Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), child: child);
+    Widget td(Widget child) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: child);
 
     return Container(
       decoration: BoxDecoration(
@@ -281,7 +570,7 @@ class _OpportunityTable extends StatelessWidget {
 
 class _BottomOverlays extends StatelessWidget {
   const _BottomOverlays({required this.rows});
-  
+
   final List<_OpportunityItem> rows;
 
   @override
@@ -297,7 +586,8 @@ class _BottomOverlays extends StatelessWidget {
               child: Container(
                 width: 48,
                 height: 48,
-                decoration: const BoxDecoration(color: Color(0xFFB3D9FF), shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                    color: Color(0xFFB3D9FF), shape: BoxShape.circle),
                 child: const Icon(Icons.info_outline, color: Colors.white),
               ),
             ),
@@ -310,21 +600,30 @@ class _BottomOverlays extends StatelessWidget {
                   const SizedBox(width: 16),
                   ElevatedButton(
                     onPressed: () async {
-                      final oppText = rows.map((r) => '${r.opportunity}: ${r.discipline}').where((s) => s.trim().isNotEmpty).join('\n');
-                      
-                      final isBasicPlan = ProjectDataHelper.getData(context).isBasicPlanProject;
-                      final nextItem = SidebarNavigationService.instance.getNextAccessibleItem('fep_opportunities', isBasicPlan);
-                      
+                      final oppText = rows
+                          .map((r) => '${r.opportunity}: ${r.discipline}')
+                          .where((s) => s.trim().isNotEmpty)
+                          .join('\n');
+
+                      final isBasicPlan =
+                          ProjectDataHelper.getData(context).isBasicPlanProject;
+                      final nextItem = SidebarNavigationService.instance
+                          .getNextAccessibleItem(
+                              'fep_opportunities', isBasicPlan);
+
                       Widget nextScreen;
-                      if (nextItem?.checkpoint == 'fep_contract_vendor_quotes') {
-                        nextScreen = const FrontEndPlanningContractVendorQuotesScreen();
+                      if (nextItem?.checkpoint ==
+                          'fep_contract_vendor_quotes') {
+                        nextScreen =
+                            const FrontEndPlanningContractVendorQuotesScreen();
                       } else if (nextItem?.checkpoint == 'fep_procurement') {
                         nextScreen = const FrontEndPlanningProcurementScreen();
                       } else if (nextItem?.checkpoint == 'project_charter') {
                         nextScreen = const ProjectCharterScreen();
                       } else {
                         // Fallback
-                        nextScreen = const FrontEndPlanningContractVendorQuotesScreen();
+                        nextScreen =
+                            const FrontEndPlanningContractVendorQuotesScreen();
                       }
 
                       await ProjectDataHelper.saveAndNavigate(
@@ -342,11 +641,15 @@ class _BottomOverlays extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFD700),
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22)),
                       elevation: 0,
                     ),
-                    child: const Text('Submit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: const Text('Submit',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -369,9 +672,12 @@ class _BottomOverlays extends StatelessWidget {
         children: const [
           Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
           SizedBox(width: 8),
-          Text('AI', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+          Text('AI',
+              style: TextStyle(
+                  fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
           SizedBox(width: 10),
-          Text('Focus on major risks associated with each potential solution.', style: TextStyle(color: Color(0xFF1F2937))),
+          Text('Focus on major risks associated with each potential solution.',
+              style: TextStyle(color: Color(0xFF1F2937))),
         ],
       ),
     );
@@ -397,7 +703,8 @@ class _SectionTitle extends StatelessWidget {
         SizedBox(width: 8),
         EditableContentText(
           contentKey: 'fep_opportunities_subtitle',
-          fallback: '(List out opportunities that would benefit the project here)',
+          fallback:
+              '(List out opportunities that would benefit the project here)',
           category: 'front_end_planning',
           style: TextStyle(
             fontSize: 14,
@@ -468,42 +775,72 @@ class _AddOpportunityDialogState extends State<_AddOpportunityDialog> {
                     children: const [
                       Icon(Icons.add_box_outlined, color: Color(0xFF111827)),
                       SizedBox(width: 8),
-                      Text('Add Opportunity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text('Add Opportunity',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w800)),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _LabeledField(label: 'Potential Opportunity', controller: _oppCtrl, autofocus: true, hintText: 'Describe the opportunity'),
+                  _LabeledField(
+                      label: 'Potential Opportunity',
+                      controller: _oppCtrl,
+                      autofocus: true,
+                      hintText: 'Describe the opportunity'),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: _LabeledField(label: 'Discipline', controller: _disciplineCtrl, hintText: 'e.g. Finance/IT/Operations')),
+                    Expanded(
+                        child: _LabeledField(
+                            label: 'Discipline',
+                            controller: _disciplineCtrl,
+                            hintText: 'e.g. Finance/IT/Operations')),
                     const SizedBox(width: 12),
-                    Expanded(child: _LabeledField(label: 'Stakeholder', controller: _stakeholderCtrl, hintText: 'e.g. VP of IT')),
+                    Expanded(
+                        child: _LabeledField(
+                            label: 'Stakeholder',
+                            controller: _stakeholderCtrl,
+                            hintText: 'e.g. VP of IT')),
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: _LabeledField(label: 'Potential Cost Savings', controller: _cost1Ctrl, hintText: 'e.g. 75,000')),
+                    Expanded(
+                        child: _LabeledField(
+                            label: 'Potential Cost Savings',
+                            controller: _cost1Ctrl,
+                            hintText: 'e.g. 75,000')),
                     const SizedBox(width: 12),
-                    Expanded(child: _LabeledField(label: 'Potential Cost Schedule Savings', controller: _cost2Ctrl, hintText: 'e.g. 30,000')),
+                    Expanded(
+                        child: _LabeledField(
+                            label: 'Potential Cost Schedule Savings',
+                            controller: _cost2Ctrl,
+                            hintText: 'e.g. 30,000')),
                   ]),
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () => Navigator.of(context).pop(null),
+                          child: const Text('Cancel')),
                       const Spacer(),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.check, color: Colors.black),
-                        label: const Text('Save', style: TextStyle(color: Colors.black)),
+                        label: const Text('Save',
+                            style: TextStyle(color: Colors.black)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFD700),
                           foregroundColor: Colors.black,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
                         ),
                         onPressed: () {
                           final opp = _oppCtrl.text.trim();
                           if (opp.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a Potential Opportunity')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Please enter a Potential Opportunity')));
                             return;
                           }
                           Navigator.of(context).pop(_OpportunityItem(
@@ -544,7 +881,11 @@ class _LabeledField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280))),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6B7280))),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
@@ -566,7 +907,11 @@ class _LabeledField extends StatelessWidget {
     );
   }
 }
-Widget _roundedField({required TextEditingController controller, required String hint, int minLines = 1}) {
+
+Widget _roundedField(
+    {required TextEditingController controller,
+    required String hint,
+    int minLines = 1}) {
   return Container(
     width: double.infinity,
     decoration: BoxDecoration(

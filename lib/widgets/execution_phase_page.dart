@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_phase_service.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -48,13 +50,53 @@ class ExecutionPhasePage extends StatefulWidget {
 class _ExecutionPhasePageState extends State<ExecutionPhasePage> {
   final Map<String, List<LaunchEntry>> _sectionData = {};
   bool _submitting = false;
+  bool _loading = true;
   String? _submitError;
+
+  /// Get project ID from ProjectDataInherited
+  String? get _projectId {
+    try {
+      final provider = ProjectDataInherited.maybeOf(context);
+      return provider?.projectData.projectId;
+    } catch (e) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     for (final section in widget.sections) {
       _sectionData[section.key] = <LaunchEntry>[];
+    }
+    _loadData();
+  }
+
+  /// Load existing data from Firebase
+  Future<void> _loadData() async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.isEmpty) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final data = await ExecutionPhaseService.loadPageData(
+        projectId: projectId,
+        pageKey: widget.pageKey,
+      );
+      if (mounted && data != null && data.isNotEmpty) {
+        setState(() {
+          _sectionData.clear();
+          _sectionData.addAll(data);
+          _loading = false;
+        });
+      } else {
+        if (mounted) setState(() => _loading = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading execution phase data: $e');
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -79,7 +121,8 @@ class _ExecutionPhasePageState extends State<ExecutionPhasePage> {
                 description: section.description,
                 entries: _sectionData[section.key]!,
                 onAdd: () => _addEntry(_sectionData[section.key]!, section),
-                onRemove: (i) => setState(() => _sectionData[section.key]!.removeAt(i)),
+                onRemove: (i) => _removeEntry(section.key, i),
+                onEdit: (i, entry) => _editEntry(_sectionData[section.key]!, section, i, entry),
               ),
               const SizedBox(height: 16),
             ],
@@ -110,7 +153,9 @@ class _ExecutionPhasePageState extends State<ExecutionPhasePage> {
         ),
         const SizedBox(height: 6),
         Text(
-          '${widget.subtitle} · All sections start empty—use the add buttons to populate and submit to Firebase.',
+          _loading 
+            ? '${widget.subtitle} · Loading...'
+            : '${widget.subtitle} · Use the add buttons to populate and submit to Firebase.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4B5563),
                 height: 1.5,
@@ -157,27 +202,70 @@ class _ExecutionPhasePageState extends State<ExecutionPhasePage> {
     );
     if (entry != null && mounted) {
       setState(() => target.add(entry));
+      _autoSave();
     }
   }
 
-  Future<void> _submitToFirebase() async {
+  Future<void> _editEntry(List<LaunchEntry> target, ExecutionSectionSpec section, int index, LaunchEntry currentEntry) async {
+    final entry = await showLaunchEntryDialog(
+      context,
+      titleLabel: section.titleLabel,
+      detailsLabel: 'Details',
+      includeStatus: section.includeStatus,
+      initialEntry: currentEntry,
+    );
+    if (entry != null && mounted) {
+      setState(() => target[index] = entry);
+      _autoSave();
+    }
+  }
+
+  void _removeEntry(String sectionKey, int index) {
+    setState(() => _sectionData[sectionKey]!.removeAt(index));
+    _autoSave();
+  }
+
+  Timer? _autoSaveDebounce;
+  void _autoSave() {
+    _autoSaveDebounce?.cancel();
+    _autoSaveDebounce = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        _submitToFirebase(showSnackbar: false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoSaveDebounce?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _submitToFirebase({bool showSnackbar = true}) async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.isEmpty) {
+      setState(() => _submitError = 'No project selected');
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _submitError = null;
     });
     try {
       await ExecutionPhaseService.savePageData(
+        projectId: projectId,
         pageKey: widget.pageKey,
         sections: _sectionData,
         userId: FirebaseAuth.instance.currentUser?.uid,
       );
-      if (mounted) {
+      if (mounted && showSnackbar) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Saved to Firebase'), backgroundColor: Colors.green),
         );
       }
-    } catch (_) {
-      setState(() => _submitError = 'Failed to submit');
+    } catch (e) {
+      setState(() => _submitError = 'Failed to submit: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

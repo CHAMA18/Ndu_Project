@@ -188,6 +188,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   String? _error;
   String? _projectValueError;
   int _npvHorizon = 5;
+  double _discountRate = 0.10; // Default 10% discount rate for NPV calculations
   final Set<int> _solutionLoading = <int>{};
   final List<_BenefitLineItemEntry> _benefitLineItems = [];
   int _benefitTabIndex = 0;
@@ -453,18 +454,26 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 StreamBuilder<bool>(
                   stream: UserService.watchAdminStatus(),
                   builder: (context, snapshot) {
-                    final email = FirebaseAuth.instance.currentUser?.email ?? '';
-                    final isAdmin = snapshot.data ?? UserService.isAdminEmail(email);
+                    final email =
+                        FirebaseAuth.instance.currentUser?.email ?? '';
+                    final isAdmin =
+                        snapshot.data ?? UserService.isAdminEmail(email);
                     final role = isAdmin ? 'Admin' : 'Member';
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          FirebaseAuthService.displayNameOrEmail(fallback: 'User'),
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black),
+                          FirebaseAuthService.displayNameOrEmail(
+                              fallback: 'User'),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black),
                         ),
-                        Text(role, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(role,
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey)),
                       ],
                     );
                   },
@@ -1431,25 +1440,29 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     // 1. Save data FIRST before validation
     await _saveCostAnalysisData();
     if (!mounted) return;
-    
+
     // 2. Validate data completeness
     final provider = ProjectDataInherited.of(context);
     final projectData = provider.projectData;
-    
+
     if (projectData.costAnalysisData == null) {
       if (mounted) {
-        ProjectDataHelper.showMissingDataMessage(context, 'Please complete the cost analysis before proceeding.');
+        ProjectDataHelper.showMissingDataMessage(
+            context, 'Please complete the cost analysis before proceeding.');
       }
       return;
     }
 
     // 3. Smart checkpoint check
-    final nextCheckpoint = SidebarNavigationService.instance.getNextItem('cost_analysis');
+    final nextCheckpoint =
+        SidebarNavigationService.instance.getNextItem('cost_analysis');
     if (nextCheckpoint?.checkpoint != 'preferred_solution_analysis') {
       // Use standard lock check for non-sequential navigation
-      final isLocked = ProjectDataHelper.isDestinationLocked(context, 'preferred_solution_analysis');
+      final isLocked = ProjectDataHelper.isDestinationLocked(
+          context, 'preferred_solution_analysis');
       if (isLocked) {
-        ProjectDataHelper.showLockedDestinationMessage(context, 'Preferred Solution Analysis');
+        ProjectDataHelper.showLockedDestinationMessage(
+            context, 'Preferred Solution Analysis');
         return;
       }
     }
@@ -1686,10 +1699,25 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     final activeBenefitCount = _benefitLineItems
         .where((entry) => entry.totalValue > 0 || entry.title.isNotEmpty)
         .length;
-    final averageRoi = totalBenefits > 0
+    final averageRoi = totalBenefits > 0 && estimatedCost > 0
         ? ((totalBenefits - estimatedCost) / estimatedCost) * 100
         : null;
-    final npv = totalBenefits > 0 ? totalBenefits - estimatedCost : null;
+    // Calculate NPV properly using discount rate and time periods
+    // NPV = -Initial Cost + Sum of (Benefits / (1 + r)^t) for each period
+    double? npv;
+    if (totalBenefits > 0 && estimatedCost > 0 && _npvHorizon > 0) {
+      // Assume benefits are received evenly over the horizon period
+      final annualBenefit = totalBenefits / _npvHorizon;
+      final cashflows = <double>[
+        -estimatedCost
+      ]; // Initial investment (negative)
+      for (int year = 1; year <= _npvHorizon; year++) {
+        cashflows.add(annualBenefit); // Annual benefits
+      }
+      npv = Finance.npv(_discountRate, cashflows);
+    } else {
+      npv = null;
+    }
     return _ValueSetupInvestmentSnapshot(
       estimatedCost: estimatedCost,
       averageRoi: averageRoi,
@@ -4362,19 +4390,46 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     final double cost = _initialCostEstimateTotalFor(index) > 0
         ? _initialCostEstimateTotalFor(index)
         : _solutionTotalCost(index);
+    // Calculate ROI: ((Benefits - Cost) / Cost) * 100
     final double roiPct =
-        (cost > 0 && benefits > 0) ? ((benefits - cost) / cost) * 100 : 0;
-    final double npv = benefits > 0 ? _solutionTotalNpv(index) : 0;
-    // IRR using Finance utility with simplified cashflows [-cost, 0.., benefits]
+        (cost > 0 && benefits > 0) ? ((benefits - cost) / cost) * 100 : 0.0;
+
+    // Calculate NPV properly using discount rate and time periods
+    double npv = 0;
+    if (benefits > 0 && cost > 0 && _npvHorizon > 0) {
+      // Assume benefits are received evenly over the horizon period
+      final annualBenefit = benefits / _npvHorizon;
+      final cashflows = <double>[-cost]; // Initial investment (negative)
+      for (int year = 1; year <= _npvHorizon; year++) {
+        cashflows.add(annualBenefit); // Annual benefits
+      }
+      npv = Finance.npv(_discountRate, cashflows);
+    } else {
+      // Fallback to stored NPV from cost rows if available
+      npv = _solutionTotalNpv(index);
+    }
+
+    // Calculate Payback Period: Time to recover initial investment
+    double paybackPeriod = 0;
+    if (cost > 0 && benefits > 0 && _npvHorizon > 0) {
+      final annualBenefit = benefits / _npvHorizon;
+      if (annualBenefit > 0) {
+        paybackPeriod = cost / annualBenefit; // Years to payback
+      }
+    }
+    // IRR using Finance utility with cashflows distributed over time
     // Only calculate if Initial Project Value is set
     double irr = 0;
     if (snapshot != null && cost > 0 && benefits > 0 && _npvHorizon > 0) {
-      final flows = List<double>.filled(_npvHorizon + 1, 0);
-      flows[0] = -cost;
-      flows[_npvHorizon] = benefits;
+      // Distribute benefits evenly over the horizon period
+      final annualBenefit = benefits / _npvHorizon;
+      final flows = <double>[-cost]; // Initial investment (negative)
+      for (int year = 1; year <= _npvHorizon; year++) {
+        flows.add(annualBenefit); // Annual benefits
+      }
       final guess = benefits > cost ? 0.1 : -0.1;
       final r = Finance.irr(flows, guess: guess);
-      if (r.isFinite) {
+      if (r.isFinite && r.isFinite) {
         irr = r;
       } else {
         // Fallback to CAGR approximation if IRR didn't converge
@@ -4854,9 +4909,13 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               ],
             ]);
           }
+          // Use Flexible to prevent overflow in Row
           return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             for (int i = 0; i < selectors.length; i++) ...[
-              Expanded(child: selectors[i]),
+              Flexible(
+                child: selectors[i],
+                flex: 1,
+              ),
               if (i != selectors.length - 1) const SizedBox(width: 12),
             ],
           ]);
@@ -4902,25 +4961,59 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           ),
         ),
         const SizedBox(height: 12),
-        Row(children: [
-          OutlinedButton.icon(
-            onPressed: (!hasSolutions || isLoading)
-                ? null
-                : () => _generateCostBreakdownForSolution(index),
-            icon: isLoading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.auto_fix_high_outlined, size: 18),
-            label: const Text('Refresh with AI'),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: () => _showBreakdownFor(index),
-            child: const Text('Open breakdown'),
-          ),
-        ]),
+        // Wrap buttons in Flexible/Expanded to prevent overflow
+        LayoutBuilder(builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 300;
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: (!hasSolutions || isLoading)
+                      ? null
+                      : () => _generateCostBreakdownForSolution(index),
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.auto_fix_high_outlined, size: 18),
+                  label: const Text('Refresh with AI'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _rowsPerSolution.isEmpty
+                      ? null
+                      : () => _showBreakdownFor(index),
+                  child: const Text('Open breakdown'),
+                ),
+              ],
+            );
+          }
+          return Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: (!hasSolutions || isLoading)
+                    ? null
+                    : () => _generateCostBreakdownForSolution(index),
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.auto_fix_high_outlined, size: 18),
+                label: const Text('Refresh with AI'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _rowsPerSolution.isEmpty
+                  ? null
+                  : () => _showBreakdownFor(index),
+              child: const Text('Open breakdown'),
+            ),
+          ]);
+        }),
       ]),
     );
   }
@@ -4990,6 +5083,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       initialValue: boundedValue,
       itemHeight: null, // allow multi-line menu entries without overflow
       menuMaxHeight: 320,
+      isExpanded: true, // Prevent overflow by expanding to fill available space
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -5010,10 +5104,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               children: [
                 Text(options[i].label,
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600)),
+                        fontSize: 12, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1),
                 const SizedBox(height: 2),
                 Text(options[i].detail,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2),
               ],
             ),
           ),
@@ -5617,7 +5715,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   void _applyCategoryEstimatesFromItems(
       int solutionIndex, List<AiCostItem> items) {
-    if (solutionIndex < 0 || solutionIndex >= _categoryCostsPerSolution.length) {
+    if (solutionIndex < 0 ||
+        solutionIndex >= _categoryCostsPerSolution.length) {
       return;
     }
     final map = _categoryCostsPerSolution[solutionIndex];
@@ -6188,6 +6287,24 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         contextNotes: _notesController.text.trim(),
       );
       if (!mounted) return;
+      
+      // Generate benefit line items with numeric values
+      List<BenefitLineItemInput> benefitLineItems = [];
+      if (insights.estimatedProjectValue > 0) {
+        try {
+          benefitLineItems = await _openAi.generateBenefitLineItems(
+            solutions: widget.solutions,
+            estimatedProjectValue: insights.estimatedProjectValue,
+            contextNotes: _notesController.text.trim(),
+            currency: _currency,
+          );
+        } catch (e) {
+          debugPrint('Error generating benefit line items: $e');
+          // Continue with project value even if benefit line items fail
+        }
+      }
+      
+      if (!mounted) return;
       setState(() {
         if (insights.estimatedProjectValue > 0) {
           _projectValueAmountController.text =
@@ -6201,7 +6318,31 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             _projectValueBenefitControllers[field.key]!.text = value.trim();
           }
         }
+        
+        // Clear existing benefit line items and add generated ones
+        for (final entry in _benefitLineItems) {
+          entry.unbind();
+          WidgetsBinding.instance.addPostFrameCallback((_) => entry.dispose());
+        }
+        _benefitLineItems.clear();
+        
+        // Add generated benefit line items
+        final baseTimestamp = DateTime.now().microsecondsSinceEpoch;
+        for (int i = 0; i < benefitLineItems.length; i++) {
+          final item = benefitLineItems[i];
+          final entry = _BenefitLineItemEntry(
+            id: 'benefit-$baseTimestamp-$i',
+            categoryKey: item.category,
+            title: item.title,
+            unitValue: item.unitValue,
+            units: item.units,
+            notes: item.notes,
+          );
+          entry.bind(_onBenefitEntryEdited);
+          _benefitLineItems.add(entry);
+        }
       });
+      _markDirty();
     } catch (e) {
       if (!mounted) return;
       setState(() {

@@ -7,13 +7,14 @@ import 'package:ndu_project/services/sidebar_navigation_service.dart';
 class ProjectDataHelper {
   /// Check if a destination checkpoint is locked/not accessible
   /// Returns true if the destination is locked, false if accessible
-  static bool isDestinationLocked(BuildContext context, String destinationCheckpoint) {
+  static bool isDestinationLocked(
+      BuildContext context, String destinationCheckpoint) {
     final provider = ProjectDataInherited.maybeOf(context);
     if (provider == null) return true; // Lock if no provider
-    
+
     final projectData = provider.projectData;
-    final currentCheckpoint = projectData.currentCheckpoint ?? '';
-    
+    final currentCheckpoint = projectData.currentCheckpoint;
+
     // Check if it's a Basic Plan locked item
     const basicPlanLockedCheckpoints = {
       'fep_contract_vendor_quotes',
@@ -38,26 +39,31 @@ class ProjectDataHelper {
       'warranties_operations_support',
       'project_financial_review',
     };
-    
-    if (projectData.isBasicPlanProject && basicPlanLockedCheckpoints.contains(destinationCheckpoint)) {
+
+    if (projectData.isBasicPlanProject &&
+        basicPlanLockedCheckpoints.contains(destinationCheckpoint)) {
       return true;
     }
-    
+
     // Check if checkpoint has been reached
     if (currentCheckpoint.isEmpty) {
       // Only allow first checkpoint if no progress
-      return destinationCheckpoint != SidebarNavigationService.instance.getNextItem(null)?.checkpoint;
+      return destinationCheckpoint !=
+          SidebarNavigationService.instance.getNextItem(null)?.checkpoint;
     }
-    
-    return !SidebarNavigationService.instance.isCheckpointReached(destinationCheckpoint, currentCheckpoint);
+
+    return !SidebarNavigationService.instance
+        .isCheckpointReached(destinationCheckpoint, currentCheckpoint);
   }
-  
+
   /// Show a message when user tries to navigate to a locked destination
-  static void showLockedDestinationMessage(BuildContext context, String destinationName) {
+  static void showLockedDestinationMessage(
+      BuildContext context, String destinationName) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Please complete the current requirements before accessing $destinationName.'),
+        content: Text(
+            'Please complete the current requirements before accessing $destinationName.'),
         backgroundColor: Colors.orange,
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
@@ -80,6 +86,7 @@ class ProjectDataHelper {
       ),
     );
   }
+
   /// Save current screen data and navigate to next screen with automatic Firebase sync
   /// Includes security check to prevent navigation to locked destinations
   static Future<void> saveAndNavigate({
@@ -87,34 +94,37 @@ class ProjectDataHelper {
     required String checkpoint,
     required Widget Function() nextScreenBuilder,
     ProjectDataModel Function(ProjectDataModel)? dataUpdater,
-    String? destinationCheckpoint, // Optional: checkpoint of destination screen for lock checking
+    String?
+        destinationCheckpoint, // Optional: checkpoint of destination screen for lock checking
     String? destinationName, // Optional: human-readable name for error messages
   }) async {
     final provider = ProjectDataInherited.of(context);
-    
+
     // Security check: Verify destination is not locked
-    if (destinationCheckpoint != null && isDestinationLocked(context, destinationCheckpoint)) {
+    if (destinationCheckpoint != null &&
+        isDestinationLocked(context, destinationCheckpoint)) {
       showLockedDestinationMessage(context, destinationName ?? 'the next page');
       return; // Block navigation
     }
-    
+
     // Update data if updater is provided
     if (dataUpdater != null) {
       provider.updateField(dataUpdater);
     }
-    
+
     // Save to Firebase
     final success = await provider.saveToFirebase(checkpoint: checkpoint);
-    
+
     if (!success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Warning: ${provider.lastError ?? "Could not save data"}'),
+          content:
+              Text('Warning: ${provider.lastError ?? "Could not save data"}'),
           backgroundColor: Colors.orange,
         ),
       );
     }
-    
+
     // Navigate to next screen
     if (context.mounted) {
       Navigator.of(context).push(
@@ -152,7 +162,8 @@ class ProjectDataHelper {
         final name = (g.name).trim();
         final desc = (g.description).trim();
         if (name.isEmpty && desc.isEmpty) continue;
-        buf.writeln('- ${name.isEmpty ? 'Goal' : name}: ${desc.isEmpty ? '' : desc}');
+        buf.writeln(
+            '- ${name.isEmpty ? 'Goal' : name}: ${desc.isEmpty ? '' : desc}');
       }
       buf.writeln();
     }
@@ -164,7 +175,8 @@ class ProjectDataHelper {
         final desc = (g.description).trim();
         final year = (g.targetYear).trim();
         if (title.isEmpty && desc.isEmpty && year.isEmpty) continue;
-        buf.writeln('- ${title.isEmpty ? 'Goal ${g.goalNumber}' : title} (${year.isEmpty ? 'n/a' : year}): $desc');
+        buf.writeln(
+            '- ${title.isEmpty ? 'Goal ${g.goalNumber}' : title} (${year.isEmpty ? 'n/a' : year}): $desc');
       }
       buf.writeln();
     }
@@ -176,7 +188,8 @@ class ProjectDataHelper {
         final due = (m.dueDate).trim();
         final discipline = (m.discipline).trim();
         if (name.isEmpty && due.isEmpty && discipline.isEmpty) continue;
-        buf.writeln('- ${name.isEmpty ? 'Milestone' : name} | Due: ${due.isEmpty ? 'TBD' : due} | ${discipline.isEmpty ? '' : 'Discipline: $discipline'}');
+        buf.writeln(
+            '- ${name.isEmpty ? 'Milestone' : name} | Due: ${due.isEmpty ? 'TBD' : due} | ${discipline.isEmpty ? '' : 'Discipline: $discipline'}');
       }
       buf.writeln();
     }
@@ -197,7 +210,8 @@ class ProjectDataHelper {
     w('Front End Planning – Requirements', fep.requirements);
     w('Front End Planning – Risks', fep.risks);
     w('Front End Planning – Opportunities', fep.opportunities);
-    w('Front End Planning – Contract & Vendor Quotes', fep.contractVendorQuotes);
+    w('Front End Planning – Contract & Vendor Quotes',
+        fep.contractVendorQuotes);
     w('Front End Planning – Procurement', fep.procurement);
     w('Front End Planning – Security', fep.security);
     w('Front End Planning – Allowance', fep.allowance);
@@ -215,7 +229,8 @@ class ProjectDataHelper {
 
   /// Build a richer, cross-application context string for executive plan diagrams.
   /// Includes only populated fields to avoid noise and random output.
-  static String buildExecutivePlanContext(ProjectDataModel data, {String? sectionLabel}) {
+  static String buildExecutivePlanContext(ProjectDataModel data,
+      {String? sectionLabel}) {
     final buf = StringBuffer();
     var hasContent = false;
 
@@ -267,7 +282,8 @@ class ProjectDataHelper {
 
     if (data.planningGoals.isNotEmpty) {
       final items = data.planningGoals.map((g) {
-        final title = g.title.trim().isEmpty ? 'Goal ${g.goalNumber}' : g.title.trim();
+        final title =
+            g.title.trim().isEmpty ? 'Goal ${g.goalNumber}' : g.title.trim();
         final year = g.targetYear.trim();
         final desc = g.description.trim();
         final suffix = [
@@ -318,15 +334,19 @@ class ProjectDataHelper {
     if (data.solutionRisks.isNotEmpty) {
       final items = <String>[];
       for (final r in data.solutionRisks) {
-        final title = r.solutionTitle.trim().isEmpty ? 'Solution' : r.solutionTitle.trim();
-        final risks = r.risks.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        final title = r.solutionTitle.trim().isEmpty
+            ? 'Solution'
+            : r.solutionTitle.trim();
+        final risks =
+            r.risks.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
         if (risks.isEmpty) continue;
         items.add('$title: ${risks.join('; ')}');
       }
       wList('Key Risks', items);
     }
 
-    if ((data.wbsCriteriaA ?? '').trim().isNotEmpty || (data.wbsCriteriaB ?? '').trim().isNotEmpty) {
+    if ((data.wbsCriteriaA ?? '').trim().isNotEmpty ||
+        (data.wbsCriteriaB ?? '').trim().isNotEmpty) {
       w('WBS Criteria A', data.wbsCriteriaA);
       w('WBS Criteria B', data.wbsCriteriaB);
     }
@@ -334,7 +354,9 @@ class ProjectDataHelper {
     if (data.goalWorkItems.isNotEmpty) {
       final items = <String>[];
       for (var i = 0; i < data.goalWorkItems.length; i++) {
-        final list = data.goalWorkItems[i].where((w) => w.title.trim().isNotEmpty).toList();
+        final list = data.goalWorkItems[i]
+            .where((w) => w.title.trim().isNotEmpty)
+            .toList();
         if (list.isEmpty) continue;
         final sample = list.take(3).map((w) => w.title.trim()).join(', ');
         items.add('Goal ${i + 1} Work Items: $sample');
@@ -342,11 +364,19 @@ class ProjectDataHelper {
       wList('Work Breakdown Highlights', items);
     }
 
+    // Include Execution Phase Data
+    final exec = data.executionPhaseData;
+    if (exec != null) {
+      w('Execution Plan Outline', exec.executionPlanOutline);
+      w('Execution Plan Strategy', exec.executionPlanStrategy);
+    }
+
     final fep = data.frontEndPlanning;
     w('Front End Planning – Requirements', fep.requirements);
     w('Front End Planning – Risks', fep.risks);
     w('Front End Planning – Opportunities', fep.opportunities);
-    w('Front End Planning – Contract & Vendor Quotes', fep.contractVendorQuotes);
+    w('Front End Planning – Contract & Vendor Quotes',
+        fep.contractVendorQuotes);
     w('Front End Planning – Procurement', fep.procurement);
     w('Front End Planning – Security', fep.security);
     w('Front End Planning – Allowance', fep.allowance);
@@ -372,7 +402,9 @@ class ProjectDataHelper {
       w('Core Stakeholders Notes', stakeholders.notes);
       if (stakeholders.solutionStakeholderData.isNotEmpty) {
         final items = stakeholders.solutionStakeholderData.map((s) {
-          final title = s.solutionTitle.trim().isEmpty ? 'Solution' : s.solutionTitle.trim();
+          final title = s.solutionTitle.trim().isEmpty
+              ? 'Solution'
+              : s.solutionTitle.trim();
           final notable = s.notableStakeholders.trim();
           return notable.isEmpty ? title : '$title: $notable';
         });
@@ -385,7 +417,9 @@ class ProjectDataHelper {
       w('IT Considerations Notes', it.notes);
       if (it.solutionITData.isNotEmpty) {
         final items = it.solutionITData.map((s) {
-          final title = s.solutionTitle.trim().isEmpty ? 'Solution' : s.solutionTitle.trim();
+          final title = s.solutionTitle.trim().isEmpty
+              ? 'Solution'
+              : s.solutionTitle.trim();
           final tech = s.coreTechnology.trim();
           return tech.isEmpty ? title : '$title: $tech';
         });
@@ -398,7 +432,9 @@ class ProjectDataHelper {
       w('Infrastructure Notes', infra.notes);
       if (infra.solutionInfrastructureData.isNotEmpty) {
         final items = infra.solutionInfrastructureData.map((s) {
-          final title = s.solutionTitle.trim().isEmpty ? 'Solution' : s.solutionTitle.trim();
+          final title = s.solutionTitle.trim().isEmpty
+              ? 'Solution'
+              : s.solutionTitle.trim();
           final major = s.majorInfrastructure.trim();
           return major.isEmpty ? title : '$title: $major';
         });
@@ -429,7 +465,8 @@ class ProjectDataHelper {
     final ssher = data.ssherData;
     if (ssher.entries.isNotEmpty) {
       final items = ssher.entries.map((entry) {
-        final concern = entry.concern.trim().isEmpty ? 'SSHER Item' : entry.concern.trim();
+        final concern =
+            entry.concern.trim().isEmpty ? 'SSHER Item' : entry.concern.trim();
         final category = entry.category.trim();
         return category.isEmpty ? concern : '$concern ($category)';
       });
@@ -475,13 +512,14 @@ class ProjectDataHelper {
   }) async {
     final provider = ProjectDataInherited.of(context);
     provider.updateField(dataUpdater);
-    
+
     final success = await provider.saveToFirebase(checkpoint: checkpoint);
-    
+
     if (!success && context.mounted && showSnackbar) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${provider.lastError ?? "Could not save data"}'),
+          content:
+              Text('Error: ${provider.lastError ?? "Could not save data"}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -494,27 +532,31 @@ class ProjectDataHelper {
         ),
       );
     }
-    
+
     return success;
   }
 
   /// Convert legacy goal format to new format
-  static List<ProjectGoal> convertLegacyGoals(List<Map<String, String>>? legacyGoals) {
+  static List<ProjectGoal> convertLegacyGoals(
+      List<Map<String, String>>? legacyGoals) {
     if (legacyGoals == null || legacyGoals.isEmpty) return [];
-    
-    return legacyGoals.map((g) => ProjectGoal(
-      name: g['name'] ?? g['title'] ?? '',
-      description: g['description'] ?? '',
-      framework: g['framework'],
-    )).toList();
+
+    return legacyGoals
+        .map((g) => ProjectGoal(
+              name: g['name'] ?? g['title'] ?? '',
+              description: g['description'] ?? '',
+              framework: g['framework'],
+            ))
+        .toList();
   }
 
   /// Convert legacy planning goals to new format
-  static List<PlanningGoal> convertLegacyPlanningGoals(List<Map<String, String>>? legacyGoals) {
+  static List<PlanningGoal> convertLegacyPlanningGoals(
+      List<Map<String, String>>? legacyGoals) {
     if (legacyGoals == null || legacyGoals.isEmpty) {
       return List.generate(3, (i) => PlanningGoal(goalNumber: i + 1));
     }
-    
+
     return legacyGoals.asMap().entries.map((entry) {
       final i = entry.key;
       final g = entry.value;
@@ -583,7 +625,8 @@ class ProjectDataHelper {
       requirementsNotes: requirementsNotes ?? current.requirementsNotes,
       risks: risks ?? current.risks,
       opportunities: opportunities ?? current.opportunities,
-      contractVendorQuotes: contractVendorQuotes ?? current.contractVendorQuotes,
+      contractVendorQuotes:
+          contractVendorQuotes ?? current.contractVendorQuotes,
       procurement: procurement ?? current.procurement,
       security: security ?? current.security,
       allowance: allowance ?? current.allowance,
@@ -600,7 +643,8 @@ class ProjectDataHelper {
       securitySettings: securitySettings ?? current.securitySettings,
       securityAccessLogs: securityAccessLogs ?? current.securityAccessLogs,
       technicalDebtItems: technicalDebtItems ?? current.technicalDebtItems,
-      technicalDebtRootCauses: technicalDebtRootCauses ?? current.technicalDebtRootCauses,
+      technicalDebtRootCauses:
+          technicalDebtRootCauses ?? current.technicalDebtRootCauses,
       technicalDebtTracks: technicalDebtTracks ?? current.technicalDebtTracks,
       technicalDebtOwners: technicalDebtOwners ?? current.technicalDebtOwners,
     );

@@ -9,6 +9,8 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/screens/front_end_planning_security.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/services/api_key_manager.dart';
 
 /// Front End Planning – Procurement screen
 /// Recreates the provided procurement workspace mock with strategies and vendor table.
@@ -17,15 +19,18 @@ class FrontEndPlanningProcurementScreen extends StatefulWidget {
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const FrontEndPlanningProcurementScreen()),
+      MaterialPageRoute(
+          builder: (_) => const FrontEndPlanningProcurementScreen()),
     );
   }
 
   @override
-  State<FrontEndPlanningProcurementScreen> createState() => _FrontEndPlanningProcurementScreenState();
+  State<FrontEndPlanningProcurementScreen> createState() =>
+      _FrontEndPlanningProcurementScreenState();
 }
 
-class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProcurementScreen> {
+class _FrontEndPlanningProcurementScreenState
+    extends State<FrontEndPlanningProcurementScreen> {
   final TextEditingController _notes = TextEditingController();
 
   bool _approvedOnly = false;
@@ -34,9 +39,10 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   String _categoryFilter = 'All Categories';
   final Set<int> _expandedStrategies = {};
 
-  _ProcurementTab _selectedTab = _ProcurementTab.itemsList;
+  _ProcurementTab _selectedTab = _ProcurementTab.procurementDashboard;
   int _selectedTrackableIndex = 0;
-  late final NumberFormat _currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+  late final NumberFormat _currencyFormat =
+      NumberFormat.currency(symbol: '\$', decimalDigits: 0);
 
   final List<_ProcurementItem> _items = [];
 
@@ -72,13 +78,727 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
 
   final List<_ComplianceMetric> _complianceMetrics = [];
 
+  late final OpenAiServiceSecure _openAi;
+  bool _isGeneratingData = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _openAi = OpenAiServiceSecure();
+    ApiKeyManager.initializeApiKey();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final data = ProjectDataHelper.getData(context);
       _notes.text = data.frontEndPlanning.procurement;
+
+      // Initialize all sections with fallback data immediately so UI shows content
+      if (mounted) {
+        setState(() {
+          // Generate strategies and reports immediately (synchronous)
+          if (_strategies.isEmpty) {
+            _generateStrategies();
+          }
+          if (_reportKpis.isEmpty && _spendBreakdown.isEmpty) {
+            _generateReportsData();
+          }
+        });
+      }
+
       if (mounted) setState(() {});
+      // Generate all data (will show fallback first, then enhance with AI)
+      await _generateProcurementDataIfNeeded();
+    });
+  }
+
+  Future<void> _generateProcurementDataIfNeeded() async {
+    if (_isGeneratingData) return;
+
+    final needsItems = _items.isEmpty;
+    final needsStrategies = _strategies.isEmpty;
+    final needsVendors = _vendors.isEmpty;
+    final needsRfqs = _rfqs.isEmpty;
+    final needsPurchaseOrders = _purchaseOrders.isEmpty;
+    final needsTrackableItems = _trackableItems.isEmpty;
+    final needsReports = _reportKpis.isEmpty && _spendBreakdown.isEmpty;
+
+    if (!needsItems &&
+        !needsStrategies &&
+        !needsVendors &&
+        !needsRfqs &&
+        !needsPurchaseOrders &&
+        !needsTrackableItems &&
+        !needsReports) {
+      return;
+    }
+
+    // Set fallback data immediately so all sections display content
+    if (mounted) {
+      setState(() {
+        if (needsStrategies) {
+          _generateStrategies();
+        }
+        if (needsReports) {
+          _generateReportsData();
+        }
+      });
+    }
+
+    setState(() => _isGeneratingData = true);
+
+    try {
+      final data = ProjectDataHelper.getData(context);
+      final projectName =
+          data.projectName.trim().isEmpty ? 'Project' : data.projectName.trim();
+      final solutionTitle = data.solutionTitle.trim().isEmpty
+          ? 'Solution'
+          : data.solutionTitle.trim();
+      final notes = data.frontEndPlanning.procurement.trim();
+
+      // Generate all sections (they will show fallback data immediately, then enhance with AI)
+      if (needsItems) {
+        await _generateItems(projectName, solutionTitle, notes);
+        // Update strategies after items are generated to get accurate counts
+        _generateStrategies();
+      }
+      if (needsVendors) {
+        await _generateVendors(projectName, solutionTitle, notes);
+      }
+      if (needsRfqs) {
+        await _generateRfqs(projectName, solutionTitle, notes);
+      }
+      if (needsPurchaseOrders) {
+        await _generatePurchaseOrders(projectName, solutionTitle, notes);
+      }
+      if (needsTrackableItems) {
+        await _generateTrackableItems(projectName, solutionTitle, notes);
+      }
+    } catch (e) {
+      debugPrint('Error generating procurement data: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingData = false);
+      }
+    }
+  }
+
+  Future<void> _generateItems(
+      String projectName, String solutionTitle, String notes) async {
+    // Always generate fallback items immediately to show content
+    final now = DateTime.now();
+    final categories = [
+      'IT Equipment',
+      'Construction Services',
+      'Furniture',
+      'Security',
+      'Services'
+    ];
+
+    // Set fallback items immediately so UI shows content
+    if (mounted) {
+      setState(() {
+        _items.clear();
+        for (int i = 0; i < categories.length; i++) {
+          _items.add(_ProcurementItem(
+            name: '${categories[i]} Procurement',
+            description: 'Procurement item for ${categories[i]}',
+            category: categories[i],
+            status: _ProcurementItemStatus.planning,
+            priority: _ProcurementPriority.medium,
+            budget: 50000 + (i * 10000),
+            estimatedDelivery:
+                DateFormat('MMM d, yyyy').format(now.add(Duration(days: 90))),
+            progress: 0.0,
+          ));
+        }
+      });
+    }
+
+    // Then try to enhance with AI-generated data
+    try {
+      final items = <_ProcurementItem>[];
+
+      for (int i = 0; i < categories.length; i++) {
+        final category = categories[i];
+        try {
+          final result = await _openAi.generateProcurementItemSuggestion(
+            projectName: projectName,
+            solutionTitle: solutionTitle,
+            category: category,
+            contextNotes: notes,
+          );
+
+          final deliveryDays = (result['estimatedDeliveryDays'] as int?) ?? 90;
+          final deliveryDate = DateTime.now().add(Duration(days: deliveryDays));
+          final deliveryDateStr =
+              DateFormat('MMM d, yyyy').format(deliveryDate);
+
+          _ProcurementPriority priority;
+          final priorityStr = (result['priority'] ?? 'medium').toString();
+          switch (priorityStr.toLowerCase()) {
+            case 'critical':
+              priority = _ProcurementPriority.critical;
+              break;
+            case 'high':
+              priority = _ProcurementPriority.high;
+              break;
+            case 'low':
+              priority = _ProcurementPriority.low;
+              break;
+            default:
+              priority = _ProcurementPriority.medium;
+          }
+
+          _ProcurementItemStatus status;
+          switch (i % 5) {
+            case 0:
+              status = _ProcurementItemStatus.planning;
+              break;
+            case 1:
+              status = _ProcurementItemStatus.rfqReview;
+              break;
+            case 2:
+              status = _ProcurementItemStatus.vendorSelection;
+              break;
+            case 3:
+              status = _ProcurementItemStatus.ordered;
+              break;
+            default:
+              status = _ProcurementItemStatus.delivered;
+          }
+
+          final progress = [0.0, 0.25, 0.5, 0.75, 1.0][i % 5];
+
+          items.add(_ProcurementItem(
+            name: (result['name'] ?? '${category} Procurement').toString(),
+            description: (result['description'] ??
+                    'Procurement item for $category category')
+                .toString(),
+            category: category,
+            status: status,
+            priority: priority,
+            budget: (result['budget'] as int?) ?? (50000 + (i * 10000)),
+            estimatedDelivery: deliveryDateStr,
+            progress: progress,
+          ));
+        } catch (e) {
+          debugPrint('Error generating item for $category: $e');
+          // Use fallback item
+          items.add(_ProcurementItem(
+            name: '${category} Procurement',
+            description: 'Procurement item for $category category',
+            category: category,
+            status: _ProcurementItemStatus.planning,
+            priority: _ProcurementPriority.medium,
+            budget: 50000 + (i * 10000),
+            estimatedDelivery:
+                DateFormat('MMM d, yyyy').format(now.add(Duration(days: 90))),
+            progress: 0.0,
+          ));
+        }
+      }
+
+      // Update with AI-generated items if we got any
+      if (mounted && items.isNotEmpty) {
+        setState(() {
+          _items.clear();
+          _items.addAll(items);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating items: $e');
+      // Fallback items already set above, so no need to set again
+    }
+  }
+
+  void _generateStrategies() {
+    setState(() {
+      _strategies.clear();
+      // Count items by category, or use default counts if items haven't been generated yet
+      final itItemCount =
+          _items.where((i) => i.category == 'IT Equipment').length;
+      final constructionItemCount =
+          _items.where((i) => i.category == 'Construction Services').length;
+      final furnitureItemCount =
+          _items.where((i) => i.category == 'Furniture').length;
+
+      _strategies.addAll([
+        _ProcurementStrategy(
+          title: 'IT Infrastructure Procurement',
+          status: _StrategyStatus.active,
+          itemCount: itItemCount > 0 ? itItemCount : 1,
+          description:
+              'Strategic approach for acquiring IT infrastructure components and equipment.',
+        ),
+        _ProcurementStrategy(
+          title: 'Construction & Facilities',
+          status: _StrategyStatus.active,
+          itemCount: constructionItemCount > 0 ? constructionItemCount : 1,
+          description:
+              'Procurement strategy for construction services and facility improvements.',
+        ),
+        _ProcurementStrategy(
+          title: 'Office & Workspace',
+          status: _StrategyStatus.draft,
+          itemCount: furnitureItemCount > 0 ? furnitureItemCount : 1,
+          description:
+              'Strategy for furnishing and equipping office spaces and work areas.',
+        ),
+      ]);
+    });
+  }
+
+  Future<void> _generateVendors(
+      String projectName, String solutionTitle, String notes) async {
+    // Set fallback vendors immediately so UI shows content
+    if (mounted) {
+      setState(() {
+        _vendors.clear();
+        _vendors.addAll([
+          _VendorRow(
+              initials: 'TC',
+              name: 'TechCorp Solutions',
+              category: 'IT Equipment',
+              rating: 4,
+              approved: true,
+              preferred: false),
+          _VendorRow(
+              initials: 'BC',
+              name: 'BuildRight Contractors',
+              category: 'Construction Services',
+              rating: 5,
+              approved: true,
+              preferred: true),
+          _VendorRow(
+              initials: 'OE',
+              name: 'Office Essentials Co',
+              category: 'Furniture',
+              rating: 4,
+              approved: true,
+              preferred: false),
+          _VendorRow(
+              initials: 'SG',
+              name: 'SecureGuard Services',
+              category: 'Security',
+              rating: 4,
+              approved: true,
+              preferred: false),
+          _VendorRow(
+              initials: 'FT',
+              name: 'FastTrack Logistics',
+              category: 'Logistics',
+              rating: 5,
+              approved: true,
+              preferred: false),
+        ]);
+      });
+    }
+
+    // Then try to enhance with AI-generated data
+    try {
+      final vendors = await _openAi.generateProcurementVendors(
+        projectName: projectName,
+        solutionTitle: solutionTitle,
+        contextNotes: notes,
+        count: 5,
+      );
+
+      if (mounted && vendors.isNotEmpty) {
+        setState(() {
+          _vendors.clear();
+          _vendors.addAll(vendors.map((v) {
+            final name = (v['name'] ?? '').toString();
+            return _VendorRow(
+              initials: _deriveInitials(name),
+              name: name,
+              category: (v['category'] ?? 'IT Equipment').toString(),
+              rating: (v['rating'] as int?) ?? 4,
+              approved: v['approved'] as bool? ?? true,
+              preferred: v['preferred'] as bool? ?? false,
+            );
+          }));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating vendors: $e');
+      // Fallback vendors already set above, so no need to set again
+    }
+  }
+
+  Future<void> _generateRfqs(
+      String projectName, String solutionTitle, String notes) async {
+    // Set fallback RFQs immediately so UI shows content
+    final now = DateTime.now();
+    if (mounted) {
+      setState(() {
+        _rfqs.clear();
+        for (int i = 0; i < 3; i++) {
+          final dueDate = now.add(Duration(days: 30 + (i * 15)));
+          _rfqs.add(_RfqItem(
+            title: [
+              'Network Infrastructure Equipment',
+              'Office Furniture Set',
+              'Security System Installation'
+            ][i],
+            category: ['IT Equipment', 'Furniture', 'Security'][i],
+            owner: 'Procurement Manager',
+            dueDate:
+                '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}',
+            invited: 5 + i,
+            responses: 3 + i,
+            budget: 50000 + (i * 25000),
+            status: [
+              _RfqStatus.draft,
+              _RfqStatus.review,
+              _RfqStatus.inMarket
+            ][i],
+            priority: [
+              _ProcurementPriority.high,
+              _ProcurementPriority.medium,
+              _ProcurementPriority.critical
+            ][i],
+          ));
+        }
+      });
+    }
+
+    // Then try to enhance with AI-generated data
+    try {
+      final rfqs = await _openAi.generateProcurementRfqs(
+        projectName: projectName,
+        solutionTitle: solutionTitle,
+        contextNotes: notes,
+        count: 3,
+      );
+
+      if (mounted && rfqs.isNotEmpty) {
+        setState(() {
+          _rfqs.clear();
+          _rfqs.addAll(rfqs.map((r) {
+            final statusStr = (r['status'] ?? 'draft').toString();
+            final priorityStr = (r['priority'] ?? 'medium').toString();
+
+            _RfqStatus status;
+            switch (statusStr.toLowerCase()) {
+              case 'review':
+                status = _RfqStatus.review;
+                break;
+              case 'inmarket':
+              case 'in_market':
+                status = _RfqStatus.inMarket;
+                break;
+              case 'evaluation':
+                status = _RfqStatus.evaluation;
+                break;
+              case 'awarded':
+                status = _RfqStatus.awarded;
+                break;
+              default:
+                status = _RfqStatus.draft;
+            }
+
+            _ProcurementPriority priority;
+            switch (priorityStr.toLowerCase()) {
+              case 'critical':
+                priority = _ProcurementPriority.critical;
+                break;
+              case 'high':
+                priority = _ProcurementPriority.high;
+                break;
+              case 'low':
+                priority = _ProcurementPriority.low;
+                break;
+              default:
+                priority = _ProcurementPriority.medium;
+            }
+
+            return _RfqItem(
+              title: (r['title'] ?? '').toString(),
+              category: (r['category'] ?? 'IT Equipment').toString(),
+              owner: (r['owner'] ?? 'Procurement Manager').toString(),
+              dueDate: (r['dueDate'] ?? '').toString(),
+              invited: (r['invited'] as int?) ?? 5,
+              responses: (r['responses'] as int?) ?? 3,
+              budget: (r['budget'] as int?) ?? 50000,
+              status: status,
+              priority: priority,
+            );
+          }));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating RFQs: $e');
+      // Fallback RFQs already set above, so no need to set again
+    }
+  }
+
+  Future<void> _generatePurchaseOrders(
+      String projectName, String solutionTitle, String notes) async {
+    // Set fallback purchase orders immediately so UI shows content
+    final now = DateTime.now();
+    if (mounted) {
+      setState(() {
+        _purchaseOrders.clear();
+        for (int i = 0; i < 4; i++) {
+          final orderedDate = now.subtract(Duration(days: 10 + (i * 5)));
+          final expectedDate = now.add(Duration(days: 20 + (i * 10)));
+          _purchaseOrders.add(_PurchaseOrder(
+            id: 'PO-${(1000 + i).toString().padLeft(4, '0')}',
+            vendor: [
+              'TechCorp Solutions',
+              'BuildRight Contractors',
+              'Office Essentials Co',
+              'SecureGuard Services'
+            ][i],
+            category: [
+              'IT Equipment',
+              'Construction Services',
+              'Furniture',
+              'Security'
+            ][i],
+            owner: 'Procurement Manager',
+            orderedDate:
+                '${orderedDate.year}-${orderedDate.month.toString().padLeft(2, '0')}-${orderedDate.day.toString().padLeft(2, '0')}',
+            expectedDate:
+                '${expectedDate.year}-${expectedDate.month.toString().padLeft(2, '0')}-${expectedDate.day.toString().padLeft(2, '0')}',
+            amount: 50000 + (i * 25000),
+            progress: [0.3, 0.6, 0.8, 1.0][i],
+            status: [
+              _PurchaseOrderStatus.awaitingApproval,
+              _PurchaseOrderStatus.issued,
+              _PurchaseOrderStatus.inTransit,
+              _PurchaseOrderStatus.received
+            ][i],
+          ));
+        }
+      });
+    }
+
+    // Then try to enhance with AI-generated data
+    try {
+      final pos = await _openAi.generateProcurementPurchaseOrders(
+        projectName: projectName,
+        solutionTitle: solutionTitle,
+        contextNotes: notes,
+        count: 4,
+      );
+
+      if (mounted && pos.isNotEmpty) {
+        setState(() {
+          _purchaseOrders.clear();
+          _purchaseOrders.addAll(pos.map((po) {
+            final statusStr = (po['status'] ?? 'issued').toString();
+
+            _PurchaseOrderStatus status;
+            switch (statusStr.toLowerCase()) {
+              case 'awaitingapproval':
+              case 'awaiting_approval':
+                status = _PurchaseOrderStatus.awaitingApproval;
+                break;
+              case 'intransit':
+              case 'in_transit':
+                status = _PurchaseOrderStatus.inTransit;
+                break;
+              case 'received':
+                status = _PurchaseOrderStatus.received;
+                break;
+              default:
+                status = _PurchaseOrderStatus.issued;
+            }
+
+            return _PurchaseOrder(
+              id: (po['id'] ?? 'PO-0001').toString(),
+              vendor: (po['vendor'] ?? '').toString(),
+              category: (po['category'] ?? 'IT Equipment').toString(),
+              owner: (po['owner'] ?? 'Procurement Manager').toString(),
+              orderedDate: (po['orderedDate'] ?? '').toString(),
+              expectedDate: (po['expectedDate'] ?? '').toString(),
+              amount: (po['amount'] as int?) ?? 50000,
+              progress:
+                  ((po['progress'] as num?)?.toDouble() ?? 0.5).clamp(0.0, 1.0),
+              status: status,
+            );
+          }));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating purchase orders: $e');
+      // Fallback purchase orders already set above, so no need to set again
+    }
+  }
+
+  Future<void> _generateTrackableItems(
+      String projectName, String solutionTitle, String notes) async {
+    // Set fallback trackable items immediately so UI shows content
+    final now = DateTime.now();
+    if (mounted) {
+      setState(() {
+        _trackableItems.clear();
+        for (int i = 0; i < 3; i++) {
+          final lastUpdate = now.subtract(Duration(days: i));
+          _trackableItems.add(_TrackableItem(
+            name: [
+              'Network Infrastructure Equipment',
+              'Office Furniture Set',
+              'Security Cameras'
+            ][i],
+            description: 'Procurement item for project delivery',
+            orderStatus: 'Ordered',
+            currentStatus: [
+              _TrackableStatus.inTransit,
+              _TrackableStatus.inTransit,
+              _TrackableStatus.delivered
+            ][i],
+            lastUpdate:
+                '${lastUpdate.year}-${lastUpdate.month.toString().padLeft(2, '0')}-${lastUpdate.day.toString().padLeft(2, '0')} ${lastUpdate.hour.toString().padLeft(2, '0')}:${lastUpdate.minute.toString().padLeft(2, '0')}',
+            events: [
+              _TimelineEvent(
+                title: 'Order placed',
+                description: 'Order placed',
+                subtext: 'not tracked',
+                date:
+                    '${now.subtract(Duration(days: 5 + i)).year}-${(now.subtract(Duration(days: 5 + i)).month).toString().padLeft(2, '0')}-${(now.subtract(Duration(days: 5 + i)).day).toString().padLeft(2, '0')}',
+              ),
+              _TimelineEvent(
+                title: 'Shipped from warehouse',
+                description: 'Shipped from warehouse',
+                subtext: 'in transit',
+                date:
+                    '${now.subtract(Duration(days: 3 + i)).year}-${(now.subtract(Duration(days: 3 + i)).month).toString().padLeft(2, '0')}-${(now.subtract(Duration(days: 3 + i)).day).toString().padLeft(2, '0')}',
+              ),
+              if (i == 2)
+                _TimelineEvent(
+                  title: 'Delivered',
+                  description: 'Delivered',
+                  subtext: 'delivered',
+                  date:
+                      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+                ),
+            ],
+          ));
+        }
+      });
+    }
+
+    // Then try to enhance with AI-generated data
+    try {
+      final items = await _openAi.generateProcurementTrackableItems(
+        projectName: projectName,
+        solutionTitle: solutionTitle,
+        contextNotes: notes,
+        count: 3,
+      );
+
+      if (mounted && items.isNotEmpty) {
+        setState(() {
+          _trackableItems.clear();
+          _trackableItems.addAll(items.map((item) {
+            final statusStr = (item['currentStatus'] ?? 'inTransit').toString();
+
+            _TrackableStatus status;
+            switch (statusStr.toLowerCase()) {
+              case 'delivered':
+                status = _TrackableStatus.delivered;
+                break;
+              case 'nottracked':
+              case 'not_tracked':
+                status = _TrackableStatus.notTracked;
+                break;
+              default:
+                status = _TrackableStatus.inTransit;
+            }
+
+            final events = (item['events'] as List? ?? []).map((ev) {
+              final eventStatusStr = (ev['status'] ?? 'inTransit').toString();
+              _TrackableStatus eventStatus;
+              switch (eventStatusStr.toLowerCase()) {
+                case 'delivered':
+                  eventStatus = _TrackableStatus.delivered;
+                  break;
+                case 'nottracked':
+                case 'not_tracked':
+                  eventStatus = _TrackableStatus.notTracked;
+                  break;
+                default:
+                  eventStatus = _TrackableStatus.inTransit;
+              }
+
+              return _TimelineEvent(
+                title: (ev['title'] ?? 'Update').toString(),
+                description: (ev['title'] ?? 'Update').toString(),
+                subtext: eventStatus.label,
+                date: (ev['date'] ?? '').toString(),
+              );
+            }).toList();
+
+            return _TrackableItem(
+              name: (item['name'] ?? '').toString(),
+              description: (item['description'] ?? '').toString(),
+              orderStatus: (item['orderStatus'] ?? 'Ordered').toString(),
+              currentStatus: status,
+              lastUpdate: (item['lastUpdate'] ?? '').toString(),
+              events: events,
+            );
+          }));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating trackable items: $e');
+      // Fallback trackable items already set above, so no need to set again
+    }
+  }
+
+  void _generateReportsData() {
+    final reportsData = _openAi.generateProcurementReportsData();
+    if (reportsData.isEmpty) return;
+
+    final data = reportsData.first;
+
+    setState(() {
+      // KPIs
+      _reportKpis.clear();
+      final kpis = (data['kpis'] as List? ?? []);
+      _reportKpis.addAll(kpis.map((k) => _ReportKpi(
+            label: (k['label'] ?? '').toString(),
+            value: (k['value'] ?? '').toString(),
+            delta: (k['delta'] ?? '').toString(),
+            positive: k['positive'] as bool? ?? true,
+          )));
+
+      // Spend breakdown
+      _spendBreakdown.clear();
+      final spend = (data['spendBreakdown'] as List? ?? []);
+      _spendBreakdown.addAll(spend.map((s) => _SpendBreakdown(
+            label: (s['label'] ?? '').toString(),
+            amount: (s['amount'] as int?) ?? 0,
+            percent:
+                ((s['percent'] as num?)?.toDouble() ?? 0.0).clamp(0.0, 100.0),
+            color: Color((s['color'] as int?) ?? 0xFF64748B),
+          )));
+
+      // Lead time metrics
+      _leadTimeMetrics.clear();
+      final leadTimes = (data['leadTimeMetrics'] as List? ?? []);
+      _leadTimeMetrics.addAll(leadTimes.map((l) => _LeadTimeMetric(
+            label: (l['label'] ?? '').toString(),
+            onTimeRate:
+                ((l['onTimeRate'] as num?)?.toDouble() ?? 0.0).clamp(0.0, 1.0),
+          )));
+
+      // Savings opportunities
+      _savingsOpportunities.clear();
+      final savings = (data['savingsOpportunities'] as List? ?? []);
+      _savingsOpportunities.addAll(savings.map((s) => _SavingsOpportunity(
+            title: (s['title'] ?? '').toString(),
+            value: (s['value'] ?? '').toString(),
+            owner: (s['owner'] ?? '').toString(),
+          )));
+
+      // Compliance metrics
+      _complianceMetrics.clear();
+      final compliance = (data['complianceMetrics'] as List? ?? []);
+      _complianceMetrics.addAll(compliance.map((c) => _ComplianceMetric(
+            label: (c['label'] ?? '').toString(),
+            value: ((c['value'] as num?)?.toDouble() ?? 0.0).clamp(0.0, 1.0),
+          )));
     });
   }
 
@@ -89,7 +809,8 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   }
 
   List<String> get _categoryOptions {
-    final categories = _vendors.map((vendor) => vendor.category).toSet().toList()..sort();
+    final categories =
+        _vendors.map((vendor) => vendor.category).toSet().toList()..sort();
     return ['All Categories', ...categories];
   }
 
@@ -97,7 +818,8 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
     return _vendors.where((vendor) {
       if (_approvedOnly && !vendor.approved) return false;
       if (_preferredOnly && !vendor.preferred) return false;
-      if (_categoryFilter != 'All Categories' && vendor.category != _categoryFilter) return false;
+      if (_categoryFilter != 'All Categories' &&
+          vendor.category != _categoryFilter) return false;
       return true;
     }).toList();
   }
@@ -130,8 +852,11 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
     if (mounted && showConfirmation) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Procurement notes saved' : 'Unable to save procurement notes'),
-          backgroundColor: success ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+          content: Text(success
+              ? 'Procurement notes saved'
+              : 'Unable to save procurement notes'),
+          backgroundColor:
+              success ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
         ),
       );
     }
@@ -151,11 +876,19 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
 
   void _handleItemListTap() {
     setState(() => _selectedTab = _ProcurementTab.itemsList);
+    // Trigger generation if items are empty
+    if (_items.isEmpty) {
+      _generateProcurementDataIfNeeded();
+    }
   }
 
   void _handleTabSelected(_ProcurementTab tab) {
     if (_selectedTab == tab) return;
     setState(() => _selectedTab = tab);
+    // Trigger generation if switching to items list and items are empty
+    if (tab == _ProcurementTab.itemsList && _items.isEmpty) {
+      _generateProcurementDataIfNeeded();
+    }
   }
 
   void _handleTrackableSelected(int index) {
@@ -176,7 +909,7 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
       setState(() => _selectedTab = nextTab);
       return;
     }
-    
+
     // Save all data before navigation to prevent data loss
     final provider = ProjectDataHelper.getProvider(context);
     try {
@@ -194,13 +927,13 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
       }
       return; // Don't navigate if save fails
     }
-    
+
     // Check if destination is locked
     if (ProjectDataHelper.isDestinationLocked(context, 'fep_security')) {
       ProjectDataHelper.showLockedDestinationMessage(context, 'Security');
       return;
     }
-    
+
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'fep_procurement',
@@ -270,7 +1003,8 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
           trackableItems: _trackableItems,
           selectedIndex: _selectedTrackableIndex,
           onSelectTrackable: _handleTrackableSelected,
-          selectedItem: (_selectedTrackableIndex >= 0 && _selectedTrackableIndex < _trackableItems.length)
+          selectedItem: (_selectedTrackableIndex >= 0 &&
+                  _selectedTrackableIndex < _trackableItems.length)
               ? _trackableItems[_selectedTrackableIndex]
               : null,
           alerts: _trackingAlerts,
@@ -300,11 +1034,13 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
           backgroundColor: const Color(0xFFF6C437),
           foregroundColor: const Color(0xFF111827),
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
           elevation: 0,
         ),
         icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-        label: Text('Next: $nextLabel', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        label: Text('Next: $nextLabel',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -346,15 +1082,20 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
     return int.tryParse(cleaned) ?? 0;
   }
 
-  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
+  String _formatStoreDate(DateTime date) =>
+      DateFormat('yyyy-MM-dd').format(date);
 
-  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
+  String _formatDisplayDate(DateTime date) =>
+      DateFormat('MMM d, yyyy').format(date);
 
   String _deriveInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return 'NA';
     if (parts.length == 1) {
-      return parts.first.substring(0, parts.first.length >= 2 ? 2 : 1).toUpperCase();
+      return parts.first
+          .substring(0, parts.first.length >= 2 ? 2 : 1)
+          .toUpperCase();
     }
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
@@ -375,7 +1116,12 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
     return chips;
   }
 
-  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? helperText, String? errorText}) {
+  InputDecoration _dialogDecoration(
+      {required String label,
+      String? hint,
+      Widget? prefixIcon,
+      String? helperText,
+      String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -384,11 +1130,18 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
       prefixIcon: prefixIcon,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600, color: Color(0xFF475569)),
       hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
@@ -420,11 +1173,11 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
     if (result != null) {
       // Save items to provider before updating local state
       final provider = ProjectDataHelper.getProvider(context);
-      
+
       setState(() {
         _items.add(result);
       });
-      
+
       // Save to Firebase to prevent data loss
       try {
         await provider.saveToFirebase(checkpoint: 'fep_procurement');
@@ -463,7 +1216,14 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   }
 
   Future<void> _openCreateRfqDialog() async {
-    final categoryOptions = const ['IT Equipment', 'Construction Services', 'Furniture', 'Security', 'Services', 'Materials'];
+    final categoryOptions = const [
+      'IT Equipment',
+      'Construction Services',
+      'Furniture',
+      'Security',
+      'Services',
+      'Materials'
+    ];
 
     final result = await showDialog<_RfqItem>(
       context: context,
@@ -483,7 +1243,14 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
   }
 
   Future<void> _openCreatePoDialog() async {
-    final categoryOptions = const ['IT Equipment', 'Construction Services', 'Furniture', 'Security', 'Logistics', 'Services'];
+    final categoryOptions = const [
+      'IT Equipment',
+      'Construction Services',
+      'Furniture',
+      'Security',
+      'Logistics',
+      'Services'
+    ];
 
     final result = await showDialog<_PurchaseOrder>(
       context: context,
@@ -512,7 +1279,8 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Procurement'),
+              child:
+                  const InitiationLikeSidebar(activeItemLabel: 'Procurement'),
             ),
             Expanded(
               child: Stack(
@@ -525,12 +1293,14 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
                         child: Container(
                           color: const Color(0xFFF5F6FA),
                           child: SingleChildScrollView(
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 32, vertical: 32),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _ProcurementTopBar(
-                                  onBack: () => Navigator.of(context).maybePop(),
+                                  onBack: () =>
+                                      Navigator.of(context).maybePop(),
                                   onForward: _goToNextSection,
                                 ),
                                 const SizedBox(height: 24),
@@ -539,7 +1309,8 @@ class _FrontEndPlanningProcurementScreenState extends State<FrontEndPlanningProc
                                   sectionLabel: 'Procurement',
                                   noteKey: 'planning_procurement_notes',
                                   checkpoint: 'fep_procurement',
-                                  description: 'Capture procurement priorities, vendors, and approval constraints.',
+                                  description:
+                                      'Capture procurement priorities, vendors, and approval constraints.',
                                 ),
                                 const SizedBox(height: 16),
                                 _NotesCard(
@@ -596,11 +1367,15 @@ class _ProcurementTopBar extends StatelessWidget {
         children: [
           _circleButton(icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
           const SizedBox(width: 12),
-          _circleButton(icon: Icons.arrow_forward_ios_rounded, onTap: onForward),
+          _circleButton(
+              icon: Icons.arrow_forward_ios_rounded, onTap: onForward),
           const SizedBox(width: 20),
           const Text(
             'Procurement',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const Spacer(),
           const _UserBadge(),
@@ -654,7 +1429,10 @@ class _UserBadge extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             displayName,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
           ),
           const SizedBox(width: 6),
           Text(
@@ -700,7 +1478,8 @@ class _NotesCard extends StatelessWidget {
 }
 
 class _ProcurementTabBar extends StatelessWidget {
-  const _ProcurementTabBar({required this.selectedTab, required this.onSelected});
+  const _ProcurementTabBar(
+      {required this.selectedTab, required this.onSelected});
 
   final _ProcurementTab selectedTab;
   final ValueChanged<_ProcurementTab> onSelected;
@@ -740,7 +1519,8 @@ class _ProcurementTabBar extends StatelessWidget {
             );
           }
 
-          final double tabWidth = (constraints.maxWidth - (tabs.length - 1) * 8) / tabs.length;
+          final double tabWidth =
+              (constraints.maxWidth - (tabs.length - 1) * 8) / tabs.length;
           return Row(
             children: [
               for (final tab in tabs) ...[
@@ -763,7 +1543,8 @@ class _ProcurementTabBar extends StatelessWidget {
 }
 
 class _TabButton extends StatelessWidget {
-  const _TabButton({required this.label, required this.selected, required this.onTap});
+  const _TabButton(
+      {required this.label, required this.selected, required this.onTap});
 
   final String label;
   final bool selected;
@@ -777,7 +1558,9 @@ class _TabButton extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected ? Colors.white : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: selected ? const Color(0xFF2563EB) : Colors.transparent, width: 1.2),
+        border: Border.all(
+            color: selected ? const Color(0xFF2563EB) : Colors.transparent,
+            width: 1.2),
         boxShadow: selected
             ? const [
                 BoxShadow(
@@ -799,7 +1582,9 @@ class _TabButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: selected ? const Color(0xFF1D4ED8) : const Color(0xFF475569),
+                color: selected
+                    ? const Color(0xFF1D4ED8)
+                    : const Color(0xFF475569),
               ),
             ),
           ),
@@ -817,7 +1602,9 @@ class _PlanHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final projectName = ProjectDataHelper.getData(context).projectName.trim();
-    final title = projectName.isEmpty ? 'Procurement Plan' : '$projectName Procurement Plan';
+    final title = projectName.isEmpty
+        ? 'Procurement Plan'
+        : '$projectName Procurement Plan';
 
     return Row(
       children: [
@@ -826,10 +1613,14 @@ class _PlanHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.lock_outline, size: 18, color: Color(0xFF6B7280)),
+              const Icon(Icons.lock_outline,
+                  size: 18, color: Color(0xFF6B7280)),
             ],
           ),
         ),
@@ -839,7 +1630,8 @@ class _PlanHeader extends StatelessWidget {
             side: const BorderSide(color: Color(0xFFCBD5E1)),
             foregroundColor: const Color(0xFF0F172A),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: const Text('Item List'),
         ),
@@ -849,7 +1641,8 @@ class _PlanHeader extends StatelessWidget {
 }
 
 class _AiSuggestionCard extends StatelessWidget {
-  const _AiSuggestionCard({required this.onAccept, required this.onEdit, required this.onReject});
+  const _AiSuggestionCard(
+      {required this.onAccept, required this.onEdit, required this.onReject});
 
   final VoidCallback onAccept;
   final VoidCallback onEdit;
@@ -874,14 +1667,20 @@ class _AiSuggestionCard extends StatelessWidget {
               SizedBox(width: 12),
               Text(
                 'AI Suggestion',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
             ],
           ),
           const SizedBox(height: 12),
           const Text(
             'Based on your scope, group items by category and delivery window to streamline sourcing and approvals.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+            style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF94A3B8),
+                fontStyle: FontStyle.italic),
           ),
           const SizedBox(height: 16),
           Row(
@@ -896,8 +1695,10 @@ class _AiSuggestionCard extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF10B981),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
                 child: const Text('Accept'),
@@ -931,12 +1732,20 @@ class _ItemsListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalItems = items.length;
-    final criticalItems = items.where((item) => item.priority == _ProcurementPriority.critical).length;
-    final pendingApprovals = items
-        .where((item) => item.status == _ProcurementItemStatus.vendorSelection && item.priority == _ProcurementPriority.critical)
+    final criticalItems = items
+        .where((item) => item.priority == _ProcurementPriority.critical)
         .length;
-    final totalBudget = items.fold<int>(0, (value, item) => value + item.budget);
-    final selectedTrackable = (selectedIndex >= 0 && selectedIndex < trackableItems.length) ? trackableItems[selectedIndex] : null;
+    final pendingApprovals = items
+        .where((item) =>
+            item.status == _ProcurementItemStatus.vendorSelection &&
+            item.priority == _ProcurementPriority.critical)
+        .length;
+    final totalBudget =
+        items.fold<int>(0, (value, item) => value + item.budget);
+    final selectedTrackable =
+        (selectedIndex >= 0 && selectedIndex < trackableItems.length)
+            ? trackableItems[selectedIndex]
+            : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,7 +1759,8 @@ class _ItemsListView extends StatelessWidget {
         const SizedBox(height: 24),
         _ItemsToolbar(onAddItem: onAddItem),
         const SizedBox(height: 20),
-        _ItemsTable(items: items, currencyFormat: currencyFormat, onAddItem: onAddItem),
+        _ItemsTable(
+            items: items, currencyFormat: currencyFormat, onAddItem: onAddItem),
         const SizedBox(height: 28),
         _TrackableAndTimeline(
           trackableItems: trackableItems,
@@ -1063,7 +1873,8 @@ class _SummaryCard extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(color: iconBackground, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+                color: iconBackground, borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: const Color(0xFF1D4ED8)),
           ),
           const SizedBox(width: 16),
@@ -1072,10 +1883,15 @@ class _SummaryCard extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: valueColor ?? const Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: valueColor ?? const Color(0xFF0F172A)),
               ),
               const SizedBox(height: 4),
-              Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+              Text(label,
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
             ],
           ),
         ],
@@ -1119,9 +1935,11 @@ class _ItemsToolbar extends StatelessWidget {
       children: [
         const SizedBox(width: 320, child: _SearchField()),
         const SizedBox(width: 16),
-        const SizedBox(width: 190, child: _DropdownField(label: 'All Categories')),
+        const SizedBox(
+            width: 190, child: _DropdownField(label: 'All Categories')),
         const SizedBox(width: 16),
-        const SizedBox(width: 190, child: _DropdownField(label: 'All Statuses')),
+        const SizedBox(
+            width: 190, child: _DropdownField(label: 'All Statuses')),
         const Spacer(),
         _AddItemButton(onPressed: onAddItem),
       ],
@@ -1162,7 +1980,14 @@ class _DropdownField extends StatelessWidget {
   Widget build(BuildContext context) {
     final options = label == 'All Categories'
         ? const ['All Categories', 'Materials', 'Equipment', 'Services']
-        : const ['All Statuses', 'Planning', 'RFQ Review', 'Vendor Selection', 'Ordered', 'Delivered'];
+        : const [
+            'All Statuses',
+            'Planning',
+            'RFQ Review',
+            'Vendor Selection',
+            'Ordered',
+            'Delivered'
+          ];
 
     return Container(
       decoration: BoxDecoration(
@@ -1174,12 +1999,15 @@ class _DropdownField extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: label,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B)),
           items: options
               .map(
                 (option) => DropdownMenuItem<String>(
                   value: option,
-                  child: Text(option, style: const TextStyle(fontSize: 13, color: Color(0xFF334155))),
+                  child: Text(option,
+                      style: const TextStyle(
+                          fontSize: 13, color: Color(0xFF334155))),
                 ),
               )
               .toList(),
@@ -1207,13 +2035,17 @@ class _AddItemButton extends StatelessWidget {
         elevation: 0,
       ),
       icon: const Icon(Icons.add_rounded),
-      label: const Text('Add Item', style: TextStyle(fontWeight: FontWeight.w600)),
+      label:
+          const Text('Add Item', style: TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 }
 
 class _ItemsTable extends StatelessWidget {
-  const _ItemsTable({required this.items, required this.currencyFormat, required this.onAddItem});
+  const _ItemsTable(
+      {required this.items,
+      required this.currencyFormat,
+      required this.onAddItem});
 
   final List<_ProcurementItem> items;
   final NumberFormat currencyFormat;
@@ -1225,7 +2057,8 @@ class _ItemsTable extends StatelessWidget {
       return _EmptyStateCard(
         icon: Icons.inventory_2_outlined,
         title: 'No procurement items yet',
-        message: 'Add items to track budgets, approvals, and delivery timelines.',
+        message:
+            'Add items to track budgets, approvals, and delivery timelines.',
         actionLabel: 'Add Item',
         onAction: onAddItem,
       );
@@ -1246,7 +2079,8 @@ class _ItemsTable extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
           for (var i = 0; i < items.length; i++) ...[
             _ItemRow(item: items[i], currencyFormat: currencyFormat),
-            if (i != items.length - 1) const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            if (i != items.length - 1)
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
           ],
         ],
       ),
@@ -1275,7 +2109,8 @@ class _ItemsTableHeader extends StatelessWidget {
 }
 
 class _HeaderCell extends StatelessWidget {
-  const _HeaderCell({required this.label, required this.flex, this.alignEnd = false});
+  const _HeaderCell(
+      {required this.label, required this.flex, this.alignEnd = false});
 
   final String label;
   final int flex;
@@ -1289,7 +2124,10 @@ class _HeaderCell extends StatelessWidget {
         alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
         child: Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF475569)),
         ),
       ),
     );
@@ -1320,17 +2158,25 @@ class _ItemRow extends StatelessWidget {
               children: [
                 Text(
                   item.name,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   item.description,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                 ),
               ],
             ),
           ),
-          Expanded(flex: 2, child: Text(item.category, style: const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
+          Expanded(
+              flex: 2,
+              child: Text(item.category,
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
           Expanded(
             flex: 2,
             child: Align(
@@ -1359,19 +2205,27 @@ class _ItemRow extends StatelessWidget {
             flex: 2,
             child: Text(
               currencyFormat.format(item.budget),
-              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF0F172A),
+                  fontWeight: FontWeight.w600),
             ),
           ),
           Expanded(
             flex: 2,
-            child: Text(dateLabel, style: const TextStyle(fontSize: 13, color: Color(0xFF334155))),
+            child: Text(dateLabel,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF334155))),
           ),
           Expanded(
             flex: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(progressLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1D4ED8))),
+                Text(progressLabel,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1D4ED8))),
                 const SizedBox(height: 6),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
@@ -1379,7 +2233,8 @@ class _ItemRow extends StatelessWidget {
                     value: item.progress.clamp(0, 1).toDouble(),
                     minHeight: 6,
                     backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: AlwaysStoppedAnimation<Color>(item.progressColor),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(item.progressColor),
                   ),
                 ),
               ],
@@ -1430,7 +2285,8 @@ class _BadgePill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: foreground),
+        style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w600, color: foreground),
       ),
     );
   }
@@ -1512,7 +2368,10 @@ class _TrackableAndTimeline extends StatelessWidget {
 }
 
 class _TrackableItemsCard extends StatelessWidget {
-  const _TrackableItemsCard({required this.trackableItems, required this.selectedIndex, required this.onSelectTrackable});
+  const _TrackableItemsCard(
+      {required this.trackableItems,
+      required this.selectedIndex,
+      required this.onSelectTrackable});
 
   final List<_TrackableItem> trackableItems;
   final int selectedIndex;
@@ -1550,7 +2409,10 @@ class _TrackableItemsCard extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(24, 20, 24, 12),
             child: Text(
               'Trackable Items',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A)),
             ),
           ),
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
@@ -1568,7 +2430,11 @@ class _TrackableItemsCard extends StatelessWidget {
 }
 
 class _TrackableRow extends StatelessWidget {
-  const _TrackableRow({required this.item, required this.selected, required this.onTap, required this.showDivider});
+  const _TrackableRow(
+      {required this.item,
+      required this.selected,
+      required this.onTap,
+      required this.showDivider});
 
   final _TrackableItem item;
   final bool selected;
@@ -1577,7 +2443,9 @@ class _TrackableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lastUpdateLabel = item.lastUpdate != null ? DateFormat('M/d/yyyy').format(DateTime.parse(item.lastUpdate!)) : 'Never';
+    final lastUpdateLabel = item.lastUpdate != null
+        ? DateFormat('M/d/yyyy').format(DateTime.parse(item.lastUpdate!))
+        : 'Never';
 
     return Material(
       color: selected ? const Color(0xFFF8FAFC) : Colors.white,
@@ -1597,18 +2465,24 @@ class _TrackableRow extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.inventory_2_outlined, size: 20, color: Color(0xFF2563EB)),
+                            const Icon(Icons.inventory_2_outlined,
+                                size: 20, color: Color(0xFF2563EB)),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 item.name,
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0F172A)),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(item.description, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                        Text(item.description,
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF6B7280))),
                       ],
                     ),
                   ),
@@ -1616,7 +2490,10 @@ class _TrackableRow extends StatelessWidget {
                     flex: 2,
                     child: Text(
                       item.orderStatus.toUpperCase(),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF334155)),
                     ),
                   ),
                   Expanded(
@@ -1633,13 +2510,16 @@ class _TrackableRow extends StatelessWidget {
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text(lastUpdateLabel, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                    child: Text(lastUpdateLabel,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF334155))),
                   ),
                   const _UpdateButton(),
                 ],
               ),
               if (showDivider) const SizedBox(height: 18),
-              if (showDivider) const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              if (showDivider)
+                const Divider(height: 1, color: Color(0xFFE2E8F0)),
             ],
           ),
         ),
@@ -1662,7 +2542,8 @@ class _UpdateButton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         elevation: 0,
       ),
-      child: const Text('Update', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      child: const Text('Update',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -1693,12 +2574,18 @@ class _TrackingTimelineCard extends StatelessWidget {
               children: [
                 const Text(
                   'Tracking Timeline',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A)),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   item!.name,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A)),
                 ),
                 const SizedBox(height: 6),
                 const Text(
@@ -1742,7 +2629,8 @@ class _TimelineEntry extends StatelessWidget {
             color: const Color(0xFFEFF6FF),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: const Icon(Icons.local_shipping_outlined, size: 18, color: Color(0xFF2563EB)),
+          child: const Icon(Icons.local_shipping_outlined,
+              size: 18, color: Color(0xFF2563EB)),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1751,7 +2639,10 @@ class _TimelineEntry extends StatelessWidget {
             children: [
               Text(
                 event.title,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1F2937)),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937)),
               ),
               const SizedBox(height: 6),
               Text(
@@ -1777,7 +2668,10 @@ class _TimelineEntry extends StatelessWidget {
 }
 
 class _StrategiesSection extends StatelessWidget {
-  const _StrategiesSection({required this.strategies, required this.expandedStrategies, required this.onToggle});
+  const _StrategiesSection(
+      {required this.strategies,
+      required this.expandedStrategies,
+      required this.onToggle});
 
   final List<_ProcurementStrategy> strategies;
   final Set<int> expandedStrategies;
@@ -1793,7 +2687,10 @@ class _StrategiesSection extends StatelessWidget {
           children: [
             const Text(
               'Procurement Strategies',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A)),
             ),
             Text(
               '${strategies.length} ${strategies.length == 1 ? 'strategy' : 'strategies'}',
@@ -1806,14 +2703,16 @@ class _StrategiesSection extends StatelessWidget {
           const _EmptyStateCard(
             icon: Icons.insights_outlined,
             title: 'No strategies yet',
-            message: 'Capture your procurement approach or add a strategy to organize sourcing.',
+            message:
+                'Capture your procurement approach or add a strategy to organize sourcing.',
           )
         else
           Column(
             children: [
               for (var i = 0; i < strategies.length; i++)
                 Padding(
-                  padding: EdgeInsets.only(bottom: i == strategies.length - 1 ? 0 : 12),
+                  padding: EdgeInsets.only(
+                      bottom: i == strategies.length - 1 ? 0 : 12),
                   child: _StrategyCard(
                     strategy: strategies[i],
                     expanded: expandedStrategies.contains(i),
@@ -1828,7 +2727,8 @@ class _StrategiesSection extends StatelessWidget {
 }
 
 class _StrategyCard extends StatelessWidget {
-  const _StrategyCard({required this.strategy, required this.expanded, required this.onTap});
+  const _StrategyCard(
+      {required this.strategy, required this.expanded, required this.onTap});
 
   final _ProcurementStrategy strategy;
   final bool expanded;
@@ -1868,7 +2768,8 @@ class _StrategyCard extends StatelessWidget {
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF2563EB)),
+                    child: const Icon(Icons.inventory_2_outlined,
+                        color: Color(0xFF2563EB)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -1877,25 +2778,32 @@ class _StrategyCard extends StatelessWidget {
                       children: [
                         Text(
                           strategy.title,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0F172A)),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${strategy.itemCount} items',
-                          style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                          style: const TextStyle(
+                              fontSize: 13, color: Color(0xFF6B7280)),
                         ),
                       ],
                     ),
                   ),
                   _StatusPill(status: strategy.status),
                   const SizedBox(width: 16),
-                  Icon(expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: const Color(0xFF6B7280)),
+                  Icon(
+                      expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      color: const Color(0xFF6B7280)),
                 ],
               ),
             ),
           ),
-          if (expanded)
-            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+          if (expanded) const Divider(height: 1, color: Color(0xFFE5E7EB)),
           if (expanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -1923,7 +2831,9 @@ class _StatusPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive ? const Color(0xFFE8FFF4) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: isActive ? const Color(0xFF34D399) : const Color(0xFFD1D5DB)),
+        border: Border.all(
+            color:
+                isActive ? const Color(0xFF34D399) : const Color(0xFFD1D5DB)),
       ),
       child: Text(
         isActive ? 'active' : 'draft',
@@ -1976,7 +2886,10 @@ class _VendorsSection extends StatelessWidget {
           children: [
             const Text(
               'Vendors',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A)),
             ),
             Text(
               '${vendors.length} of $allVendorsCount vendors',
@@ -1997,8 +2910,10 @@ class _VendorsSection extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF0F172A),
                 side: const BorderSide(color: Color(0xFFCBD5E1)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             FilterChip(
@@ -2008,7 +2923,9 @@ class _VendorsSection extends StatelessWidget {
               selectedColor: const Color(0xFFEFF6FF),
               showCheckmark: false,
               labelStyle: TextStyle(
-                color: approvedOnly ? const Color(0xFF2563EB) : const Color(0xFF475569),
+                color: approvedOnly
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFF475569),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -2019,7 +2936,9 @@ class _VendorsSection extends StatelessWidget {
               selectedColor: const Color(0xFFF1F5F9),
               showCheckmark: false,
               labelStyle: TextStyle(
-                color: preferredOnly ? const Color(0xFF2563EB) : const Color(0xFF475569),
+                color: preferredOnly
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFF475569),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -2063,8 +2982,10 @@ class _VendorsSection extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF0F172A),
                 side: const BorderSide(color: Color(0xFFCBD5E1)),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -2112,8 +3033,12 @@ class _VendorDataTable extends StatelessWidget {
               child: DataTable(
                 columnSpacing: 18,
                 horizontalMargin: 24,
-                headingTextStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
-                dataTextStyle: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
+                headingTextStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF475569)),
+                dataTextStyle:
+                    const TextStyle(fontSize: 14, color: Color(0xFF111827)),
                 columns: const [
                   DataColumn(label: SizedBox(width: 24)),
                   DataColumn(label: Text('Vendor Name')),
@@ -2132,8 +3057,11 @@ class _VendorDataTable extends StatelessWidget {
                           DataCell(Text(vendor.category)),
                           DataCell(_RatingStars(rating: vendor.rating)),
                           DataCell(_YesNoBadge(value: vendor.approved)),
-                          DataCell(_YesNoBadge(value: vendor.preferred, showStar: true)),
-                          DataCell(IconButton(icon: const Icon(Icons.more_horiz_rounded), onPressed: () {})),
+                          DataCell(_YesNoBadge(
+                              value: vendor.preferred, showStar: true)),
+                          DataCell(IconButton(
+                              icon: const Icon(Icons.more_horiz_rounded),
+                              onPressed: () {})),
                         ],
                       ),
                     )
@@ -2178,7 +3106,9 @@ class _VendorGrid extends StatelessWidget {
             children: [
               _VendorNameCell(vendor: vendor),
               const SizedBox(height: 8),
-              Text(vendor.category, style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+              Text(vendor.category,
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
               const SizedBox(height: 8),
               _RatingStars(rating: vendor.rating),
               const Spacer(),
@@ -2188,7 +3118,9 @@ class _VendorGrid extends StatelessWidget {
                   const SizedBox(width: 8),
                   _YesNoBadge(value: vendor.preferred, showStar: true),
                   const Spacer(),
-                  IconButton(icon: const Icon(Icons.more_horiz_rounded), onPressed: () {}),
+                  IconButton(
+                      icon: const Icon(Icons.more_horiz_rounded),
+                      onPressed: () {}),
                 ],
               ),
             ],
@@ -2213,7 +3145,10 @@ class _VendorNameCell extends StatelessWidget {
           backgroundColor: const Color(0xFFE2E8F0),
           child: Text(
             vendor.initials,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0F172A)),
           ),
         ),
         const SizedBox(width: 12),
@@ -2223,7 +3158,10 @@ class _VendorNameCell extends StatelessWidget {
             children: [
               Text(
                 vendor.name,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A)),
               ),
               const SizedBox(height: 2),
               const Text(
@@ -2266,22 +3204,30 @@ class _YesNoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color background = value ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC);
-    final Color foreground = value ? const Color(0xFF2563EB) : const Color(0xFF64748B);
+    final Color background =
+        value ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC);
+    final Color foreground =
+        value ? const Color(0xFF2563EB) : const Color(0xFF64748B);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: value ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: value ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(value ? 'Yes' : 'No', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: foreground)),
+          Text(value ? 'Yes' : 'No',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: foreground)),
           if (showStar) ...[
             const SizedBox(width: 6),
-            Icon(value ? Icons.star_rounded : Icons.star_border_rounded, size: 16, color: foreground),
+            Icon(value ? Icons.star_rounded : Icons.star_border_rounded,
+                size: 16, color: foreground),
           ],
         ],
       ),
@@ -2329,9 +3275,14 @@ class _VendorManagementView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final totalVendors = allVendors.length;
-    final preferredCount = allVendors.where((vendor) => vendor.preferred).length;
-    final avgRating = totalVendors == 0 ? 0 : allVendors.fold<int>(0, (sum, vendor) => sum + vendor.rating) / totalVendors;
-    final preferredRate = totalVendors == 0 ? 0 : (preferredCount / totalVendors * 100).round();
+    final preferredCount =
+        allVendors.where((vendor) => vendor.preferred).length;
+    final avgRating = totalVendors == 0
+        ? 0
+        : allVendors.fold<int>(0, (sum, vendor) => sum + vendor.rating) /
+            totalVendors;
+    final preferredRate =
+        totalVendors == 0 ? 0 : (preferredCount / totalVendors * 100).round();
 
     final metricCards = [
       _SummaryCard(
@@ -2370,7 +3321,10 @@ class _VendorManagementView extends StatelessWidget {
             const Expanded(
               child: Text(
                 'Vendor Management',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
             ),
             Wrap(
@@ -2384,8 +3338,10 @@ class _VendorManagementView extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0F172A),
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -2395,8 +3351,10 @@ class _VendorManagementView extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -2485,7 +3443,8 @@ class _VendorHealthCard extends StatelessWidget {
       return const _EmptyStateCard(
         icon: Icons.health_and_safety_outlined,
         title: 'Vendor health by category',
-        message: 'Health metrics will appear once vendor performance is tracked.',
+        message:
+            'Health metrics will appear once vendor performance is tracked.',
         compact: true,
       );
     }
@@ -2502,7 +3461,10 @@ class _VendorHealthCard extends StatelessWidget {
         children: [
           const Text(
             'Vendor health by category',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < metrics.length; i++) ...[
@@ -2511,12 +3473,18 @@ class _VendorHealthCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     metrics[i].category,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937)),
                   ),
                 ),
                 Text(
                   '${(metrics[i].score * 100).round()}%',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1F2937)),
                 ),
               ],
             ),
@@ -2527,7 +3495,8 @@ class _VendorHealthCard extends StatelessWidget {
                 value: metrics[i].score,
                 minHeight: 8,
                 backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: AlwaysStoppedAnimation<Color>(_scoreColor(metrics[i].score)),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    _scoreColor(metrics[i].score)),
               ),
             ),
             const SizedBox(height: 6),
@@ -2571,7 +3540,10 @@ class _VendorOnboardingCard extends StatelessWidget {
         children: [
           const Text(
             'Onboarding pipeline',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < tasks.length; i++) ...[
@@ -2584,12 +3556,16 @@ class _VendorOnboardingCard extends StatelessWidget {
                     children: [
                       Text(
                         tasks[i].title,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1F2937)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Owner: ${tasks[i].owner} · Due ${DateFormat('M/d').format(DateTime.parse(tasks[i].dueDate))}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -2634,7 +3610,10 @@ class _VendorRiskCard extends StatelessWidget {
         children: [
           const Text(
             'Risk watchlist',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < riskItems.length; i++) ...[
@@ -2647,17 +3626,22 @@ class _VendorRiskCard extends StatelessWidget {
                     children: [
                       Text(
                         riskItems[i].vendor,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1F2937)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         riskItems[i].risk,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Last incident: ${DateFormat('M/d').format(DateTime.parse(riskItems[i].lastIncident))}',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF94A3B8)),
                       ),
                     ],
                   ),
@@ -2690,7 +3674,8 @@ class _VendorTaskStatusPill extends StatelessWidget {
       ),
       child: Text(
         status.label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: status.textColor),
+        style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w600, color: status.textColor),
       ),
     );
   }
@@ -2712,7 +3697,10 @@ class _RiskSeverityPill extends StatelessWidget {
       ),
       child: Text(
         severity.label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: severity.textColor),
+        style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: severity.textColor),
       ),
     );
   }
@@ -2736,17 +3724,34 @@ class _RfqWorkflowView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final stages = const [
-      _RfqStage(title: 'Draft', subtitle: 'Scope and requirements', status: _WorkflowStageStatus.complete),
-      _RfqStage(title: 'Review', subtitle: 'Stakeholder alignment', status: _WorkflowStageStatus.complete),
-      _RfqStage(title: 'In Market', subtitle: 'Vendor outreach', status: _WorkflowStageStatus.active),
-      _RfqStage(title: 'Evaluation', subtitle: 'Score responses', status: _WorkflowStageStatus.upcoming),
-      _RfqStage(title: 'Award', subtitle: 'Finalize supplier', status: _WorkflowStageStatus.upcoming),
+      _RfqStage(
+          title: 'Draft',
+          subtitle: 'Scope and requirements',
+          status: _WorkflowStageStatus.complete),
+      _RfqStage(
+          title: 'Review',
+          subtitle: 'Stakeholder alignment',
+          status: _WorkflowStageStatus.complete),
+      _RfqStage(
+          title: 'In Market',
+          subtitle: 'Vendor outreach',
+          status: _WorkflowStageStatus.active),
+      _RfqStage(
+          title: 'Evaluation',
+          subtitle: 'Score responses',
+          status: _WorkflowStageStatus.upcoming),
+      _RfqStage(
+          title: 'Award',
+          subtitle: 'Finalize supplier',
+          status: _WorkflowStageStatus.upcoming),
     ];
 
     final totalInvited = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.invited);
     final totalResponses = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.responses);
-    final responseRate = totalInvited == 0 ? 0 : (totalResponses / totalInvited * 100).round();
-    final inEvaluation = rfqs.where((rfq) => rfq.status == _RfqStatus.evaluation).length;
+    final responseRate =
+        totalInvited == 0 ? 0 : (totalResponses / totalInvited * 100).round();
+    final inEvaluation =
+        rfqs.where((rfq) => rfq.status == _RfqStatus.evaluation).length;
     final pipelineValue = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.budget);
 
     final metrics = [
@@ -2786,7 +3791,10 @@ class _RfqWorkflowView extends StatelessWidget {
             const Expanded(
               child: Text(
                 'RFQ Workflow',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
             ),
             Wrap(
@@ -2798,8 +3806,10 @@ class _RfqWorkflowView extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0F172A),
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text('View Templates'),
                 ),
@@ -2810,8 +3820,10 @@ class _RfqWorkflowView extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -2851,7 +3863,10 @@ class _RfqWorkflowView extends StatelessWidget {
         if (isMobile)
           Column(
             children: [
-              _RfqListCard(rfqs: rfqs, currencyFormat: currencyFormat, onCreateRfq: onCreateRfq),
+              _RfqListCard(
+                  rfqs: rfqs,
+                  currencyFormat: currencyFormat,
+                  onCreateRfq: onCreateRfq),
               const SizedBox(height: 16),
               _RfqSidebarCard(rfqs: rfqs, criteria: criteria),
             ],
@@ -2860,9 +3875,15 @@ class _RfqWorkflowView extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _RfqListCard(rfqs: rfqs, currencyFormat: currencyFormat, onCreateRfq: onCreateRfq)),
+              Expanded(
+                  child: _RfqListCard(
+                      rfqs: rfqs,
+                      currencyFormat: currencyFormat,
+                      onCreateRfq: onCreateRfq)),
               const SizedBox(width: 24),
-              SizedBox(width: 320, child: _RfqSidebarCard(rfqs: rfqs, criteria: criteria)),
+              SizedBox(
+                  width: 320,
+                  child: _RfqSidebarCard(rfqs: rfqs, criteria: criteria)),
             ],
           ),
       ],
@@ -2895,12 +3916,16 @@ class _RfqStageCard extends StatelessWidget {
               children: [
                 Text(
                   stage.title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   stage.subtitle,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF475569)),
                 ),
               ],
             ),
@@ -2912,7 +3937,10 @@ class _RfqStageCard extends StatelessWidget {
 }
 
 class _RfqListCard extends StatelessWidget {
-  const _RfqListCard({required this.rfqs, required this.currencyFormat, required this.onCreateRfq});
+  const _RfqListCard(
+      {required this.rfqs,
+      required this.currencyFormat,
+      required this.onCreateRfq});
 
   final List<_RfqItem> rfqs;
   final NumberFormat currencyFormat;
@@ -2934,7 +3962,10 @@ class _RfqListCard extends StatelessWidget {
             children: const [
               Text(
                 'Active RFQs',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
               SizedBox(width: 8),
               Text(
@@ -2973,7 +4004,8 @@ class _RfqItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final double responseRate = rfq.invited == 0 ? 0.0 : rfq.responses / rfq.invited;
+    final double responseRate =
+        rfq.invited == 0 ? 0.0 : rfq.responses / rfq.invited;
     final dueLabel = DateFormat('MMM d').format(DateTime.parse(rfq.dueDate));
 
     return Container(
@@ -2995,12 +4027,16 @@ class _RfqItemCard extends StatelessWidget {
                   children: [
                     Text(
                       rfq.title,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${rfq.category} · Owner ${rfq.owner}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -3022,17 +4058,26 @@ class _RfqItemCard extends StatelessWidget {
               children: [
                 _RfqMeta(label: 'Due', value: dueLabel),
                 const SizedBox(height: 8),
-                _RfqMeta(label: 'Responses', value: '${rfq.responses}/${rfq.invited}'),
+                _RfqMeta(
+                    label: 'Responses',
+                    value: '${rfq.responses}/${rfq.invited}'),
                 const SizedBox(height: 8),
-                _RfqMeta(label: 'Budget', value: currencyFormat.format(rfq.budget)),
+                _RfqMeta(
+                    label: 'Budget', value: currencyFormat.format(rfq.budget)),
               ],
             )
           else
             Row(
               children: [
                 Expanded(child: _RfqMeta(label: 'Due', value: dueLabel)),
-                Expanded(child: _RfqMeta(label: 'Responses', value: '${rfq.responses}/${rfq.invited}')),
-                Expanded(child: _RfqMeta(label: 'Budget', value: currencyFormat.format(rfq.budget))),
+                Expanded(
+                    child: _RfqMeta(
+                        label: 'Responses',
+                        value: '${rfq.responses}/${rfq.invited}')),
+                Expanded(
+                    child: _RfqMeta(
+                        label: 'Budget',
+                        value: currencyFormat.format(rfq.budget))),
               ],
             ),
           const SizedBox(height: 12),
@@ -3046,7 +4091,10 @@ class _RfqItemCard extends StatelessWidget {
               ),
               Text(
                 '${(responseRate * 100).round()}%',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1D4ED8)),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1D4ED8)),
               ),
             ],
           ),
@@ -3057,7 +4105,8 @@ class _RfqItemCard extends StatelessWidget {
               value: responseRate,
               minHeight: 6,
               backgroundColor: const Color(0xFFE2E8F0),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
             ),
           ),
         ],
@@ -3077,9 +4126,14 @@ class _RfqMeta extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0F172A))),
       ],
     );
   }
@@ -3101,7 +4155,8 @@ class _RfqStatusPill extends StatelessWidget {
       ),
       child: Text(
         status.label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: status.textColor),
+        style: TextStyle(
+            fontSize: 11, fontWeight: FontWeight.w600, color: status.textColor),
       ),
     );
   }
@@ -3132,7 +4187,10 @@ class _RfqSidebarCard extends StatelessWidget {
             children: [
               const Text(
                 'Evaluation criteria',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
               const SizedBox(height: 12),
               if (criteria.isEmpty)
@@ -3147,12 +4205,16 @@ class _RfqSidebarCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           criteria[i].label,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2937)),
                         ),
                       ),
                       Text(
                         '${(criteria[i].weight * 100).round()}%',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -3163,7 +4225,8 @@ class _RfqSidebarCard extends StatelessWidget {
                       value: criteria[i].weight,
                       minHeight: 6,
                       backgroundColor: const Color(0xFFE2E8F0),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF2563EB)),
                     ),
                   ),
                   if (i != criteria.length - 1) const SizedBox(height: 12),
@@ -3184,7 +4247,10 @@ class _RfqSidebarCard extends StatelessWidget {
             children: [
               const Text(
                 'Upcoming deadlines',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
               const SizedBox(height: 12),
               if (topUpcoming.isEmpty)
@@ -3199,12 +4265,17 @@ class _RfqSidebarCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           topUpcoming[i].title,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2937)),
                         ),
                       ),
                       Text(
-                        DateFormat('MMM d').format(DateTime.parse(topUpcoming[i].dueDate)),
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        DateFormat('MMM d')
+                            .format(DateTime.parse(topUpcoming[i].dueDate)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -3233,9 +4304,15 @@ class _PurchaseOrdersView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final awaitingApproval = orders.where((order) => order.status == _PurchaseOrderStatus.awaitingApproval).length;
-    final inTransit = orders.where((order) => order.status == _PurchaseOrderStatus.inTransit).length;
-    final openOrders = orders.where((order) => order.status != _PurchaseOrderStatus.received).length;
+    final awaitingApproval = orders
+        .where((order) => order.status == _PurchaseOrderStatus.awaitingApproval)
+        .length;
+    final inTransit = orders
+        .where((order) => order.status == _PurchaseOrderStatus.inTransit)
+        .length;
+    final openOrders = orders
+        .where((order) => order.status != _PurchaseOrderStatus.received)
+        .length;
     final totalSpend = orders.fold<int>(0, (sum, order) => sum + order.amount);
 
     final metrics = [
@@ -3275,7 +4352,10 @@ class _PurchaseOrdersView extends StatelessWidget {
             const Expanded(
               child: Text(
                 'Purchase Orders',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
             ),
             Wrap(
@@ -3289,8 +4369,10 @@ class _PurchaseOrdersView extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -3333,13 +4415,17 @@ class _PurchaseOrdersView extends StatelessWidget {
           Column(
             children: [
               for (var i = 0; i < orders.length; i++) ...[
-                _PurchaseOrderCard(order: orders[i], currencyFormat: currencyFormat),
+                _PurchaseOrderCard(
+                    order: orders[i], currencyFormat: currencyFormat),
                 if (i != orders.length - 1) const SizedBox(height: 12),
               ],
             ],
           )
         else
-          _PurchaseOrderTable(orders: orders, currencyFormat: currencyFormat, onCreatePo: onCreatePo),
+          _PurchaseOrderTable(
+              orders: orders,
+              currencyFormat: currencyFormat,
+              onCreatePo: onCreatePo),
         const SizedBox(height: 24),
         if (isMobile)
           Column(
@@ -3363,7 +4449,10 @@ class _PurchaseOrdersView extends StatelessWidget {
 }
 
 class _PurchaseOrderTable extends StatelessWidget {
-  const _PurchaseOrderTable({required this.orders, required this.currencyFormat, required this.onCreatePo});
+  const _PurchaseOrderTable(
+      {required this.orders,
+      required this.currencyFormat,
+      required this.onCreatePo});
 
   final List<_PurchaseOrder> orders;
   final NumberFormat currencyFormat;
@@ -3401,8 +4490,10 @@ class _PurchaseOrderTable extends StatelessWidget {
                   ),
                   const Divider(height: 1, color: Color(0xFFE2E8F0)),
                   for (var i = 0; i < orders.length; i++) ...[
-                    _PurchaseOrderRow(order: orders[i], currencyFormat: currencyFormat),
-                    if (i != orders.length - 1) const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    _PurchaseOrderRow(
+                        order: orders[i], currencyFormat: currencyFormat),
+                    if (i != orders.length - 1)
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
                   ],
                 ],
               ),
@@ -3442,7 +4533,8 @@ class _PurchaseOrderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expectedLabel = DateFormat('M/d/yyyy').format(DateTime.parse(order.expectedDate));
+    final expectedLabel =
+        DateFormat('M/d/yyyy').format(DateTime.parse(order.expectedDate));
     final progressLabel = '${(order.progress * 100).round()}%';
 
     return Padding(
@@ -3451,20 +4543,34 @@ class _PurchaseOrderRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 2,
-            child: Text(order.id, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+            child: Text(order.id,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A))),
           ),
           Expanded(
             flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(order.vendor, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+                Text(order.vendor,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A))),
                 const SizedBox(height: 4),
-                Text('Owner ${order.owner}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                Text('Owner ${order.owner}',
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF64748B))),
               ],
             ),
           ),
-          Expanded(flex: 2, child: Text(order.category, style: const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
+          Expanded(
+              flex: 2,
+              child: Text(order.category,
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
           Expanded(
             flex: 2,
             child: Align(
@@ -3474,15 +4580,27 @@ class _PurchaseOrderRow extends StatelessWidget {
           ),
           Expanded(
             flex: 2,
-            child: Text(currencyFormat.format(order.amount), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+            child: Text(currencyFormat.format(order.amount),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A))),
           ),
-          Expanded(flex: 2, child: Text(expectedLabel, style: const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
+          Expanded(
+              flex: 2,
+              child: Text(expectedLabel,
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF334155)))),
           Expanded(
             flex: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(progressLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1D4ED8))),
+                Text(progressLabel,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1D4ED8))),
                 const SizedBox(height: 6),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
@@ -3490,7 +4608,8 @@ class _PurchaseOrderRow extends StatelessWidget {
                     value: order.progress,
                     minHeight: 6,
                     backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
                   ),
                 ),
               ],
@@ -3521,7 +4640,8 @@ class _PurchaseOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expectedLabel = DateFormat('M/d/yyyy').format(DateTime.parse(order.expectedDate));
+    final expectedLabel =
+        DateFormat('M/d/yyyy').format(DateTime.parse(order.expectedDate));
     final progressLabel = '${(order.progress * 100).round()}%';
 
     return Container(
@@ -3537,26 +4657,40 @@ class _PurchaseOrderCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(order.id, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                child: Text(order.id,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A))),
               ),
               _PurchaseOrderStatusPill(status: order.status),
             ],
           ),
           const SizedBox(height: 8),
-          Text(order.vendor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937))),
+          Text(order.vendor,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937))),
           const SizedBox(height: 4),
-          Text(order.category, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          Text(order.category,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _RfqMeta(label: 'Expected', value: expectedLabel)),
-              Expanded(child: _RfqMeta(label: 'Amount', value: currencyFormat.format(order.amount))),
+              Expanded(
+                  child: _RfqMeta(label: 'Expected', value: expectedLabel)),
+              Expanded(
+                  child: _RfqMeta(
+                      label: 'Amount',
+                      value: currencyFormat.format(order.amount))),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _RfqMeta(label: 'Progress', value: progressLabel)),
+              Expanded(
+                  child: _RfqMeta(label: 'Progress', value: progressLabel)),
               Expanded(child: _RfqMeta(label: 'Owner', value: order.owner)),
             ],
           ),
@@ -3567,7 +4701,8 @@ class _PurchaseOrderCard extends StatelessWidget {
               value: order.progress,
               minHeight: 6,
               backgroundColor: const Color(0xFFE2E8F0),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Color(0xFF1D4ED8)),
             ),
           ),
         ],
@@ -3592,7 +4727,8 @@ class _PurchaseOrderStatusPill extends StatelessWidget {
       ),
       child: Text(
         status.label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: status.textColor),
+        style: TextStyle(
+            fontSize: 11, fontWeight: FontWeight.w600, color: status.textColor),
       ),
     );
   }
@@ -3605,7 +4741,9 @@ class _ApprovalQueueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final approvals = orders.where((order) => order.status == _PurchaseOrderStatus.awaitingApproval).toList();
+    final approvals = orders
+        .where((order) => order.status == _PurchaseOrderStatus.awaitingApproval)
+        .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -3619,11 +4757,15 @@ class _ApprovalQueueCard extends StatelessWidget {
         children: [
           const Text(
             'Approval queue',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           if (approvals.isEmpty)
-            const Text('No approvals pending.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))
+            const Text('No approvals pending.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))
           else
             for (var i = 0; i < approvals.length; i++) ...[
               Row(
@@ -3631,12 +4773,17 @@ class _ApprovalQueueCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       '${approvals[i].id} · ${approvals[i].vendor}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937)),
                     ),
                   ),
                   Text(
-                    DateFormat('MMM d').format(DateTime.parse(approvals[i].orderedDate)),
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    DateFormat('MMM d')
+                        .format(DateTime.parse(approvals[i].orderedDate)),
+                    style:
+                        const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                 ],
               ),
@@ -3655,8 +4802,12 @@ class _InvoiceMatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completed = orders.where((order) => order.status == _PurchaseOrderStatus.received).toList();
-    final inProgress = orders.where((order) => order.status == _PurchaseOrderStatus.inTransit).toList();
+    final completed = orders
+        .where((order) => order.status == _PurchaseOrderStatus.received)
+        .toList();
+    final inProgress = orders
+        .where((order) => order.status == _PurchaseOrderStatus.inTransit)
+        .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -3670,7 +4821,10 @@ class _InvoiceMatchCard extends StatelessWidget {
         children: [
           const Text(
             'Invoice matching',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           Text(
@@ -3689,7 +4843,8 @@ class _InvoiceMatchCard extends StatelessWidget {
               foregroundColor: const Color(0xFF0F172A),
               side: const BorderSide(color: Color(0xFFCBD5E1)),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Open match workspace'),
           ),
@@ -3720,12 +4875,19 @@ class _ItemTrackingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final inTransit = trackableItems.where((item) => item.currentStatus == _TrackableStatus.inTransit).length;
-    final delivered = trackableItems.where((item) => item.currentStatus == _TrackableStatus.delivered).length;
-    final highAlerts = alerts.where((alert) => alert.severity == _AlertSeverity.high).length;
+    final inTransit = trackableItems
+        .where((item) => item.currentStatus == _TrackableStatus.inTransit)
+        .length;
+    final delivered = trackableItems
+        .where((item) => item.currentStatus == _TrackableStatus.delivered)
+        .length;
+    final highAlerts =
+        alerts.where((alert) => alert.severity == _AlertSeverity.high).length;
     final onTimeRate = carriers.isEmpty
         ? 0
-        : (carriers.fold<int>(0, (sum, carrier) => sum + carrier.onTimeRate) / carriers.length).round();
+        : (carriers.fold<int>(0, (sum, carrier) => sum + carrier.onTimeRate) /
+                carriers.length)
+            .round();
 
     final metrics = [
       _SummaryCard(
@@ -3764,7 +4926,10 @@ class _ItemTrackingView extends StatelessWidget {
             const Expanded(
               child: Text(
                 'Item Tracking',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
             ),
             ElevatedButton.icon(
@@ -3774,8 +4939,10 @@ class _ItemTrackingView extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
             ),
@@ -3884,7 +5051,10 @@ class _TrackingAlertsCard extends StatelessWidget {
         children: [
           const Text(
             'Logistics alerts',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < alerts.length; i++) ...[
@@ -3897,17 +5067,23 @@ class _TrackingAlertsCard extends StatelessWidget {
                     children: [
                       Text(
                         alerts[i].title,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1F2937)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         alerts[i].description,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B)),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        DateFormat('M/d').format(DateTime.parse(alerts[i].date)),
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        DateFormat('M/d')
+                            .format(DateTime.parse(alerts[i].date)),
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF94A3B8)),
                       ),
                     ],
                   ),
@@ -3940,7 +5116,10 @@ class _AlertSeverityPill extends StatelessWidget {
       ),
       child: Text(
         severity.label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: severity.textColor),
+        style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: severity.textColor),
       ),
     );
   }
@@ -3965,7 +5144,10 @@ class _CarrierPerformanceCard extends StatelessWidget {
         children: [
           const Text(
             'Carrier performance',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < carriers.length; i++) ...[
@@ -3974,17 +5156,24 @@ class _CarrierPerformanceCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     carriers[i].carrier,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937)),
                   ),
                 ),
                 Text(
                   '${carriers[i].onTimeRate}%',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2563EB)),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   '${carriers[i].avgDays}d avg',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -3995,7 +5184,8 @@ class _CarrierPerformanceCard extends StatelessWidget {
                 value: carriers[i].onTimeRate / 100,
                 minHeight: 6,
                 backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
               ),
             ),
             if (i != carriers.length - 1) const SizedBox(height: 12),
@@ -4042,7 +5232,10 @@ class _ReportsView extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Procurement Reports',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A)),
                 ),
               ),
               Wrap(
@@ -4054,8 +5247,10 @@ class _ReportsView extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0F172A),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Share'),
                   ),
@@ -4066,8 +5261,10 @@ class _ReportsView extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
                   ),
@@ -4079,7 +5276,8 @@ class _ReportsView extends StatelessWidget {
           const _EmptyStateCard(
             icon: Icons.insert_chart_outlined,
             title: 'No report data yet',
-            message: 'Reports will populate as procurement activity is recorded.',
+            message:
+                'Reports will populate as procurement activity is recorded.',
           ),
         ],
       );
@@ -4093,7 +5291,10 @@ class _ReportsView extends StatelessWidget {
             const Expanded(
               child: Text(
                 'Procurement Reports',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A)),
               ),
             ),
             Wrap(
@@ -4105,8 +5306,10 @@ class _ReportsView extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0F172A),
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text('Share'),
                 ),
@@ -4117,8 +5320,10 @@ class _ReportsView extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -4149,7 +5354,8 @@ class _ReportsView extends StatelessWidget {
         if (isMobile)
           Column(
             children: [
-              _SpendBreakdownCard(breakdown: spendBreakdown, currencyFormat: currencyFormat),
+              _SpendBreakdownCard(
+                  breakdown: spendBreakdown, currencyFormat: currencyFormat),
               const SizedBox(height: 16),
               _LeadTimePerformanceCard(metrics: leadTimeMetrics),
             ],
@@ -4157,9 +5363,13 @@ class _ReportsView extends StatelessWidget {
         else
           Row(
             children: [
-              Expanded(child: _SpendBreakdownCard(breakdown: spendBreakdown, currencyFormat: currencyFormat)),
+              Expanded(
+                  child: _SpendBreakdownCard(
+                      breakdown: spendBreakdown,
+                      currencyFormat: currencyFormat)),
               const SizedBox(width: 16),
-              Expanded(child: _LeadTimePerformanceCard(metrics: leadTimeMetrics)),
+              Expanded(
+                  child: _LeadTimePerformanceCard(metrics: leadTimeMetrics)),
             ],
           ),
         const SizedBox(height: 24),
@@ -4174,9 +5384,12 @@ class _ReportsView extends StatelessWidget {
         else
           Row(
             children: [
-              Expanded(child: _SavingsOpportunitiesCard(items: savingsOpportunities)),
+              Expanded(
+                  child:
+                      _SavingsOpportunitiesCard(items: savingsOpportunities)),
               const SizedBox(width: 16),
-              Expanded(child: _ComplianceSnapshotCard(metrics: complianceMetrics)),
+              Expanded(
+                  child: _ComplianceSnapshotCard(metrics: complianceMetrics)),
             ],
           ),
       ],
@@ -4191,8 +5404,11 @@ class _ReportKpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color deltaColor = kpi.positive ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
-    final IconData deltaIcon = kpi.positive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+    final Color deltaColor =
+        kpi.positive ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    final IconData deltaIcon = kpi.positive
+        ? Icons.arrow_upward_rounded
+        : Icons.arrow_downward_rounded;
 
     return Container(
       decoration: BoxDecoration(
@@ -4204,9 +5420,14 @@ class _ReportKpiCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(kpi.label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          Text(kpi.label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           const SizedBox(height: 8),
-          Text(kpi.value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+          Text(kpi.value,
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A))),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -4215,7 +5436,10 @@ class _ReportKpiCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   kpi.delta,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: deltaColor),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: deltaColor),
                 ),
               ),
             ],
@@ -4227,7 +5451,8 @@ class _ReportKpiCard extends StatelessWidget {
 }
 
 class _SpendBreakdownCard extends StatelessWidget {
-  const _SpendBreakdownCard({required this.breakdown, required this.currencyFormat});
+  const _SpendBreakdownCard(
+      {required this.breakdown, required this.currencyFormat});
 
   final List<_SpendBreakdown> breakdown;
   final NumberFormat currencyFormat;
@@ -4255,7 +5480,10 @@ class _SpendBreakdownCard extends StatelessWidget {
         children: [
           const Text(
             'Spend by category',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < breakdown.length; i++) ...[
@@ -4264,12 +5492,16 @@ class _SpendBreakdownCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     breakdown[i].label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937)),
                   ),
                 ),
                 Text(
                   currencyFormat.format(breakdown[i].amount),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -4333,7 +5565,10 @@ class _LeadTimePerformanceCard extends StatelessWidget {
         children: [
           const Text(
             'Lead time performance',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < metrics.length; i++) ...[
@@ -4342,12 +5577,16 @@ class _LeadTimePerformanceCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     metrics[i].label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937)),
                   ),
                 ),
                 Text(
                   '${(metrics[i].onTimeRate * 100).round()}%',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -4358,7 +5597,8 @@ class _LeadTimePerformanceCard extends StatelessWidget {
                 value: metrics[i].onTimeRate,
                 minHeight: 8,
                 backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
               ),
             ),
             if (i != metrics.length - 1) const SizedBox(height: 12),
@@ -4397,7 +5637,10 @@ class _SavingsOpportunitiesCard extends StatelessWidget {
         children: [
           const Text(
             'Savings opportunities',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < items.length; i++) ...[
@@ -4409,19 +5652,26 @@ class _SavingsOpportunitiesCard extends StatelessWidget {
                     children: [
                       Text(
                         items[i].title,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1F2937)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Owner ${items[i].owner}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B)),
                       ),
                     ],
                   ),
                 ),
                 Text(
                   items[i].value,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF16A34A)),
                 ),
               ],
             ),
@@ -4444,7 +5694,8 @@ class _ComplianceSnapshotCard extends StatelessWidget {
       return const _EmptyStateCard(
         icon: Icons.verified_outlined,
         title: 'Compliance snapshot',
-        message: 'Compliance tracking appears after vendors and orders are recorded.',
+        message:
+            'Compliance tracking appears after vendors and orders are recorded.',
         compact: true,
       );
     }
@@ -4461,7 +5712,10 @@ class _ComplianceSnapshotCard extends StatelessWidget {
         children: [
           const Text(
             'Compliance snapshot',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < metrics.length; i++) ...[
@@ -4470,12 +5724,16 @@ class _ComplianceSnapshotCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     metrics[i].label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937)),
                   ),
                 ),
                 Text(
                   '${(metrics[i].value * 100).round()}%',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -4486,7 +5744,8 @@ class _ComplianceSnapshotCard extends StatelessWidget {
                 value: metrics[i].value,
                 minHeight: 8,
                 backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
               ),
             ),
             if (i != metrics.length - 1) const SizedBox(height: 12),
@@ -4527,12 +5786,16 @@ class _ProcurementDialogShell extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       backgroundColor: Colors.transparent,
       child: Container(
-        constraints: BoxConstraints(maxWidth: 720, maxHeight: media.size.height * 0.88),
+        constraints:
+            BoxConstraints(maxWidth: 720, maxHeight: media.size.height * 0.88),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: const [
-            BoxShadow(color: Color(0x1F0F172A), blurRadius: 30, offset: Offset(0, 18)),
+            BoxShadow(
+                color: Color(0x1F0F172A),
+                blurRadius: 30,
+                offset: Offset(0, 18)),
           ],
         ),
         child: Column(
@@ -4573,7 +5836,10 @@ class _ProcurementDialogShell extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0xFFE2E8F0)),
                           boxShadow: const [
-                            BoxShadow(color: Color(0x140F172A), blurRadius: 10, offset: Offset(0, 6)),
+                            BoxShadow(
+                                color: Color(0x140F172A),
+                                blurRadius: 10,
+                                offset: Offset(0, 6)),
                           ],
                         ),
                         child: Icon(icon, color: const Color(0xFF2563EB)),
@@ -4585,12 +5851,16 @@ class _ProcurementDialogShell extends StatelessWidget {
                           children: [
                             Text(
                               title,
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A)),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               subtitle,
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                              style: const TextStyle(
+                                  fontSize: 13, color: Color(0xFF475569)),
                             ),
                             if (contextChips.isNotEmpty) ...[
                               const SizedBox(height: 12),
@@ -4638,11 +5908,14 @@ class _ProcurementDialogShell extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    child: Text(primaryLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(primaryLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -4667,7 +5940,10 @@ class _DialogSectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A)),
         ),
         const SizedBox(height: 4),
         Text(
@@ -4697,9 +5973,14 @@ class _ContextChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          Text(label,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
           const SizedBox(width: 6),
-          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A))),
         ],
       ),
     );
@@ -4736,7 +6017,8 @@ class _EmptyStateBody extends StatelessWidget {
             color: const Color(0xFFEFF6FF),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(icon, color: const Color(0xFF2563EB), size: compact ? 20 : 24),
+          child: Icon(icon,
+              color: const Color(0xFF2563EB), size: compact ? 20 : 24),
         ),
         SizedBox(height: compact ? 10 : 14),
         Text(
@@ -4762,10 +6044,12 @@ class _EmptyStateBody extends StatelessWidget {
               backgroundColor: const Color(0xFF2563EB),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
-            child: Text(actionLabel!, style: const TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(actionLabel!,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ],
@@ -4799,10 +6083,12 @@ class _EmptyStateCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0F0F172A), blurRadius: 12, offset: Offset(0, 8)),
+          BoxShadow(
+              color: Color(0x0F0F172A), blurRadius: 12, offset: Offset(0, 8)),
         ],
       ),
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: compact ? 24 : 32),
+      padding:
+          EdgeInsets.symmetric(horizontal: 24, vertical: compact ? 24 : 32),
       child: _EmptyStateBody(
         icon: icon,
         title: title,
@@ -4835,7 +6121,10 @@ class _ComingSoonCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 12),
           const Text(
@@ -4848,7 +6137,15 @@ class _ComingSoonCard extends StatelessWidget {
   }
 }
 
-enum _ProcurementTab { procurementDashboard, itemsList, vendorManagement, rfqWorkflow, purchaseOrders, itemTracking, reports }
+enum _ProcurementTab {
+  procurementDashboard,
+  itemsList,
+  vendorManagement,
+  rfqWorkflow,
+  purchaseOrders,
+  itemTracking,
+  reports
+}
 
 extension _ProcurementTabExtension on _ProcurementTab {
   String get label {
@@ -4919,7 +6216,13 @@ class _ProcurementItem {
   }
 }
 
-enum _ProcurementItemStatus { planning, rfqReview, vendorSelection, ordered, delivered }
+enum _ProcurementItemStatus {
+  planning,
+  rfqReview,
+  vendorSelection,
+  ordered,
+  delivered
+}
 
 extension _ProcurementItemStatusExtension on _ProcurementItemStatus {
   String get label {
@@ -5153,7 +6456,8 @@ class _VendorRow {
 }
 
 class _VendorHealthMetric {
-  const _VendorHealthMetric({required this.category, required this.score, required this.change});
+  const _VendorHealthMetric(
+      {required this.category, required this.score, required this.change});
 
   final String category;
   final double score;
@@ -5373,7 +6677,8 @@ extension _RfqStatusExtension on _RfqStatus {
 }
 
 class _RfqStage {
-  const _RfqStage({required this.title, required this.subtitle, required this.status});
+  const _RfqStage(
+      {required this.title, required this.subtitle, required this.status});
 
   final String title;
   final String subtitle;
@@ -5578,7 +6883,8 @@ extension _AlertSeverityExtension on _AlertSeverity {
 }
 
 class _CarrierPerformance {
-  const _CarrierPerformance({required this.carrier, required this.onTimeRate, required this.avgDays});
+  const _CarrierPerformance(
+      {required this.carrier, required this.onTimeRate, required this.avgDays});
 
   final String carrier;
   final int onTimeRate;
@@ -5586,7 +6892,11 @@ class _CarrierPerformance {
 }
 
 class _ReportKpi {
-  const _ReportKpi({required this.label, required this.value, required this.delta, required this.positive});
+  const _ReportKpi(
+      {required this.label,
+      required this.value,
+      required this.delta,
+      required this.positive});
 
   final String label;
   final String value;
@@ -5616,7 +6926,8 @@ class _LeadTimeMetric {
 }
 
 class _SavingsOpportunity {
-  const _SavingsOpportunity({required this.title, required this.value, required this.owner});
+  const _SavingsOpportunity(
+      {required this.title, required this.value, required this.owner});
 
   final String title;
   final String value;
@@ -5650,15 +6961,19 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
   double _rating = 4;
   bool _approved = true;
   bool _preferred = false;
-  
+  bool _isGenerating = false;
+
   final FocusNode _nameFocus = FocusNode();
+  late final OpenAiServiceSecure _openAi;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController();
     _category = widget.categoryOptions.first;
-    
+    _openAi = OpenAiServiceSecure();
+    ApiKeyManager.initializeApiKey();
+
     // SAFE FOCUS REQUEST: Wait for frame to be attached
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -5675,27 +6990,81 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
   }
 
   String _deriveInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return 'NA';
     if (parts.length == 1) {
-      return parts.first.substring(0, parts.first.length >= 2 ? 2 : 1).toUpperCase();
+      return parts.first
+          .substring(0, parts.first.length >= 2 ? 2 : 1)
+          .toUpperCase();
     }
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 
-  Widget _buildDecoration(Widget child, {required String label, String? hint, Widget? prefixIcon, String? errorText}) {
-       return InputDecorator(
-        decoration: _dialogDecoration(
-          label: label,
-          hint: hint,
-          prefixIcon: prefixIcon,
-          errorText: errorText,
-        ),
-        child: child,
+  Future<void> _generateWithAI() async {
+    if (_isGenerating) return;
+
+    setState(() => _isGenerating = true);
+
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName.trim().isEmpty
+          ? 'Project'
+          : projectData.projectName.trim();
+      final solutionTitle = projectData.solutionTitle.trim().isEmpty
+          ? 'Solution'
+          : projectData.solutionTitle.trim();
+      final notes = projectData.frontEndPlanning.procurement.trim();
+
+      final result = await _openAi.generateVendorSuggestion(
+        projectName: projectName,
+        solutionTitle: solutionTitle,
+        category: _category,
+        contextNotes: notes,
       );
+
+      if (mounted) {
+        setState(() {
+          _nameCtrl.text = result['name'] ?? '';
+          _category = result['category'] ?? _category;
+          _rating = (result['rating'] as int? ?? 4).toDouble();
+          _approved = result['approved'] as bool? ?? true;
+          _preferred = result['preferred'] as bool? ?? false;
+          _isGenerating = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate vendor: ${e.toString()}')),
+        );
+      }
+    }
   }
 
-  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? helperText, String? errorText}) {
+  Widget _buildDecoration(Widget child,
+      {required String label,
+      String? hint,
+      Widget? prefixIcon,
+      String? errorText}) {
+    return InputDecorator(
+      decoration: _dialogDecoration(
+        label: label,
+        hint: hint,
+        prefixIcon: prefixIcon,
+        errorText: errorText,
+      ),
+      child: child,
+    );
+  }
+
+  InputDecoration _dialogDecoration(
+      {required String label,
+      String? hint,
+      Widget? prefixIcon,
+      String? helperText,
+      String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -5704,11 +7073,18 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
       prefixIcon: prefixIcon,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600, color: Color(0xFF475569)),
       hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
@@ -5742,21 +7118,51 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _DialogSectionTitle(
-              title: 'Vendor identity',
-              subtitle: 'Capture the partner name and sourcing category.',
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: _DialogSectionTitle(
+                    title: 'Vendor identity',
+                    subtitle: 'Capture the partner name and sourcing category.',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: _isGenerating ? null : _generateWithAI,
+                  icon: _isGenerating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('Generate with AI'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _nameCtrl,
               focusNode: _nameFocus,
-              decoration: _dialogDecoration(label: 'Vendor name', hint: 'e.g. Atlas Tech Supply'),
-              validator: (value) => (value == null || value.trim().isEmpty) ? 'Vendor name is required.' : null,
+              decoration: _dialogDecoration(
+                  label: 'Vendor name', hint: 'e.g. Atlas Tech Supply'),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'Vendor name is required.'
+                  : null,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _category,
               decoration: _dialogDecoration(label: 'Category'),
-              items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+              items: widget.categoryOptions
+                  .map((option) =>
+                      DropdownMenuItem(value: option, child: Text(option)))
+                  .toList(),
               onChanged: (value) {
                 if (value == null) return;
                 setState(() => _category = value);
@@ -5774,7 +7180,11 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Rating', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+                      const Text('Rating',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF475569))),
                       Slider(
                         value: _rating,
                         min: 1,
@@ -5795,7 +7205,8 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
                         Switch(
                           value: _approved,
                           activeThumbColor: const Color(0xFF2563EB),
-                          onChanged: (value) => setState(() => _approved = value),
+                          onChanged: (value) =>
+                              setState(() => _approved = value),
                         ),
                         const Text('Approved'),
                       ],
@@ -5805,7 +7216,8 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
                         Switch(
                           value: _preferred,
                           activeThumbColor: const Color(0xFF2563EB),
-                          onChanged: (value) => setState(() => _preferred = value),
+                          onChanged: (value) =>
+                              setState(() => _preferred = value),
                         ),
                         const Text('Preferred'),
                       ],
@@ -5839,14 +7251,16 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   late TextEditingController _nameCtrl;
   late TextEditingController _descCtrl;
   late TextEditingController _budgetCtrl;
-  
+
   late String _category;
   _ProcurementItemStatus _status = _ProcurementItemStatus.planning;
   _ProcurementPriority _priority = _ProcurementPriority.medium;
   DateTime? _deliveryDate;
   bool _showDateError = false;
+  bool _isGenerating = false;
 
   final FocusNode _nameFocus = FocusNode();
+  late final OpenAiServiceSecure _openAi;
 
   @override
   void initState() {
@@ -5855,6 +7269,8 @@ class _AddItemDialogState extends State<_AddItemDialog> {
     _descCtrl = TextEditingController();
     _budgetCtrl = TextEditingController();
     _category = widget.categoryOptions.first;
+    _openAi = OpenAiServiceSecure();
+    ApiKeyManager.initializeApiKey();
 
     // SAFE FOCUS REQUEST
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -5876,10 +7292,80 @@ class _AddItemDialogState extends State<_AddItemDialog> {
     return int.tryParse(cleaned) ?? 0;
   }
 
-  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
-  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
+  String _formatStoreDate(DateTime date) =>
+      DateFormat('yyyy-MM-dd').format(date);
+  String _formatDisplayDate(DateTime date) =>
+      DateFormat('MMM d, yyyy').format(date);
 
-  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? helperText, String? errorText}) {
+  Future<void> _generateWithAI() async {
+    if (_isGenerating) return;
+
+    setState(() => _isGenerating = true);
+
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName.trim().isEmpty
+          ? 'Project'
+          : projectData.projectName.trim();
+      final solutionTitle = projectData.solutionTitle.trim().isEmpty
+          ? 'Solution'
+          : projectData.solutionTitle.trim();
+      final notes = projectData.frontEndPlanning.procurement.trim();
+
+      final result = await _openAi.generateProcurementItemSuggestion(
+        projectName: projectName,
+        solutionTitle: solutionTitle,
+        category: _category,
+        contextNotes: notes,
+      );
+
+      if (mounted) {
+        final deliveryDays = result['estimatedDeliveryDays'] as int? ?? 90;
+        final deliveryDate = DateTime.now().add(Duration(days: deliveryDays));
+
+        _ProcurementPriority priority;
+        final priorityStr = result['priority'] as String? ?? 'medium';
+        switch (priorityStr.toLowerCase()) {
+          case 'critical':
+            priority = _ProcurementPriority.critical;
+            break;
+          case 'high':
+            priority = _ProcurementPriority.high;
+            break;
+          case 'low':
+            priority = _ProcurementPriority.low;
+            break;
+          default:
+            priority = _ProcurementPriority.medium;
+        }
+
+        setState(() {
+          _nameCtrl.text = result['name'] ?? '';
+          _descCtrl.text = result['description'] ?? '';
+          _category = result['category'] ?? _category;
+          _budgetCtrl.text = (result['budget'] as int? ?? 50000).toString();
+          _priority = priority;
+          _deliveryDate = deliveryDate;
+          _showDateError = false;
+          _isGenerating = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate item: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  InputDecoration _dialogDecoration(
+      {required String label,
+      String? hint,
+      Widget? prefixIcon,
+      String? helperText,
+      String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -5888,11 +7374,18 @@ class _AddItemDialogState extends State<_AddItemDialog> {
       prefixIcon: prefixIcon,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600, color: Color(0xFF475569)),
       hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
@@ -5932,22 +7425,50 @@ class _AddItemDialogState extends State<_AddItemDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _DialogSectionTitle(
-              title: 'Item details',
-              subtitle: 'What are you sourcing for this project?',
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: _DialogSectionTitle(
+                    title: 'Item details',
+                    subtitle: 'What are you sourcing for this project?',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: _isGenerating ? null : _generateWithAI,
+                  icon: _isGenerating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('Generate with AI'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _nameCtrl,
               focusNode: _nameFocus,
-              decoration: _dialogDecoration(label: 'Item name', hint: 'e.g. Network core switches'),
-              validator: (value) => (value == null || value.trim().isEmpty) ? 'Item name is required.' : null,
+              decoration: _dialogDecoration(
+                  label: 'Item name', hint: 'e.g. Network core switches'),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'Item name is required.'
+                  : null,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _descCtrl,
               maxLines: 2,
-              decoration: _dialogDecoration(label: 'Description', hint: 'Short scope description'),
+              decoration: _dialogDecoration(
+                  label: 'Description', hint: 'Short scope description'),
             ),
             const SizedBox(height: 18),
             const _DialogSectionTitle(
@@ -5961,7 +7482,10 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _category,
                     decoration: _dialogDecoration(label: 'Category'),
-                    items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+                    items: widget.categoryOptions
+                        .map((option) => DropdownMenuItem(
+                            value: option, child: Text(option)))
+                        .toList(),
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => _category = value);
@@ -5974,7 +7498,8 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                     initialValue: _status,
                     decoration: _dialogDecoration(label: 'Status'),
                     items: _ProcurementItemStatus.values
-                        .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                        .map((option) => DropdownMenuItem(
+                            value: option, child: Text(option.label)))
                         .toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -5989,7 +7514,8 @@ class _AddItemDialogState extends State<_AddItemDialog> {
               initialValue: _priority,
               decoration: _dialogDecoration(label: 'Priority'),
               items: _ProcurementPriority.values
-                  .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                  .map((option) => DropdownMenuItem(
+                      value: option, child: Text(option.label)))
                   .toList(),
               onChanged: (value) {
                 if (value == null) return;
@@ -6008,7 +7534,10 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                   child: TextFormField(
                     controller: _budgetCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: _dialogDecoration(label: 'Budget', hint: 'e.g. 85000', prefixIcon: const Icon(Icons.attach_money)),
+                    decoration: _dialogDecoration(
+                        label: 'Budget',
+                        hint: 'e.g. 85000',
+                        prefixIcon: const Icon(Icons.attach_money)),
                     validator: (value) {
                       final amount = _parseCurrency(value ?? '');
                       return amount <= 0 ? 'Enter a budget amount.' : null;
@@ -6021,7 +7550,8 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
-                        initialDate: _deliveryDate ?? DateTime.now().add(const Duration(days: 14)),
+                        initialDate: _deliveryDate ??
+                            DateTime.now().add(const Duration(days: 14)),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(DateTime.now().year + 5),
                       );
@@ -6039,9 +7569,13 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                         errorText: _showDateError ? 'Select a date.' : null,
                       ),
                       child: Text(
-                        _deliveryDate == null ? 'Select date' : _formatDisplayDate(_deliveryDate!),
+                        _deliveryDate == null
+                            ? 'Select date'
+                            : _formatDisplayDate(_deliveryDate!),
                         style: TextStyle(
-                          color: _deliveryDate == null ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                          color: _deliveryDate == null
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF0F172A),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -6077,7 +7611,7 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
   late TextEditingController _budgetCtrl;
   late TextEditingController _invitedCtrl;
   late TextEditingController _responsesCtrl;
-  
+
   late String _category;
   _RfqStatus _status = _RfqStatus.draft;
   _ProcurementPriority _priority = _ProcurementPriority.medium;
@@ -6117,11 +7651,17 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
     return int.tryParse(cleaned) ?? 0;
   }
-  
-  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
-  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
 
-  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? errorText}) {
+  String _formatStoreDate(DateTime date) =>
+      DateFormat('yyyy-MM-dd').format(date);
+  String _formatDisplayDate(DateTime date) =>
+      DateFormat('MMM d, yyyy').format(date);
+
+  InputDecoration _dialogDecoration(
+      {required String label,
+      String? hint,
+      Widget? prefixIcon,
+      String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -6129,11 +7669,18 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
       prefixIcon: prefixIcon,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600, color: Color(0xFF475569)),
       hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
@@ -6161,7 +7708,9 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
         final rfq = _RfqItem(
           title: _titleCtrl.text.trim(),
           category: _category,
-          owner: _ownerCtrl.text.trim().isEmpty ? 'Unassigned' : _ownerCtrl.text.trim(),
+          owner: _ownerCtrl.text.trim().isEmpty
+              ? 'Unassigned'
+              : _ownerCtrl.text.trim(),
           budget: budget,
           dueDate: _formatStoreDate(_dueDate!),
           invited: invited,
@@ -6183,8 +7732,12 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
             TextFormField(
               controller: _titleCtrl,
               focusNode: _titleFocus,
-              decoration: _dialogDecoration(label: 'RFQ title', hint: 'e.g. Network infrastructure upgrade'),
-              validator: (value) => (value == null || value.trim().isEmpty) ? 'RFQ title is required.' : null,
+              decoration: _dialogDecoration(
+                  label: 'RFQ title',
+                  hint: 'e.g. Network infrastructure upgrade'),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'RFQ title is required.'
+                  : null,
             ),
             const SizedBox(height: 12),
             Row(
@@ -6193,7 +7746,10 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _category,
                     decoration: _dialogDecoration(label: 'Category'),
-                    items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+                    items: widget.categoryOptions
+                        .map((option) => DropdownMenuItem(
+                            value: option, child: Text(option)))
+                        .toList(),
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => _category = value);
@@ -6204,7 +7760,8 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                 Expanded(
                   child: TextFormField(
                     controller: _ownerCtrl,
-                    decoration: _dialogDecoration(label: 'Owner', hint: 'e.g. J. Patel'),
+                    decoration: _dialogDecoration(
+                        label: 'Owner', hint: 'e.g. J. Patel'),
                   ),
                 ),
               ],
@@ -6221,7 +7778,10 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                   child: TextFormField(
                     controller: _budgetCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: _dialogDecoration(label: 'Budget', hint: 'e.g. 120000', prefixIcon: const Icon(Icons.attach_money)),
+                    decoration: _dialogDecoration(
+                        label: 'Budget',
+                        hint: 'e.g. 120000',
+                        prefixIcon: const Icon(Icons.attach_money)),
                     validator: (value) {
                       final amount = _parseCurrency(value ?? '');
                       return amount <= 0 ? 'Enter a budget amount.' : null;
@@ -6234,7 +7794,8 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
-                        initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 21)),
+                        initialDate: _dueDate ??
+                            DateTime.now().add(const Duration(days: 21)),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(DateTime.now().year + 5),
                       );
@@ -6252,9 +7813,13 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                         errorText: _showDateError ? 'Select a date.' : null,
                       ),
                       child: Text(
-                        _dueDate == null ? 'Select date' : _formatDisplayDate(_dueDate!),
+                        _dueDate == null
+                            ? 'Select date'
+                            : _formatDisplayDate(_dueDate!),
                         style: TextStyle(
-                          color: _dueDate == null ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                          color: _dueDate == null
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF0F172A),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -6283,7 +7848,8 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                   child: TextFormField(
                     controller: _responsesCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: _dialogDecoration(label: 'Responses', hint: '0'),
+                    decoration:
+                        _dialogDecoration(label: 'Responses', hint: '0'),
                   ),
                 ),
               ],
@@ -6295,7 +7861,10 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                   child: DropdownButtonFormField<_RfqStatus>(
                     initialValue: _status,
                     decoration: _dialogDecoration(label: 'Status'),
-                    items: _RfqStatus.values.map((option) => DropdownMenuItem(value: option, child: Text(option.label))).toList(),
+                    items: _RfqStatus.values
+                        .map((option) => DropdownMenuItem(
+                            value: option, child: Text(option.label)))
+                        .toList(),
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => _status = value);
@@ -6308,7 +7877,8 @@ class _CreateRfqDialogState extends State<_CreateRfqDialog> {
                     initialValue: _priority,
                     decoration: _dialogDecoration(label: 'Priority'),
                     items: _ProcurementPriority.values
-                        .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                        .map((option) => DropdownMenuItem(
+                            value: option, child: Text(option.label)))
                         .toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -6344,7 +7914,7 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
   late TextEditingController _vendorCtrl;
   late TextEditingController _ownerCtrl;
   late TextEditingController _amountCtrl;
-  
+
   late String _category;
   _PurchaseOrderStatus _status = _PurchaseOrderStatus.awaitingApproval;
   DateTime _orderedDate = DateTime.now();
@@ -6381,11 +7951,17 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
     return int.tryParse(cleaned) ?? 0;
   }
-  
-  String _formatStoreDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
-  String _formatDisplayDate(DateTime date) => DateFormat('MMM d, yyyy').format(date);
 
-  InputDecoration _dialogDecoration({required String label, String? hint, Widget? prefixIcon, String? errorText}) {
+  String _formatStoreDate(DateTime date) =>
+      DateFormat('yyyy-MM-dd').format(date);
+  String _formatDisplayDate(DateTime date) =>
+      DateFormat('MMM d, yyyy').format(date);
+
+  InputDecoration _dialogDecoration(
+      {required String label,
+      String? hint,
+      Widget? prefixIcon,
+      String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -6393,11 +7969,18 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
       prefixIcon: prefixIcon,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600, color: Color(0xFF475569)),
       hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
@@ -6423,7 +8006,9 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
           id: poId,
           vendor: _vendorCtrl.text.trim(),
           category: _category,
-          owner: _ownerCtrl.text.trim().isEmpty ? 'Unassigned' : _ownerCtrl.text.trim(),
+          owner: _ownerCtrl.text.trim().isEmpty
+              ? 'Unassigned'
+              : _ownerCtrl.text.trim(),
           orderedDate: _formatStoreDate(_orderedDate),
           expectedDate: _formatStoreDate(_expectedDate),
           amount: amount,
@@ -6444,13 +8029,17 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
             TextFormField(
               controller: _idCtrl,
               focusNode: _idFocus,
-              decoration: _dialogDecoration(label: 'PO number', hint: 'Auto-generated if left blank'),
+              decoration: _dialogDecoration(
+                  label: 'PO number', hint: 'Auto-generated if left blank'),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _vendorCtrl,
-              decoration: _dialogDecoration(label: 'Vendor', hint: 'e.g. GreenLeaf Office'),
-              validator: (value) => (value == null || value.trim().isEmpty) ? 'Vendor is required.' : null,
+              decoration: _dialogDecoration(
+                  label: 'Vendor', hint: 'e.g. GreenLeaf Office'),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'Vendor is required.'
+                  : null,
             ),
             const SizedBox(height: 12),
             Row(
@@ -6459,7 +8048,10 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _category,
                     decoration: _dialogDecoration(label: 'Category'),
-                    items: widget.categoryOptions.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+                    items: widget.categoryOptions
+                        .map((option) => DropdownMenuItem(
+                            value: option, child: Text(option)))
+                        .toList(),
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => _category = value);
@@ -6470,7 +8062,8 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
                 Expanded(
                   child: TextFormField(
                     controller: _ownerCtrl,
-                    decoration: _dialogDecoration(label: 'Owner', hint: 'e.g. L. Chen'),
+                    decoration:
+                        _dialogDecoration(label: 'Owner', hint: 'e.g. L. Chen'),
                   ),
                 ),
               ],
@@ -6484,7 +8077,10 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
             TextFormField(
               controller: _amountCtrl,
               keyboardType: TextInputType.number,
-              decoration: _dialogDecoration(label: 'Amount', hint: 'e.g. 72000', prefixIcon: const Icon(Icons.attach_money)),
+              decoration: _dialogDecoration(
+                  label: 'Amount',
+                  hint: 'e.g. 72000',
+                  prefixIcon: const Icon(Icons.attach_money)),
               validator: (value) {
                 final amount = _parseCurrency(value ?? '');
                 return amount <= 0 ? 'Enter a PO amount.' : null;
@@ -6506,10 +8102,14 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
                       setState(() => _orderedDate = picked);
                     },
                     child: InputDecorator(
-                      decoration: _dialogDecoration(label: 'Ordered date', prefixIcon: const Icon(Icons.event)),
+                      decoration: _dialogDecoration(
+                          label: 'Ordered date',
+                          prefixIcon: const Icon(Icons.event)),
                       child: Text(
                         _formatDisplayDate(_orderedDate),
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F172A)),
                       ),
                     ),
                   ),
@@ -6528,10 +8128,14 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
                       setState(() => _expectedDate = picked);
                     },
                     child: InputDecorator(
-                      decoration: _dialogDecoration(label: 'Expected date', prefixIcon: const Icon(Icons.event_available)),
+                      decoration: _dialogDecoration(
+                          label: 'Expected date',
+                          prefixIcon: const Icon(Icons.event_available)),
                       child: Text(
                         _formatDisplayDate(_expectedDate),
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F172A)),
                       ),
                     ),
                   ),
@@ -6543,7 +8147,8 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
               initialValue: _status,
               decoration: _dialogDecoration(label: 'Status'),
               items: _PurchaseOrderStatus.values
-                  .map((option) => DropdownMenuItem(value: option, child: Text(option.label)))
+                  .map((option) => DropdownMenuItem(
+                      value: option, child: Text(option.label)))
                   .toList(),
               onChanged: (value) {
                 if (value == null) return;
@@ -6551,7 +8156,11 @@ class _CreatePoDialogState extends State<_CreatePoDialog> {
               },
             ),
             const SizedBox(height: 12),
-            const Text('Progress', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const Text('Progress',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475569))),
             Slider(
               value: _progress,
               min: 0,

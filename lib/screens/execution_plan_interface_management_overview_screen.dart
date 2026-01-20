@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/ai_diagram_panel.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/screens/staff_team_screen.dart';
 
 class ExecutionPlanInterfaceManagementOverviewScreen extends StatelessWidget {
   const ExecutionPlanInterfaceManagementOverviewScreen({super.key});
@@ -48,7 +49,12 @@ class ExecutionPlanInterfaceManagementOverviewScreen extends StatelessWidget {
                       alignment: Alignment.centerRight,
                       child: _DoneButton(
                         onPressed: () {
-                          // TODO: Navigate to next screen when available
+                          // Navigate to main execution flow (Staff Team screen)
+                          StaffTeamScreen.open(context);
+                          // Alternative: Navigate to progress tracking
+                          // context.go('/${AppRoutes.progressTracking}');
+                          // Alternative: Navigate to dashboard
+                          // context.go('/${AppRoutes.dashboard}');
                         },
                       ),
                     ),
