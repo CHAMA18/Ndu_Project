@@ -34,18 +34,10 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   final _saveDebouncer = _Debouncer();
   bool _saving = false;
   DateTime? _lastSavedAt;
-  late final TextEditingController _activeController;
-  late final TextEditingController _inReviewController;
-  late final TextEditingController _approvedController;
-  late final TextEditingController _atRiskController;
 
   @override
   void initState() {
     super.initState();
-    _activeController = TextEditingController(text: '${_data.metrics.active}');
-    _inReviewController = TextEditingController(text: '${_data.metrics.inReview}');
-    _approvedController = TextEditingController(text: '${_data.metrics.approved}');
-    _atRiskController = TextEditingController(text: '${_data.metrics.atRisk}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final existing = ProjectDataHelper.getData(context).designDeliverablesData;
       _applyData(existing);
@@ -58,10 +50,6 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   @override
   void dispose() {
     _saveDebouncer.dispose();
-    _activeController.dispose();
-    _inReviewController.dispose();
-    _approvedController.dispose();
-    _atRiskController.dispose();
     super.dispose();
   }
 
@@ -88,7 +76,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _data = generated;
+        _data = generated.copyWith(metrics: _computeMetrics(generated.register));
         _loading = false;
         _error = success ? null : 'Unable to save generated content.';
       });
@@ -102,26 +90,45 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   }
 
   void _updateData(DesignDeliverablesData data) {
-    setState(() => _data = data);
+    final computed = _computeMetrics(data.register);
+    final nextData = data.copyWith(metrics: computed);
+    setState(() => _data = nextData);
     ProjectDataHelper.getProvider(context).updateField(
-      (current) => current.copyWith(designDeliverablesData: data),
+      (current) => current.copyWith(designDeliverablesData: nextData),
     );
     _scheduleSave();
   }
 
   void _applyData(DesignDeliverablesData data) {
-    setState(() => _data = data);
-    _setMetricControllerText(_activeController, data.metrics.active);
-    _setMetricControllerText(_inReviewController, data.metrics.inReview);
-    _setMetricControllerText(_approvedController, data.metrics.approved);
-    _setMetricControllerText(_atRiskController, data.metrics.atRisk);
+    final computed = _computeMetrics(data.register);
+    setState(() => _data = data.copyWith(metrics: computed));
   }
 
-  void _setMetricControllerText(TextEditingController controller, int value) {
-    final text = value.toString();
-    if (controller.text != text) {
-      controller.text = text;
+  DesignDeliverablesMetrics _computeMetrics(List<DesignDeliverableRegisterItem> rows) {
+    int active = 0;
+    int inReview = 0;
+    int approved = 0;
+    int atRisk = 0;
+    for (final row in rows) {
+      final status = row.status.trim().toLowerCase();
+      final risk = row.risk.trim().toLowerCase();
+      if (status == 'in review') {
+        inReview++;
+      } else if (status == 'approved') {
+        approved++;
+      } else if (status == 'in progress' || status == 'pending') {
+        active++;
+      }
+      if (risk == 'high') {
+        atRisk++;
+      }
     }
+    return DesignDeliverablesMetrics(
+      active: active,
+      inReview: inReview,
+      approved: approved,
+      atRisk: atRisk,
+    );
   }
 
   void _scheduleSave() {
@@ -191,12 +198,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                             ),
                             const SizedBox(height: 24),
                             _MetricsRow(
-                              data: data,
-                              activeController: _activeController,
-                              inReviewController: _inReviewController,
-                              approvedController: _approvedController,
-                              atRiskController: _atRiskController,
-                              onChanged: (metrics) => _updateData(data.copyWith(metrics: metrics)),
+                              metrics: data.metrics,
                             ),
                             if (_saving || _lastSavedAt != null) ...[
                               const SizedBox(height: 12),
@@ -382,51 +384,36 @@ class _UserChip extends StatelessWidget {
 
 class _MetricsRow extends StatelessWidget {
   const _MetricsRow({
-    required this.data,
-    required this.activeController,
-    required this.inReviewController,
-    required this.approvedController,
-    required this.atRiskController,
-    required this.onChanged,
+    required this.metrics,
   });
 
-  final DesignDeliverablesData data;
-  final TextEditingController activeController;
-  final TextEditingController inReviewController;
-  final TextEditingController approvedController;
-  final TextEditingController atRiskController;
-  final ValueChanged<DesignDeliverablesMetrics> onChanged;
+  final DesignDeliverablesMetrics metrics;
 
   @override
   Widget build(BuildContext context) {
-    final metrics = data.metrics;
     return Wrap(
       spacing: 16,
       runSpacing: 16,
       children: [
         _MetricCard(
           label: 'Active Deliverables',
-          controller: activeController,
           accent: const Color(0xFF2563EB),
-          onChanged: (value) => onChanged(metrics.copyWith(active: int.tryParse(value) ?? 0)),
+          value: metrics.active,
         ),
         _MetricCard(
           label: 'In Review',
-          controller: inReviewController,
           accent: const Color(0xFFF59E0B),
-          onChanged: (value) => onChanged(metrics.copyWith(inReview: int.tryParse(value) ?? 0)),
+          value: metrics.inReview,
         ),
         _MetricCard(
           label: 'Approved',
-          controller: approvedController,
           accent: const Color(0xFF10B981),
-          onChanged: (value) => onChanged(metrics.copyWith(approved: int.tryParse(value) ?? 0)),
+          value: metrics.approved,
         ),
         _MetricCard(
           label: 'At Risk',
-          controller: atRiskController,
           accent: const Color(0xFFEF4444),
-          onChanged: (value) => onChanged(metrics.copyWith(atRisk: int.tryParse(value) ?? 0)),
+          value: metrics.atRisk,
         ),
       ],
     );
@@ -436,15 +423,13 @@ class _MetricsRow extends StatelessWidget {
 class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.label,
-    required this.controller,
     required this.accent,
-    required this.onChanged,
+    required this.value,
   });
 
   final String label;
-  final TextEditingController controller;
   final Color accent;
-  final ValueChanged<String> onChanged;
+  final int value;
 
   @override
   Widget build(BuildContext context) {
@@ -461,31 +446,18 @@ class _MetricCard extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
           const SizedBox(height: 6),
-          TextFormField(
-            key: ValueKey('metric-$label'),
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: '0',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: accent),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              filled: true,
-              fillColor: const Color(0xFFF9FAFB),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: accent),
-            onChanged: onChanged,
+            child: Text(
+              value.toString(),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: accent),
+            ),
           ),
         ],
       ),
