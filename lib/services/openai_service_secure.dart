@@ -5049,4 +5049,234 @@ Return a JSON object with:
 Return ONLY valid JSON.
 ''';
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // WBS GENERATION
+  // ─────────────────────────────────────────────────────────────────────────────
+  
+  /// Generates a hierarchical Work Breakdown Structure (WBS) based on project details
+  Future<List<WorkItem>> generateWbsStructure({
+    required String projectName,
+    required String projectObjective,
+    required String dimension,
+    String contextNotes = '',
+  }) async {
+    if (!OpenAiConfig.isConfigured) return [];
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.5,
+      'max_tokens': 1500,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a project management expert. Generate a hierarchical Work Breakdown Structure (WBS) in strict JSON format. Each item should have a title, description, and optionally children and dependencies.'
+        },
+        {
+          'role': 'user',
+          'content': _wbsPrompt(
+            projectName: projectName,
+            projectObjective: projectObjective,
+            dimension: dimension,
+            contextNotes: contextNotes,
+          )
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 22));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final List rawWbs = parsed['wbs'] as List? ?? [];
+      
+      final items = rawWbs.map((e) => WorkItem.fromJson(e as Map<String, dynamic>)).toList();
+      _wireUpWbsTree(items);
+      return items;
+    } catch (e) {
+      debugPrint('Error generating WBS: $e');
+      return [];
+    }
+  }
+
+  void _wireUpWbsTree(List<WorkItem> items, {String parentId = ''}) {
+    for (var item in items) {
+      item.parentId = parentId;
+      if (item.children.isNotEmpty) {
+        _wireUpWbsTree(item.children, parentId: item.id);
+      }
+    }
+  }
+
+  String _wbsPrompt({
+    required String projectName,
+    required String projectObjective,
+    required String dimension,
+    required String contextNotes,
+  }) {
+    return '''
+Generate a Work Breakdown Structure (WBS) for:
+Project: $projectName
+Objective: $projectObjective
+Segmentation Dimension: $dimension
+
+Requirements:
+1. Break the project down into a hierarchical tree structure (2-3 levels deep).
+2. Level 1 should be the major phases or segments based on "$dimension".
+3. Level 2 and below should be specific deliverables or tasks.
+4. Each item MUST have a "title" and "description".
+5. Use "children" for sub-items.
+6. Use "dependencies" as a list of titles of sibling items that must be completed first.
+
+Return strict JSON only in this format:
+{
+  "wbs": [
+    {
+      "title": "Phase 1: Civil Works",
+      "description": "Foundation and structural elements",
+      "children": [
+        {
+          "title": "Excavation",
+          "description": "Earthmoving and site preparation"
+        },
+        {
+          "title": "Concrete Pouring",
+          "description": "Foundation base construction",
+          "dependencies": ["Excavation"]
+        }
+      ]
+    }
+  ]
+}
+
+Additional Context: $contextNotes
+''';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // COST ESTIMATE SUGGESTIONS
+  // ─────────────────────────────────────────────────────────────────────────────
+  
+  /// Generates cost estimate item suggestions based on project context
+  Future<List<CostEstimateItem>> generateCostEstimateSuggestions({
+    required String context,
+    int maxTokens = 1200,
+    double temperature = 0.6,
+  }) async {
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackCostEstimateItems(context);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content': 'You are a project cost estimation expert. Generate realistic cost estimate line items based on project context. Return strict JSON only.'
+        },
+        {
+          'role': 'user',
+          'content': _costEstimatePrompt(context)
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 25));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return _fallbackCostEstimateItems(context);
+      }
+      final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final List rawItems = parsed['costItems'] as List? ?? parsed['items'] as List? ?? [];
+      
+      return rawItems.map((e) => CostEstimateItem.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      debugPrint('Error generating cost estimates: $e');
+      return _fallbackCostEstimateItems(context);
+    }
+  }
+
+  String _costEstimatePrompt(String context) {
+    return '''
+Generate 5-8 cost estimate line items for the following project:
+
+$context
+
+Return JSON in this format:
+{
+  "costItems": [
+    {
+      "itemName": "Cost item name",
+      "description": "Brief description",
+      "category": "Labor/Materials/Equipment/Services/Contingency",
+      "unitType": "hours/units/lump sum",
+      "quantity": 10,
+      "unitCost": 150.0,
+      "totalCost": 1500.0,
+      "notes": "Optional notes"
+    }
+  ]
+}
+
+Return ONLY valid JSON.
+''';
+  }
+
+  List<CostEstimateItem> _fallbackCostEstimateItems(String context) {
+    return [
+      CostEstimateItem(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: 'Project Management',
+        notes: 'Project coordination and oversight',
+        amount: 20000.0,
+        costType: 'labor',
+      ),
+      CostEstimateItem(
+        id: (DateTime.now().millisecondsSinceEpoch + 1).toString(),
+        title: 'Equipment and Materials',
+        notes: 'Primary equipment and material costs',
+        amount: 50000.0,
+        costType: 'direct',
+      ),
+      CostEstimateItem(
+        id: (DateTime.now().millisecondsSinceEpoch + 2).toString(),
+        title: 'Professional Services',
+        notes: 'Consulting and technical expertise',
+        amount: 16000.0,
+        costType: 'direct',
+      ),
+      CostEstimateItem(
+        id: (DateTime.now().millisecondsSinceEpoch + 3).toString(),
+        title: 'Contingency Reserve',
+        notes: 'Risk buffer (10% of total)',
+        amount: 8600.0,
+        costType: 'indirect',
+      ),
+    ];
+  }
 }
