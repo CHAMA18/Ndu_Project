@@ -1509,6 +1509,189 @@ Context notes (optional): $notes
 ''';
   }
 
+  Future<String> generateBusinessCase({
+    required String projectName,
+    required String solutionTitle,
+    required String solutionDescription,
+    String notes = '',
+  }) async {
+    if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.6,
+      'max_tokens': 1200,
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a project strategist. Write a concise, executive-ready business case. Use short paragraphs or bullets. No markdown headings.'
+        },
+        {
+          'role': 'user',
+          'content': '''
+Project: ${_escape(projectName)}
+Solution title: ${_escape(solutionTitle)}
+Solution description: ${_escape(solutionDescription)}
+Notes: ${notes.trim().isEmpty ? 'None' : _escape(notes)}
+
+Include: problem statement, proposed solution, benefits, risks, success metrics, and a brief recommendation.
+Return plain text only.'''
+        }
+      ],
+    });
+
+    final response = await _client
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 18));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
+    }
+    final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final content =
+        (data['choices'] as List).first['message']['content'] as String;
+    return _stripAsterisks(content).trim();
+  }
+
+  Future<List<BenefitLineItemInput>> generateBenefitLineItems({
+    required List<AiSolutionItem> solutions,
+    required double estimatedProjectValue,
+    String contextNotes = '',
+    String currency = 'USD',
+    int count = 6,
+  }) async {
+    if (solutions.isEmpty || estimatedProjectValue <= 0) return [];
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackBenefitLineItems(estimatedProjectValue, currency);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final list = solutions
+        .map((s) =>
+            '{"title":"${_escape(s.title)}","description":"${_escape(s.description)}"}')
+        .join(',');
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.5,
+      'max_tokens': 1200,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a finance analyst. Return strict JSON for benefit line items.'
+        },
+        {
+          'role': 'user',
+          'content': _benefitLineItemsPrompt(
+            list,
+            estimatedProjectValue,
+            currency,
+            contextNotes,
+            count,
+          ),
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 16));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return _fallbackBenefitLineItems(estimatedProjectValue, currency);
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final items = (parsed['items'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .map((item) {
+        return BenefitLineItemInput(
+          category: (item['category'] ?? '').toString(),
+          title: (item['title'] ?? '').toString(),
+          unitValue: _toDouble(item['unit_value'] ?? item['unitValue']),
+          units: _toDouble(item['units'] ?? 1),
+          notes: (item['notes'] ?? '').toString(),
+        );
+      }).where((item) => item.title.isNotEmpty).toList();
+      return items.isEmpty
+          ? _fallbackBenefitLineItems(estimatedProjectValue, currency)
+          : items;
+    } catch (e) {
+      debugPrint('generateBenefitLineItems failed: $e');
+      return _fallbackBenefitLineItems(estimatedProjectValue, currency);
+    }
+  }
+
+  String _benefitLineItemsPrompt(
+    String solutionsJson,
+    double estimatedProjectValue,
+    String currency,
+    String contextNotes,
+    int count,
+  ) {
+    final notes = contextNotes.trim().isEmpty
+        ? 'No additional context supplied.'
+        : contextNotes.trim();
+    return '''
+We are preparing benefit line items for a project portfolio.
+Target total value: $currency ${estimatedProjectValue.toStringAsFixed(0)}.
+Provide $count items across categories like Financial gains, Operational efficiencies, Risk reduction, Compliance, Customer experience.
+
+Return strict JSON:
+{
+  "items": [
+    {
+      "category": "Financial gains",
+      "title": "Reduce churn via onboarding improvements",
+      "unit_value": 5000,
+      "units": 12,
+      "notes": "Monthly impact"
+    }
+  ]
+}
+
+Solutions: [$solutionsJson]
+Context notes: $notes
+Return ONLY JSON.
+''';
+  }
+
+  List<BenefitLineItemInput> _fallbackBenefitLineItems(
+    double estimatedProjectValue,
+    String currency,
+  ) {
+    final total = estimatedProjectValue > 0 ? estimatedProjectValue : 150000;
+    final allocations = {
+      'Financial gains': 0.3,
+      'Operational efficiencies': 0.2,
+      'Risk reduction': 0.2,
+      'Compliance': 0.15,
+      'Customer experience': 0.15,
+    };
+    return allocations.entries.map((entry) {
+      final value = total * entry.value;
+      return BenefitLineItemInput(
+        category: entry.key,
+        title: '${entry.key} impact',
+        unitValue: value,
+        units: 1,
+        notes: 'Estimated annualized value in $currency',
+      );
+    }).toList();
+  }
+
   Future<List<AiBenefitSavingsSuggestion>> generateBenefitSavingsSuggestions(
     List<BenefitLineItemInput> items, {
     String currency = 'USD',
@@ -3483,9 +3666,13 @@ Context notes (optional): $notes
   }
 
   // FEP RISKS GENERATION - Generate risks with all fields (Title, Category, Probability, Impact)
-  Future<List<Map<String, String>>> generateFepRisks(String context) async {
+  Future<List<Map<String, String>>> generateFepRisks(
+    String context, {
+    int minCount = 5,
+  }) async {
     if (context.trim().isEmpty) return [];
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
+    final count = minCount < 3 ? 3 : minCount;
 
     final uri = OpenAiConfig.chatUri();
     final headers = {
@@ -3505,7 +3692,7 @@ Context notes (optional): $notes
         },
         {
           'role': 'user',
-          'content': '''Generate 5-8 project risks based on this context:
+          'content': '''Generate at least $count project risks based on this context:
 
 $context
 
@@ -3668,4 +3855,529 @@ Additional Context: $contextNotes
   }
 
   String _escape(String v) => v.replaceAll('"', '\\"').replaceAll('\n', ' ');
+
+  // PROCUREMENT - VENDORS
+  Future<Map<String, dynamic>> generateVendorSuggestion({
+    required String projectName,
+    required String solutionTitle,
+    required String category,
+    String contextNotes = '',
+  }) async {
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackVendor(category);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.6,
+      'max_tokens': 800,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a procurement specialist. Generate realistic vendor suggestions based on project context. Return a JSON object with: name (vendor company name), category (matching the requested category), rating (1-5 integer), approved (boolean), preferred (boolean).'
+        },
+        {
+          'role': 'user',
+          'content':
+              _vendorPrompt(projectName, solutionTitle, category, contextNotes)
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+
+      return {
+        'name': _stripAsterisks((parsed['name'] ?? '').toString().trim()),
+        'category':
+            _stripAsterisks((parsed['category'] ?? category).toString().trim()),
+        'rating': (parsed['rating'] is num)
+            ? (parsed['rating'] as num).toInt().clamp(1, 5)
+            : 4,
+        'approved': parsed['approved'] == true,
+        'preferred': parsed['preferred'] == false, // Default to false
+      };
+    } catch (e) {
+      debugPrint('generateVendorSuggestion failed: $e');
+      return _fallbackVendor(category);
+    }
+  }
+
+  Map<String, dynamic> _fallbackVendor(String category) {
+    final names = {
+      'IT Equipment': [
+        'TechCorp Solutions',
+        'Digital Systems Inc',
+        'IT Partners Group'
+      ],
+      'Construction Services': [
+        'BuildRight Contractors',
+        'Premier Construction Co',
+        'Apex Builders'
+      ],
+      'Furniture': [
+        'Office Essentials Co',
+        'Workspace Solutions',
+        'Furniture Direct'
+      ],
+      'Security': [
+        'SecureGuard Services',
+        'Safety First Systems',
+        'Protection Plus'
+      ],
+      'Logistics': [
+        'FastTrack Logistics',
+        'Global Shipping Co',
+        'Express Delivery'
+      ],
+      'Services': [
+        'Professional Services Group',
+        'Expert Consultants',
+        'Service Partners'
+      ],
+      'Materials': [
+        'Material Supply Co',
+        'Industrial Materials Inc',
+        'Supply Chain Solutions'
+      ],
+    };
+    final nameList = names[category] ?? ['Vendor Partner'];
+    return {
+      'name': nameList[0],
+      'category': category,
+      'rating': 4,
+      'approved': true,
+      'preferred': false,
+    };
+  }
+
+  String _vendorPrompt(String projectName, String solutionTitle,
+      String category, String contextNotes) {
+    final notes = contextNotes.trim().isEmpty
+        ? 'No additional context provided.'
+        : contextNotes.trim();
+    return '''
+Generate a vendor suggestion for this procurement scenario:
+
+Project: $projectName
+Solution: $solutionTitle
+Category: $category
+
+Context: $notes
+
+Provide a realistic vendor company name that specializes in $category. The vendor should be appropriate for a project involving "$solutionTitle".
+
+Return a JSON object with:
+- name: Company name (e.g., "Atlas Tech Supply" or "Premier Construction Co")
+- category: "$category"
+- rating: Integer 1-5 (typical range 3-5)
+- approved: Boolean (typically true)
+- preferred: Boolean (typically false unless explicitly noted)
+
+Return ONLY valid JSON.
+''';
+  }
+
+  // PROCUREMENT - ITEMS
+  Future<Map<String, dynamic>> generateProcurementItemSuggestion({
+    required String projectName,
+    required String solutionTitle,
+    required String category,
+    String contextNotes = '',
+  }) async {
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackProcurementItem(category);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.6,
+      'max_tokens': 1000,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a procurement specialist. Generate realistic procurement item suggestions. Return JSON with: name (item name), description (brief description), category (matching requested), budget (estimated cost as integer), priority (one of: critical, high, medium, low), estimatedDeliveryDays (days from now as integer, typically 30-180).'
+        },
+        {
+          'role': 'user',
+          'content': _procurementItemPrompt(
+              projectName, solutionTitle, category, contextNotes)
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+
+      final budget =
+          (parsed['budget'] is num) ? (parsed['budget'] as num).toInt() : 50000;
+      final deliveryDays = (parsed['estimatedDeliveryDays'] is num)
+          ? (parsed['estimatedDeliveryDays'] as num).toInt().clamp(7, 365)
+          : 90;
+
+      return {
+        'name': _stripAsterisks((parsed['name'] ?? '').toString().trim()),
+        'description':
+            _stripAsterisks((parsed['description'] ?? '').toString().trim()),
+        'category':
+            _stripAsterisks((parsed['category'] ?? category).toString().trim()),
+        'budget': budget,
+        'priority': _normalizePriority(
+            (parsed['priority'] ?? 'medium').toString().trim()),
+        'estimatedDeliveryDays': deliveryDays,
+      };
+    } catch (e) {
+      debugPrint('generateProcurementItemSuggestion failed: $e');
+      return _fallbackProcurementItem(category);
+    }
+  }
+
+  Map<String, dynamic> _fallbackProcurementItem(String category) {
+    final items = {
+      'IT Equipment': {
+        'name': 'Network Infrastructure Equipment',
+        'description': 'Core networking hardware and switches',
+        'budget': 85000
+      },
+      'Construction Services': {
+        'name': 'Site Preparation Services',
+        'description': 'Groundwork and site setup',
+        'budget': 120000
+      },
+      'Furniture': {
+        'name': 'Office Furniture Set',
+        'description': 'Desks, chairs, and workspace furniture',
+        'budget': 45000
+      },
+      'Security': {
+        'name': 'Security System Installation',
+        'description': 'Access control and monitoring systems',
+        'budget': 65000
+      },
+      'Logistics': {
+        'name': 'Shipping and Delivery Services',
+        'description': 'Transportation and logistics coordination',
+        'budget': 35000
+      },
+      'Services': {
+        'name': 'Professional Services',
+        'description': 'Consulting and implementation services',
+        'budget': 95000
+      },
+      'Materials': {
+        'name': 'Construction Materials',
+        'description': 'Building materials and supplies',
+        'budget': 75000
+      },
+    };
+    final item = items[category] ??
+        {
+          'name': 'Procurement Item',
+          'description': 'Item description',
+          'budget': 50000
+        };
+    return {
+      'name': item['name']!,
+      'description': item['description']!,
+      'category': category,
+      'budget': item['budget']!,
+      'priority': 'medium',
+      'estimatedDeliveryDays': 90,
+    };
+  }
+
+  String _normalizePriority(String priority) {
+    final lower = priority.toLowerCase();
+    if (lower.contains('critical')) return 'critical';
+    if (lower.contains('high')) return 'high';
+    if (lower.contains('low')) return 'low';
+    return 'medium';
+  }
+
+  String _procurementItemPrompt(String projectName, String solutionTitle,
+      String category, String contextNotes) {
+    final notes = contextNotes.trim().isEmpty
+        ? 'No additional context provided.'
+        : contextNotes.trim();
+    return '''
+Generate a procurement item suggestion for this project:
+
+Project: $projectName
+Solution: $solutionTitle
+Category: $category
+
+Context: $notes
+
+Provide a realistic procurement item that would be needed for a project involving "$solutionTitle" in the "$category" category.
+
+Return a JSON object with:
+- name: Item name (e.g., "Network core switches" or "Office furniture set")
+- description: Brief description (1-2 sentences)
+- category: "$category"
+- budget: Estimated cost as integer (typical range: 20000-200000)
+- priority: One of: critical, high, medium, low (typically "medium" or "high")
+- estimatedDeliveryDays: Days from now (typical range: 30-180)
+
+Return ONLY valid JSON.
+''';
+  }
+
+  // PROCUREMENT - LIST HELPERS
+  Future<List<Map<String, dynamic>>> generateProcurementVendors({
+    required String projectName,
+    required String solutionTitle,
+    String contextNotes = '',
+    int count = 5,
+  }) async {
+    final categories = [
+      'IT Equipment',
+      'Construction Services',
+      'Furniture',
+      'Security',
+      'Logistics',
+      'Services',
+      'Materials',
+    ];
+    final results = <Map<String, dynamic>>[];
+    for (var i = 0; i < count; i++) {
+      final category = categories[i % categories.length];
+      try {
+        final vendor = await generateVendorSuggestion(
+          projectName: projectName,
+          solutionTitle: solutionTitle,
+          category: category,
+          contextNotes: contextNotes,
+        );
+        results.add(vendor);
+      } catch (_) {
+        // Ignore and continue; screen already seeds fallback rows.
+      }
+    }
+    return results;
+  }
+
+  Future<List<Map<String, dynamic>>> generateProcurementRfqs({
+    required String projectName,
+    required String solutionTitle,
+    String contextNotes = '',
+    int count = 3,
+  }) async {
+    if (!OpenAiConfig.isConfigured) return [];
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.5,
+      'max_tokens': 1200,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a procurement specialist. Return strict JSON with an "items" array for RFQs.'
+        },
+        {
+          'role': 'user',
+          'content': '''
+Generate $count RFQs for project "$projectName" (solution: "$solutionTitle").
+Each RFQ needs: title, category, owner, dueDate (YYYY-MM-DD), invited (int), responses (int), budget (int), status (draft/review/in_market/evaluation/awarded), priority (critical/high/medium/low).
+Context: $contextNotes
+Return ONLY JSON: {"items":[...]}'''
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 14));
+      if (response.statusCode < 200 || response.statusCode >= 300) return [];
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      return (parsed['items'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } catch (e) {
+      debugPrint('generateProcurementRfqs failed: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> generateProcurementPurchaseOrders({
+    required String projectName,
+    required String solutionTitle,
+    String contextNotes = '',
+    int count = 4,
+  }) async {
+    if (!OpenAiConfig.isConfigured) return [];
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.5,
+      'max_tokens': 1200,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a procurement specialist. Return strict JSON with a "items" array for purchase orders.'
+        },
+        {
+          'role': 'user',
+          'content': '''
+Generate $count purchase orders for "$projectName" (solution: "$solutionTitle").
+Each PO needs: id, vendor, category, owner, orderedDate (YYYY-MM-DD), expectedDate (YYYY-MM-DD), amount (int), progress (0-1), status (awaiting_approval/issued/in_transit/received).
+Context: $contextNotes
+Return ONLY JSON: {"items":[...]}'''
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 14));
+      if (response.statusCode < 200 || response.statusCode >= 300) return [];
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      return (parsed['items'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } catch (e) {
+      debugPrint('generateProcurementPurchaseOrders failed: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> generateProcurementTrackableItems({
+    required String projectName,
+    required String solutionTitle,
+    String contextNotes = '',
+    int count = 3,
+  }) async {
+    if (!OpenAiConfig.isConfigured) return [];
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
+    };
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': 0.5,
+      'max_tokens': 1400,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a procurement specialist. Return strict JSON with "items" for tracking.'
+        },
+        {
+          'role': 'user',
+          'content': '''
+Generate $count trackable procurement items for "$projectName" (solution: "$solutionTitle").
+Each item needs: name, description, orderStatus, currentStatus (inTransit/delivered/notTracked), lastUpdate (YYYY-MM-DD HH:MM), events (array of {title, date, status}).
+Context: $contextNotes
+Return ONLY JSON: {"items":[...]}'''
+        },
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 14));
+      if (response.statusCode < 200 || response.statusCode >= 300) return [];
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      return (parsed['items'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } catch (e) {
+      debugPrint('generateProcurementTrackableItems failed: $e');
+      return [];
+    }
+  }
+
+  List<Map<String, dynamic>> generateProcurementReportsData() {
+    return [
+      {
+        'kpis': [
+          {'label': 'On-time delivery', 'value': '86%', 'delta': '+4%', 'positive': true},
+          {'label': 'Spend vs budget', 'value': '92%', 'delta': '-3%', 'positive': true},
+          {'label': 'Open RFQs', 'value': '8', 'delta': '+2', 'positive': false},
+        ],
+        'spendBreakdown': [
+          {'label': 'IT Equipment', 'amount': 240000, 'percent': 42, 'color': 0xFF6366F1},
+          {'label': 'Construction', 'amount': 180000, 'percent': 31, 'color': 0xFFF59E0B},
+          {'label': 'Security', 'amount': 90000, 'percent': 16, 'color': 0xFF10B981},
+          {'label': 'Other', 'amount': 60000, 'percent': 11, 'color': 0xFF94A3B8},
+        ],
+        'leadTimeMetrics': [
+          {'label': 'Critical items', 'onTimeRate': 0.78},
+          {'label': 'Standard items', 'onTimeRate': 0.9},
+        ],
+        'savingsOpportunities': [
+          {'title': 'Renegotiate security maintenance', 'value': '\$18k', 'owner': 'Procurement'},
+          {'title': 'Consolidate IT vendors', 'value': '\$24k', 'owner': 'Ops'},
+        ],
+        'complianceMetrics': [
+          {'label': 'Policy adherence', 'value': 0.84},
+          {'label': 'Contract coverage', 'value': 0.91},
+        ],
+      }
+    ];
+  }
 }
