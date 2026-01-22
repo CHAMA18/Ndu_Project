@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/screens/backend_design_screen.dart';
+import 'package:ndu_project/screens/development_set_up_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 
 class UiUxDesignScreen extends StatefulWidget {
@@ -292,6 +293,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             title: 'Design Phase',
             showImportButton: false,
             showContentButton: false,
+            showNavigationButtons: false,
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -320,10 +322,16 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   ),
                   const SizedBox(height: 32),
                   LaunchPhaseNavigation(
-                    backLabel: 'Back: Technical alignment',
+                    backLabel: 'Back: Development set up',
                     nextLabel: 'Next: Backend design',
-                    onBack: () => Navigator.of(context).maybePop(),
-                    onNext: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BackendDesignScreen())),
+                    onBack: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DevelopmentSetUpScreen(),
+                      ),
+                    ),
+                    onNext: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const BackendDesignScreen()),
+                    ),
                   ),
                 ],
               ),
@@ -361,17 +369,10 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
   }
 
   Widget _buildSnapshotStrip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSemanticColors.border),
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 720;
+        final tiles = [
           _buildStatTile(
             label: 'Journeys',
             value: _journeys.length,
@@ -396,8 +397,35 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             background: AppSemanticColors.successSurface,
             accent: AppSemanticColors.success,
           ),
-        ],
-      ),
+        ];
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppSemanticColors.border),
+          ),
+          child: isNarrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int i = 0; i < tiles.length; i++) ...[
+                      tiles[i],
+                      if (i != tiles.length - 1) const SizedBox(height: 12),
+                    ],
+                  ],
+                )
+              : Row(
+                  children: [
+                    for (int i = 0; i < tiles.length; i++) ...[
+                      Expanded(child: tiles[i]),
+                      if (i != tiles.length - 1) const SizedBox(width: 12),
+                    ],
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -412,16 +440,17 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                 'Capture constraints, target users, accessibility, and brand guardrails.',
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _notesController,
-            minLines: 4,
-            maxLines: 8,
-            decoration: const InputDecoration(
-              hintText:
-                  'Target users, accessibility constraints, brand rules, must-have journeys.',
-              alignLabelWithHint: true,
+            TextField(
+              controller: _notesController,
+              minLines: 4,
+              maxLines: 8,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                hintText:
+                    'Target users, accessibility constraints, brand rules, must-have journeys.',
+                alignLabelWithHint: true,
+              ),
             ),
-          ),
           const SizedBox(height: 12),
           Text(
             'Keep this tight: list critical journeys, devices, and non-negotiable UX requirements.',
@@ -590,6 +619,33 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     );
   }
 
+  Widget _buildCenteredDropdownField({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    required String hint,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      alignment: Alignment.center,
+      style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
+      items: items
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Center(child: Text(item)),
+            ),
+          )
+          .toList(),
+      selectedItemBuilder: (context) => items
+          .map((item) => Center(child: Text(item)))
+          .toList(),
+      onChanged: onChanged,
+      decoration: _inlineInputDecoration(hint),
+    );
+  }
+
   Widget _buildPrimaryUserJourneysCard() {
     return _buildCard(
       child: Column(
@@ -625,6 +681,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
               key: ValueKey('journey-title-${journey.id}'),
               initialValue: journey.title,
               decoration: _inlineInputDecoration('Journey title'),
+              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               onChanged: (value) {
                 journey.title = value;
@@ -638,6 +695,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
               minLines: 1,
               maxLines: null,
               decoration: _inlineInputDecoration('Describe the journey'),
+              textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               onChanged: (value) {
                 journey.description = value;
@@ -647,20 +705,17 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
           ],
         );
 
-        final statusField = DropdownButtonFormField<String>(
-          initialValue: _journeyStatusOptions.contains(journey.status)
+        final statusField = _buildCenteredDropdownField(
+          value: _journeyStatusOptions.contains(journey.status)
               ? journey.status
               : _journeyStatusOptions.first,
-          items: _journeyStatusOptions
-              .map((status) =>
-                  DropdownMenuItem(value: status, child: Text(status)))
-              .toList(),
+          items: _journeyStatusOptions,
           onChanged: (value) {
             if (value == null) return;
             setState(() => journey.status = value);
             _scheduleSave();
           },
-          decoration: _inlineInputDecoration('Status'),
+          hint: 'Status',
         );
 
         return Container(
@@ -748,6 +803,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
           key: ValueKey('interface-area-${item.id}'),
           initialValue: item.area,
           decoration: _inlineInputDecoration('Area'),
+          textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           onChanged: (value) {
             item.area = value;
@@ -760,25 +816,24 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
           minLines: 1,
           maxLines: null,
           decoration: _inlineInputDecoration('Purpose'),
+          textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: Colors.grey[700]),
           onChanged: (value) {
             item.purpose = value;
             _scheduleSave();
           },
         );
-        final stateField = DropdownButtonFormField<String>(
-          initialValue: _interfaceStateOptions.contains(item.state)
+        final stateField = _buildCenteredDropdownField(
+          value: _interfaceStateOptions.contains(item.state)
               ? item.state
               : _interfaceStateOptions.first,
-          items: _interfaceStateOptions
-              .map((state) => DropdownMenuItem(value: state, child: Text(state)))
-              .toList(),
+          items: _interfaceStateOptions,
           onChanged: (value) {
             if (value == null) return;
             setState(() => item.state = value);
             _scheduleSave();
           },
-          decoration: _inlineInputDecoration('State'),
+          hint: 'State',
         );
 
         return Container(
@@ -893,6 +948,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
               key: ValueKey('element-title-${element.id}'),
               initialValue: element.title,
               decoration: _inlineInputDecoration('Element'),
+              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               onChanged: (value) {
                 element.title = value;
@@ -906,6 +962,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
               minLines: 1,
               maxLines: null,
               decoration: _inlineInputDecoration('Description'),
+              textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               onChanged: (value) {
                 element.description = value;
@@ -914,20 +971,17 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             ),
           ],
         );
-        final statusField = DropdownButtonFormField<String>(
-          initialValue: _elementStatusOptions.contains(element.status)
+        final statusField = _buildCenteredDropdownField(
+          value: _elementStatusOptions.contains(element.status)
               ? element.status
               : _elementStatusOptions.first,
-          items: _elementStatusOptions
-              .map((status) =>
-                  DropdownMenuItem(value: status, child: Text(status)))
-              .toList(),
+          items: _elementStatusOptions,
           onChanged: (value) {
             if (value == null) return;
             setState(() => element.status = value);
             _scheduleSave();
           },
-          decoration: _inlineInputDecoration('Status'),
+          hint: 'Status',
         );
 
         return Container(

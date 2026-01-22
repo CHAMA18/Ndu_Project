@@ -535,14 +535,14 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                 _buildToolItem(
                   'Miro',
                   Icons.dashboard_outlined,
-                  onTap: () => _openToolWebView('Miro', 'https://miro.com/app/'),
+                  onTap: () => _openToolWebView('Miro', 'https://miro.com/login/'),
                 ),
                 const SizedBox(width: 8),
                 _buildToolItem(
                   'Figma',
                   Icons.design_services,
                   onTap: () =>
-                      _openToolWebView('Figma', 'https://www.figma.com/files'),
+                      _openToolWebView('Figma', 'https://www.figma.com/'),
                 ),
                 const SizedBox(width: 8),
                 _buildToolItem('Rich Text Editor', Icons.text_fields),

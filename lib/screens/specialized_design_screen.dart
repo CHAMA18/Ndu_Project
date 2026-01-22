@@ -187,6 +187,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             title: 'Design Phase',
             showImportButton: false,
             showContentButton: false,
+            showNavigationButtons: false,
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -230,7 +231,10 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                     ),
                     child: TextField(
                       controller: _notesController,
-                      maxLines: 2,
+                      minLines: 1,
+                      maxLines: null,
+                      textAlign: TextAlign.center,
+                      textAlignVertical: TextAlignVertical.center,
                       onChanged: (_) => _scheduleSave(),
                       decoration: InputDecoration(
                         hintText: 'Summarize the specialized design choices here... security zones, performance patterns, data flows, integrations that must be implemented in a very specific way.',
@@ -882,7 +886,8 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
   }) {
     return TextFormField(
       initialValue: initialValue,
-      maxLines: maxLines,
+      minLines: 1,
+      maxLines: null,
       textAlign: TextAlign.center,
       textAlignVertical: TextAlignVertical.center,
       style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),

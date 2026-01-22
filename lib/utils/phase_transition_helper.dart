@@ -124,11 +124,12 @@ class PhaseTransitionRoute<T> extends PageRouteBuilder<T> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                const Color(0xFFFFC812)
-                                    .withValues(alpha: 0.16),
-                                const Color(0xFFFFE8A3)
-                                    .withValues(alpha: 0.1),
-                                Colors.transparent,
+                                const Color(0xFF0F172A)
+                                    .withValues(alpha: 0.58),
+                                const Color(0xFF1F2937)
+                                    .withValues(alpha: 0.48),
+                                const Color(0xFF111827)
+                                    .withValues(alpha: 0.38),
                               ],
                             ),
                           ),
