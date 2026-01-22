@@ -94,50 +94,47 @@ class _AiIntegrationsScreenState extends State<AiIntegrationsScreen> {
   Widget build(BuildContext context) {
     return ResponsiveScaffold(activeItemLabel: 'AI Integrations', body: Padding(
       padding: const EdgeInsets.all(20),
-      child: _loading ? const Center(child: CircularProgressIndicator()) : Column(children: [
-<<<<<<< HEAD
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('AI Integrations', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)), Row(children: [TextButton(onPressed: _seed, child: const Text('Auto-populate (AI)')), const SizedBox(width: 8), ElevatedButton(onPressed: _openAdd, child: const Text('Add'))])]),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: ListView.builder(
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return ListTile(
-                    title: Text(item['name'] ?? ''),
-                    subtitle: Text(item['notes'] ?? ''),
-                  );
-                },
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('AI Integrations',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  Row(children: [
+                    AiRegenerateUndoButtons(
+                      isLoading: _seeding,
+                      canUndo: _undoBeforeAi != null,
+                      onRegenerate: _seed,
+                      onUndo: () {
+                        _undoSeed();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(onPressed: _openAdd, child: const Text('Add'))
+                  ])
+                ],
               ),
-            ),
-          ),
-        )
-=======
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('AI Integrations',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            Row(children: [
-              AiRegenerateUndoButtons(
-                isLoading: _seeding,
-                canUndo: _undoBeforeAi != null,
-                onRegenerate: _seed,
-                onUndo: () {
-                  _undoSeed();
-                },
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(onPressed: _openAdd, child: const Text('Add'))
-            ])
-          ],
-        ),
-        const SizedBox(height: 12), Expanded(child: Card(child: Padding(padding: const EdgeInsets.all(12), child: ListView(children: _items.map((it) => ListTile(title: Text(it['name'] ?? ''), subtitle: Text(it['notes'] ?? ''))).toList()))))
->>>>>>> a0c2c03c2826ad766d0ffe5ada9a0e1b0e056ef0
-      ]),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: ListView.builder(
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return ListTile(
+                          title: Text(item['name'] ?? ''),
+                          subtitle: Text(item['notes'] ?? ''),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              )
+            ]),
     ));
   }
 }
