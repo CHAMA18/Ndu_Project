@@ -828,19 +828,8 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
             ],
           ),
         ),
-        // Configure button
         Column(
           children: [
-            OutlinedButton(
-              onPressed: () => _openIntegrationConfig(item, index),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF64748B),
-                side: const BorderSide(color: Color(0xFFE2E8F0)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              child: const Text('Configure', style: TextStyle(fontSize: 13)),
-            ),
-            const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () => _deleteIntegration(item.id),
               style: OutlinedButton.styleFrom(
@@ -913,18 +902,6 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
         const SizedBox(height: 8),
         _buildMappingRow(item),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: () => _openIntegrationConfig(item, index),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF64748B),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            child: const Text('Configure'),
-          ),
-        ),
-        const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton(

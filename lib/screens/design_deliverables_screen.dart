@@ -778,7 +778,7 @@ class _EditablePipelineRow extends StatelessWidget {
               key: ValueKey('pipeline-label-$index'),
               initialValue: item.label,
               decoration: _inlineInputDecoration('Stage or deliverable'),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
               onChanged: (value) => onChanged(DesignDeliverablePipelineItem(
                 label: value,
                 status: item.status,
@@ -791,6 +791,7 @@ class _EditablePipelineRow extends StatelessWidget {
             child: DropdownButtonFormField<String>(
               initialValue: options.first,
               decoration: _inlineInputDecoration('Status'),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
               items: options
                   .map((option) => DropdownMenuItem(value: option, child: Text(option)))
                   .toList(),
@@ -880,7 +881,7 @@ class _EditableChecklistRow extends StatelessWidget {
               key: ValueKey('checklist-$index'),
               initialValue: value,
               decoration: _inlineInputDecoration('Add item'),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
               onChanged: onChanged,
             ),
           ),
@@ -941,7 +942,7 @@ class _EditableBulletRow extends StatelessWidget {
               key: ValueKey('bullet-$index'),
               initialValue: value,
               decoration: _inlineInputDecoration('Add dependency'),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF374151), height: 1.4),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.4),
               onChanged: onChanged,
             ),
           ),
@@ -1000,7 +1001,7 @@ class _EditableRegisterRow extends StatelessWidget {
               key: ValueKey('deliverable-name-$index'),
               initialValue: row.name,
               decoration: _inlineInputDecoration('Deliverable'),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF111827)),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
               onChanged: (value) => onChanged(row.copyWith(name: value)),
             ),
           ),
@@ -1011,7 +1012,7 @@ class _EditableRegisterRow extends StatelessWidget {
               key: ValueKey('deliverable-owner-$index'),
               initialValue: row.owner,
               decoration: _inlineInputDecoration('Owner'),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               onChanged: (value) => onChanged(row.copyWith(owner: value)),
             ),
           ),
@@ -1021,6 +1022,7 @@ class _EditableRegisterRow extends StatelessWidget {
             child: DropdownButtonFormField<String>(
               initialValue: statusOptions.first,
               decoration: _inlineInputDecoration('Status'),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
               items: statusOptions
                   .map((option) => DropdownMenuItem(value: option, child: Text(option)))
                   .toList(),
@@ -1037,7 +1039,7 @@ class _EditableRegisterRow extends StatelessWidget {
               key: ValueKey('deliverable-due-$index'),
               initialValue: row.due,
               decoration: _inlineInputDecoration('Due date'),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               keyboardType: TextInputType.datetime,
               onChanged: (value) => onChanged(row.copyWith(due: value)),
             ),
@@ -1048,6 +1050,7 @@ class _EditableRegisterRow extends StatelessWidget {
             child: DropdownButtonFormField<String>(
               initialValue: riskOptions.first,
               decoration: _inlineInputDecoration('Risk'),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
               items: riskOptions
                   .map((option) => DropdownMenuItem(value: option, child: Text(option)))
                   .toList(),
@@ -1268,6 +1271,7 @@ InputDecoration _inlineInputDecoration(String hint) {
   return InputDecoration(
     isDense: true,
     hintText: hint,
+    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
     filled: true,
     fillColor: const Color(0xFFF9FAFB),
     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
