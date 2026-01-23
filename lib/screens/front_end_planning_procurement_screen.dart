@@ -51,6 +51,8 @@ class _FrontEndPlanningProcurementScreenState
   final List<_ProcurementStrategy> _strategies = [];
 
   final List<_VendorRow> _vendors = [];
+  final Set<String> _selectedVendorIds = {};
+  int _vendorIdCounter = 0;
 
   final List<_VendorHealthMetric> _vendorHealthMetrics = [];
 
@@ -80,6 +82,9 @@ class _FrontEndPlanningProcurementScreenState
 
   late final OpenAiServiceSecure _openAi;
   bool _isGeneratingData = false;
+
+  String _newVendorId() =>
+      'vendor_${DateTime.now().microsecondsSinceEpoch}_${_vendorIdCounter++}';
 
   @override
   void initState() {
@@ -204,8 +209,7 @@ class _FrontEndPlanningProcurementScreenState
             status: _ProcurementItemStatus.planning,
             priority: _ProcurementPriority.medium,
             budget: 50000 + (i * 10000),
-            estimatedDelivery:
-                DateFormat('MMM d, yyyy').format(now.add(Duration(days: 90))),
+            estimatedDelivery: _formatStoreDate(now.add(Duration(days: 90))),
             progress: 0.0,
           ));
         }
@@ -228,8 +232,7 @@ class _FrontEndPlanningProcurementScreenState
 
           final deliveryDays = (result['estimatedDeliveryDays'] as int?) ?? 90;
           final deliveryDate = DateTime.now().add(Duration(days: deliveryDays));
-          final deliveryDateStr =
-              DateFormat('MMM d, yyyy').format(deliveryDate);
+          final deliveryDateStr = _formatStoreDate(deliveryDate);
 
           _ProcurementPriority priority;
           final priorityStr = (result['priority'] ?? 'medium').toString();
@@ -289,8 +292,7 @@ class _FrontEndPlanningProcurementScreenState
             status: _ProcurementItemStatus.planning,
             priority: _ProcurementPriority.medium,
             budget: 50000 + (i * 10000),
-            estimatedDelivery:
-                DateFormat('MMM d, yyyy').format(now.add(Duration(days: 90))),
+            estimatedDelivery: _formatStoreDate(now.add(Duration(days: 90))),
             progress: 0.0,
           ));
         }
@@ -354,6 +356,7 @@ class _FrontEndPlanningProcurementScreenState
         _vendors.clear();
         _vendors.addAll([
           _VendorRow(
+              id: _newVendorId(),
               initials: 'TC',
               name: 'TechCorp Solutions',
               category: 'IT Equipment',
@@ -361,6 +364,7 @@ class _FrontEndPlanningProcurementScreenState
               approved: true,
               preferred: false),
           _VendorRow(
+              id: _newVendorId(),
               initials: 'BC',
               name: 'BuildRight Contractors',
               category: 'Construction Services',
@@ -368,6 +372,7 @@ class _FrontEndPlanningProcurementScreenState
               approved: true,
               preferred: true),
           _VendorRow(
+              id: _newVendorId(),
               initials: 'OE',
               name: 'Office Essentials Co',
               category: 'Furniture',
@@ -375,6 +380,7 @@ class _FrontEndPlanningProcurementScreenState
               approved: true,
               preferred: false),
           _VendorRow(
+              id: _newVendorId(),
               initials: 'SG',
               name: 'SecureGuard Services',
               category: 'Security',
@@ -382,6 +388,7 @@ class _FrontEndPlanningProcurementScreenState
               approved: true,
               preferred: false),
           _VendorRow(
+              id: _newVendorId(),
               initials: 'FT',
               name: 'FastTrack Logistics',
               category: 'Logistics',
@@ -407,6 +414,7 @@ class _FrontEndPlanningProcurementScreenState
           _vendors.addAll(vendors.map((v) {
             final name = (v['name'] ?? '').toString();
             return _VendorRow(
+              id: _newVendorId(),
               initials: _deriveInitials(name),
               name: name,
               category: (v['category'] ?? 'IT Equipment').toString(),
@@ -824,6 +832,60 @@ class _FrontEndPlanningProcurementScreenState
     }).toList();
   }
 
+  bool _isVendorSelected(String vendorId) =>
+      _selectedVendorIds.contains(vendorId);
+
+  void _toggleVendorSelection(String vendorId, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedVendorIds.add(vendorId);
+      } else {
+        _selectedVendorIds.remove(vendorId);
+      }
+    });
+  }
+
+  Future<void> _openEditVendorDialog(_VendorRow vendor) async {
+    final categoryOptions = const [
+      'IT Equipment',
+      'Construction Services',
+      'Furniture',
+      'Security',
+      'Logistics',
+      'Services',
+      'Materials',
+    ];
+
+    final result = await showDialog<_VendorRow>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (dialogContext) {
+        return _AddVendorDialog(
+          contextChips: _buildDialogContextChips(),
+          categoryOptions: categoryOptions,
+          initialVendor: vendor,
+        );
+      },
+    );
+
+    if (result != null) {
+      setState(() {
+        final index = _vendors.indexWhere((v) => v.id == vendor.id);
+        if (index != -1) {
+          _vendors[index] = result;
+        }
+      });
+    }
+  }
+
+  void _removeVendor(String vendorId) {
+    setState(() {
+      _vendors.removeWhere((vendor) => vendor.id == vendorId);
+      _selectedVendorIds.remove(vendorId);
+    });
+  }
+
   void _handleNotesChanged(String value) {
     final provider = ProjectDataHelper.getProvider(context);
     provider.updateField(
@@ -968,6 +1030,7 @@ class _FrontEndPlanningProcurementScreenState
           key: const ValueKey('procurement_vendor_management'),
           vendors: _filteredVendors,
           allVendors: _vendors,
+          selectedVendorIds: _selectedVendorIds,
           approvedOnly: _approvedOnly,
           preferredOnly: _preferredOnly,
           listView: _listView,
@@ -981,6 +1044,9 @@ class _FrontEndPlanningProcurementScreenState
           onPreferredChanged: (value) => setState(() => _preferredOnly = value),
           onCategoryChanged: (value) => setState(() => _categoryFilter = value),
           onViewModeChanged: (value) => setState(() => _listView = value),
+          onToggleVendorSelected: _toggleVendorSelection,
+          onEditVendor: _openEditVendorDialog,
+          onDeleteVendor: _removeVendor,
         );
       case _ProcurementTab.rfqWorkflow:
         return _RfqWorkflowView(
@@ -1062,6 +1128,7 @@ class _FrontEndPlanningProcurementScreenState
         _VendorsSection(
           vendors: _filteredVendors,
           allVendorsCount: _vendors.length,
+          selectedVendorIds: _selectedVendorIds,
           approvedOnly: _approvedOnly,
           preferredOnly: _preferredOnly,
           listView: _listView,
@@ -1072,6 +1139,9 @@ class _FrontEndPlanningProcurementScreenState
           onPreferredChanged: (value) => setState(() => _preferredOnly = value),
           onCategoryChanged: (value) => setState(() => _categoryFilter = value),
           onViewModeChanged: (value) => setState(() => _listView = value),
+          onToggleVendorSelected: _toggleVendorSelection,
+          onEditVendor: _openEditVendorDialog,
+          onDeleteVendor: _removeVendor,
         ),
       ],
     );
@@ -2851,6 +2921,7 @@ class _VendorsSection extends StatelessWidget {
   const _VendorsSection({
     required this.vendors,
     required this.allVendorsCount,
+    required this.selectedVendorIds,
     required this.approvedOnly,
     required this.preferredOnly,
     required this.listView,
@@ -2860,11 +2931,15 @@ class _VendorsSection extends StatelessWidget {
     required this.onPreferredChanged,
     required this.onCategoryChanged,
     required this.onViewModeChanged,
+    required this.onToggleVendorSelected,
+    required this.onEditVendor,
+    required this.onDeleteVendor,
     this.onAddVendor,
   });
 
   final List<_VendorRow> vendors;
   final int allVendorsCount;
+  final Set<String> selectedVendorIds;
   final bool approvedOnly;
   final bool preferredOnly;
   final bool listView;
@@ -2874,6 +2949,9 @@ class _VendorsSection extends StatelessWidget {
   final ValueChanged<bool> onPreferredChanged;
   final ValueChanged<String> onCategoryChanged;
   final ValueChanged<bool> onViewModeChanged;
+  final void Function(String vendorId, bool selected) onToggleVendorSelected;
+  final ValueChanged<_VendorRow> onEditVendor;
+  final ValueChanged<String> onDeleteVendor;
   final VoidCallback? onAddVendor;
 
   @override
@@ -3002,18 +3080,40 @@ class _VendorsSection extends StatelessWidget {
             onAction: onAddVendor,
           )
         else if (listView)
-          _VendorDataTable(vendors: vendors)
+          _VendorDataTable(
+            vendors: vendors,
+            selectedVendorIds: selectedVendorIds,
+            onToggleSelected: onToggleVendorSelected,
+            onEditVendor: onEditVendor,
+            onDeleteVendor: onDeleteVendor,
+          )
         else
-          _VendorGrid(vendors: vendors),
+          _VendorGrid(
+            vendors: vendors,
+            selectedVendorIds: selectedVendorIds,
+            onToggleSelected: onToggleVendorSelected,
+            onEditVendor: onEditVendor,
+            onDeleteVendor: onDeleteVendor,
+          ),
       ],
     );
   }
 }
 
 class _VendorDataTable extends StatelessWidget {
-  const _VendorDataTable({required this.vendors});
+  const _VendorDataTable({
+    required this.vendors,
+    required this.selectedVendorIds,
+    required this.onToggleSelected,
+    required this.onEditVendor,
+    required this.onDeleteVendor,
+  });
 
   final List<_VendorRow> vendors;
+  final Set<String> selectedVendorIds;
+  final void Function(String vendorId, bool selected) onToggleSelected;
+  final ValueChanged<_VendorRow> onEditVendor;
+  final ValueChanged<String> onDeleteVendor;
 
   @override
   Widget build(BuildContext context) {
@@ -3052,16 +3152,24 @@ class _VendorDataTable extends StatelessWidget {
                     .map(
                       (vendor) => DataRow(
                         cells: [
-                          DataCell(Checkbox(value: false, onChanged: (_) {})),
+                          DataCell(
+                            Checkbox(
+                              value: selectedVendorIds.contains(vendor.id),
+                              onChanged: (value) => onToggleSelected(
+                                  vendor.id, value ?? false),
+                            ),
+                          ),
                           DataCell(_VendorNameCell(vendor: vendor)),
                           DataCell(Text(vendor.category)),
                           DataCell(_RatingStars(rating: vendor.rating)),
                           DataCell(_YesNoBadge(value: vendor.approved)),
                           DataCell(_YesNoBadge(
                               value: vendor.preferred, showStar: true)),
-                          DataCell(IconButton(
-                              icon: const Icon(Icons.more_horiz_rounded),
-                              onPressed: () {})),
+                          DataCell(_VendorActionsMenu(
+                            vendor: vendor,
+                            onEdit: () => onEditVendor(vendor),
+                            onDelete: () => onDeleteVendor(vendor.id),
+                          )),
                         ],
                       ),
                     )
@@ -3076,9 +3184,19 @@ class _VendorDataTable extends StatelessWidget {
 }
 
 class _VendorGrid extends StatelessWidget {
-  const _VendorGrid({required this.vendors});
+  const _VendorGrid({
+    required this.vendors,
+    required this.selectedVendorIds,
+    required this.onToggleSelected,
+    required this.onEditVendor,
+    required this.onDeleteVendor,
+  });
 
   final List<_VendorRow> vendors;
+  final Set<String> selectedVendorIds;
+  final void Function(String vendorId, bool selected) onToggleSelected;
+  final ValueChanged<_VendorRow> onEditVendor;
+  final ValueChanged<String> onDeleteVendor;
 
   @override
   Widget build(BuildContext context) {
@@ -3104,6 +3222,14 @@ class _VendorGrid extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: Checkbox(
+                  value: selectedVendorIds.contains(vendor.id),
+                  onChanged: (value) =>
+                      onToggleSelected(vendor.id, value ?? false),
+                ),
+              ),
               _VendorNameCell(vendor: vendor),
               const SizedBox(height: 8),
               Text(vendor.category,
@@ -3118,15 +3244,47 @@ class _VendorGrid extends StatelessWidget {
                   const SizedBox(width: 8),
                   _YesNoBadge(value: vendor.preferred, showStar: true),
                   const Spacer(),
-                  IconButton(
-                      icon: const Icon(Icons.more_horiz_rounded),
-                      onPressed: () {}),
+                  _VendorActionsMenu(
+                    vendor: vendor,
+                    onEdit: () => onEditVendor(vendor),
+                    onDelete: () => onDeleteVendor(vendor.id),
+                  ),
                 ],
               ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _VendorActionsMenu extends StatelessWidget {
+  const _VendorActionsMenu({
+    required this.vendor,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final _VendorRow vendor;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_horiz_rounded),
+      onSelected: (value) {
+        if (value == 'edit') {
+          onEdit();
+        } else if (value == 'delete') {
+          onDelete();
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'edit', child: Text('Edit vendor')),
+        PopupMenuItem(value: 'delete', child: Text('Remove vendor')),
+      ],
     );
   }
 }
@@ -3240,6 +3398,7 @@ class _VendorManagementView extends StatelessWidget {
     super.key,
     required this.vendors,
     required this.allVendors,
+    required this.selectedVendorIds,
     required this.approvedOnly,
     required this.preferredOnly,
     required this.listView,
@@ -3253,10 +3412,14 @@ class _VendorManagementView extends StatelessWidget {
     required this.onPreferredChanged,
     required this.onCategoryChanged,
     required this.onViewModeChanged,
+    required this.onToggleVendorSelected,
+    required this.onEditVendor,
+    required this.onDeleteVendor,
   });
 
   final List<_VendorRow> vendors;
   final List<_VendorRow> allVendors;
+  final Set<String> selectedVendorIds;
   final bool approvedOnly;
   final bool preferredOnly;
   final bool listView;
@@ -3270,6 +3433,9 @@ class _VendorManagementView extends StatelessWidget {
   final ValueChanged<bool> onPreferredChanged;
   final ValueChanged<String> onCategoryChanged;
   final ValueChanged<bool> onViewModeChanged;
+  final void Function(String vendorId, bool selected) onToggleVendorSelected;
+  final ValueChanged<_VendorRow> onEditVendor;
+  final ValueChanged<String> onDeleteVendor;
 
   @override
   Widget build(BuildContext context) {
@@ -3410,6 +3576,7 @@ class _VendorManagementView extends StatelessWidget {
         _VendorsSection(
           vendors: vendors,
           allVendorsCount: allVendors.length,
+          selectedVendorIds: selectedVendorIds,
           approvedOnly: approvedOnly,
           preferredOnly: preferredOnly,
           listView: listView,
@@ -3420,6 +3587,9 @@ class _VendorManagementView extends StatelessWidget {
           onPreferredChanged: onPreferredChanged,
           onCategoryChanged: onCategoryChanged,
           onViewModeChanged: onViewModeChanged,
+          onToggleVendorSelected: onToggleVendorSelected,
+          onEditVendor: onEditVendor,
+          onDeleteVendor: onDeleteVendor,
         ),
       ],
     );
@@ -6439,6 +6609,7 @@ enum _StrategyStatus { active, draft }
 
 class _VendorRow {
   const _VendorRow({
+    required this.id,
     required this.initials,
     required this.name,
     required this.category,
@@ -6447,12 +6618,33 @@ class _VendorRow {
     required this.preferred,
   });
 
+  final String id;
   final String initials;
   final String name;
   final String category;
   final int rating;
   final bool approved;
   final bool preferred;
+
+  _VendorRow copyWith({
+    String? id,
+    String? initials,
+    String? name,
+    String? category,
+    int? rating,
+    bool? approved,
+    bool? preferred,
+  }) {
+    return _VendorRow(
+      id: id ?? this.id,
+      initials: initials ?? this.initials,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      rating: rating ?? this.rating,
+      approved: approved ?? this.approved,
+      preferred: preferred ?? this.preferred,
+    );
+  }
 }
 
 class _VendorHealthMetric {
@@ -6945,10 +7137,12 @@ class _AddVendorDialog extends StatefulWidget {
   const _AddVendorDialog({
     required this.contextChips,
     required this.categoryOptions,
+    this.initialVendor,
   });
 
   final List<Widget> contextChips;
   final List<String> categoryOptions;
+  final _VendorRow? initialVendor;
 
   @override
   State<_AddVendorDialog> createState() => _AddVendorDialogState();
@@ -6965,12 +7159,18 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
 
   final FocusNode _nameFocus = FocusNode();
   late final OpenAiServiceSecure _openAi;
+  bool get _isEditing => widget.initialVendor != null;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController();
-    _category = widget.categoryOptions.first;
+    _nameCtrl = TextEditingController(
+        text: widget.initialVendor?.name ?? '');
+    _category = widget.initialVendor?.category ??
+        widget.categoryOptions.first;
+    _rating = (widget.initialVendor?.rating ?? 4).toDouble();
+    _approved = widget.initialVendor?.approved ?? true;
+    _preferred = widget.initialVendor?.preferred ?? false;
     _openAi = OpenAiServiceSecure();
     ApiKeyManager.initializeApiKey();
 
@@ -7091,19 +7291,27 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final categoryOptions = widget.categoryOptions.contains(_category)
+        ? widget.categoryOptions
+        : [_category, ...widget.categoryOptions];
     return _ProcurementDialogShell(
-      title: 'Add Vendor Partner',
-      subtitle: 'Build your trusted supplier network.',
+      title: _isEditing ? 'Edit Vendor' : 'Add Vendor Partner',
+      subtitle: _isEditing
+          ? 'Update vendor details and qualification.'
+          : 'Build your trusted supplier network.',
       icon: Icons.storefront_outlined,
       contextChips: widget.contextChips,
-      primaryLabel: 'Add Vendor',
+      primaryLabel: _isEditing ? 'Save Changes' : 'Add Vendor',
       secondaryLabel: 'Cancel',
       onSecondary: () => Navigator.of(context).pop(),
       onPrimary: () {
         final valid = _formKey.currentState?.validate() ?? false;
         if (!valid) return;
         final name = _nameCtrl.text.trim();
+        final vendorId = widget.initialVendor?.id ??
+            'vendor_${DateTime.now().microsecondsSinceEpoch}';
         final vendor = _VendorRow(
+          id: vendorId,
           initials: _deriveInitials(name),
           name: name,
           category: _category,
@@ -7159,7 +7367,7 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
             DropdownButtonFormField<String>(
               initialValue: _category,
               decoration: _dialogDecoration(label: 'Category'),
-              items: widget.categoryOptions
+              items: categoryOptions
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
                   .toList(),

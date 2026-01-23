@@ -1129,11 +1129,7 @@ class _PreferredSolutionAnalysisScreenState
             title: 'Core stakeholders',
             child: _buildStakeholdersDetail(data),
           ),
-          if (cbaRows.isNotEmpty)
-            _buildDetailSectionCard(
-              title: 'Cost benefit (from CBA)',
-              child: _buildCbaCostRows(cbaRows),
-            ),
+          _buildCostBenefitSection(cbaRows),
           _buildDetailSectionCard(
             title: 'Investment overview (AI)',
             child: _buildInvestmentOverviewBody(data.costs),
@@ -1394,11 +1390,7 @@ class _PreferredSolutionAnalysisScreenState
                         title: 'Core stakeholders',
                         child: _buildStakeholdersDetail(data),
                       ),
-                      if (cbaRows.isNotEmpty)
-                        _buildDetailSectionCard(
-                          title: 'Cost benefit (from CBA)',
-                          child: _buildCbaCostRows(cbaRows),
-                        ),
+                      _buildCostBenefitSection(cbaRows),
                       _buildDetailSectionCard(
                         title: 'Investment overview (AI)',
                         child: _buildInvestmentOverviewBody(data.costs),
@@ -1435,6 +1427,22 @@ class _PreferredSolutionAnalysisScreenState
           child,
         ],
       ),
+    );
+  }
+
+  Widget _buildCostBenefitSection(List<CostRowData> cbaRows) {
+    if (cbaRows.isEmpty) {
+      return _buildDetailSectionCard(
+        title: 'Cost benefit & financial metrics',
+        child: const Text(
+          'No cost benefit analysis captured yet.',
+          style: TextStyle(fontSize: 14, color: Colors.black45),
+        ),
+      );
+    }
+    return _buildDetailSectionCard(
+      title: 'Cost benefit & financial metrics',
+      child: _buildCbaCostRows(cbaRows),
     );
   }
 
