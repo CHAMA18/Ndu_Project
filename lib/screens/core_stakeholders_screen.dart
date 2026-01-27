@@ -29,6 +29,8 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 
 class CoreStakeholdersScreen extends StatefulWidget {
   final String notes;
@@ -699,20 +701,16 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                   style: TextStyle(fontSize: 14, color: Colors.grey[600])),
             ]),
           ),
-          // Refresh icon in top-right of header
-          IconButton(
-            icon: _isGenerating
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Color(0xFF2563EB)),
-                  )
-                : const Icon(Icons.refresh, size: 20, color: Color(0xFF2563EB)),
-            onPressed: _isGenerating ? null : _generateStakeholders,
-            tooltip: 'Generate stakeholders',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          // Page-level Regenerate All button
+          PageRegenerateAllButton(
+            onRegenerateAll: () async {
+              final confirmed = await showRegenerateAllConfirmation(context);
+              if (confirmed && mounted) {
+                await _regenerateAllStakeholders();
+              }
+            },
+            isLoading: _isGenerating,
+            tooltip: 'Regenerate all stakeholders',
           ),
         ]),
         const SizedBox(height: 16),
@@ -781,59 +779,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         Text('Reminder: update text within each box.',
             style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic)),
         const SizedBox(height: 12),
-        // Internal
-        const EditableContentText(
-            contentKey: 'internal_stakeholders_subheading',
-            fallback: 'Internal',
-            category: 'business_case',
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87)),
-        const SizedBox(height: 12),
-        if (isMobile) ...[
-          Column(
-              children: List.generate(
-                  _solutions.length, (i) => _buildInternalRow(i))),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: const Row(children: [
-              Expanded(
-                  flex: 2,
-                  child: EditableContentText(
-                      contentKey: 'stakeholders_table_header_solution',
-                      fallback: 'Potential Solution',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
-              Expanded(
-                  flex: 3,
-                  child: EditableContentText(
-                      contentKey: 'stakeholders_table_header_internal',
-                      fallback: 'Internal Stakeholders',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: Column(
-                children: List.generate(
-                    _solutions.length, (i) => _buildInternalRow(i))),
-          ),
-        ],
-        const SizedBox(height: 32),
-        // External
+        // External (moved to top)
         const EditableContentText(
             contentKey: 'external_stakeholders_subheading',
             fallback: 'External',
@@ -857,20 +803,24 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
             child: const Row(children: [
               Expanded(
                   flex: 2,
-                  child: EditableContentText(
-                      contentKey: 'stakeholders_table_header_solution',
-                      fallback: 'Potential Solution',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                    child: EditableContentText(
+                        contentKey: 'stakeholders_table_header_solution',
+                        fallback: 'Potential Solution',
+                        category: 'business_case',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                  )),
               Expanded(
                   flex: 3,
-                  child: EditableContentText(
-                      contentKey: 'stakeholders_table_header_external',
-                      fallback: 'External Stakeholders',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                    child: EditableContentText(
+                        contentKey: 'stakeholders_table_header_external',
+                        fallback: 'External Stakeholders',
+                        category: 'business_case',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                  )),
             ]),
           ),
           const SizedBox(height: 8),
@@ -882,6 +832,62 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
             child: Column(
                 children: List.generate(
                     _solutions.length, (i) => _buildExternalRow(i))),
+          ),
+        ],
+        const SizedBox(height: 32),
+        // Internal (moved to bottom)
+        const EditableContentText(
+            contentKey: 'internal_stakeholders_subheading',
+            fallback: 'Internal',
+            category: 'business_case',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87)),
+        const SizedBox(height: 12),
+        if (isMobile) ...[
+          Column(
+              children: List.generate(
+                  _solutions.length, (i) => _buildInternalRow(i))),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
+            child: const Row(children: [
+              Expanded(
+                  flex: 2,
+                  child: Center(
+                    child: EditableContentText(
+                        contentKey: 'stakeholders_table_header_solution',
+                        fallback: 'Potential Solution',
+                        category: 'business_case',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                  )),
+              Expanded(
+                  flex: 3,
+                  child: Center(
+                    child: EditableContentText(
+                        contentKey: 'stakeholders_table_header_internal',
+                        fallback: 'Internal Stakeholders',
+                        category: 'business_case',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                  )),
+            ]),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
+            child: Column(
+                children: List.generate(
+                    _solutions.length, (i) => _buildInternalRow(i))),
           ),
         ],
         const SizedBox(height: 16),
@@ -1070,6 +1076,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       index,
       _internalStakeholderControllers[index],
       'Enter internal stakeholders for Solution ${index + 1}...',
+      isInternal: true,
     );
   }
 
@@ -1078,11 +1085,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       index,
       _externalStakeholderControllers[index],
       'Enter external stakeholders for Solution ${index + 1}...',
+      isInternal: false,
     );
   }
 
   Widget _buildStakeholderRow(
-      int index, TextEditingController controller, String hintText) {
+      int index, TextEditingController controller, String hintText, {bool isInternal = true}) {
     final isMobile = AppBreakpoints.isMobile(context);
     // Handle cases where we have more controllers than initial solutions (user added items)
     final s = index < _solutions.length
@@ -1110,7 +1118,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                     style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
               const SizedBox(height: 10),
-              _stakeholderTextArea(controller, hintText),
+              _stakeholderTextArea(controller, hintText, index, isInternal),
             ])
           : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
@@ -1149,7 +1157,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                  flex: 3, child: _stakeholderTextArea(controller, hintText)),
+                  flex: 3, child: _stakeholderTextArea(controller, hintText, index, isInternal)),
             ]),
     );
   }
@@ -1246,26 +1254,95 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   }
 
   Widget _stakeholderTextArea(
-      TextEditingController controller, String hintText) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
-      child: TextField(
-        controller: controller,
-        minLines: 2,
-        maxLines: null,
-        decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
-            border: InputBorder.none,
-            isDense: true,
-            contentPadding: EdgeInsets.zero),
-        style: const TextStyle(fontSize: 12, color: Colors.black87),
+      TextEditingController controller, String hintText, int index, bool isInternal) {
+    final provider = ProjectDataHelper.getProvider(context);
+    final solutionTitle = index < _solutions.length ? _solutions[index].title : '';
+    final fieldKey = 'stakeholder_${isInternal ? 'internal' : 'external'}_${solutionTitle}_$index';
+    final canUndo = provider.canUndoField(fieldKey);
+
+    return HoverableFieldControls(
+      isAiGenerated: true,
+      isLoading: false,
+      canUndo: canUndo,
+      onRegenerate: () async {
+        // Add current value to history
+        provider.addFieldToHistory(fieldKey, controller.text, isAiGenerated: true);
+        // Regenerate this specific stakeholder field
+        await _regenerateSingleStakeholderField(controller, index, isInternal);
+      },
+      onUndo: () async {
+        final previousValue = provider.projectData.undoField(fieldKey);
+        if (previousValue != null) {
+          controller.text = previousValue;
+          await provider.saveToFirebase(checkpoint: 'stakeholder_undo');
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
+        child: TextField(
+          controller: controller,
+          minLines: 2,
+          maxLines: null,
+          decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero),
+          style: const TextStyle(fontSize: 12, color: Colors.black87),
+        ),
       ),
     );
+  }
+
+  Future<void> _regenerateSingleStakeholderField(
+      TextEditingController controller, int index, bool isInternal) async {
+    try {
+      if (index >= _solutions.length) return;
+      
+      final solution = _solutions[index];
+      final solutionsToUse = [solution];
+      final contextNotes = _notesController.text.trim();
+      
+      final result = await _openAi.generateStakeholdersForSolutions(
+        solutionsToUse,
+        contextNotes: contextNotes,
+      );
+      
+      final internalMap = result['internal'] ?? <String, List<String>>{};
+      final externalMap = result['external'] ?? <String, List<String>>{};
+      
+      if (isInternal) {
+        final internalStakeholders = internalMap[solution.title] ?? <String>[];
+        controller.text = internalStakeholders.isEmpty
+            ? ''
+            : internalStakeholders.map((e) => '- $e').join('\n');
+      } else {
+        final externalStakeholders = externalMap[solution.title] ?? <String>[];
+        controller.text = externalStakeholders.isEmpty
+            ? ''
+            : externalStakeholders.map((e) => '- $e').join('\n');
+      }
+      
+      final provider = ProjectDataHelper.getProvider(context);
+      await provider.saveToFirebase(checkpoint: 'stakeholder_field_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Stakeholder field regenerated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _generateStakeholders() async {
@@ -1275,12 +1352,25 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       _error = null;
     });
     try {
+      final provider = ProjectDataHelper.getProvider(context);
+      
+      // Add current values to history before regenerating
+      for (int i = 0; i < _solutions.length; i++) {
+        if (i < _internalStakeholderControllers.length) {
+          final fieldKey = 'stakeholder_internal_${_solutions[i].title}';
+          provider.addFieldToHistory(fieldKey, _internalStakeholderControllers[i].text, isAiGenerated: true);
+        }
+        if (i < _externalStakeholderControllers.length) {
+          final fieldKey = 'stakeholder_external_${_solutions[i].title}';
+          provider.addFieldToHistory(fieldKey, _externalStakeholderControllers[i].text, isAiGenerated: true);
+        }
+      }
+      
       // Get project context for fallback if solutions are empty
-      final provider = ProjectDataInherited.maybeOf(context);
-      final projectData = provider?.projectData;
-      final projectName = projectData?.projectName ?? '';
+      final projectData = provider.projectData;
+      final projectName = projectData.projectName ?? '';
       final projectDescription =
-          projectData?.solutionDescription ?? projectData?.businessCase ?? '';
+          projectData.solutionDescription ?? projectData.businessCase ?? '';
 
       // Use solutions if available, otherwise create a placeholder from project name
       final solutionsToUse = _solutions
@@ -1348,8 +1438,22 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
             ? ''
             : externalStakeholders.map((e) => '- $e').join('\n');
       }
+      
+      // Auto-save after regeneration
+      await provider.saveToFirebase(checkpoint: 'stakeholders_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Stakeholders regenerated successfully')),
+        );
+      }
     } catch (e) {
       _error = e.toString();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate stakeholders: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isGenerating = false);
@@ -1357,6 +1461,10 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         _saveCoreStakeholdersData();
       }
     }
+  }
+
+  Future<void> _regenerateAllStakeholders() async {
+    await _generateStakeholders();
   }
 
   @override

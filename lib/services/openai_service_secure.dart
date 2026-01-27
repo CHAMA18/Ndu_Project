@@ -1429,7 +1429,7 @@ Context notes (optional): $notes
         {
           'role': 'system',
           'content':
-              'You are a financial analyst helping to prepare a cost-benefit analysis. Provide a clear project value estimate and articulate specific business benefits across financial gains, efficiencies, regulatory compliance, process improvements, and brand impact. Return strict JSON only.'
+              'You are a financial analyst helping to prepare a cost-benefit analysis. Focus on analyzing what VALUE this project brings to the company. Consider financial value (ROI, cost savings, revenue potential), strategic value (market position, competitive advantage), operational value (efficiency improvements, risk mitigation), and long-term impact (sustainability, scalability). Provide quantifiable insights when possible. Return strict JSON only.'
         },
         {
           'role': 'user',
@@ -1487,7 +1487,14 @@ Context notes (optional): $notes
             '{"title": "${_escape(s.title)}", "description": "${_escape(s.description)}"}')
         .join(',');
     return '''
-We are preparing a project cost-benefit analysis. Provide a JSON object with the estimated overall project value (numeric) and detailed notes for five benefit categories: financial_gains, operational_efficiencies, regulatory_compliance, process_improvements, brand_image. Keep each benefit under 20 words and actionable. If you need context, use the optional notes.
+Based on the following project cost-benefit analysis data, provide a comprehensive review of the VALUE this project brings to the company. Consider:
+
+1. Financial Value: ROI, cost savings, revenue potential
+2. Strategic Value: Market position, competitive advantage, strategic alignment
+3. Operational Value: Efficiency improvements, risk mitigation, process optimization
+4. Long-term Impact: Sustainability, scalability, future-proofing
+
+Focus on tangible company benefits and quantify where possible.
 
 Return ONLY valid JSON with this exact structure:
 {

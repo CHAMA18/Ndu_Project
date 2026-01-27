@@ -280,6 +280,80 @@ class ProjectDataProvider extends ChangeNotifier {
     _projectData = _projectData.copyWith(teamMembers: members);
     notifyListeners();
   }
+
+  /// Add a field value to history for undo functionality
+  void addFieldToHistory(String fieldName, String value, {bool isAiGenerated = false}) {
+    _projectData.addFieldToHistory(fieldName, value, isAiGenerated: isAiGenerated);
+    notifyListeners();
+  }
+
+  /// Undo the last change to a field
+  Future<bool> undoField(String fieldName, {String? checkpoint}) async {
+    final previousValue = _projectData.undoField(fieldName);
+    if (previousValue != null) {
+      // Update the field value - this needs to be handled by the calling screen
+      // as we don't know which field in the model this corresponds to
+      notifyListeners();
+      if (checkpoint != null) {
+        await saveToFirebase(checkpoint: checkpoint);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /// Check if a field can be undone
+  bool canUndoField(String fieldName) {
+    return _projectData.canUndoField(fieldName);
+  }
+
+  /// Add a new potential solution
+  Future<bool> addPotentialSolution({String? checkpoint}) async {
+    if (_projectData.potentialSolutions.length >= 3) {
+      return false;
+    }
+    _projectData.addPotentialSolution();
+    notifyListeners();
+    if (checkpoint != null) {
+      await saveToFirebase(checkpoint: checkpoint);
+    }
+    return true;
+  }
+
+  /// Delete a potential solution by ID
+  Future<bool> deletePotentialSolution(String id, {String? checkpoint}) async {
+    final hadSolution = _projectData.potentialSolutions.any((s) => s.id == id);
+    if (!hadSolution) return false;
+    
+    _projectData.deletePotentialSolution(id);
+    notifyListeners();
+    if (checkpoint != null) {
+      await saveToFirebase(checkpoint: checkpoint);
+    }
+    return true;
+  }
+
+  /// Set the preferred solution
+  Future<bool> setPreferredSolution(String solutionId, {String? checkpoint}) async {
+    final solutionExists = _projectData.potentialSolutions.any((s) => s.id == solutionId);
+    if (!solutionExists) return false;
+    
+    _projectData.setPreferredSolution(solutionId);
+    notifyListeners();
+    if (checkpoint != null) {
+      await saveToFirebase(checkpoint: checkpoint);
+    }
+    return true;
+  }
+
+  /// Get the preferred solution
+  PotentialSolution? get preferredSolution => _projectData.preferredSolution;
+
+  /// Update cost benefit currency
+  void updateCostBenefitCurrency(String currency) {
+    _projectData = _projectData.copyWith(costBenefitCurrency: currency);
+    notifyListeners();
+  }
 }
 
 /// InheritedWidget to provide project data throughout the widget tree

@@ -30,6 +30,8 @@ import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 
 class InfrastructureConsiderationsScreen extends StatefulWidget {
   final String notes;
@@ -150,6 +152,14 @@ class _InfrastructureConsiderationsScreenState
     setState(() => _isGeneratingInfra = true);
 
     try {
+      final provider = ProjectDataHelper.getProvider(context);
+      
+      // Add current values to history before regenerating
+      for (int i = 0; i < _solutions.length && i < _infraControllers.length; i++) {
+        final fieldKey = 'infra_${_solutions[i].title}_$i';
+        provider.addFieldToHistory(fieldKey, _infraControllers[i].text, isAiGenerated: true);
+      }
+      
       // Generate infrastructure suggestions (with tailored fallback if OpenAI not configured)
       final result = await _openAi.generateInfrastructureForSolutions(
         _solutions, 
@@ -163,8 +173,64 @@ class _InfrastructureConsiderationsScreenState
         if (items.isEmpty) continue;
         _infraControllers[i].text = items.map((e) => '- $e').join('\n');
       }
+      
+      // Auto-save after regeneration
+      await provider.saveToFirebase(checkpoint: 'infrastructure_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Infrastructure considerations regenerated successfully')),
+        );
+      }
     } catch (e) {
       debugPrint('Error generating infrastructure considerations: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate infrastructure: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingInfra = false);
+    }
+  }
+
+  Future<void> _regenerateAllInfrastructure() async {
+    if (_isGeneratingInfra) return;
+    setState(() => _isGeneratingInfra = true);
+    
+    try {
+      final provider = ProjectDataHelper.getProvider(context);
+      
+      // Add current values to history
+      for (int i = 0; i < _solutions.length && i < _infraControllers.length; i++) {
+        final fieldKey = 'infra_${_solutions[i].title}_$i';
+        provider.addFieldToHistory(fieldKey, _infraControllers[i].text, isAiGenerated: true);
+      }
+      
+      final result = await _openAi.generateInfrastructureForSolutions(
+        _solutions,
+        contextNotes: _notesController.text,
+      );
+      
+      for (int i = 0; i < _solutions.length && i < _infraControllers.length; i++) {
+        final title = _solutions[i].title.trim();
+        final items = result[title] ?? const <String>[];
+        _infraControllers[i].text = items.isEmpty ? '' : items.map((e) => '- $e').join('\n');
+      }
+      
+      await provider.saveToFirebase(checkpoint: 'infrastructure_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Infrastructure regenerated successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isGeneratingInfra = false);
     }
@@ -735,12 +801,25 @@ class _InfrastructureConsiderationsScreenState
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: Colors.black)),
-          EditableContentText(
-              contentKey: 'infrastructure_considerations_description',
-              fallback:
-                  '(List major required infrastructure considerations for each Potential Solution.)',
-              category: 'business_case',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          Expanded(
+            child: EditableContentText(
+                contentKey: 'infrastructure_considerations_description',
+                fallback:
+                    '(List major required infrastructure considerations for each Potential Solution.)',
+                category: 'business_case',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          ),
+          // Page-level Regenerate All button
+          PageRegenerateAllButton(
+            onRegenerateAll: () async {
+              final confirmed = await showRegenerateAllConfirmation(context);
+              if (confirmed && mounted) {
+                await _regenerateAllInfrastructure();
+              }
+            },
+            isLoading: _isGeneratingInfra,
+            tooltip: 'Regenerate all infrastructure considerations',
+          ),
         ]),
         const SizedBox(height: 16),
         const EditableContentText(
@@ -1073,35 +1152,90 @@ class _InfrastructureConsiderationsScreenState
   }
 
   Widget _infraTextArea(TextEditingController controller, {required int index}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextFormattingToolbar(
-          controller: controller,
-          onBeforeUndo: () => _saveInfrastructureConsiderationsData(),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
-          child: TextField(
+    final provider = ProjectDataHelper.getProvider(context);
+    final solutionTitle = index < _solutions.length ? _solutions[index].title : '';
+    final fieldKey = 'infra_${solutionTitle}_$index';
+    final canUndo = provider.canUndoField(fieldKey);
+
+    return HoverableFieldControls(
+      isAiGenerated: true,
+      isLoading: false,
+      canUndo: canUndo,
+      onRegenerate: () async {
+        // Add current value to history
+        provider.addFieldToHistory(fieldKey, controller.text, isAiGenerated: true);
+        // Regenerate this specific infrastructure field
+        await _regenerateSingleInfraField(controller, index);
+      },
+      onUndo: () async {
+        final previousValue = provider.projectData.undoField(fieldKey);
+        if (previousValue != null) {
+          controller.text = previousValue;
+          await provider.saveToFirebase(checkpoint: 'infra_undo');
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormattingToolbar(
             controller: controller,
-            minLines: 2,
-            maxLines: null,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              hintText: 'Enter main infrastructure considerations for Solution ${index + 1}...',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-            ),
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            onBeforeUndo: () => _saveInfrastructureConsiderationsData(),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
+            child: TextField(
+              controller: controller,
+              minLines: 2,
+              maxLines: null,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText: 'Enter main infrastructure considerations for Solution ${index + 1}...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+              ),
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _regenerateSingleInfraField(TextEditingController controller, int index) async {
+    try {
+      if (index >= _solutions.length) return;
+      
+      final solution = _solutions[index];
+      final solutionsToUse = [solution];
+      
+      final result = await _openAi.generateInfrastructureForSolutions(
+        solutionsToUse,
+        contextNotes: _notesController.text,
+      );
+      
+      final items = result[solution.title] ?? const <String>[];
+      controller.text = items.isEmpty ? '' : items.map((e) => '- $e').join('\n');
+      
+      final provider = ProjectDataHelper.getProvider(context);
+      await provider.saveToFirebase(checkpoint: 'infra_field_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Infrastructure field regenerated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate: $e')),
+        );
+      }
+    }
   }
 }

@@ -12,6 +12,7 @@ import 'package:ndu_project/screens/project_framework_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 
 class ProjectCharterScreen extends StatefulWidget {
   const ProjectCharterScreen({super.key});
@@ -67,6 +68,24 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     _projectManagerController.dispose();
     _projectSponsorController.dispose();
     super.dispose();
+  }
+
+  Future<void> _regenerateAllCharter() async {
+    if (_projectData == null) return;
+    // Reset content to trigger regeneration
+    final provider = ProjectDataInherited.of(context);
+    provider.updateField((data) {
+      return data.copyWith(
+        businessCase: '',
+        projectGoals: [],
+        charterAssumptions: '',
+        charterConstraints: '',
+      );
+    });
+    setState(() {
+      _projectData = provider.projectData;
+    });
+    await _ensureCharterContent();
   }
 
   Future<void> _ensureCharterContent() async {
@@ -242,15 +261,32 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Project Charter',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          fontSize: isMobile ? 24 : 32,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Project Charter',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                fontSize: isMobile ? 24 : 32,
+                                letterSpacing: 1.2,
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                         ),
+                      ),
+                      PageRegenerateAllButton(
+                        onRegenerateAll: () async {
+                          final confirmed = await showRegenerateAllConfirmation(context);
+                          if (confirmed && mounted) {
+                            await _regenerateAllCharter();
+                          }
+                        },
+                        isLoading: _isGenerating,
+                        tooltip: 'Regenerate all charter content',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 32),
                   Container(
@@ -296,6 +332,14 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                           });
                         }
                       },
+                      onProjectDataChanged: () {
+                        if (mounted) {
+                          final provider = ProjectDataInherited.of(context);
+                          setState(() {
+                            _projectData = provider.projectData;
+                          });
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -320,6 +364,7 @@ class _CharterContent extends StatelessWidget {
     required this.projectSponsorController,
     required this.isSavingNames,
     required this.onSaveNames,
+    required this.onProjectDataChanged,
   });
 
   final bool isStacked;
@@ -328,6 +373,7 @@ class _CharterContent extends StatelessWidget {
   final TextEditingController projectSponsorController;
   final bool isSavingNames;
   final Future<void> Function() onSaveNames;
+  final VoidCallback onProjectDataChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -347,6 +393,7 @@ class _CharterContent extends StatelessWidget {
           _CharterDetailsPanel(
             isStacked: true,
             projectData: projectData,
+            onProjectDataChanged: onProjectDataChanged,
           ),
         ],
       );
@@ -367,6 +414,7 @@ class _CharterContent extends StatelessWidget {
             child: _CharterDetailsPanel(
           isStacked: false,
           projectData: projectData,
+          onProjectDataChanged: onProjectDataChanged,
         )),
       ],
     );
@@ -877,16 +925,264 @@ class _BudgetLegend extends StatelessWidget {
   }
 }
 
-class _CharterDetailsPanel extends StatelessWidget {
-  const _CharterDetailsPanel(
-      {required this.isStacked, required this.projectData});
+class _CharterDetailsPanel extends StatefulWidget {
+  const _CharterDetailsPanel({
+    required this.isStacked,
+    required this.projectData,
+    required this.onProjectDataChanged,
+  });
 
   final bool isStacked;
   final ProjectDataModel? projectData;
+  final VoidCallback onProjectDataChanged;
+
+  @override
+  State<_CharterDetailsPanel> createState() => _CharterDetailsPanelState();
+}
+
+class _CharterDetailsPanelState extends State<_CharterDetailsPanel> {
+  late List<_EditableGoal> _goals;
+  late List<_EditableMilestone> _milestones;
+  bool _isGeneratingGoals = false;
+  bool _isGeneratingMilestones = false;
+  late final OpenAiServiceSecure _openAi;
+
+  @override
+  void initState() {
+    super.initState();
+    _openAi = OpenAiServiceSecure();
+    _loadGoalsAndMilestones();
+  }
+
+  void _loadGoalsAndMilestones() {
+    final data = widget.projectData;
+    _goals = (data?.projectGoals ?? [])
+        .map((g) => _EditableGoal(
+              nameController: TextEditingController(text: g.name),
+              descriptionController: TextEditingController(text: g.description),
+            ))
+        .toList();
+    _milestones = (data?.keyMilestones ?? [])
+        .map((m) => _EditableMilestone(
+              nameController: TextEditingController(text: m.name),
+              disciplineController: TextEditingController(text: m.discipline),
+              dueDateController: TextEditingController(text: m.dueDate),
+              commentsController: TextEditingController(text: m.comments),
+            ))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    for (final goal in _goals) {
+      goal.nameController.dispose();
+      goal.descriptionController.dispose();
+    }
+    for (final milestone in _milestones) {
+      milestone.nameController.dispose();
+      milestone.disciplineController.dispose();
+      milestone.dueDateController.dispose();
+      milestone.commentsController.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _saveGoalsAndMilestones() async {
+    final provider = ProjectDataInherited.of(context);
+    final goals = _goals
+        .map((g) => ProjectGoal(
+              name: g.nameController.text.trim(),
+              description: g.descriptionController.text.trim(),
+            ))
+        .where((g) => g.name.isNotEmpty)
+        .toList();
+    final milestones = _milestones
+        .map((m) => Milestone(
+              name: m.nameController.text.trim(),
+              discipline: m.disciplineController.text.trim(),
+              dueDate: m.dueDateController.text.trim(),
+              comments: m.commentsController.text.trim(),
+            ))
+        .where((m) => m.name.isNotEmpty)
+        .toList();
+
+    provider.updateField((data) => data.copyWith(
+          projectGoals: goals,
+          keyMilestones: milestones,
+        ));
+    await provider.saveToFirebase(checkpoint: 'project_charter');
+    widget.onProjectDataChanged();
+  }
+
+  void _addGoal() {
+    setState(() {
+      _goals.add(_EditableGoal(
+        nameController: TextEditingController(),
+        descriptionController: TextEditingController(),
+      ));
+    });
+    _saveGoalsAndMilestones();
+  }
+
+  void _deleteGoal(int index) {
+    if (index < 0 || index >= _goals.length) return;
+    setState(() {
+      _goals[index].nameController.dispose();
+      _goals[index].descriptionController.dispose();
+      _goals.removeAt(index);
+    });
+    _saveGoalsAndMilestones();
+  }
+
+  void _addMilestone() {
+    setState(() {
+      _milestones.add(_EditableMilestone(
+        nameController: TextEditingController(),
+        disciplineController: TextEditingController(),
+        dueDateController: TextEditingController(),
+        commentsController: TextEditingController(),
+      ));
+    });
+    _saveGoalsAndMilestones();
+  }
+
+  void _deleteMilestone(int index) {
+    if (index < 0 || index >= _milestones.length) return;
+    setState(() {
+      _milestones[index].nameController.dispose();
+      _milestones[index].disciplineController.dispose();
+      _milestones[index].dueDateController.dispose();
+      _milestones[index].commentsController.dispose();
+      _milestones.removeAt(index);
+    });
+    _saveGoalsAndMilestones();
+  }
+
+  Future<void> _generateGoals() async {
+    if (_isGeneratingGoals) return;
+    setState(() => _isGeneratingGoals = true);
+
+    try {
+      final projectContext = ProjectDataHelper.buildFepContext(widget.projectData!);
+      final goalsText = await _openAi.generateFepSectionText(
+        section: 'Project Goals and Objectives',
+        context: projectContext,
+        maxTokens: 500,
+      );
+
+      if (mounted && goalsText.isNotEmpty) {
+        final lines = goalsText
+            .split('\n')
+            .map((l) => l.trim())
+            .where((l) =>
+                l.isNotEmpty && !l.startsWith('-') && !l.startsWith('•'))
+            .take(5)
+            .toList();
+
+        if (lines.isNotEmpty) {
+          setState(() {
+            // Dispose old controllers
+            for (final goal in _goals) {
+              goal.nameController.dispose();
+              goal.descriptionController.dispose();
+            }
+            _goals.clear();
+
+            // Add new goals
+            for (final line in lines) {
+              final cleanLine = line.replaceAll(RegExp(r'^[-•]\s*'), '');
+              _goals.add(_EditableGoal(
+                nameController: TextEditingController(
+                  text: cleanLine.length > 50
+                      ? cleanLine.substring(0, 50)
+                      : cleanLine,
+                ),
+                descriptionController: TextEditingController(
+                  text: cleanLine.length > 50 ? cleanLine : '',
+                ),
+              ));
+            }
+          });
+          await _saveGoalsAndMilestones();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error generating goals: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate goals: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingGoals = false);
+      }
+    }
+  }
+
+  Future<void> _generateMilestones() async {
+    if (_isGeneratingMilestones) return;
+    setState(() => _isGeneratingMilestones = true);
+
+    try {
+      final projectContext = ProjectDataHelper.buildFepContext(widget.projectData!);
+      final milestonesText = await _openAi.generateFepSectionText(
+        section: 'Project Milestones',
+        context: projectContext,
+        maxTokens: 400,
+      );
+
+      if (mounted && milestonesText.isNotEmpty) {
+        final lines = milestonesText
+            .split('\n')
+            .map((l) => l.trim())
+            .where((l) =>
+                l.isNotEmpty && !l.startsWith('-') && !l.startsWith('•'))
+            .take(5)
+            .toList();
+
+        if (lines.isNotEmpty) {
+          setState(() {
+            // Dispose old controllers
+            for (final milestone in _milestones) {
+              milestone.nameController.dispose();
+              milestone.disciplineController.dispose();
+              milestone.dueDateController.dispose();
+              milestone.commentsController.dispose();
+            }
+            _milestones.clear();
+
+            // Add new milestones
+            for (final line in lines) {
+              final cleanLine = line.replaceAll(RegExp(r'^[-•]\s*'), '');
+              _milestones.add(_EditableMilestone(
+                nameController: TextEditingController(text: cleanLine),
+                disciplineController: TextEditingController(),
+                dueDateController: TextEditingController(),
+                commentsController: TextEditingController(),
+              ));
+            }
+          });
+          await _saveGoalsAndMilestones();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error generating milestones: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate milestones: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingMilestones = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = isStacked
+    final borderRadius = widget.isStacked
         ? const BorderRadius.only(
             bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24))
         : const BorderRadius.only(
@@ -902,7 +1198,7 @@ class _CharterDetailsPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Project Name: ${_extractProjectName(projectData)}',
+            'Project Name: ${_extractProjectName(widget.projectData)}',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -913,7 +1209,7 @@ class _CharterDetailsPanel extends StatelessWidget {
           const _SectionHeading(title: 'Project Overview'),
           const SizedBox(height: 12),
           Text(
-            _extractProjectOverview(projectData),
+            _extractProjectOverview(widget.projectData),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontSize: 14,
                   height: 1.6,
@@ -921,17 +1217,97 @@ class _CharterDetailsPanel extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: 24),
-          const _SectionHeading(title: 'Goals / Key Objectives'),
+          Row(
+            children: [
+              const Expanded(
+                child: _SectionHeading(title: 'Goals / Key Objectives'),
+              ),
+              IconButton(
+                icon: _isGeneratingGoals
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 20),
+                tooltip: 'Generate goals with AI',
+                onPressed: _isGeneratingGoals ? null : _generateGoals,
+              ),
+              IconButton(
+                icon: const Icon(Icons.add, size: 20),
+                tooltip: 'Add goal',
+                onPressed: _addGoal,
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
-          _BulletList(items: _extractGoals(projectData)),
+          if (_goals.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No goals yet. Click the + button to add a goal or use AI to generate.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (int i = 0; i < _goals.length; i++)
+                  _EditableGoalCard(
+                    goal: _goals[i],
+                    index: i,
+                    onDelete: () => _deleteGoal(i),
+                    onChanged: _saveGoalsAndMilestones,
+                  ),
+              ],
+            ),
           const SizedBox(height: 32),
           _AssumptionsConstraintsRisksTable(
-            projectData: projectData,
+            projectData: widget.projectData,
           ),
           const SizedBox(height: 32),
-          const _SectionHeading(title: 'Project Milestones'),
+          Row(
+            children: [
+              const Expanded(
+                child: _SectionHeading(title: 'Project Milestones'),
+              ),
+              IconButton(
+                icon: _isGeneratingMilestones
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 20),
+                tooltip: 'Generate milestones with AI',
+                onPressed: _isGeneratingMilestones ? null : _generateMilestones,
+              ),
+              IconButton(
+                icon: const Icon(Icons.add, size: 20),
+                tooltip: 'Add milestone',
+                onPressed: _addMilestone,
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
-          _MilestoneGrid(projectData: projectData),
+          if (_milestones.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No milestones yet. Click the + button to add a milestone or use AI to generate.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            )
+          else
+            _EditableMilestoneGrid(milestones: _milestones, onDelete: _deleteMilestone, onChanged: _saveGoalsAndMilestones),
         ],
       ),
     );
@@ -1547,4 +1923,301 @@ class _DonutChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _EditableGoal {
+  _EditableGoal({
+    required this.nameController,
+    required this.descriptionController,
+  });
+
+  final TextEditingController nameController;
+  final TextEditingController descriptionController;
+}
+
+class _EditableMilestone {
+  _EditableMilestone({
+    required this.nameController,
+    required this.disciplineController,
+    required this.dueDateController,
+    required this.commentsController,
+  });
+
+  final TextEditingController nameController;
+  final TextEditingController disciplineController;
+  final TextEditingController dueDateController;
+  final TextEditingController commentsController;
+}
+
+class _EditableGoalCard extends StatelessWidget {
+  const _EditableGoalCard({
+    required this.goal,
+    required this.index,
+    required this.onDelete,
+    required this.onChanged,
+  });
+
+  final _EditableGoal goal;
+  final int index;
+  final VoidCallback onDelete;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: goal.nameController,
+                  decoration: InputDecoration(
+                    hintText: 'Goal name',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onChanged: (_) => onChanged(),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: goal.descriptionController,
+                  decoration: InputDecoration(
+                    hintText: 'Goal description (optional)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                  maxLines: 2,
+                  onChanged: (_) => onChanged(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Delete goal',
+            onPressed: onDelete,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditableMilestoneGrid extends StatelessWidget {
+  const _EditableMilestoneGrid({
+    required this.milestones,
+    required this.onDelete,
+    required this.onChanged,
+  });
+
+  final List<_EditableMilestone> milestones;
+  final void Function(int) onDelete;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < milestones.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _EditableMilestoneCard(
+                milestone: milestones[i],
+                index: i,
+                onDelete: () => onDelete(i),
+                onChanged: onChanged,
+              ),
+            ),
+        ],
+      );
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        for (int i = 0; i < milestones.length; i++)
+          SizedBox(
+            width: (MediaQuery.of(context).size.width - 120) / 3,
+            child: _EditableMilestoneCard(
+              milestone: milestones[i],
+              index: i,
+              onDelete: () => onDelete(i),
+              onChanged: onChanged,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _EditableMilestoneCard extends StatelessWidget {
+  const _EditableMilestoneCard({
+    required this.milestone,
+    required this.index,
+    required this.onDelete,
+    required this.onChanged,
+  });
+
+  final _EditableMilestone milestone;
+  final int index;
+  final VoidCallback onDelete;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: milestone.nameController,
+                  decoration: InputDecoration(
+                    hintText: 'Milestone name',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  onChanged: (_) => onChanged(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.delete_outline,
+                    size: 18, color: Colors.red),
+                tooltip: 'Delete milestone',
+                onPressed: onDelete,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: milestone.disciplineController,
+            decoration: InputDecoration(
+              hintText: 'Discipline',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+            ),
+            style: const TextStyle(fontSize: 12),
+            onChanged: (_) => onChanged(),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: milestone.dueDateController,
+            decoration: InputDecoration(
+              hintText: 'Due date (YYYY-MM-DD)',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+            ),
+            style: const TextStyle(fontSize: 12, color: Colors.blue),
+            onChanged: (_) => onChanged(),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: milestone.commentsController,
+            decoration: InputDecoration(
+              hintText: 'Comments',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+            ),
+            style: const TextStyle(fontSize: 12),
+            maxLines: 2,
+            onChanged: (_) => onChanged(),
+          ),
+        ],
+      ),
+    );
+  }
 }

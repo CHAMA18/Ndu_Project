@@ -11,6 +11,7 @@ import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/screens/front_end_planning_security.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 
 /// Front End Planning – Procurement screen
 /// Recreates the provided procurement workspace mock with strategies and vendor table.
@@ -112,6 +113,21 @@ class _FrontEndPlanningProcurementScreenState
       // Generate all data (will show fallback first, then enhance with AI)
       await _generateProcurementDataIfNeeded();
     });
+  }
+
+  Future<void> _regenerateAllProcurement() async {
+    // Clear all data and regenerate
+    setState(() {
+      _items.clear();
+      _vendors.clear();
+      _rfqs.clear();
+      _purchaseOrders.clear();
+      _trackableItems.clear();
+      _strategies.clear();
+      _reportKpis.clear();
+      _spendBreakdown.clear();
+    });
+    await _generateProcurementDataIfNeeded();
   }
 
   Future<void> _generateProcurementDataIfNeeded() async {
@@ -1116,7 +1132,22 @@ class _FrontEndPlanningProcurementScreenState
       key: key ?? const ValueKey('procurement_dashboard'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _PlanHeader(onItemListTap: _handleItemListTap),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _PlanHeader(onItemListTap: _handleItemListTap)),
+            PageRegenerateAllButton(
+              onRegenerateAll: () async {
+                final confirmed = await showRegenerateAllConfirmation(context);
+                if (confirmed && mounted) {
+                  await _regenerateAllProcurement();
+                }
+              },
+              isLoading: _isGeneratingData,
+              tooltip: 'Regenerate all procurement data',
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
         const SizedBox(height: 8),
         _StrategiesSection(

@@ -13,6 +13,7 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 
 /// Front End Planning – Project Requirements page
 /// Implements the layout from the provided screenshot exactly:
@@ -114,21 +115,43 @@ class _FrontEndPlanningRequirementsScreenState
     setState(() => _isGeneratingRequirements = true);
     try {
       final data = ProjectDataHelper.getData(context);
+      final provider = ProjectDataHelper.getProvider(context);
       final ctx = ProjectDataHelper.buildFepContext(data,
           sectionLabel: 'Project Requirements');
       final ai = OpenAiServiceSecure();
       final reqs = await ai.generateRequirementsFromBusinessCase(ctx);
       if (!mounted) return;
       if (reqs.isNotEmpty) {
+        // Track field history before replacing
+        for (final row in _rows) {
+          if (row.descriptionController.text.trim().isNotEmpty) {
+            provider.addFieldToHistory(
+              'fep_requirement_${row.number}_description',
+              row.descriptionController.text,
+              isAiGenerated: true,
+            );
+          }
+        }
+        
         setState(() {
           _rows
             ..clear()
             ..addAll(reqs.asMap().entries.map((e) {
               final r = _createRow(e.key + 1);
-              r.descriptionController.text =
-                  (e.value['requirement'] ?? '').toString();
+              final requirementText = (e.value['requirement'] ?? '').toString();
+              r.descriptionController.text = requirementText;
               r.commentsController.text = '';
               r.selectedType = (e.value['requirementType'] ?? '').toString();
+              
+              // Track new AI-generated content
+              if (requirementText.isNotEmpty) {
+                provider.addFieldToHistory(
+                  'fep_requirement_${r.number}_description',
+                  requirementText,
+                  isAiGenerated: true,
+                );
+              }
+              
               return r;
             }));
           _isGeneratingRequirements = false;
@@ -173,12 +196,33 @@ class _FrontEndPlanningRequirementsScreenState
         return;
       }
       final row = _rows[index];
+      final provider = ProjectDataHelper.getProvider(context);
+      final fieldKey = 'fep_requirement_${row.number}_description';
+      
+      // Track history before regenerating
+      if (row.descriptionController.text.trim().isNotEmpty) {
+        provider.addFieldToHistory(
+          fieldKey,
+          row.descriptionController.text,
+          isAiGenerated: true,
+        );
+      }
+      
       row.aiUndoText = row.descriptionController.text;
       row.descriptionController.text = nextText;
+      
+      // Track new AI-generated content
+      if (nextText.isNotEmpty) {
+        provider.addFieldToHistory(
+          fieldKey,
+          nextText,
+          isAiGenerated: true,
+        );
+      }
+      
       _commitAutoSave(showSnack: false);
       // Persist so the regenerated version is what Firestore gets.
-      await ProjectDataHelper.getProvider(context)
-          .saveToFirebase(checkpoint: 'fep_requirements');
+      await provider.saveToFirebase(checkpoint: 'fep_requirements');
       if (mounted) setState(() {}); // refresh undo enabled state
     } catch (e) {
       debugPrint('Row requirement regenerate failed: $e');
@@ -197,18 +241,25 @@ class _FrontEndPlanningRequirementsScreenState
     }
   }
 
-  void _undoRequirementRow(int index) {
+  Future<void> _undoRequirementRow(int index) async {
     if (index < 0 || index >= _rows.length) return;
     final row = _rows[index];
-    final previous = row.aiUndoText;
-    if (previous == null) return;
+    final provider = ProjectDataHelper.getProvider(context);
+    final fieldKey = 'fep_requirement_${row.number}_description';
+    
+    // Try provider's undo first, then fallback to local aiUndoText
+    final data = provider.projectData;
+    final previousValue = data.undoField(fieldKey);
+    final previous = previousValue ?? row.aiUndoText;
+    
+    if (previous == null || previous.isEmpty) return;
+    
     row.descriptionController.text = previous;
     row.aiUndoText = null;
     _commitAutoSave(showSnack: false);
     // Persist so the undone version is what Firestore gets.
-    ProjectDataHelper.getProvider(context)
-        .saveToFirebase(checkpoint: 'fep_requirements');
-    setState(() {}); // refresh undo enabled state
+    await provider.saveToFirebase(checkpoint: 'fep_requirements');
+    if (mounted) setState(() {}); // refresh undo enabled state
   }
 
   @override
@@ -289,25 +340,16 @@ class _FrontEndPlanningRequirementsScreenState
                                       ],
                                     ),
                                   ),
-                                  // Refresh icon in top-right of card header
-                                  IconButton(
-                                    icon: _isGeneratingRequirements
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Color(0xFF2563EB)),
-                                          )
-                                        : const Icon(Icons.refresh,
-                                            size: 20, color: Color(0xFF2563EB)),
-                                    onPressed: _isGeneratingRequirements
-                                        ? null
-                                        : _confirmRegenerate,
-                                    tooltip: 'Regenerate requirements',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                        minWidth: 40, minHeight: 40),
+                                  // Page-level regenerate button
+                                  PageRegenerateAllButton(
+                                    onRegenerateAll: () async {
+                                      final confirmed = await showRegenerateAllConfirmation(context);
+                                      if (confirmed && mounted) {
+                                        await _generateRequirementsFromContext();
+                                      }
+                                    },
+                                    isLoading: _isGeneratingRequirements,
+                                    tooltip: 'Regenerate all requirements',
                                   ),
                                 ],
                               ),
@@ -387,7 +429,7 @@ class _FrontEndPlanningRequirementsScreenState
               _deleteRow,
               isRegenerating: isRowLoading,
               onRegenerate: () => _regenerateRequirementRow(index),
-              onUndo: () => _undoRequirementRow(index),
+              onUndo: () async => await _undoRequirementRow(index),
             );
           }),
         ],
@@ -542,49 +584,7 @@ class _FrontEndPlanningRequirementsScreenState
       );
   }
 
-  bool _hasAnyRequirementInputs() {
-    for (final row in _rows) {
-      if (row.descriptionController.text.trim().isNotEmpty ||
-          row.commentsController.text.trim().isNotEmpty ||
-          (row.selectedType ?? '').trim().isNotEmpty) {
-        return true;
-      }
-    }
-    return false;
-  }
 
-  Future<void> _confirmRegenerate() async {
-    if (_isGeneratingRequirements) return;
-    if (!_hasAnyRequirementInputs()) {
-      await _generateRequirementsFromContext();
-      return;
-    }
-
-    final shouldRegenerate = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Regenerate requirements?'),
-          content: const Text(
-              'This will replace your current requirements. Continue?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Regenerate'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldRegenerate == true && mounted) {
-      await _generateRequirementsFromContext();
-    }
-  }
 }
 
 class _RequirementRow {
@@ -614,7 +614,7 @@ class _RequirementRow {
     void Function(int) onDelete, {
     required bool isRegenerating,
     required VoidCallback onRegenerate,
-    required VoidCallback onUndo,
+    required Future<void> Function() onUndo,
   }) {
     return TableRow(
       children: [
