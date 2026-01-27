@@ -14,7 +14,7 @@ import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
-import 'package:ndu_project/widgets/ai_regenerate_undo_buttons.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 
 /// Front End Planning – Project Opportunities page
 /// Built to match the provided screenshot exactly:
@@ -49,7 +49,6 @@ class _FrontEndPlanningOpportunitiesScreenState
   // Backing rows for the table; built from incoming requirements (if any).
   late List<_OpportunityItem> _rows;
   bool _isGeneratingOpportunities = false;
-  List<_OpportunityItem>? _undoBeforeAi;
 
   @override
   void initState() {
@@ -198,15 +197,30 @@ class _FrontEndPlanningOpportunitiesScreenState
     );
   }
 
+  Future<void> _regenerateAllOpportunities() async {
+    await _generateOpportunitiesFromContext();
+  }
+
   Future<void> _generateOpportunitiesFromContext() async {
     if (_isGeneratingOpportunities) return; // Prevent duplicate calls
     setState(() {
       _isGeneratingOpportunities = true;
     });
-    _undoBeforeAi = _rows.map((e) => e.copy()).toList();
 
     try {
       final data = ProjectDataHelper.getData(context);
+      final provider = ProjectDataHelper.getProvider(context);
+      
+      // Track field history before regenerating
+      for (final row in _rows) {
+        if (row.opportunity.trim().isNotEmpty) {
+          provider.addFieldToHistory(
+            'fep_opportunity_${_rows.indexOf(row)}_opportunity',
+            row.opportunity,
+            isAiGenerated: true,
+          );
+        }
+      }
 
       // Verify selectedSolutionTitle exists - if not, log warning
       final selectedSolution =
@@ -354,19 +368,36 @@ class _FrontEndPlanningOpportunitiesScreenState
           } else {
             // Replace with new generated opportunities
             _rows = list
-                .map((e) => _OpportunityItem(
-                      opportunity: (e['opportunity'] ?? '').toString(),
-                      discipline: (e['discipline'] ?? '').toString(),
-                      stakeholder: (e['stakeholder'] ?? '').toString(),
-                      potentialCost1: (e['potentialCost1'] ??
-                              e['potential_cost_savings'] ??
-                              '')
-                          .toString(),
-                      potentialCost2: (e['potentialCost2'] ??
-                              e['potential_cost_schedule_savings'] ??
-                              '')
-                          .toString(),
-                    ))
+                .asMap()
+                .entries
+                .map((entry) {
+                  final index = entry.key;
+                  final e = entry.value;
+                  final opportunityText = (e['opportunity'] ?? '').toString();
+                  
+                  // Track AI-generated content in field history
+                  if (opportunityText.isNotEmpty) {
+                    provider.addFieldToHistory(
+                      'fep_opportunity_${index}_opportunity',
+                      opportunityText,
+                      isAiGenerated: true,
+                    );
+                  }
+                  
+                  return _OpportunityItem(
+                    opportunity: opportunityText,
+                    discipline: (e['discipline'] ?? '').toString(),
+                    stakeholder: (e['stakeholder'] ?? '').toString(),
+                    potentialCost1: (e['potentialCost1'] ??
+                            e['potential_cost_savings'] ??
+                            '')
+                        .toString(),
+                    potentialCost2: (e['potentialCost2'] ??
+                            e['potential_cost_schedule_savings'] ??
+                            '')
+                        .toString(),
+                  );
+                })
                 .toList();
           }
         });
@@ -391,17 +422,6 @@ class _FrontEndPlanningOpportunitiesScreenState
     }
   }
 
-  void _undoOpportunities() {
-    final prev = _undoBeforeAi;
-    if (prev == null) return;
-    setState(() {
-      _rows = prev;
-      _undoBeforeAi = null;
-    });
-    _syncOpportunitiesToProvider();
-    ProjectDataHelper.getProvider(context)
-        .saveToFirebase(checkpoint: 'fep_opportunities');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -438,18 +458,45 @@ class _FrontEndPlanningOpportunitiesScreenState
                                   minLines: 3),
                               const SizedBox(height: 22),
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
-                                    child: _SectionTitle(
-                                      trailing: AiRegenerateUndoButtons(
-                                        isLoading: _isGeneratingOpportunities,
-                                        canUndo: _undoBeforeAi != null,
-                                        onRegenerate:
-                                            _generateOpportunitiesFromContext,
-                                        onUndo: _undoOpportunities,
-                                      ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: const [
+                                        EditableContentText(
+                                          contentKey: 'fep_opportunities_title',
+                                          fallback: 'Project Opportunities',
+                                          category: 'front_end_planning',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF111827),
+                                          ),
+                                        ),
+                                        SizedBox(height: 6),
+                                        EditableContentText(
+                                          contentKey: 'fep_opportunities_subtitle',
+                                          fallback:
+                                              '(List out opportunities that would benefit the project here)',
+                                          category: 'front_end_planning',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                      ],
                                     ),
+                                  ),
+                                  PageRegenerateAllButton(
+                                    onRegenerateAll: () async {
+                                      final confirmed = await showRegenerateAllConfirmation(context);
+                                      if (confirmed && mounted) {
+                                        await _regenerateAllOpportunities();
+                                      }
+                                    },
+                                    isLoading: _isGeneratingOpportunities,
+                                    tooltip: 'Regenerate all opportunities',
                                   ),
                                   const SizedBox(width: 12),
                                   SizedBox(
@@ -707,50 +754,6 @@ class _BottomOverlays extends StatelessWidget {
               style: TextStyle(color: Color(0xFF1F2937))),
         ],
       ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({this.trailing});
-
-  final Widget? trailing;
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Expanded(
-          child: Row(
-            children: [
-              EditableContentText(
-                contentKey: 'fep_opportunities_title',
-                fallback: 'Project Opportunities',
-                category: 'front_end_planning',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: EditableContentText(
-                  contentKey: 'fep_opportunities_subtitle',
-                  fallback:
-                      '(List out opportunities that would benefit the project here)',
-                  category: 'front_end_planning',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (trailing != null) trailing!,
-      ],
     );
   }
 }

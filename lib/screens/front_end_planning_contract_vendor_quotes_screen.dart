@@ -8,11 +8,10 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
-import 'package:ndu_project/widgets/user_access_chip.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
-import 'package:ndu_project/widgets/ai_regenerate_undo_buttons.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 
 /// Front End Planning – Contract and Vendor Quotes screen.
 /// Mirrors the provided mock with the shared workspace chrome,
@@ -39,7 +38,6 @@ class _FrontEndPlanningContractVendorQuotesScreenState
   final TextEditingController _contractsController = TextEditingController();
   bool _isSyncReady = false;
   bool _generating = false;
-  String? _undoBeforeAi;
 
   @override
   void initState() {
@@ -58,14 +56,28 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     });
   }
 
+  Future<void> _regenerateAllContracts() async {
+    await _generateAiSuggestion();
+  }
+
   Future<void> _generateAiSuggestion() async {
     if (_generating) return;
     setState(() => _generating = true);
-    _undoBeforeAi = _contractsController.text;
     try {
       final data = ProjectDataHelper.getData(context);
+      final provider = ProjectDataHelper.getProvider(context);
       final ctx = ProjectDataHelper.buildFepContext(data,
           sectionLabel: 'Contract & Vendor Quotes');
+      
+      // Track field history before regenerating
+      if (_contractsController.text.trim().isNotEmpty) {
+        provider.addFieldToHistory(
+          'fep_contract_vendor_quotes_content',
+          _contractsController.text,
+          isAiGenerated: true,
+        );
+      }
+      
       final ai = OpenAiServiceSecure();
       final suggestion = await ai.generateFepSectionText(
           section: 'Contract & Vendor Quotes',
@@ -75,6 +87,13 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       if (!mounted) return;
       final cleaned = TextSanitizer.sanitizeAiText(suggestion).trim();
       if (cleaned.isNotEmpty) {
+        // Track new AI-generated content
+        provider.addFieldToHistory(
+          'fep_contract_vendor_quotes_content',
+          cleaned,
+          isAiGenerated: true,
+        );
+        
         setState(() {
           _contractsController.text = cleaned;
           _syncContractsToProvider();
@@ -92,17 +111,6 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     } finally {
       if (mounted) setState(() => _generating = false);
     }
-  }
-
-  void _undoContracts() {
-    final prev = _undoBeforeAi;
-    if (prev == null) return;
-    _undoBeforeAi = null;
-    _contractsController.text = prev;
-    _syncContractsToProvider();
-    ProjectDataHelper.getProvider(context)
-        .saveToFirebase(checkpoint: 'fep_contracts');
-    setState(() {});
   }
 
   @override
@@ -160,13 +168,47 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                                   hint: 'Input your notes here...',
                                   minLines: 3),
                               const SizedBox(height: 24),
-                              _SectionTitle(
-                                trailing: AiRegenerateUndoButtons(
-                                  isLoading: _generating,
-                                  canUndo: _undoBeforeAi != null,
-                                  onRegenerate: _generateAiSuggestion,
-                                  onUndo: _undoContracts,
-                                ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        EditableContentText(
+                                          contentKey: 'fep_contract_vendor_quotes_title',
+                                          fallback: 'Contract and Vendor Quotes',
+                                          category: 'front_end_planning',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF111827),
+                                          ),
+                                        ),
+                                        SizedBox(height: 6),
+                                        EditableContentText(
+                                          contentKey: 'fep_contract_vendor_quotes_subtitle',
+                                          fallback: '(Brief explanation here)',
+                                          category: 'front_end_planning',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PageRegenerateAllButton(
+                                    onRegenerateAll: () async {
+                                      final confirmed = await showRegenerateAllConfirmation(context);
+                                      if (confirmed && mounted) {
+                                        await _regenerateAllContracts();
+                                      }
+                                    },
+                                    isLoading: _generating,
+                                    tooltip: 'Regenerate all contract and vendor quotes content',
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 18),
                               _ContractsPanel(controller: _contractsController),
@@ -199,50 +241,6 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({this.trailing});
-
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Expanded(
-          child: Row(
-            children: [
-              EditableContentText(
-                contentKey: 'fep_contract_vendor_quotes_title',
-                fallback: 'Contract and Vendor Quotes',
-                category: 'front_end_planning',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: EditableContentText(
-                  contentKey: 'fep_contract_vendor_quotes_subtitle',
-                  fallback: '(Brief explanation here)',
-                  category: 'front_end_planning',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (trailing != null) trailing!,
-      ],
     );
   }
 }
@@ -350,64 +348,6 @@ class _BottomOverlay extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Row(
-            children: [
-              _circleButton(
-                  icon: Icons.arrow_back_ios_new_rounded,
-                  onTap: () => Navigator.maybePop(context)),
-              const SizedBox(width: 8),
-              _circleButton(
-                  icon: Icons.arrow_forward_ios_rounded, onTap: () {}),
-            ],
-          ),
-          const Spacer(),
-          const Text(
-            'Front End Planning',
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87),
-          ),
-          const Spacer(),
-          const UserAccessChip(),
-        ],
-      ),
-    );
-  }
-
-  Widget _circleButton({required IconData icon, VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Icon(icon, size: 16, color: const Color(0xFF6B7280)),
       ),
     );
   }

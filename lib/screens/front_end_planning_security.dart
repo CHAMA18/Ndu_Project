@@ -7,11 +7,10 @@ import 'package:ndu_project/screens/front_end_planning_allowance.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
-import 'package:ndu_project/widgets/user_access_chip.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/widgets/ai_regenerate_undo_buttons.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 
 /// Front End Planning – Security screen
 /// Mirrors the provided layout with shared workspace chrome,
@@ -34,7 +33,6 @@ class _FrontEndPlanningSecurityScreenState extends State<FrontEndPlanningSecurit
   final TextEditingController _securityNotes = TextEditingController();
   bool _isSyncReady = false;
   bool _isGenerating = false;
-  String? _undoBeforeAi;
   late final OpenAiServiceSecure _openAi;
 
   @override
@@ -58,14 +56,27 @@ class _FrontEndPlanningSecurityScreenState extends State<FrontEndPlanningSecurit
     });
   }
 
+  Future<void> _regenerateAllSecurity() async {
+    await _generateSecurityContent();
+  }
+
   Future<void> _generateSecurityContent() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    _undoBeforeAi = _securityNotes.text;
 
     try {
       final data = ProjectDataHelper.getData(context);
+      final provider = ProjectDataHelper.getProvider(context);
       final projectContext = ProjectDataHelper.buildFepContext(data, sectionLabel: 'Security');
+      
+      // Track field history before regenerating
+      if (_securityNotes.text.trim().isNotEmpty) {
+        provider.addFieldToHistory(
+          'fep_security_content',
+          _securityNotes.text,
+          isAiGenerated: true,
+        );
+      }
       
       if (projectContext.trim().isNotEmpty) {
         try {
@@ -76,6 +87,13 @@ class _FrontEndPlanningSecurityScreenState extends State<FrontEndPlanningSecurit
           );
           
           if (mounted && generatedText.isNotEmpty) {
+            // Track new AI-generated content
+            provider.addFieldToHistory(
+              'fep_security_content',
+              generatedText,
+              isAiGenerated: true,
+            );
+            
             setState(() {
               _securityNotes.text = generatedText;
               _syncSecurityToProvider();
@@ -119,15 +137,6 @@ class _FrontEndPlanningSecurityScreenState extends State<FrontEndPlanningSecurit
     }
   }
 
-  void _undoSecurity() {
-    final prev = _undoBeforeAi;
-    if (prev == null) return;
-    _undoBeforeAi = null;
-    _securityNotes.text = prev;
-    _syncSecurityToProvider();
-    ProjectDataHelper.getProvider(context).saveToFirebase(checkpoint: 'fep_security');
-    setState(() {});
-  }
 
   String _getFallbackSecurityContent(ProjectDataModel data) {
     return '''Security Considerations and Requirements
@@ -213,13 +222,43 @@ Security Training:
                             children: [
                         _roundedField(controller: _notes, hint: 'Input your notes here...', minLines: 3),
                         const SizedBox(height: 24),
-                        _SectionTitle(
-                          trailing: AiRegenerateUndoButtons(
-                            isLoading: _isGenerating,
-                            canUndo: _undoBeforeAi != null,
-                            onRegenerate: _generateSecurityContent,
-                            onUndo: _undoSecurity,
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Security',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF111827),
+                                    ),
+                                  ),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Define security requirements and considerations for the project',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PageRegenerateAllButton(
+                              onRegenerateAll: () async {
+                                final confirmed = await showRegenerateAllConfirmation(context);
+                                if (confirmed && mounted) {
+                                  await _regenerateAllSecurity();
+                                }
+                              },
+                              isLoading: _isGenerating,
+                              tooltip: 'Regenerate all security content',
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 18),
                         _SecurityPanel(controller: _securityNotes),
@@ -238,93 +277,6 @@ Security Training:
           ],
         ),
       ),
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Row(children: [
-            _circleButton(icon: Icons.arrow_back_ios_new_rounded, onTap: () => Navigator.maybePop(context)),
-            const SizedBox(width: 8),
-            _circleButton(icon: Icons.arrow_forward_ios_rounded, onTap: () {}),
-          ]),
-          const Spacer(),
-          const Text('Front End Planning', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black87)),
-          const Spacer(),
-          const UserAccessChip(),
-        ],
-      ),
-    );
-  }
-
-  Widget _circleButton({required IconData icon, VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Icon(icon, size: 16, color: const Color(0xFF6B7280)),
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({this.trailing});
-
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Security  ',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                TextSpan(
-                  text:
-                      '(Identify security considerations and requirements for the project.)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (trailing != null) trailing!,
-      ],
     );
   }
 }

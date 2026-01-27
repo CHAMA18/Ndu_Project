@@ -30,6 +30,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 
 class RiskIdentificationScreen extends StatefulWidget {
   final String notes;
@@ -279,6 +280,18 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       if (_solutions.isEmpty) {
         return;
       }
+      final provider = ProjectDataHelper.getProvider(context);
+      
+      // Add current values to history before regenerating
+      for (int i = 0; i < _solutions.length; i++) {
+        for (int r = 0; r < 3; r++) {
+          if (i < _riskControllers.length && r < _riskControllers[i].length) {
+            final fieldKey = 'risk_${_solutions[i].title}_$r';
+            provider.addFieldToHistory(fieldKey, _riskControllers[i][r].text, isAiGenerated: true);
+          }
+        }
+      }
+      
       final map = await _openAi.generateRisksForSolutions(_solutions,
           contextNotes: _notesController.text.trim());
       for (int i = 0; i < _solutions.length; i++) {
@@ -291,11 +304,29 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           }
         }
       }
+      
+      // Auto-save after regeneration
+      await provider.saveToFirebase(checkpoint: 'risk_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Risks regenerated successfully')),
+        );
+      }
     } catch (e) {
       _error = e.toString();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate risks: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
+  }
+
+  Future<void> _regenerateAllRisks() async {
+    await _generateRisks();
   }
 
   @override
@@ -1177,49 +1208,106 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       'e.g., Timeline delays from resource constraints',
       'e.g., Technical complexity causing scope creep',
     ];
+    final provider = ProjectDataHelper.getProvider(context);
+    final fieldKey = 'risk_${solutionTitle}_$riskIndex';
+    final canUndo = provider.canUndoField(fieldKey);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: TextField(
-              controller: controller,
-              minLines: 2,
-              maxLines: null,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                hintText: hintTexts[riskIndex % 3],
-                hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[400],
-                    fontStyle: FontStyle.italic),
+    return HoverableFieldControls(
+      isAiGenerated: true,
+      isLoading: false,
+      canUndo: canUndo,
+      onRegenerate: () async {
+        // Add current value to history
+        provider.addFieldToHistory(fieldKey, controller.text, isAiGenerated: true);
+        // Regenerate this specific risk
+        await _regenerateSingleRisk(controller, solutionIndex, riskIndex, solutionTitle);
+      },
+      onUndo: () async {
+        final data = provider.projectData;
+        final previousValue = data.undoField(fieldKey);
+        if (previousValue != null && previousValue.isNotEmpty) {
+          controller.text = previousValue;
+          await provider.saveToFirebase(checkpoint: 'risk_undo');
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: TextField(
+                controller: controller,
+                minLines: 2,
+                maxLines: null,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: hintTexts[riskIndex % 3],
+                  hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[400],
+                      fontStyle: FontStyle.italic),
+                ),
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
               ),
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
             ),
-          ),
-          // KAZ AI suggestion button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                _buildKazAiButton(
-                    controller, solutionIndex, riskIndex, solutionTitle),
-              ],
+            // KAZ AI suggestion button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _buildKazAiButton(
+                      controller, solutionIndex, riskIndex, solutionTitle),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _regenerateSingleRisk(TextEditingController controller,
+      int solutionIndex, int riskIndex, String solutionTitle) async {
+    try {
+      final solution = _solutions[solutionIndex];
+      final existingRisks = _getExistingRisksForSolution(solutionIndex);
+      final risks = await _openAi.generateRisksForSolutions(
+        [solution],
+        contextNotes: _notesController.text.trim(),
+      );
+      
+      if (risks.containsKey(solution.title) && risks[solution.title]!.isNotEmpty) {
+        final riskList = risks[solution.title]!;
+        final riskText = riskIndex < riskList.length 
+            ? riskList[riskIndex] 
+            : (riskList.isNotEmpty ? riskList.first : '');
+        controller.text = riskText;
+        
+        final provider = ProjectDataHelper.getProvider(context);
+        await provider.saveToFirebase(checkpoint: 'risk_field_regenerated');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Risk field regenerated')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate: $e')),
+        );
+      }
+    }
   }
 
   /// Get existing risks for a solution to avoid duplicates

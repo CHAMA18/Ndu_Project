@@ -87,6 +87,15 @@ class ProjectDataModel {
   DateTime? updatedAt;
   String currentCheckpoint;
 
+  // Field History Tracking for Undo functionality
+  Map<String, FieldHistory> fieldHistories;
+
+  // Currency setting for Cost-Benefit Analysis
+  String costBenefitCurrency;
+
+  // Preferred Solution Reference
+  String? preferredSolutionId;
+
   ProjectDataModel({
     this.projectName = '',
     this.solutionTitle = '',
@@ -135,6 +144,9 @@ class ProjectDataModel {
     this.createdAt,
     this.updatedAt,
     this.currentCheckpoint = 'initiation',
+    Map<String, FieldHistory>? fieldHistories,
+    String? costBenefitCurrency,
+    String? preferredSolutionId,
   })  : potentialSolutions = potentialSolutions ?? [],
         solutionRisks = solutionRisks ?? [],
         projectGoals = projectGoals ?? [],
@@ -158,7 +170,10 @@ class ProjectDataModel {
         executionPhaseData = executionPhaseData,
         aiUsageCounts = aiUsageCounts ?? {},
         aiIntegrations = aiIntegrations ?? [],
-        aiRecommendations = aiRecommendations ?? [];
+        aiRecommendations = aiRecommendations ?? [],
+        fieldHistories = fieldHistories ?? {},
+        costBenefitCurrency = costBenefitCurrency ?? 'USD',
+        preferredSolutionId = preferredSolutionId;
 
   ProjectDataModel copyWith({
     String? projectName,
@@ -208,6 +223,9 @@ class ProjectDataModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? currentCheckpoint,
+    Map<String, FieldHistory>? fieldHistories,
+    String? costBenefitCurrency,
+    String? preferredSolutionId,
   }) {
     return ProjectDataModel(
       projectName: projectName ?? this.projectName,
@@ -263,6 +281,9 @@ class ProjectDataModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       currentCheckpoint: currentCheckpoint ?? this.currentCheckpoint,
+      fieldHistories: fieldHistories ?? this.fieldHistories,
+      costBenefitCurrency: costBenefitCurrency ?? this.costBenefitCurrency,
+      preferredSolutionId: preferredSolutionId ?? this.preferredSolutionId,
     );
   }
 
@@ -334,6 +355,9 @@ class ProjectDataModel {
       'projectId': projectId,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'fieldHistories': fieldHistories.map((key, value) => MapEntry(key, value.toJson())),
+      'costBenefitCurrency': costBenefitCurrency,
+      'preferredSolutionId': preferredSolutionId,
     };
   }
 
@@ -520,7 +544,85 @@ class ProjectDataModel {
       projectId: json['projectId']?.toString(),
       createdAt: safeParseDateTime('createdAt'),
       updatedAt: safeParseDateTime('updatedAt'),
+      fieldHistories: (json['fieldHistories'] is Map)
+          ? Map<String, FieldHistory>.from(
+              (json['fieldHistories'] as Map).map((key, value) {
+                try {
+                  return MapEntry(
+                    key.toString(),
+                    FieldHistory.fromJson(value as Map<String, dynamic>),
+                  );
+                } catch (e) {
+                  debugPrint('⚠️ Error parsing FieldHistory for $key: $e');
+                  return MapEntry(key.toString(), FieldHistory(fieldName: key.toString()));
+                }
+              }),
+            )
+          : {},
+      costBenefitCurrency: json['costBenefitCurrency']?.toString() ?? 'USD',
+      preferredSolutionId: json['preferredSolutionId']?.toString(),
     );
+  }
+
+  /// Add a field value to history for undo functionality
+  void addFieldToHistory(String fieldName, String value, {bool isAiGenerated = false}) {
+    if (!fieldHistories.containsKey(fieldName)) {
+      fieldHistories[fieldName] = FieldHistory(
+        fieldName: fieldName,
+        isAiGenerated: isAiGenerated,
+      );
+    }
+    fieldHistories[fieldName]!.addToHistory(value);
+  }
+
+  /// Undo the last change to a field
+  String? undoField(String fieldName) {
+    return fieldHistories[fieldName]?.undo();
+  }
+
+  /// Check if a field can be undone
+  bool canUndoField(String fieldName) {
+    return (fieldHistories[fieldName]?.history.length ?? 0) > 1;
+  }
+
+  /// Add a new potential solution
+  void addPotentialSolution() {
+    if (potentialSolutions.length < 3) {
+      potentialSolutions.add(PotentialSolution.empty(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        number: potentialSolutions.length + 1,
+      ));
+    }
+  }
+
+  /// Delete a potential solution by ID
+  void deletePotentialSolution(String id) {
+    potentialSolutions.removeWhere((s) => s.id == id);
+    _renumberSolutions();
+  }
+
+  /// Renumber solutions after deletion
+  void _renumberSolutions() {
+    for (int i = 0; i < potentialSolutions.length; i++) {
+      potentialSolutions[i].number = i + 1;
+    }
+  }
+
+  /// Set the preferred solution
+  void setPreferredSolution(String solutionId) {
+    preferredSolutionId = solutionId;
+  }
+
+  /// Get the preferred solution
+  PotentialSolution? get preferredSolution {
+    if (preferredSolutionId == null) return null;
+    try {
+      return potentialSolutions.firstWhere(
+        (s) => s.id == preferredSolutionId,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 }
 
@@ -1247,23 +1349,81 @@ class SafetyItem {
 }
 
 class PotentialSolution {
+  final String id;
+  int number;
   String title;
   String description;
+  Map<String, FieldHistory> fieldHistories;
 
   PotentialSolution({
+    required this.id,
+    required this.number,
     this.title = '',
     this.description = '',
-  });
+    Map<String, FieldHistory>? fieldHistories,
+  }) : fieldHistories = fieldHistories ?? {};
+
+  /// Factory constructor for creating empty solutions
+  factory PotentialSolution.empty({
+    required String id,
+    required int number,
+  }) {
+    return PotentialSolution(
+      id: id,
+      number: number,
+      title: '',
+      description: '',
+      fieldHistories: {},
+    );
+  }
 
   Map<String, dynamic> toJson() => {
+        'id': id,
+        'number': number,
         'title': title,
         'description': description,
+        'fieldHistories': fieldHistories.map((key, value) => MapEntry(key, value.toJson())),
       };
 
   factory PotentialSolution.fromJson(Map<String, dynamic> json) {
     return PotentialSolution(
+      id: json['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      number: (json['number'] is num) ? (json['number'] as num).toInt() : 1,
       title: json['title'] ?? '',
       description: json['description'] ?? '',
+      fieldHistories: (json['fieldHistories'] is Map)
+          ? Map<String, FieldHistory>.from(
+              (json['fieldHistories'] as Map).map((key, value) {
+                try {
+                  return MapEntry(
+                    key.toString(),
+                    FieldHistory.fromJson(value as Map<String, dynamic>),
+                  );
+                } catch (e) {
+                  return MapEntry(
+                    key.toString(),
+                    FieldHistory(fieldName: key.toString()),
+                  );
+                }
+              }),
+            )
+          : {},
+    );
+  }
+
+  PotentialSolution copyWith({
+    String? id,
+    int? number,
+    String? title,
+    String? description,
+    Map<String, FieldHistory>? fieldHistories,
+  }) {
+    return PotentialSolution(
+      id: id ?? this.id,
+      number: number ?? this.number,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      fieldHistories: fieldHistories ?? this.fieldHistories,
     );
   }
 }
@@ -2269,6 +2429,57 @@ class DesignDeliverableRegisterItem {
       status: json['status']?.toString() ?? '',
       due: json['due']?.toString() ?? '',
       risk: json['risk']?.toString() ?? '',
+    );
+  }
+}
+
+/// Field history tracking for undo functionality
+class FieldHistory {
+  final String fieldName;
+  final List<String> history;
+  final bool isAiGenerated;
+
+  FieldHistory({
+    required this.fieldName,
+    List<String>? history,
+    this.isAiGenerated = false,
+  }) : history = history ?? [];
+
+  /// Add a value to history
+  void addToHistory(String value) {
+    history.add(value);
+    // Limit history to last 50 entries to prevent memory issues
+    if (history.length > 50) {
+      history.removeAt(0);
+    }
+  }
+
+  /// Undo the last change (remove last entry and return previous)
+  String? undo() {
+    if (history.length > 1) {
+      history.removeLast();
+      return history.last;
+    }
+    return null;
+  }
+
+  /// Check if undo is possible
+  bool get canUndo => history.length > 1;
+
+  /// Get current value (last in history)
+  String? get currentValue => history.isNotEmpty ? history.last : null;
+
+  Map<String, dynamic> toJson() => {
+        'fieldName': fieldName,
+        'history': history,
+        'isAiGenerated': isAiGenerated,
+      };
+
+  factory FieldHistory.fromJson(Map<String, dynamic> json) {
+    return FieldHistory(
+      fieldName: json['fieldName']?.toString() ?? '',
+      history: (json['history'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      isAiGenerated: json['isAiGenerated'] == true,
     );
   }
 }

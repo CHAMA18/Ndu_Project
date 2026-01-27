@@ -31,6 +31,8 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 
 class ITConsiderationsScreen extends StatefulWidget {
   final String notes;
@@ -174,12 +176,19 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       _error = null;
     });
     try {
+      final provider = ProjectDataHelper.getProvider(context);
+      
+      // Add current values to history before regenerating
+      for (int i = 0; i < _solutions.length && i < _techControllers.length; i++) {
+        final fieldKey = 'it_tech_${_solutions[i].title}_$i';
+        provider.addFieldToHistory(fieldKey, _techControllers[i].text, isAiGenerated: true);
+      }
+      
       // Get project context for fallback if solutions are empty
-      final provider = ProjectDataInherited.maybeOf(context);
-      final projectData = provider?.projectData;
-      final projectName = projectData?.projectName ?? '';
+      final projectData = provider.projectData;
+      final projectName = projectData.projectName ?? '';
       final projectDescription =
-          projectData?.solutionDescription ?? projectData?.businessCase ?? '';
+          projectData.solutionDescription ?? projectData.businessCase ?? '';
 
       // Use solutions if available, otherwise create a placeholder from project name
       final solutionsToUse = _solutions
@@ -231,8 +240,22 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         _techControllers[i].text =
             tech.isEmpty ? '' : tech.map((e) => '- $e').join('\n');
       }
+      
+      // Auto-save after regeneration
+      await provider.saveToFirebase(checkpoint: 'it_considerations_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('IT considerations regenerated successfully')),
+        );
+      }
     } catch (e) {
       _error = e.toString();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate IT considerations: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isGenerating = false);
@@ -240,6 +263,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         _saveITConsiderationsData();
       }
     }
+  }
+
+  Future<void> _regenerateAllTechnologies() async {
+    await _generateTechnologies();
   }
 
   @override
@@ -892,12 +919,25 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: Colors.black)),
-          EditableContentText(
-              contentKey: 'it_considerations_description',
-              fallback:
-                  '(List core IT considerations for each solution)',
-              category: 'business_case',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          Expanded(
+            child: EditableContentText(
+                contentKey: 'it_considerations_description',
+                fallback:
+                    '(List core IT considerations for each solution)',
+                category: 'business_case',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          ),
+          // Page-level Regenerate All button
+          PageRegenerateAllButton(
+            onRegenerateAll: () async {
+              final confirmed = await showRegenerateAllConfirmation(context);
+              if (confirmed && mounted) {
+                await _regenerateAllTechnologies();
+              }
+            },
+            isLoading: _isGenerating,
+            tooltip: 'Regenerate all IT considerations',
+          ),
         ]),
         SizedBox(height: AppBreakpoints.fieldGap(context)),
         const EditableContentText(
@@ -1059,7 +1099,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                     style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
               const SizedBox(height: 10),
-              _techTextArea(_techControllers[index]),
+              _techTextArea(_techControllers[index], index),
             ])
           : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
@@ -1095,7 +1135,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded(child: _techTextArea(_techControllers[index])),
+              Expanded(child: _techTextArea(_techControllers[index], index)),
             ]),
     );
   }
@@ -1117,38 +1157,95 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
-  Widget _techTextArea(TextEditingController controller) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextFormattingToolbar(
-          controller: controller,
-          onBeforeUndo: () => _saveITConsiderationsData(),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
-          child: TextField(
+  Widget _techTextArea(TextEditingController controller, [int? index]) {
+    final provider = ProjectDataHelper.getProvider(context);
+    final idx = index ?? _techControllers.indexOf(controller);
+    final solutionTitle = idx >= 0 && idx < _solutions.length ? _solutions[idx].title : '';
+    final fieldKey = 'it_tech_${solutionTitle}_$idx';
+    final canUndo = provider.canUndoField(fieldKey);
+
+    return HoverableFieldControls(
+      isAiGenerated: true,
+      isLoading: false,
+      canUndo: canUndo,
+      onRegenerate: () async {
+        // Add current value to history
+        provider.addFieldToHistory(fieldKey, controller.text, isAiGenerated: true);
+        // Regenerate this specific tech field
+        await _regenerateSingleTechField(controller, idx);
+      },
+      onUndo: () async {
+        final previousValue = provider.projectData.undoField(fieldKey);
+        if (previousValue != null) {
+          controller.text = previousValue;
+          await provider.saveToFirebase(checkpoint: 'it_tech_undo');
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormattingToolbar(
             controller: controller,
-            minLines: 2,
-            maxLines: null,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              hintText:
-                  'Enter core technologies specific to this solution (e.g., platforms, frameworks, databases, tools)...',
-              hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
-            ),
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            onBeforeUndo: () => _saveITConsiderationsData(),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
+            child: TextField(
+              controller: controller,
+              minLines: 2,
+              maxLines: null,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText:
+                    'Enter core technologies specific to this solution (e.g., platforms, frameworks, databases, tools)...',
+                hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              ),
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _regenerateSingleTechField(TextEditingController controller, int index) async {
+    try {
+      if (index >= _solutions.length) return;
+      
+      final solution = _solutions[index];
+      final solutionsToUse = [solution];
+      final contextNotes = _notesController.text.trim();
+      
+      final map = await _openAi.generateTechnologiesForSolutions(
+        solutionsToUse,
+        contextNotes: contextNotes,
+      );
+      
+      final tech = map[solution.title] ?? const <String>[];
+      controller.text = tech.isEmpty ? '' : tech.map((e) => '- $e').join('\n');
+      
+      final provider = ProjectDataHelper.getProvider(context);
+      await provider.saveToFirebase(checkpoint: 'it_tech_field_regenerated');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('IT tech field regenerated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate: $e')),
+        );
+      }
+    }
   }
 
   @override

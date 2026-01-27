@@ -93,6 +93,8 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
           for (final solution in projectData.potentialSolutions.take(targetCount)) {
             _solutions.add(
               SolutionRow(
+                id: solution.id,
+                number: solution.number,
                 titleController: TextEditingController(text: solution.title),
                 descriptionController: TextEditingController(text: solution.description),
                 isAiGenerated: true,
@@ -146,11 +148,12 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
       _solutions.clear();
       final solutionsToUse = aiSolutions.take(targetCount).toList();
       
-      for (final aiSolution in solutionsToUse) {
+      for (int i = 0; i < solutionsToUse.length; i++) {
         _solutions.add(
           SolutionRow(
-            titleController: TextEditingController(text: aiSolution.title),
-            descriptionController: TextEditingController(text: aiSolution.description),
+            number: i + 1,
+            titleController: TextEditingController(text: solutionsToUse[i].title),
+            descriptionController: TextEditingController(text: solutionsToUse[i].description),
             isAiGenerated: true,
           ),
         );
@@ -169,6 +172,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
       for (int i = 0; i < targetCount; i++) {
         _solutions.add(
           SolutionRow(
+            number: i + 1,
             titleController: TextEditingController(text: 'Proposed Solution ${i + 1}'),
             descriptionController: TextEditingController(
               text: 'Describe how this option addresses the project\'s needs, assumptions, constraints, and expected benefits.',
@@ -867,18 +871,26 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    // Page-level Regenerate All button
+                    IconButton(
+                      icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF2563EB)),
+                      tooltip: 'Regenerate all solutions',
+                      onPressed: _isLoadingSolutions ? null : _confirmRegenerateAll,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    ),
                   ],
                 ),
                 SizedBox(height: fieldGap),
                 _buildSolutionsSection(),
-                if (_isAdminHost) ...[
+                if (_solutions.length < 3) ...[
                   const SizedBox(height: 14),
                   Align(
                     alignment: Alignment.centerRight,
                     child: OutlinedButton.icon(
                       onPressed: _isLoadingSolutions ? null : _addManualSolution,
                       icon: const Icon(Icons.add),
-                      label: const Text('Add Solution'),
+                      label: Text('Add Solution (${_solutions.length}/3)'),
                     ),
                   ),
                 ],
@@ -1152,15 +1164,11 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: ExpandingTextField(
+                    child: _buildFieldWithControls(
+                      solution: solution,
+                      fieldName: 'title',
                       controller: solution.titleController,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      minLines: 1,
+                      hintText: 'Solution title',
                     ),
                   ),
                 ),
@@ -1171,29 +1179,22 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
             flex: 4,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: ExpandingTextField(
+              child: _buildFieldWithControls(
+                solution: solution,
+                fieldName: 'description',
                 controller: solution.descriptionController,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                minLines: 1,
+                hintText: 'Solution description',
               ),
             ),
           ),
-          if (_isAdminHost)
-            SizedBox(
-              width: 48,
-              child: (!solution.isAiGenerated)
-                  ? IconButton(
-                      tooltip: 'Delete',
-                      onPressed: () => _deleteSolutionAt(index),
-                      icon: const Icon(Icons.delete_outline),
-                    )
-                  : const SizedBox.shrink(),
+          SizedBox(
+            width: 48,
+            child: IconButton(
+              tooltip: 'Delete solution',
+              onPressed: () => _confirmDeleteSolution(index),
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
             ),
+          ),
         ],
       ),
     );
@@ -1218,36 +1219,32 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Solution ${index + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black54)),
-              if (_isAdminHost && !solution.isAiGenerated)
-                IconButton(
-                  tooltip: 'Delete',
-                  onPressed: () => _deleteSolutionAt(index),
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                ),
+              IconButton(
+                tooltip: 'Delete solution',
+                onPressed: () => _confirmDeleteSolution(index),
+                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
+              ),
             ],
           ),
           const SizedBox(height: 6),
           const Text('Solution Title', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          ExpandingTextField(
+          _buildFieldWithControls(
+            solution: solution,
+            fieldName: 'title',
             controller: solution.titleController,
-            style: const TextStyle(fontSize: 14),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            minLines: 1,
+            hintText: 'Solution title',
+            isMobile: true,
           ),
           const SizedBox(height: 10),
           const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          ExpandingTextField(
+          _buildFieldWithControls(
+            solution: solution,
+            fieldName: 'description',
             controller: solution.descriptionController,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            minLines: 2,
+            hintText: 'Solution description',
+            isMobile: true,
           ),
         ],
       ),
@@ -1283,6 +1280,8 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     final potentialSolutions = rowsToPersist
         .map(
           (s) => PotentialSolution(
+            id: s.id,
+            number: s.number,
             title: s.titleController.text.trim(),
             description: s.descriptionController.text.trim(),
           ),
@@ -1331,39 +1330,328 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     super.dispose();
   }
 
-  void _addManualSolution() {
-    if (!_isAdminHost) return;
+  Future<void> _addManualSolution() async {
+    if (_solutions.length >= 3) return;
+    
     setState(() {
       _solutions.add(
         SolutionRow(
+          number: _solutions.length + 1,
           titleController: TextEditingController(),
           descriptionController: TextEditingController(),
           isAiGenerated: false,
         ),
       );
     });
+    
+    // Auto-focus on first field of new solution
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _solutions.isNotEmpty) {
+        final lastSolution = _solutions.last;
+        FocusScope.of(context).requestFocus(FocusNode());
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            lastSolution.titleController.selection = TextSelection.collapsed(
+              offset: lastSolution.titleController.text.length,
+            );
+          }
+        });
+      }
+    });
+    
+    // Auto-save empty solution to Firebase
+    await _saveSolutions();
   }
 
-  void _deleteSolutionAt(int index) {
-    if (!_isAdminHost) return;
+  Future<void> _confirmDeleteSolution(int index) async {
     if (index < 0 || index >= _solutions.length) return;
-    final row = _solutions.removeAt(index);
-    row.titleController.dispose();
-    row.descriptionController.dispose();
-    if (mounted) setState(() {});
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Solution'),
+        content: const Text(
+          'Are you sure you want to delete this solution? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true && mounted) {
+      final row = _solutions.removeAt(index);
+      row.titleController.dispose();
+      row.descriptionController.dispose();
+      
+      // Renumber remaining solutions
+      for (int i = 0; i < _solutions.length; i++) {
+        _solutions[i].number = i + 1;
+      }
+      
+      setState(() {});
+      await _saveSolutions();
+    }
+  }
+
+  Future<void> _saveSolutions() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final solutions = _solutions
+        .map((s) => PotentialSolution(
+              id: s.id,
+              number: s.number,
+              title: s.titleController.text.trim(),
+              description: s.descriptionController.text.trim(),
+            ))
+        .toList();
+    
+    provider.updateInitiationData(potentialSolutions: solutions);
+    await provider.saveToFirebase(checkpoint: 'potential_solutions');
+  }
+
+  Future<void> _confirmRegenerateAll() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Regenerate All Solutions'),
+        content: const Text(
+          'This will regenerate all AI-generated solutions on this page. Your current content will be lost. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Regenerate All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _regenerateAllSolutions();
+    }
+  }
+
+  Future<void> _regenerateAllSolutions() async {
+    if (_incomingBusinessCase.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Business case is required to regenerate solutions')),
+      );
+      return;
+    }
+
+    setState(() => _isLoadingSolutions = true);
+
+    try {
+      final aiSolutions = await _openAiService.generateSolutionsFromBusinessCase(_incomingBusinessCase);
+      final targetCount = _isAdminHost ? 5 : 3;
+      
+      setState(() {
+        // Dispose old controllers
+        for (final solution in _solutions) {
+          solution.titleController.dispose();
+          solution.descriptionController.dispose();
+        }
+        
+        _solutions.clear();
+        final solutionsToUse = aiSolutions.take(targetCount).toList();
+        
+        for (int i = 0; i < solutionsToUse.length; i++) {
+          _solutions.add(
+            SolutionRow(
+              number: i + 1,
+              titleController: TextEditingController(text: solutionsToUse[i].title),
+              descriptionController: TextEditingController(text: solutionsToUse[i].description),
+              isAiGenerated: true,
+            ),
+          );
+        }
+        _isLoadingSolutions = false;
+      });
+
+      await _saveSolutions();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All solutions regenerated successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingSolutions = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate solutions: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _regenerateSolutionField(SolutionRow solution, String fieldName) async {
+    if (_incomingBusinessCase.trim().isEmpty) return;
+
+    try {
+      String newValue;
+      if (fieldName == 'title') {
+        final result = await _openAiService.generateSolutionsFromBusinessCase(_incomingBusinessCase);
+        newValue = result.isNotEmpty ? result.first.title : '';
+      } else {
+        final result = await _openAiService.generateSolutionsFromBusinessCase(_incomingBusinessCase);
+        newValue = result.isNotEmpty ? result.first.description : '';
+      }
+
+      // Add to history
+      final provider = ProjectDataHelper.getProvider(context);
+      final fieldKey = 'solution_${solution.id}_$fieldName';
+      provider.addFieldToHistory(fieldKey, fieldName == 'title' ? solution.titleController.text : solution.descriptionController.text, isAiGenerated: true);
+
+      // Update field
+      if (fieldName == 'title') {
+        solution.titleController.text = newValue;
+      } else {
+        solution.descriptionController.text = newValue;
+      }
+
+      await _saveSolutions();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Field regenerated successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to regenerate field: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _undoSolutionField(SolutionRow solution, String fieldName) async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final fieldKey = 'solution_${solution.id}_$fieldName';
+    
+    if (provider.canUndoField(fieldKey)) {
+      final previousValue = provider.projectData.undoField(fieldKey);
+      if (previousValue != null) {
+        if (fieldName == 'title') {
+          solution.titleController.text = previousValue;
+        } else {
+          solution.descriptionController.text = previousValue;
+        }
+        await _saveSolutions();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Undo successful')),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildFieldWithControls({
+    required SolutionRow solution,
+    required String fieldName,
+    required TextEditingController controller,
+    required String hintText,
+    bool isMobile = false,
+  }) {
+    final provider = ProjectDataHelper.getProvider(context);
+    final fieldKey = 'solution_${solution.id}_$fieldName';
+    final canUndo = provider.canUndoField(fieldKey);
+    final isAiGenerated = solution.isAiGenerated;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return MouseRegion(
+          onEnter: (_) => setState(() {}),
+          onExit: (_) => setState(() {}),
+          child: Stack(
+            children: [
+              isMobile
+                  ? TextField(
+                      controller: controller,
+                      decoration: InputDecoration(
+                        hintText: hintText,
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                      minLines: fieldName == 'description' ? 2 : 1,
+                      maxLines: fieldName == 'description' ? 5 : 1,
+                    )
+                  : ExpandingTextField(
+                      controller: controller,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: fieldName == 'description' ? Colors.grey : Colors.black87,
+                      ),
+                      decoration: InputDecoration(
+                        border: isMobile ? const OutlineInputBorder() : InputBorder.none,
+                        isDense: true,
+                        contentPadding: isMobile ? null : EdgeInsets.zero,
+                        hintText: hintText,
+                      ),
+                      minLines: 1,
+                    ),
+              if (isAiGenerated)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.refresh, size: 16, color: Color(0xFF2563EB)),
+                        tooltip: 'Regenerate this field',
+                        onPressed: () => _regenerateSolutionField(solution, fieldName),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.undo, size: 16, color: canUndo ? const Color(0xFF6B7280) : Colors.grey),
+                        tooltip: 'Undo last change',
+                        onPressed: canUndo ? () => _undoSolutionField(solution, fieldName) : null,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
 class SolutionRow {
+  final String id;
+  int number;
   final TextEditingController titleController;
   final TextEditingController descriptionController;
   final bool isAiGenerated;
 
   SolutionRow({
+    String? id,
+    required this.number,
     required this.titleController,
     required this.descriptionController,
     this.isAiGenerated = false,
-  });
+  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 }
 
 class _SidebarItem {

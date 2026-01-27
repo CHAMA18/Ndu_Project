@@ -10,6 +10,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 
 /// Front End Planning – Project Risks page
 /// Matches the provided screenshot with:
@@ -99,12 +100,35 @@ class _FrontEndPlanningRisksScreenState
     }
   }
 
+  Future<void> _regenerateAllRisks() async {
+    await _generateRequirementsFromBusinessCase();
+  }
+
   Future<void> _generateRequirementsFromBusinessCase() async {
     setState(() => _isGeneratingRequirements = true);
     final data = ProjectDataHelper.getData(context);
+    final provider = ProjectDataHelper.getProvider(context);
     final requirements = data.frontEndPlanning.requirementItems;
 
     try {
+      // Track field history before regenerating
+      for (final row in _rows) {
+        if (row.risk.trim().isNotEmpty) {
+          provider.addFieldToHistory(
+            'fep_risk_${row.id}_risk',
+            row.risk,
+            isAiGenerated: true,
+          );
+        }
+        if (row.description.trim().isNotEmpty) {
+          provider.addFieldToHistory(
+            'fep_risk_${row.id}_description',
+            row.description,
+            isAiGenerated: true,
+          );
+        }
+      }
+
       final ctx = ProjectDataHelper.buildFepContext(data,
           sectionLabel: 'Project Risks');
       final aiService = OpenAiServiceSecure();
@@ -147,7 +171,7 @@ class _FrontEndPlanningRisksScreenState
                 ? '$riskTitle. This risk is associated with: ${req.description}'
                 : req.description;
 
-            return _RiskItem(
+            final riskItem = _RiskItem(
               id: _generateId(entry.key + 1),
               requirement: req.description, // Pull from requirements
               requirementType: req.requirementType, // Pull from requirements
@@ -168,6 +192,24 @@ class _FrontEndPlanningRisksScreenState
               owner: '', // Can be filled by user later
               status: 'Identified',
             );
+            
+            // Track AI-generated content in field history
+            if (riskTitle.isNotEmpty) {
+              provider.addFieldToHistory(
+                'fep_risk_${riskItem.id}_risk',
+                riskTitle,
+                isAiGenerated: true,
+              );
+            }
+            if (riskDescription.isNotEmpty) {
+              provider.addFieldToHistory(
+                'fep_risk_${riskItem.id}_description',
+                riskDescription,
+                isAiGenerated: true,
+              );
+            }
+            
+            return riskItem;
           }).toList();
         } else {
           // No requirements, generate risks without requirement mapping
@@ -187,7 +229,7 @@ class _FrontEndPlanningRisksScreenState
               riskLevel = 'Low';
             }
 
-            return _RiskItem(
+            final riskItem = _RiskItem(
               id: _generateId(entry.key + 1),
               requirement: '',
               requirementType: '',
@@ -209,6 +251,25 @@ class _FrontEndPlanningRisksScreenState
               owner: '',
               status: 'Identified',
             );
+            
+            // Track AI-generated content in field history
+            final riskTitle = riskData['title'] ?? '';
+            if (riskTitle.isNotEmpty) {
+              provider.addFieldToHistory(
+                'fep_risk_${riskItem.id}_risk',
+                riskTitle,
+                isAiGenerated: true,
+              );
+            }
+            if (riskTitle.isNotEmpty) {
+              provider.addFieldToHistory(
+                'fep_risk_${riskItem.id}_description',
+                riskTitle,
+                isAiGenerated: true,
+              );
+            }
+            
+            return riskItem;
           }).toList();
         }
         _isGeneratingRequirements = false;
@@ -677,27 +738,45 @@ class _FrontEndPlanningRisksScreenState
                               ),
                               const SizedBox(height: 22),
                               Row(
-                                children: const [
-                                  EditableContentText(
-                                    contentKey: 'fep_risks_title',
-                                    fallback: 'Project Risks',
-                                    category: 'front_end_planning',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF111827),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: const [
+                                        EditableContentText(
+                                          contentKey: 'fep_risks_title',
+                                          fallback: 'Project Risks',
+                                          category: 'front_end_planning',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF111827),
+                                          ),
+                                        ),
+                                        SizedBox(height: 6),
+                                        EditableContentText(
+                                          contentKey: 'fep_risks_subtitle',
+                                          fallback:
+                                              '(Highlight and quantify known and/or anticipated risks here)',
+                                          category: 'front_end_planning',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  SizedBox(width: 8),
-                                  EditableContentText(
-                                    contentKey: 'fep_risks_subtitle',
-                                    fallback:
-                                        '(Highlight and quantify known and/or anticipated risks here)',
-                                    category: 'front_end_planning',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xFF6B7280),
-                                    ),
+                                  PageRegenerateAllButton(
+                                    onRegenerateAll: () async {
+                                      final confirmed = await showRegenerateAllConfirmation(context);
+                                      if (confirmed && mounted) {
+                                        await _regenerateAllRisks();
+                                      }
+                                    },
+                                    isLoading: _isGeneratingRequirements,
+                                    tooltip: 'Regenerate all risks',
                                   ),
                                 ],
                               ),
