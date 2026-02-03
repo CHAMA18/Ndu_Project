@@ -12,6 +12,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/services/project_route_registry.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 const Color _kSurfaceBackground = Color(0xFFF7F8FC);
 const Color _kAccentColor = Color(0xFFFFC812);
@@ -30,26 +31,11 @@ class WorkBreakdownStructureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Work Breakdown Structure',
       backgroundColor: _kSurfaceBackground,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DraggableSidebar(
-                  openWidth: AppBreakpoints.sidebarWidth(context),
-                  child: const InitiationLikeSidebar(
-                      activeItemLabel: 'Work Breakdown Structure'),
-                ),
-                Expanded(child: _WorkBreakdownStructureBody()),
-              ],
-            ),
-            const KazAiChatBubble(),
-          ],
-        ),
-      ),
+      floatingActionButton: const KazAiChatBubble(),
+      body: const _WorkBreakdownStructureBody(),
     );
   }
 }

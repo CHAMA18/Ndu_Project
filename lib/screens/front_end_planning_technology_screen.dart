@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/screens/front_end_planning_technology_personnel_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/content_text.dart';
@@ -142,115 +143,103 @@ class _FrontEndPlanningTechnologyScreenState extends State<FrontEndPlanningTechn
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Technology',
       backgroundColor: const Color(0xFFF7F8FC),
-      body: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Technology'),
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  const AdminEditToggle(),
-                  Column(
+      floatingActionButton: const KazAiChatBubble(),
+      body: Stack(
+        children: [
+          const AdminEditToggle(),
+          Column(
+            children: [
+              // Page top bar matching the mock (back/forward + title + user chip)
+              const SizedBox(height: 12),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: _TopBar(),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Page top bar matching the mock (back/forward + title + user chip)
                       const SizedBox(height: 12),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: _TopBar(),
+                      const PlanningAiNotesCard(
+                        title: 'Notes',
+                        sectionLabel: 'Technology',
+                        noteKey: 'planning_technology_notes',
+                        checkpoint: 'technology',
+                        description: 'Summarize technology decisions, integrations, and budget assumptions.',
                       ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 12),
-                              const PlanningAiNotesCard(
-                                title: 'Notes',
-                                sectionLabel: 'Technology',
-                                noteKey: 'planning_technology_notes',
-                                checkpoint: 'technology',
-                                description: 'Summarize technology decisions, integrations, and budget assumptions.',
-                              ),
-                              const SizedBox(height: 24),
-                              _SummaryRow2(
-                                items: _items,
-                                aiIntegrations: _aiIntegrations,
-                                aiRecommendations: _aiRecommendations,
-                              ),
-                              const SizedBox(height: 20),
-                              _Tabs(active: _activeTab, onChanged: _handleTabChanged),
-                              const SizedBox(height: 18),
-                              if (_activeTab == 0) ...[
-                                _SearchAndFilter(
-                                  searchCtrl: _searchCtrl,
-                                  category: _category,
-                                  onCategoryChanged: (val) => setState(() => _category = val),
-                                  options: _categoryOptionsForTab(_activeTab),
-                                ),
-                                const SizedBox(height: 12),
-                                _InventoryTable(
-                                  items: _filteredItems(),
-                                ),
-                              ] else if (_activeTab == 1) ...[
-                                _SearchAndFilter(
-                                  searchCtrl: _searchCtrl,
-                                  category: _category,
-                                  onCategoryChanged: (val) => setState(() => _category = val),
-                                  options: _categoryOptionsForTab(_activeTab),
-                                ),
-                                const SizedBox(height: 16),
-                                _AiIntegrationsView(items: _filteredAiIntegrations()),
-                              ] else if (_activeTab == 2) ...[
-                                _SearchAndFilter(
-                                  searchCtrl: _searchCtrl,
-                                  category: _category,
-                                  onCategoryChanged: (val) => setState(() => _category = val),
-                                  options: _categoryOptionsForTab(_activeTab),
-                                ),
-                                const SizedBox(height: 16),
-                                _ExternalIntegrationsView(items: _filteredExternalIntegrations()),
-                              ] else if (_activeTab == 3) ...[
-                                _SearchAndFilter(
-                                  searchCtrl: _searchCtrl,
-                                  category: _category,
-                                  onCategoryChanged: (val) => setState(() => _category = val),
-                                  options: const ['All Categories'],
-                                ),
-                                const SizedBox(height: 16),
-                                _TechnologyDefinitionsView(items: _filteredTechDefinitions()),
-                              ] else if (_activeTab == 4) ...[
-                                _SearchAndFilter(
-                                  searchCtrl: _searchCtrl,
-                                  category: _category,
-                                  onCategoryChanged: (val) => setState(() => _category = val),
-                                  options: _categoryOptionsForTab(_activeTab),
-                                ),
-                                const SizedBox(height: 16),
-                                _AiRecommendationsView(
-                                  recommendations: _aiRecommendations,
-                                ),
-                              ],
-                              const SizedBox(height: 140),
-                            ],
-                          ),
+                      const SizedBox(height: 24),
+                      _SummaryRow2(
+                        items: _items,
+                        aiIntegrations: _aiIntegrations,
+                        aiRecommendations: _aiRecommendations,
+                      ),
+                      const SizedBox(height: 20),
+                      _Tabs(active: _activeTab, onChanged: _handleTabChanged),
+                      const SizedBox(height: 18),
+                      if (_activeTab == 0) ...[
+                        _SearchAndFilter(
+                          searchCtrl: _searchCtrl,
+                          category: _category,
+                          onCategoryChanged: (val) => setState(() => _category = val),
+                          options: _categoryOptionsForTab(_activeTab),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        _InventoryTable(
+                          items: _filteredItems(),
+                        ),
+                      ] else if (_activeTab == 1) ...[
+                        _SearchAndFilter(
+                          searchCtrl: _searchCtrl,
+                          category: _category,
+                          onCategoryChanged: (val) => setState(() => _category = val),
+                          options: _categoryOptionsForTab(_activeTab),
+                        ),
+                        const SizedBox(height: 16),
+                        _AiIntegrationsView(items: _filteredAiIntegrations()),
+                      ] else if (_activeTab == 2) ...[
+                        _SearchAndFilter(
+                          searchCtrl: _searchCtrl,
+                          category: _category,
+                          onCategoryChanged: (val) => setState(() => _category = val),
+                          options: _categoryOptionsForTab(_activeTab),
+                        ),
+                        const SizedBox(height: 16),
+                        _ExternalIntegrationsView(items: _filteredExternalIntegrations()),
+                      ] else if (_activeTab == 3) ...[
+                        _SearchAndFilter(
+                          searchCtrl: _searchCtrl,
+                          category: _category,
+                          onCategoryChanged: (val) => setState(() => _category = val),
+                          options: const ['All Categories'],
+                        ),
+                        const SizedBox(height: 16),
+                        _TechnologyDefinitionsView(items: _filteredTechDefinitions()),
+                      ] else if (_activeTab == 4) ...[
+                        _SearchAndFilter(
+                          searchCtrl: _searchCtrl,
+                          category: _category,
+                          onCategoryChanged: (val) => setState(() => _category = val),
+                          options: _categoryOptionsForTab(_activeTab),
+                        ),
+                        const SizedBox(height: 16),
+                        _AiRecommendationsView(
+                          recommendations: _aiRecommendations,
+                        ),
+                      ],
+                      const SizedBox(height: 140),
                     ],
                   ),
-                  const _BottomOverlays(),
-                  const KazAiChatBubble(),
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const _BottomOverlays(),
+        ],
       ),
     );
   }

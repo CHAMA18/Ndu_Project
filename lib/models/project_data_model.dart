@@ -9,6 +9,13 @@ class ProjectDataModel {
   String solutionDescription;
   String businessCase;
   String notes;
+
+  // Strategic Planning Data (editable in Project Details)
+  List<String> assumptions;
+  List<String> constraints;
+  List<String> outOfScope;
+  List<String> opportunities;
+
   // Project Charter (editable in Project Charter screen)
   String charterAssumptions;
   String charterConstraints;
@@ -142,6 +149,10 @@ class ProjectDataModel {
     Map<String, String>? planningNotes,
     this.wbsCriteriaA,
     this.wbsCriteriaB,
+    List<String>? assumptions,
+    List<String>? constraints,
+    List<String>? outOfScope,
+    List<String>? opportunities,
     List<List<WorkItem>>? goalWorkItems,
     List<WorkItem>? wbsTree,
     List<IssueLogItem>? issueLogItems,
@@ -179,6 +190,10 @@ class ProjectDataModel {
   })  : potentialSolutions = potentialSolutions ?? [],
         solutionRisks = solutionRisks ?? [],
         projectGoals = projectGoals ?? [],
+        assumptions = assumptions ?? [],
+        constraints = constraints ?? [],
+        outOfScope = outOfScope ?? [],
+        opportunities = opportunities ?? [],
         planningGoals = planningGoals ??
             List.generate(3, (i) => PlanningGoal(goalNumber: i + 1)),
         keyMilestones = keyMilestones ?? [],
@@ -234,6 +249,10 @@ class ProjectDataModel {
     List<PlanningGoal>? planningGoals,
     List<Milestone>? keyMilestones,
     Map<String, String>? planningNotes,
+    List<String>? assumptions,
+    List<String>? constraints,
+    List<String>? outOfScope,
+    List<String>? opportunities,
     String? wbsCriteriaA,
     String? wbsCriteriaB,
     List<List<WorkItem>>? goalWorkItems,
@@ -300,6 +319,10 @@ class ProjectDataModel {
       planningGoals: planningGoals ?? this.planningGoals,
       keyMilestones: keyMilestones ?? this.keyMilestones,
       planningNotes: planningNotes ?? this.planningNotes,
+      assumptions: assumptions ?? this.assumptions,
+      constraints: constraints ?? this.constraints,
+      outOfScope: outOfScope ?? this.outOfScope,
+      opportunities: opportunities ?? this.opportunities,
       wbsCriteriaA: wbsCriteriaA ?? this.wbsCriteriaA,
       wbsCriteriaB: wbsCriteriaB ?? this.wbsCriteriaB,
       goalWorkItems: goalWorkItems ?? this.goalWorkItems,
@@ -363,6 +386,10 @@ class ProjectDataModel {
       'solutionDescription': solutionDescription,
       'businessCase': businessCase,
       'notes': notes,
+      'assumptions': assumptions,
+      'constraints': constraints,
+      'outOfScope': outOfScope,
+      'opportunities': opportunities,
       'charterAssumptions': charterAssumptions,
       'charterConstraints': charterConstraints,
       'charterProjectManagerName': charterProjectManagerName,
@@ -523,6 +550,10 @@ class ProjectDataModel {
       solutionDescription: json['solutionDescription']?.toString() ?? '',
       businessCase: json['businessCase']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
+      assumptions: (json['assumptions'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      constraints: (json['constraints'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      outOfScope: (json['outOfScope'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      opportunities: (json['opportunities'] as List?)?.map((e) => e.toString()).toList() ?? [],
       charterAssumptions: json['charterAssumptions']?.toString() ?? '',
       charterConstraints: json['charterConstraints']?.toString() ?? '',
       charterProjectManagerName:
