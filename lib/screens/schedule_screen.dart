@@ -745,8 +745,7 @@ class _WbsTreeTile extends StatelessWidget {
                               color: badge.backgroundColor,
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                  color:
-                                      badge.borderColor ?? Colors.transparent),
+                                  color: badge.borderColor),
                             ),
                             child: Text(
                               badge.label,
@@ -1627,23 +1626,21 @@ class _BadgeStyle {
     required this.label,
     required this.textColor,
     required this.backgroundColor,
-    this.borderColor, // Optional border color
-  });
+  }) : borderColor = Colors.transparent;
 
   final String label;
   final Color textColor;
   final Color backgroundColor;
-  final Color? borderColor;
+  final Color borderColor;
 }
 
 class _WbsNode {
   const _WbsNode({
     required this.title,
-    this.duration,
-    this.badges = const [],
-    this.children = const [],
-    this.highlight = false,
-  });
+  })  : duration = null,
+        badges = const [],
+        children = const [],
+        highlight = false;
 
   final String title;
   final String? duration;
@@ -1659,20 +1656,9 @@ class _TimelineItem {
     required this.startWeek,
     required this.durationWeeks,
     required this.color,
-    this.progress = 0,
-    this.isCritical = false,
-    this.isMilestone = false,
-  });
-
-  const _TimelineItem.milestone({
-    required this.label,
-    required this.startWeek,
-    required this.color,
-  })  : progressLabel = label,
-        durationWeeks = 1,
-        progress = 0,
+  })  : progress = 0,
         isCritical = false,
-        isMilestone = true;
+        isMilestone = false;
 
   final String label;
   final String progressLabel;

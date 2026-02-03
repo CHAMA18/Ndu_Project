@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -13,7 +12,6 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/widgets/project_workspace_sidebar.dart';
 
 class StakeholderManagementScreen extends StatefulWidget {
   const StakeholderManagementScreen({super.key});
@@ -33,8 +31,8 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
 
   final _stakeholderSaveDebounce = _Debouncer();
   final _planSaveDebounce = _Debouncer();
-  bool _loadingStakeholders = false;
-  bool _loadingPlans = false;
+  final bool _loadingStakeholders = false;
+  final bool _loadingPlans = false;
   String _searchQuery = '';
 
   @override

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -16,7 +16,6 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/models/procurement/procurement_models.dart';
 import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/services/vendor_service.dart';
-import 'package:ndu_project/services/contract_service.dart';
 import 'package:ndu_project/widgets/procurement_dialogs.dart';
 import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
 
@@ -54,7 +53,7 @@ class _FrontEndPlanningProcurementScreenState
 
   List<ProcurementItemModel> _items = [];
 
-  List<ProcurementItemModel> _trackableItems = [];
+  final List<ProcurementItemModel> _trackableItems = [];
 
   List<ProcurementStrategyModel> _strategies = [];
 
@@ -400,7 +399,9 @@ class _FrontEndPlanningProcurementScreenState
         final rfqs = <RfqModel>[
              RfqModel(id: '', projectId: projectId, title: 'Network Equip', category: 'IT', owner: 'Manager', dueDate: DateTime.now().add(const Duration(days: 30)), invitedCount: 5, responseCount: 3, budget: 50000, status: RfqStatus.inMarket, priority: ProcurementPriority.high, createdAt: DateTime.now())
         ];
-        for(final r in rfqs) await ProcurementService.createRfq(r);
+        for(final r in rfqs) {
+          await ProcurementService.createRfq(r);
+        }
     } catch(e) { debugPrint('$e'); }
   }
 
@@ -413,7 +414,9 @@ class _FrontEndPlanningProcurementScreenState
             id: '', poNumber: 'PO-1001', projectId: projectId, vendorName: 'TechCorp', category: 'IT', orderedDate: DateTime.now(), expectedDate: DateTime.now().add(const Duration(days: 10)), amount: 50000, createdAt: DateTime.now(), status: PurchaseOrderStatus.issued
           )
        ];
-       for(final po in pos) await ProcurementService.createPo(po);
+       for(final po in pos) {
+         await ProcurementService.createPo(po);
+       }
      } catch(e) { debugPrint('$e'); }
   }
 
@@ -1938,8 +1941,9 @@ class _ItemRow extends StatelessWidget {
     final progressLabel = '${(item.progress * 100).round()}%';
     
     Color progressColor;
-    if (item.progress >= 1.0) progressColor = const Color(0xFF10B981);
-    else if (item.progress >= 0.5) progressColor = const Color(0xFF2563EB);
+    if (item.progress >= 1.0) {
+      progressColor = const Color(0xFF10B981);
+    } else if (item.progress >= 0.5) progressColor = const Color(0xFF2563EB);
     else if (item.progress == 0) progressColor = const Color(0xFFD1D5DB);
     else progressColor = const Color(0xFF38BDF8);
 

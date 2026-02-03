@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/content_text.dart';
@@ -44,21 +41,49 @@ class _FrontEndPlanningContractVendorQuotesScreenState
   // removed _contractsController
   
   late Stream<List<ProcurementItemModel>> _itemsStream;
+  late Stream<List<ContractModel>> _contractsStream;
   bool _generating = false;
 
   @override
   void initState() {
     super.initState();
     ApiKeyManager.initializeApiKey();
-    // Initialize stream - assumes valid project ID available or fetched
-    // For now, hardcoded project-1 as seen in other files, or derived from context if possible.
-    // Ideally we get projectId from ProjectDataHelper or similar.
-    _itemsStream = ProcurementService.streamItems('project-1');
+    // Initialize streams
+    final projectData = ProjectDataHelper.getData(context);
+    final projectId = projectData.projectId;
+    
+    if (projectId != null && projectId.isNotEmpty) {
+      _itemsStream = ProcurementService.streamItems(projectId);
+      _contractsStream = ProcurementService.streamContracts(projectId);
+    } else {
+      // Initialize with empty streams to prevent unsafe usage errors before build handles the UI
+      _itemsStream = Stream.value([]);
+      _contractsStream = Stream.value([]);
+    }
     
     // safe refresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
        if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _openAddContractDialog() async {
+    final categoryOptions = const [
+        'Construction', 'Services', 'Consulting'
+    ];
+    final result = await showDialog<ContractModel>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (ctx) => AddContractDialog(
+        contextChips: _buildDialogContextChips(),
+        categoryOptions: categoryOptions,
+      ),
+    );
+
+    if (result != null) {
+      await ProcurementService.createContract(result);
+    }
   }
 
   Future<void> _openAddItemDialog() async {
@@ -124,10 +149,11 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           'Project: ${data.projectName}. Description: $projectDescription. '
           'Objective: ${data.projectObjective}. Solution: ${data.solutionDescription}.';
 
-      final prompt = 'Generate a breakdown of potential contractors and procurement vendors needed for this project. '
-          'Return a JSON object with a single key "items", which is an array of objects. '
-          'Each object must have: "name" (string), "description" (string), "category" (string, choose from: Services, Construction Services, Security, Logistics, Materials, Equipment, IT Equipment, Furniture, Consulting), '
-          '"budget" (number, estimated cost), "potential_vendors" (string, comma separated names). '
+      final prompt = 'Generate a breakdown of detailed contracts and procurement items needed for this project. '
+          'Return a JSON object with two keys: "contracts" and "procurement_items". '
+          'Both should be arrays of objects. '
+          'For "contracts": "title" (string), "description" (string), "contractor" (string, potential name), "cost" (number), "duration" (string). '
+          'For "procurement_items": "name" (string), "category" (string), "budget" (number), "potential_vendors" (string). '
           'Context: $contextText';
 
       final response = await OpenAiServiceSecure().generateCompletion(prompt);
@@ -137,22 +163,43 @@ class _FrontEndPlanningContractVendorQuotesScreenState
         parsed = jsonDecode(cleanJson);
       } catch (e) {
         debugPrint('JSON decode error, attempting fallback cleanup: $e');
-        // Simple fallback: invalid JSON
         throw Exception('AI returned invalid data format.');
       }
       
-      if (parsed.containsKey('items') && parsed['items'] is List) {
-        final List<dynamic> items = parsed['items'];
+      final projectId = ProjectDataHelper.getData(context).projectId ?? 'project-1';
+
+      if (parsed.containsKey('contracts') && parsed['contracts'] is List) {
+        final List<dynamic> contracts = parsed['contracts'];
+        for (final item in contracts) {
+           if (item is Map<String, dynamic>) {
+             final contract = ContractModel(
+               id: '',
+               projectId: projectId,
+               title: item['title'] ?? 'Contract',
+               description: item['description'] ?? '',
+               contractorName: item['contractor'] ?? 'To be determined',
+               estimatedCost: (item['cost'] as num?)?.toDouble() ?? 0.0,
+               duration: item['duration'] ?? 'TBD',
+               status: 'Draft',
+               createdAt: DateTime.now(),
+             );
+             await ProcurementService.createContract(contract);
+           }
+        }
+      }
+
+      if (parsed.containsKey('procurement_items') && parsed['procurement_items'] is List) {
+        final List<dynamic> items = parsed['procurement_items'];
         for (final item in items) {
           if (item is Map<String, dynamic>) {
             final newItem = ProcurementItemModel(
-              id: '', // Service will assign ID
-              projectId: 'project-1',
+              id: '', 
+              projectId: projectId,
               name: item['name'] ?? 'New Item',
-              description: item['description'] ?? '',
+              description: item['category'] ?? '', // Description often fits here if brief
               category: item['category'] ?? 'Equipment',
               budget: (item['budget'] as num?)?.toDouble() ?? 0.0,
-              notes: item['potential_vendors'] ?? '', // Storing vendors in notes
+              notes: item['potential_vendors'] ?? '', 
               status: ProcurementItemStatus.planning,
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
@@ -250,20 +297,102 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                             tooltip: 'Auto-populate Contractors and Vendors',
                           ),
                           const SizedBox(width: 12),
+                          const SizedBox(width: 12),
+                          // Actions moved to section headers
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      // Check for Project ID
+                      if (ProjectDataHelper.getData(context).projectId == null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, size: 48, color: Color(0xFFDC2626)),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Project Not Initialized',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Please return to the "Project Details" or "Initiation" section and ensure the project is saved before managing contracts and vendors.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Color(0xFFB91C1C)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Active Contracts',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: _openAddContractDialog,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Add Contract'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              foregroundColor: const Color(0xFF2563EB),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      StreamBuilder<List<ContractModel>>(
+                        stream: _contractsStream,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) return Text('Error: ${snapshot.error}');
+                          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                          return ContractsTable(contracts: snapshot.data!);
+                        },
+                      ),
+                      
+                      const SizedBox(height: 32),
+                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Procurement & Vendors',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
                           ElevatedButton.icon(
                             onPressed: _openAddItemDialog,
                             icon: const Icon(Icons.add, size: 16),
                             label: const Text('Add Item'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2563EB),
-                              foregroundColor: Colors.white,
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              foregroundColor: const Color(0xFF2563EB),
                               elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
                       StreamBuilder<List<ProcurementItemModel>>(
                         stream: _itemsStream,
                         builder: (context, snapshot) {
@@ -281,11 +410,11 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                             return const Center(child: CircularProgressIndicator());
                           }
                           final items = snapshot.data ?? [];
-                          // Replaced simple table with split tables
-                          return ProcurementTables(items: items);
+                          return ProcurementTable(items: items);
                         },
                       ),
                       const SizedBox(height: 140),
+                    ], // Close else block
                     ],
                   ),
                 ),

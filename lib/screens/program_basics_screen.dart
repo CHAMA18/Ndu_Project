@@ -8,13 +8,10 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/bullet_point_editor.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-
 
 const Color _kAccentColor = Color(0xFFFFC812);
 const Color _kTextPrimary = Color(0xFF1A1D1F);
 const Color _kTextSecondary = Color(0xFF6B7280);
-const Color _kSurfaceBackground = Color(0xFFF7F8FC);
 const Color _kSurfaceBorder = Color(0xFFE4E7EC);
 
 /// Program basics workspace mirroring provided design.
@@ -350,25 +347,22 @@ class _CircularNavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: background,
-          shape: BoxShape.circle,
-          border: Border.all(color: borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: iconColor, size: 18),
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: background,
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
+      child: Icon(icon, color: iconColor, size: 18),
     );
   }
 }

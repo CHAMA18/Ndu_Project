@@ -1553,3 +1553,184 @@ class _CreatePoDialogState extends State<CreatePoDialog> {
     );
   }
 }
+
+class AddContractDialog extends StatefulWidget {
+  const AddContractDialog({
+    super.key,
+    required this.contextChips,
+    required this.categoryOptions, // Just for context, mainly service types
+  });
+
+  final List<Widget> contextChips;
+  final List<String> categoryOptions;
+
+  @override
+  State<AddContractDialog> createState() => _AddContractDialogState();
+}
+
+class _AddContractDialogState extends State<AddContractDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleCtrl;
+  late TextEditingController _contractorCtrl;
+  late TextEditingController _descCtrl;
+  late TextEditingController _costCtrl;
+  late TextEditingController _durationCtrl;
+
+  String _status = 'Draft';
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController();
+    _contractorCtrl = TextEditingController();
+    _descCtrl = TextEditingController();
+    _costCtrl = TextEditingController();
+    _durationCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _contractorCtrl.dispose();
+    _descCtrl.dispose();
+    _costCtrl.dispose();
+    _durationCtrl.dispose();
+    super.dispose();
+  }
+
+  int _parseCurrency(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(cleaned) ?? 0;
+  }
+
+  InputDecoration _dialogDecoration(
+      {required String label,
+      String? hint,
+      Widget? prefixIcon,
+      String? errorText}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      errorText: errorText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ProcurementDialogShell(
+      title: 'Add Contract',
+      subtitle: 'Define a new contract agreement.',
+      icon: Icons.assignment_outlined,
+      contextChips: widget.contextChips,
+      primaryLabel: 'Create Contract',
+      secondaryLabel: 'Cancel',
+      onSecondary: () => Navigator.of(context).pop(),
+      onPrimary: () {
+        final valid = _formKey.currentState?.validate() ?? false;
+        if (!valid) return;
+
+        final projectId =
+            ProjectDataHelper.getData(context).projectId ?? 'project-1';
+        final cost = _parseCurrency(_costCtrl.text);
+
+        final contract = ContractModel(
+          id: '', // Service generates ID
+          projectId: projectId,
+          title: _titleCtrl.text.trim(),
+          description: _descCtrl.text.trim(),
+          contractorName: _contractorCtrl.text.trim(),
+          estimatedCost: cost.toDouble(),
+          duration: _durationCtrl.text.trim(),
+          status: _status,
+          createdAt: DateTime.now(),
+        );
+        Navigator.of(context).pop(contract);
+      },
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const DialogSectionTitle(
+              title: 'Contract basics',
+              subtitle: 'What is being contracted and who is responsible?',
+            ),
+            TextFormField(
+              controller: _titleCtrl,
+              decoration: _dialogDecoration(
+                  label: 'Contract Item', hint: 'e.g. Electrical Wiring'),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Title is required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _contractorCtrl,
+              decoration: _dialogDecoration(
+                  label: 'Contractor Name', hint: 'e.g. Sparky Services'),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Contractor name is required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _descCtrl,
+              maxLines: 2,
+              decoration: _dialogDecoration(
+                  label: 'Description', hint: 'Scope of work...'),
+            ),
+            const SizedBox(height: 18),
+            const DialogSectionTitle(
+              title: 'Terms',
+              subtitle: 'Cost, duration, and status.',
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _costCtrl,
+                    decoration: _dialogDecoration(
+                        label: 'Est. Cost', prefixIcon: const Icon(Icons.attach_money)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _durationCtrl,
+                    decoration: _dialogDecoration(
+                        label: 'Duration', hint: 'e.g. 3 months'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _status,
+              decoration: _dialogDecoration(label: 'Status'),
+              items: ['Draft', 'Active', 'Pending', 'Closed']
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _status = v);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

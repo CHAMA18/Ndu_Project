@@ -1288,17 +1288,20 @@ class FrontEndPlanningData {
 class RiskRegisterItem {
   String riskName;
   String impactLevel;
+  String likelihood;
   String mitigationStrategy;
 
   RiskRegisterItem({
     this.riskName = '',
     this.impactLevel = '',
+    this.likelihood = '',
     this.mitigationStrategy = '',
   });
 
   Map<String, dynamic> toJson() => {
         'riskName': riskName,
         'impactLevel': impactLevel,
+        'likelihood': likelihood,
         'mitigationStrategy': mitigationStrategy,
       };
 
@@ -1306,6 +1309,7 @@ class RiskRegisterItem {
     return RiskRegisterItem(
       riskName: json['riskName'] ?? '',
       impactLevel: json['impactLevel'] ?? '',
+      likelihood: json['likelihood'] ?? '',
       mitigationStrategy: json['mitigationStrategy'] ?? '',
     );
   }

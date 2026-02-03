@@ -478,7 +478,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: selectedStatus.isEmpty ? null : selectedStatus,
+                    initialValue: selectedStatus.isEmpty ? null : selectedStatus,
                     decoration: const InputDecoration(
                       labelText: 'Status',
                       isDense: true,

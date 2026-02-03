@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
-import 'project_framework_screen.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/services/project_route_registry.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';

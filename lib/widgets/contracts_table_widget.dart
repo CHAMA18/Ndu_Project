@@ -399,7 +399,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: selectedContractType.isEmpty
+                    initialValue: selectedContractType.isEmpty
                         ? null
                         : selectedContractType,
                     decoration: const InputDecoration(
@@ -424,7 +424,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: selectedStatus.isEmpty ? null : selectedStatus,
+                    initialValue: selectedStatus.isEmpty ? null : selectedStatus,
                     decoration: const InputDecoration(
                       labelText: 'Status *',
                       isDense: true,

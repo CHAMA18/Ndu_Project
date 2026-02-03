@@ -441,7 +441,6 @@ class _ContractList extends StatelessWidget {
 class _ControlButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final spacing = AppBreakpoints.isMobile(context) ? 12.0 : 16.0;
     return Wrap(
       spacing: spacing,
@@ -479,9 +478,7 @@ class _GhostButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foreground = isSecondary
-        ? theme.colorScheme.onSurface.withValues(alpha: 0.8)
-        : theme.colorScheme.primary;
+    final foreground = theme.colorScheme.primary;
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18, color: foreground),
@@ -491,9 +488,7 @@ class _GhostButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         side: BorderSide(color: AppSemanticColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        backgroundColor: isSecondary
-            ? Colors.white
-            : theme.colorScheme.primary.withValues(alpha: 0.04),
+        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.04),
       ),
     );
   }

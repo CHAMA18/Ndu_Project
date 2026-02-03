@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/screens/front_end_planning_requirements_screen.dart';

@@ -294,7 +294,7 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
             const SizedBox(height: 16),
             PremiumEditDialog.fieldLabel('Category'),
             DropdownButtonFormField<String>(
-              value: category,
+              initialValue: category,
               items: ['Onboarding', 'Discipline-Specific', 'Team Building'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (v) => setDialogState(() => category = v!),
               decoration: InputDecoration(

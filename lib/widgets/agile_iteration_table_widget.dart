@@ -305,9 +305,7 @@ class _AgileTaskRowWidgetState extends State<_AgileTaskRowWidget> {
   }
 
   void _updateTask(AgileTask updated) {
-    if (_previousState == null) {
-      _previousState = widget.task;
-    }
+    _previousState ??= widget.task;
     widget.onUpdated(updated);
     _debouncer.run(() async {
       final projectId =
