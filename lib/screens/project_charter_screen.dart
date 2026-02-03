@@ -357,29 +357,29 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
   Widget _buildCharterContent(bool isMobile) {
     if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildGeneralProjectInfo(),
-          const SizedBox(height: 16),
-          _buildProjectMetricsSection(),
-          const SizedBox(height: 16),
-          _buildProjectOverviewSection(),
-          const SizedBox(height: 16),
-          _buildProjectScopeSection(),
-          const SizedBox(height: 16),
-          _buildTentativeScheduleSection(),
-          const SizedBox(height: 16),
-          _buildResourcesSection(),
-          const SizedBox(height: 16),
-          _buildCostsSection(),
-          const SizedBox(height: 16),
-          _buildBenefitsAndCustomersSection(),
-          const SizedBox(height: 16),
-          _buildRisksConstraintsAssumptionsSection(),
-          const SizedBox(height: 16),
-          _buildApprovalSection(),
-        ],
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.desktop_mac_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'Desktop View Required',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'The Project Charter is a comprehensive document\nbest viewed on a larger screen.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Go Back'),
+            ),
+          ],
+        ),
       );
     }
 
@@ -394,6 +394,16 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildGeneralProjectInfo(),
+              const SizedBox(height: 16),
+              // Add Visual Charts Here
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _buildTentativeScheduleChart()),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildCostDistributionChart()),
+                ],
+              ),
               const SizedBox(height: 16),
               _buildProjectMetricsSection(),
               const SizedBox(height: 16),
@@ -427,6 +437,127 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
       ],
     );
   }
+
+  // --- Start of Chart Widgets ---
+
+  Widget _buildTentativeScheduleChart() {
+    return _CharterSection(
+      title: 'TIMELINE OVERVIEW',
+      backgroundColor: Colors.white,
+      child: Container(
+        height: 150,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Simple visual representation of phase progression
+            Expanded(
+              child: Row(
+                children: [
+                  _buildPhaseBar('Init', Colors.blue, 0.2),
+                  const SizedBox(width: 2),
+                  _buildPhaseBar('Plan', Colors.green, 0.3),
+                  const SizedBox(width: 2),
+                  _buildPhaseBar('Exec', Colors.orange, 0.4),
+                  const SizedBox(width: 2),
+                  _buildPhaseBar('Close', Colors.grey, 0.1),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Start: ${_formatDate(_projectData?.createdAt)}', style: const TextStyle(fontSize: 10)),
+                Text('End: ${_extractEndDate(_projectData)}', style: const TextStyle(fontSize: 10)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhaseBar(String label, Color color, double flex) {
+    return Expanded(
+      flex: (flex * 10).toInt(),
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: color.withOpacity(0.5)),
+              ),
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCostDistributionChart() {
+     // Extract values for a simple visualization
+    // Note: In a real app this would parse the actual doubles.
+    return _CharterSection(
+      title: 'COST DISTRIBUTION',
+      backgroundColor: Colors.white,
+      child: Container(
+        height: 150,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Cost Cake Plot (Simulated with Stacked Bars for simplicity without external libs)
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildCostBarRow('Labor', 0.5, Colors.blue),
+                  const SizedBox(height: 8),
+                  _buildCostBarRow('Materials', 0.3, Colors.orange),
+                  const SizedBox(height: 8),
+                  _buildCostBarRow('Contingency', 0.2, Colors.purple),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCostBarRow(String label, double pct, Color color) {
+    return Row(
+      children: [
+        SizedBox(width: 70, child: Text(label, style: const TextStyle(fontSize: 10))),
+        Expanded(
+          child: Stack(
+            children: [
+              Container(height: 12, color: Colors.grey[100]),
+              FractionallySizedBox(
+                widthFactor: pct,
+                child: Container(height: 12, color: color),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text('${(pct * 100).toInt()}%', style: const TextStyle(fontSize: 10)),
+      ],
+    );
+  }
+
+  // --- End of Chart Widgets ---
 
   // ==================== GENERAL PROJECT INFORMATION ====================
   Widget _buildGeneralProjectInfo() {
@@ -1171,6 +1302,20 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
   // ==================== CONSTRAINTS AND ASSUMPTIONS ====================
   Widget _buildRisksConstraintsAssumptionsSection() {
+    final constraints = _projectData?.constraints ?? [];
+    final assumptions = _projectData?.assumptions ?? [];
+    final oldConstraints = _projectData?.charterConstraints ?? '';
+    final oldAssumptions = _projectData?.charterAssumptions ?? '';
+
+    // Combine new list data with old string data if present
+    final constraintText = constraints.isNotEmpty
+        ? '• ${constraints.join('\n• ')}'
+        : (oldConstraints.isNotEmpty ? oldConstraints : 'Not specified');
+
+    final assumptionText = assumptions.isNotEmpty
+        ? '• ${assumptions.join('\n• ')}'
+        : (oldAssumptions.isNotEmpty ? oldAssumptions : 'Not specified');
+
     return Column(
       children: [
         // Prominent Risks section
@@ -1182,9 +1327,9 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
           backgroundColor: Colors.white,
           child: Column(
             children: [
-              _buildYellowSmallLabeledField('CONSTRAINTS', _projectData?.charterConstraints ?? 'Not specified'),
+              _buildYellowSmallLabeledField('CONSTRAINTS', constraintText),
               const SizedBox(height: 8),
-              _buildYellowSmallLabeledField('ASSUMPTIONS', _projectData?.charterAssumptions ?? 'Not specified'),
+              _buildYellowSmallLabeledField('ASSUMPTIONS', assumptionText),
             ],
           ),
         ),
@@ -1404,7 +1549,13 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
   String _extractOutsideScope(ProjectDataModel? data) {
     if (data == null) return 'Out of scope items not defined.';
-    // Extract from risks or constraints as potential exclusions
+    
+    // Use the explicit outOfScope list from Project Data
+    if (data.outOfScope.isNotEmpty) {
+      return '• ${data.outOfScope.join('\n• ')}';
+    }
+
+    // Fallback: Extract from risks or constraints as potential exclusions
     final exclusions = <String>[];
     if (data.charterConstraints.isNotEmpty) {
       exclusions.add('• ${data.charterConstraints}');
