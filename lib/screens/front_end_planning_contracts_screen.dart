@@ -1729,12 +1729,10 @@ class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
     required this.child,
-    this.helper,
   });
 
   final String label;
   final Widget child;
-  final String? helper;
 
   @override
   Widget build(BuildContext context) {
@@ -1748,13 +1746,6 @@ class _LabeledField extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: Color(0xFF111827)),
         ),
-        if (helper != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            helper!,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-          ),
-        ],
         const SizedBox(height: 12),
         child,
       ],

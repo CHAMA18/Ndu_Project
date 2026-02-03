@@ -1477,7 +1477,7 @@ class _LandingScreenState extends State<LandingScreen>
         final easedValue = Curves.easeOutCubic.transform(_animController.value);
         final animated = metric.value * easedValue;
         final valueText =
-            '${metric.prefix}${animated.toStringAsFixed(metric.decimals)}${metric.suffix}';
+            '${animated.toStringAsFixed(0)}${metric.suffix}';
 
         return SizedBox(
           width: 240,
@@ -3706,7 +3706,6 @@ class _MetricData {
     required this.value,
     required this.label,
     required this.caption,
-    this.prefix = '',
     this.suffix = '',
     this.decimals = 0,
   });
@@ -3714,7 +3713,6 @@ class _MetricData {
   final double value;
   final String label;
   final String caption;
-  final String prefix;
   final String suffix;
   final int decimals;
 }

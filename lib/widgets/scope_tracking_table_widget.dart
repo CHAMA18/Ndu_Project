@@ -352,7 +352,7 @@ class _ScopeTrackingRowWidgetState extends State<_ScopeTrackingRowWidget> {
     widget.onUpdated(updated);
     _debouncer.debounce(() async {
       final provider = ProjectDataInherited.maybeOf(context);
-      final projectId = provider?.projectData?.projectId;
+      final projectId = provider?.projectData.projectId;
       if (projectId == null || projectId.isEmpty) return;
 
       try {
@@ -441,7 +441,7 @@ class _ScopeTrackingRowWidgetState extends State<_ScopeTrackingRowWidget> {
 
   Future<void> _deleteItem(ScopeTrackingItem item) async {
     final provider = ProjectDataInherited.maybeOf(context);
-    final projectId = provider?.projectData?.projectId;
+    final projectId = provider?.projectData.projectId;
     if (projectId == null || projectId.isEmpty) return;
 
     // Save state for undo

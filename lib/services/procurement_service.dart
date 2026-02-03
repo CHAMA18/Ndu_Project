@@ -18,6 +18,9 @@ class ProcurementService {
   static CollectionReference<Map<String, dynamic>> _posCol(String projectId) =>
       _db.collection('projects').doc(projectId).collection('purchase_orders');
 
+  static CollectionReference<Map<String, dynamic>> _contractsCol(String projectId) =>
+      _db.collection('projects').doc(projectId).collection('contracts');
+
   // --- Procurement Items ---
 
   static Stream<List<ProcurementItemModel>> streamItems(String projectId) {
@@ -110,5 +113,26 @@ class ProcurementService {
 
   static Future<void> deletePo(String projectId, String poId) async {
     await _posCol(projectId).doc(poId).delete();
+  }
+
+  // --- Contracts ---
+
+  static Stream<List<ContractModel>> streamContracts(String projectId) {
+    return _contractsCol(projectId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map(ContractModel.fromDoc).toList());
+  }
+
+  static Future<void> createContract(ContractModel contract) async {
+    await _contractsCol(contract.projectId).add(contract.toMap());
+  }
+
+  static Future<void> updateContract(String projectId, String contractId, Map<String, dynamic> data) async {
+    await _contractsCol(projectId).doc(contractId).update(data);
+  }
+
+  static Future<void> deleteContract(String projectId, String contractId) async {
+    await _contractsCol(projectId).doc(contractId).delete();
   }
 }

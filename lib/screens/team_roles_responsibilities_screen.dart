@@ -2409,8 +2409,6 @@ class _DialogTextField extends StatelessWidget {
   final IconData? icon;
   final TextInputType? keyboardType;
   final int maxLines;
-  final ValueChanged<String>? onChanged;
-  final Widget? suffixIcon;
 
   const _DialogTextField({
     required this.controller,
@@ -2419,8 +2417,6 @@ class _DialogTextField extends StatelessWidget {
     this.icon,
     this.keyboardType,
     this.maxLines = 1,
-    this.onChanged, // Optional callback
-    this.suffixIcon,
   });
 
   @override
@@ -2438,12 +2434,10 @@ class _DialogTextField extends StatelessWidget {
       keyboardType: keyboardType,
       maxLines: maxLines,
       style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurface),
-      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         prefixIcon: icon == null ? null : Icon(icon, color: colors.primary),
-        suffixIcon: suffixIcon,
         alignLabelWithHint: maxLines > 1,
         filled: true,
         fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -2470,24 +2464,19 @@ class _ChoicePills extends StatelessWidget {
     required this.options,
     required this.selectedValue,
     required this.onChanged,
-    this.pillColor,
-    this.selectedColor,
   });
 
   final String label;
   final List<String> options;
   final String selectedValue;
   final ValueChanged<String> onChanged;
-  final Color? pillColor;
-  final Color? selectedColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final chipColor =
-        pillColor ?? colors.surfaceContainerHighest.withValues(alpha: 0.6);
-    final activeColor = selectedColor ?? colors.primary;
+    final chipColor = colors.surfaceContainerHighest.withValues(alpha: 0.6);
+    final activeColor = colors.primary;
     final labelStyle = theme.textTheme.labelMedium?.copyWith(
       fontWeight: FontWeight.w600,
       color: colors.onSurfaceVariant,

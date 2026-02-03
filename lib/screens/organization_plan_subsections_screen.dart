@@ -99,8 +99,11 @@ class _OrganizationRolesResponsibilitiesScreenState extends State<OrganizationRo
                   enabled: !alreadyAdded,
                   onChanged: alreadyAdded ? null : (val) {
                     setDialogState(() {
-                      if (val == true) selectedIndices.add(index);
-                      else selectedIndices.remove(index);
+                      if (val == true) {
+                        selectedIndices.add(index);
+                      } else {
+                        selectedIndices.remove(index);
+                      }
                     });
                   },
                 );
@@ -480,8 +483,11 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                   enabled: !alreadyStaffed,
                   onChanged: alreadyStaffed ? null : (val) {
                     setDialogState(() {
-                      if (val == true) selectedIndices.add(index);
-                      else selectedIndices.remove(index);
+                      if (val == true) {
+                        selectedIndices.add(index);
+                      } else {
+                        selectedIndices.remove(index);
+                      }
                     });
                   },
                 );
@@ -573,7 +579,7 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                     children: [
                       PremiumEditDialog.fieldLabel('Employment'),
                       DropdownButtonFormField<String>(
-                        value: empType,
+                        initialValue: empType,
                         items: ['FT', 'PT'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) => setDialogState(() => empType = v!),
                         decoration: InputDecoration(
@@ -592,7 +598,7 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                     children: [
                       PremiumEditDialog.fieldLabel('Category'),
                       DropdownButtonFormField<String>(
-                        value: employeeType,
+                        initialValue: employeeType,
                         items: ['Employee', 'Contractor'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) => setDialogState(() => employeeType = v!),
                         decoration: InputDecoration(

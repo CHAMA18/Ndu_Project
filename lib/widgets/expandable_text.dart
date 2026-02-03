@@ -8,12 +8,12 @@ class ExpandableText extends StatefulWidget {
   final Color? expandButtonColor;
 
   const ExpandableText({
-    Key? key,
+    super.key,
     required this.text,
     this.maxLines = 8,
     this.style,
     this.expandButtonColor,
-  }) : super(key: key);
+  });
 
   @override
   State<ExpandableText> createState() => _ExpandableTextState();

@@ -105,6 +105,9 @@ class ProcurementItemModel {
   final String notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String projectPhase; // e.g. "Planning", "Execution"
+  final String responsibleMember;
+  final String comments;
 
   const ProcurementItemModel({
     required this.id,
@@ -123,6 +126,9 @@ class ProcurementItemModel {
     this.contractId,
     this.events = const [],
     this.notes = '',
+    this.projectPhase = 'Planning',
+    this.responsibleMember = '',
+    this.comments = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -143,6 +149,9 @@ class ProcurementItemModel {
     'contractId': contractId,
     'events': events.map((e) => e.toJson()).toList(),
     'notes': notes,
+    'projectPhase': projectPhase,
+    'responsibleMember': responsibleMember,
+    'comments': comments,
     'createdAt': FieldValue.serverTimestamp(),
     'updatedAt': FieldValue.serverTimestamp(),
   };
@@ -181,8 +190,62 @@ class ProcurementItemModel {
       contractId: data['contractId'],
       events: (data['events'] as List?)?.map((e) => ProcurementEvent.fromJson(e)).toList() ?? [],
       notes: data['notes'] ?? '',
+      projectPhase: data['projectPhase'] ?? 'Planning',
+      responsibleMember: data['responsibleMember'] ?? '',
+      comments: data['comments'] ?? '',
       createdAt: guaranteedDate(data['createdAt']),
       updatedAt: guaranteedDate(data['updatedAt']),
+    );
+  }
+}
+
+/// Contract Model for specific contracted work
+class ContractModel {
+  final String id;
+  final String projectId;
+  final String title; // "Item" in the table
+  final String description;
+  final String contractorName;
+  final double estimatedCost;
+  final String duration;
+  final String status;
+  final DateTime createdAt;
+
+  const ContractModel({
+    required this.id,
+    required this.projectId,
+    required this.title,
+    required this.description,
+    required this.contractorName,
+    this.estimatedCost = 0.0,
+    this.duration = '',
+    this.status = 'Draft',
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'projectId': projectId,
+    'title': title,
+    'description': description,
+    'contractorName': contractorName,
+    'estimatedCost': estimatedCost,
+    'duration': duration,
+    'status': status,
+    'createdAt': FieldValue.serverTimestamp(),
+  };
+
+  static ContractModel fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return ContractModel(
+      id: doc.id,
+      projectId: data['projectId'] ?? '',
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      contractorName: data['contractorName'] ?? '',
+      estimatedCost: (data['estimatedCost'] as num?)?.toDouble() ?? 0.0,
+      duration: data['duration'] ?? '',
+      status: data['status'] ?? 'Draft',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 }

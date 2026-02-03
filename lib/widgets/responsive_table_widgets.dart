@@ -6,10 +6,10 @@ class ResponsiveDataTableWrapper extends StatelessWidget {
   final double? minWidth;
 
   const ResponsiveDataTableWrapper({
-    Key? key,
+    super.key,
     required this.child,
     this.minWidth,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +37,12 @@ class TruncatedTableCell extends StatelessWidget {
   final double? maxWidth;
 
   const TruncatedTableCell({
-    Key? key,
+    super.key,
     required this.text,
     this.maxLines = 2,
     this.style,
     this.maxWidth,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

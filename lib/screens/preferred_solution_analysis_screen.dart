@@ -32,7 +32,6 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/select_project_kaz_button.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
-import 'package:ndu_project/widgets/solution_card.dart';
 import 'package:ndu_project/widgets/solution_detail_section.dart';
 
 class PreferredSolutionAnalysisScreen extends StatefulWidget {

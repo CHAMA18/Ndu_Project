@@ -1243,7 +1243,6 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
 
 class _QcTechniquesTable extends StatelessWidget {
   const _QcTechniquesTable({
-    super.key,
     required this.techniques,
     required this.onRemove,
     required this.onEdit,
@@ -1704,7 +1703,6 @@ class _PrimaryCard extends StatelessWidget {
 
 class _QaTechniquesTable extends StatelessWidget {
   const _QaTechniquesTable({
-    super.key,
     required this.techniques,
     required this.onRemove,
     required this.onEdit,
