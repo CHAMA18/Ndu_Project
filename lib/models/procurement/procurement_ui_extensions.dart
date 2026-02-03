@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ndu_project/models/procurement/procurement_item_model.dart';
-import 'package:ndu_project/models/procurement/rfq_model.dart';
-import 'package:ndu_project/models/procurement/purchase_order_model.dart';
+import 'package:ndu_project/models/procurement/procurement_models.dart';
 
 extension ProcurementItemStatusUI on ProcurementItemStatus {
   String get label {

@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ndu_project/models/procurement/procurement_item_model.dart';
+import 'package:ndu_project/models/procurement/procurement_models.dart';
 import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
-import 'package:ndu_project/models/procurement/rfq_model.dart';
-import 'package:ndu_project/models/procurement/purchase_order_model.dart';
-import 'package:ndu_project/models/procurement/vendor_model.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/services/vendor_service.dart';
 
 class ProcurementDialogShell extends StatelessWidget {
   const ProcurementDialogShell({
@@ -413,21 +411,24 @@ class _AddItemDialogState extends State<AddItemDialog> {
           setState(() => _showDateError = true);
           return;
         }
+        final projectId =
+            ProjectDataHelper.getData(context).projectId ?? 'project-1';
         final budget = _parseCurrency(_budgetCtrl.text);
         final item = ProcurementItemModel(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
+          projectId: projectId,
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
           category: _category,
           status: _status,
           priority: _priority,
           budget: budget.toDouble(),
+          spent: 0.0,
           estimatedDelivery: _deliveryDate,
           progress: 0,
-          progressColor: const Color(0xFF3B82F6),
-          orderStatus: 'Planned',
-          currentStatus: ProcurementItemStatusUI.planning,
           events: [],
+          notes: '',
+          createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
         Navigator.of(context).pop(item);
@@ -639,9 +640,12 @@ class _AddVendorDialogState extends State<AddVendorDialog> {
         text: widget.initialVendor?.name ?? '');
     _category = widget.initialVendor?.category ??
         widget.categoryOptions.first;
-    _rating = (widget.initialVendor?.rating ?? 4).toDouble();
-    _approved = widget.initialVendor?.approved ?? true;
-    _preferred = widget.initialVendor?.preferred ?? false;
+    _rating = _ratingFromLetter(widget.initialVendor?.rating ?? 'B');
+    final status = widget.initialVendor?.status.toLowerCase() ?? 'active';
+    _approved = status == 'active' || status == 'approved';
+    final criticality =
+        widget.initialVendor?.criticality.toLowerCase() ?? 'medium';
+    _preferred = criticality == 'high';
     _openAi = OpenAiServiceSecure();
     ApiKeyManager.initializeApiKey();
 
@@ -669,6 +673,42 @@ class _AddVendorDialogState extends State<AddVendorDialog> {
           .toUpperCase();
     }
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+
+  double _ratingFromLetter(String rating) {
+    final raw = rating.trim().toUpperCase();
+    final parsed = int.tryParse(raw);
+    if (parsed != null) return parsed.toDouble().clamp(1, 5);
+    switch (raw) {
+      case 'A':
+        return 5;
+      case 'B':
+        return 4;
+      case 'C':
+        return 3;
+      case 'D':
+        return 2;
+      case 'E':
+        return 1;
+      default:
+        return 4;
+    }
+  }
+
+  String _ratingToLetter(double value) {
+    final score = value.round().clamp(1, 5);
+    switch (score) {
+      case 5:
+        return 'A';
+      case 4:
+        return 'B';
+      case 3:
+        return 'C';
+      case 2:
+        return 'D';
+      default:
+        return 'E';
+    }
   }
 
   Future<void> _generateWithAI() async {
@@ -762,25 +802,41 @@ class _AddVendorDialogState extends State<AddVendorDialog> {
         final valid = _formKey.currentState?.validate() ?? false;
         if (!valid) return;
         final name = _nameCtrl.text.trim();
+        final projectId =
+            ProjectDataHelper.getData(context).projectId ?? 'project-1';
         final vendorId = widget.initialVendor?.id ??
             'vendor_${DateTime.now().microsecondsSinceEpoch}';
+        final status = _approved ? 'Active' : 'Watch';
+        final criticality = _preferred ? 'High' : 'Medium';
+        final nextReview = widget.initialVendor?.nextReview ??
+            DateFormat('MMM d, yyyy')
+                .format(DateTime.now().add(const Duration(days: 180)));
         final vendor = VendorModel(
           id: vendorId,
-          projectId: 'project-1',
+          projectId: projectId,
           name: name,
           category: _category,
-          rating: _rating,
-          status: 'Active',
-          approved: _approved,
-          preferred: _preferred,
-          initials: _deriveInitials(name),
-          sla: 98,
-          onTimeDelivery: 99,
-          incidentResponse: 24,
-          qualityScore: 95,
-          costAdherence: 100,
-          createdById: 'user', createdByEmail: 'user@email', createdByName: 'User',
-          createdAt: DateTime.now(),
+          criticality: criticality,
+          sla: widget.initialVendor?.sla ?? '98%',
+          slaPerformance: widget.initialVendor?.slaPerformance ??
+              (_rating / 5).clamp(0.0, 1.0),
+          leadTime: widget.initialVendor?.leadTime ?? '14 Days',
+          requiredDeliverables:
+              widget.initialVendor?.requiredDeliverables ??
+                  '• Quarterly review\n• SLA adherence',
+          rating: _ratingToLetter(_rating),
+          status: status,
+          nextReview: nextReview,
+          contractId: widget.initialVendor?.contractId,
+          onTimeDelivery: widget.initialVendor?.onTimeDelivery ?? 0.95,
+          incidentResponse: widget.initialVendor?.incidentResponse ?? 0.95,
+          qualityScore: widget.initialVendor?.qualityScore ?? 0.95,
+          costAdherence: widget.initialVendor?.costAdherence ?? 0.95,
+          notes: widget.initialVendor?.notes,
+          createdById: 'user',
+          createdByEmail: 'user@email',
+          createdByName: 'User',
+          createdAt: widget.initialVendor?.createdAt ?? DateTime.now(),
           updatedAt: DateTime.now(),
         );
         Navigator.of(context).pop(vendor);
@@ -1017,21 +1073,23 @@ class _CreateRfqDialogState extends State<CreateRfqDialog> {
         final budget = _parseCurrency(_budgetCtrl.text);
         final invited = int.tryParse(_invitedCtrl.text.trim()) ?? 0;
         final responses = int.tryParse(_responsesCtrl.text.trim()) ?? 0;
+        final projectId =
+            ProjectDataHelper.getData(context).projectId ?? 'project-1';
         final rfq = RfqModel(
           id: 'RFQ-${DateTime.now().millisecondsSinceEpoch % 10000}',
           title: _titleCtrl.text.trim(),
-          projectId: 'project-1',
+          projectId: projectId,
           category: _category,
           owner: _ownerCtrl.text.trim().isEmpty
               ? 'Unassigned'
               : _ownerCtrl.text.trim(),
           budget: budget.toDouble(),
           dueDate: _dueDate!,
-          invited: invited,
-          responses: responses.clamp(0, invited).toInt(),
+          invitedCount: invited,
+          responseCount: responses.clamp(0, invited).toInt(),
           status: _status,
           priority: _priority,
-          description: '', createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          createdAt: DateTime.now(),
         );
         Navigator.of(context).pop(rfq);
       },
@@ -1316,10 +1374,13 @@ class _CreatePoDialogState extends State<CreatePoDialog> {
         final poId = _idCtrl.text.trim().isEmpty
             ? 'PO-${DateTime.now().millisecondsSinceEpoch % 10000}'
             : _idCtrl.text.trim();
+        final projectId =
+            ProjectDataHelper.getData(context).projectId ?? 'project-1';
         final po = PurchaseOrderModel(
           id: poId,
-          projectId: 'project-1',
-          vendor: _vendorCtrl.text.trim(),
+          poNumber: poId,
+          projectId: projectId,
+          vendorName: _vendorCtrl.text.trim(),
           category: _category,
           owner: _ownerCtrl.text.trim().isEmpty
               ? 'Unassigned'
@@ -1329,7 +1390,7 @@ class _CreatePoDialogState extends State<CreatePoDialog> {
           amount: amount.toDouble(),
           progress: _progress,
           status: _status,
-          items: [], createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          createdAt: DateTime.now(),
         );
         Navigator.of(context).pop(po);
       },

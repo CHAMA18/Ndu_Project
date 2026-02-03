@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -65,6 +66,7 @@ class _PreferredSolutionAnalysisScreenState
   int? _selectedSolutionIndex;
   late final TextEditingController _projectNameController;
   String? _projectNameError;
+  Timer? _notesSaveTimer;
 
   @override
   void initState() {
@@ -79,6 +81,7 @@ class _PreferredSolutionAnalysisScreenState
         : _fallbackSolutions();
     _tabController = TabController(length: _solutions.length, vsync: this);
     _notesController = TextEditingController(text: widget.notes);
+    _notesController.addListener(_handleNotesChanged);
     _projectNameController = TextEditingController();
     _analysis = _solutions
         .map((s) => _SolutionAnalysisData(
@@ -102,6 +105,16 @@ class _PreferredSolutionAnalysisScreenState
         );
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _notesSaveTimer?.cancel();
+    _notesController.removeListener(_handleNotesChanged);
+    _notesController.dispose();
+    _projectNameController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadExistingDataAndAnalysis() async {
@@ -1218,6 +1231,7 @@ class _PreferredSolutionAnalysisScreenState
         const SizedBox(height: 8),
         TextField(
           controller: _notesController,
+          keyboardType: TextInputType.multiline,
           style: TextStyle(fontSize: 14, color: Colors.grey[700]),
           decoration: const InputDecoration(
               hintText: 'Capture rationale, assumptions, or follow-ups here...',
@@ -1229,6 +1243,29 @@ class _PreferredSolutionAnalysisScreenState
         ),
       ]),
     );
+  }
+
+  void _handleNotesChanged() {
+    if (!mounted) return;
+    final provider = ProjectDataHelper.getProvider(context);
+    final current = provider.projectData.preferredSolutionAnalysis;
+    final updated = PreferredSolutionAnalysis(
+      workingNotes: _notesController.text,
+      solutionAnalyses: current?.solutionAnalyses ?? const [],
+      selectedSolutionTitle: current?.selectedSolutionTitle,
+      selectedSolutionId: current?.selectedSolutionId,
+      selectedSolutionIndex: current?.selectedSolutionIndex,
+    );
+
+    provider.updateField((data) => data.copyWith(
+          preferredSolutionAnalysis: updated,
+        ));
+
+    _notesSaveTimer?.cancel();
+    _notesSaveTimer = Timer(const Duration(milliseconds: 600), () {
+      if (!mounted) return;
+      _saveAnalysisData();
+    });
   }
 
   Widget _buildLoadingBlock() {
@@ -3470,7 +3507,7 @@ class _PreferredSolutionAnalysisScreenState
 
   // ignore: unused_element
   String _formatCurrencyLegacy(double value) {
-    if (value == 0) return ' 24 30';
+    if (value == 0) return '2430';
     final absValue = value.abs();
     final decimals = absValue >= 1000
         ? 0
@@ -3484,7 +3521,7 @@ class _PreferredSolutionAnalysisScreenState
         whole.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
     final hasDecimals = parts.length > 1 && int.tryParse(parts[1]) != 0;
     final decimalPart = hasDecimals ? '.${parts[1]}' : '';
-    final symbol = value < 0 ? '- 24' : ' 24';
+    final symbol = value < 0 ? '-24' : '24';
     return '$symbol$withCommas$decimalPart';
   }
 
@@ -3618,13 +3655,6 @@ class _PreferredSolutionAnalysisScreenState
     return lines.isEmpty ? 'No cost analysis available' : lines.join('\n');
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _notesController.dispose();
-    _projectNameController.dispose();
-    super.dispose();
-  }
 }
 
 class _SolutionAnalysisData {

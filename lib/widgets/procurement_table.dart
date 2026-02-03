@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ndu_project/models/procurement/procurement_item_model.dart';
+import 'package:ndu_project/models/procurement/procurement_models.dart';
 import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
 
 class ProcurementTable extends StatelessWidget {
