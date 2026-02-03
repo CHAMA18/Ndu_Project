@@ -53,7 +53,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     // Initialize stream - assumes valid project ID available or fetched
     // For now, hardcoded project-1 as seen in other files, or derived from context if possible.
     // Ideally we get projectId from ProjectDataHelper or similar.
-    _itemsStream = ProcurementService.getItems('project-1'); 
+    _itemsStream = ProcurementService.streamItems('project-1');
     
     // safe refresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -117,7 +117,11 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     setState(() => _generating = true);
     try {
       final data = ProjectDataHelper.getData(context);
-      final contextText = 'Project: ${data.projectName}. Description: ${data.projectDescription}. '
+      final projectDescription = data.solutionDescription.isNotEmpty
+          ? data.solutionDescription
+          : data.businessCase;
+      final contextText =
+          'Project: ${data.projectName}. Description: $projectDescription. '
           'Objective: ${data.projectObjective}. Solution: ${data.solutionDescription}.';
 
       final prompt = 'Generate a breakdown of potential contractors and procurement vendors needed for this project. '
@@ -126,7 +130,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           '"budget" (number, estimated cost), "potential_vendors" (string, comma separated names). '
           'Context: $contextText';
 
-      final response = await OpenAiServiceSecure.generateCompletion(prompt);
+      final response = await OpenAiServiceSecure().generateCompletion(prompt);
       final cleanJson = TextSanitizer.cleanJson(response);
       Map<String, dynamic> parsed = {};
       try {

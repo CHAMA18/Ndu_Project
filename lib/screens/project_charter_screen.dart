@@ -448,10 +448,13 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     final milestones = _projectData?.keyMilestones ?? [];
     if (milestones.isNotEmpty) {
       // Sort to find last milestone
-       final sorted = List<Milestone>.from(milestones)
-        ..sort((a, b) => (a.date ?? DateTime.now()).compareTo(b.date ?? DateTime.now()));
-      if (sorted.isNotEmpty && sorted.last.date != null) {
-        end = sorted.last.date!;
+      final sorted = List<Milestone>.from(milestones)
+        ..sort((a, b) =>
+            (_parseMilestoneDate(a.dueDate) ?? DateTime.now())
+                .compareTo(_parseMilestoneDate(b.dueDate) ?? DateTime.now()));
+      if (sorted.isNotEmpty) {
+        final lastDate = _parseMilestoneDate(sorted.last.dueDate);
+        if (lastDate != null) end = lastDate;
       }
     }
 
@@ -501,8 +504,9 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                   // Milestones Markers
                   if (milestones.isNotEmpty)
                     ...milestones.map((m) {
-                      if (m.date == null) return const SizedBox();
-                      final offset = m.date!.difference(start).inDays;
+                      final milestoneDate = _parseMilestoneDate(m.dueDate);
+                      if (milestoneDate == null) return const SizedBox();
+                      final offset = milestoneDate.difference(start).inDays;
                       final pct = (offset / totalDuration).clamp(0.0, 1.0);
                       
                       return Align(
@@ -516,7 +520,9 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                               color: Colors.black,
                             ),
                             Text(
-                              m.title.length > 10 ? '${m.title.substring(0, 8)}...' : m.title,
+                              m.name.length > 10
+                                  ? '${m.name.substring(0, 8)}...'
+                                  : m.name,
                               style: const TextStyle(fontSize: 8),
                             ),
                           ],
@@ -1862,14 +1868,15 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
               children: [
                 _buildMetricCard(
                   'Est. Savings',
-                  _formatCurrency(_projectData?.expectedAnnualProjectSavings ?? '0'),
+                  _formatCurrency(
+                      _projectData?.costAnalysisData?.savingsTarget ?? '0'),
                   Icons.trending_up,
                   const Color(0xFF10B981),
                 ),
                 const SizedBox(height: 12),
                 _buildMetricCard(
                   'Est. Costs',
-                  _formatCurrency(_projectData?.estimatedProjectCost ?? '0'),
+                  _formatCurrency(_estimatedProjectCost()),
                   Icons.account_balance_wallet,
                   const Color(0xFFF59E0B),
                 ),
@@ -1877,8 +1884,8 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                 _buildMetricCard(
                   'Duration',
                   _calculateDuration(
-                    _projectData?.charterStartDate,
-                    _projectData?.charterCompletionDate,
+                    _inferCharterStartDate(_projectData),
+                    _inferCharterCompletionDate(_projectData),
                   ),
                   Icons.calendar_today,
                   const Color(0xFF3B82F6),
@@ -1893,7 +1900,8 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
               Expanded(
                 child: _buildMetricCard(
                   'Est. Savings',
-                  _formatCurrency(_projectData?.expectedAnnualProjectSavings ?? '0'),
+                  _formatCurrency(
+                      _projectData?.costAnalysisData?.savingsTarget ?? '0'),
                   Icons.trending_up,
                   const Color(0xFF10B981),
                 ),
@@ -1902,7 +1910,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
               Expanded(
                 child: _buildMetricCard(
                   'Est. Costs',
-                  _formatCurrency(_projectData?.estimatedProjectCost ?? '0'),
+                  _formatCurrency(_estimatedProjectCost()),
                   Icons.account_balance_wallet,
                   const Color(0xFFF59E0B),
                 ),
@@ -1912,8 +1920,8 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                 child: _buildMetricCard(
                   'Duration',
                   _calculateDuration(
-                    _projectData?.charterStartDate,
-                    _projectData?.charterCompletionDate,
+                    _inferCharterStartDate(_projectData),
+                    _inferCharterCompletionDate(_projectData),
                   ),
                   Icons.calendar_today,
                   const Color(0xFF3B82F6),
@@ -1979,6 +1987,43 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     } else {
       return '\$${number.toStringAsFixed(0)}';
     }
+  }
+
+  DateTime? _parseMilestoneDate(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    final iso = DateTime.tryParse(trimmed);
+    if (iso != null) return iso;
+    try {
+      return DateFormat('MMM dd, yyyy').parse(trimmed);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _estimatedProjectCost() {
+    final total = _projectData?.costEstimateItems
+            .fold<double>(0, (sum, item) => sum + item.amount) ??
+        0.0;
+    if (total == 0) return '0';
+    return total.toStringAsFixed(0);
+  }
+
+  String _inferCharterStartDate(ProjectDataModel? data) {
+    final created = data?.createdAt;
+    if (created == null) return '';
+    return DateFormat('MMM dd, yyyy').format(created);
+  }
+
+  String _inferCharterCompletionDate(ProjectDataModel? data) {
+    if (data == null) return '';
+    final dates = data.keyMilestones
+        .map((m) => _parseMilestoneDate(m.dueDate))
+        .whereType<DateTime>()
+        .toList();
+    if (dates.isEmpty) return '';
+    dates.sort();
+    return DateFormat('MMM dd, yyyy').format(dates.last);
   }
 
   String _calculateDuration(String? start, String? end) {
@@ -2058,5 +2103,4 @@ class _CharterSection extends StatelessWidget {
       ),
     );
   }
-
-
+}

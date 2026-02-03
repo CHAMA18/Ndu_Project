@@ -438,7 +438,6 @@ class _ProjectDetailsContentState
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 36),
       child: LayoutBuilder(
-      child: LayoutBuilder(
         builder: (context, constraints) {
           final provider = ProjectDataHelper.getProvider(context);
           final data = provider.projectData;

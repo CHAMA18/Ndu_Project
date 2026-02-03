@@ -12,6 +12,7 @@ import 'package:ndu_project/screens/front_end_planning_security.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/models/procurement/procurement_models.dart';
 import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/services/vendor_service.dart';
@@ -281,7 +282,7 @@ class _FrontEndPlanningProcurementScreenState
     }
   }
 
-  void _seedStrategies(String projectId) {
+  Future<void> _seedStrategies(String projectId) async {
       // Create default strategies
       final strategies = [
         ProcurementStrategyModel(
@@ -314,7 +315,7 @@ class _FrontEndPlanningProcurementScreenState
       ];
 
       for (final s in strategies) {
-        ProcurementService.createStrategy(s);
+        await ProcurementService.createStrategy(s);
       }
   }
 
@@ -337,10 +338,14 @@ class _FrontEndPlanningProcurementScreenState
               name: name,
               category: (v['category'] ?? 'IT Equipment').toString(),
               criticality: 'Medium',
-              sla: 'Standard',
+              sla: '98%',
               rating: 'A', // Default to string A
               status: ((v['approved'] as bool? ?? true) ? 'Active' : 'Pending'),
-              nextReview: DateTime.now().add(const Duration(days: 365)).toString(), // Simple string date
+              nextReview: DateFormat('MMM d, yyyy')
+                  .format(DateTime.now().add(const Duration(days: 180))),
+              slaPerformance: 0.95,
+              leadTime: '14 Days',
+              requiredDeliverables: '• Quarterly review\n• SLA adherence',
               onTimeDelivery: 0.95,
               incidentResponse: 0.95,
               qualityScore: 0.95,
@@ -355,7 +360,8 @@ class _FrontEndPlanningProcurementScreenState
       } else {
         // Fallback
         list.add(VendorModel(
-             id: '', projectId: projectId, name: 'TechCorp Solutions', category: 'IT Equipment', rating: 'A', status: 'Active', sla: '99%', nextReview: '', onTimeDelivery: 1.0, incidentResponse: 1.0, qualityScore: 1.0, costAdherence: 1.0, createdById: '', createdByEmail: '', createdByName: '', createdAt: DateTime.now(), updatedAt: DateTime.now()));
+             id: '', projectId: projectId, name: 'TechCorp Solutions', category: 'IT Equipment', criticality: 'Medium', rating: 'A', status: 'Active', sla: '99%', nextReview: DateFormat('MMM d, yyyy')
+                  .format(DateTime.now().add(const Duration(days: 180))), slaPerformance: 0.98, leadTime: '14 Days', requiredDeliverables: '• Quarterly review\n• SLA adherence', onTimeDelivery: 1.0, incidentResponse: 1.0, qualityScore: 1.0, costAdherence: 1.0, createdById: '', createdByEmail: '', createdByName: '', createdAt: DateTime.now(), updatedAt: DateTime.now()));
       }
 
       for (final v in list) {
@@ -364,9 +370,14 @@ class _FrontEndPlanningProcurementScreenState
             projectId: projectId,
             name: v.name,
             category: v.category,
+            criticality: v.criticality,
             rating: v.rating,
             status: v.status,
             sla: v.sla,
+            slaPerformance: v.slaPerformance,
+            leadTime: v.leadTime,
+            requiredDeliverables: v.requiredDeliverables,
+            nextReview: v.nextReview,
             onTimeDelivery: v.onTimeDelivery,
             incidentResponse: v.incidentResponse,
             qualityScore: v.qualityScore,
@@ -478,10 +489,10 @@ class _FrontEndPlanningProcurementScreenState
     return ['All Categories', ...categories];
   }
 
-  List<_VendorRow> get _filteredVendors {
+  List<VendorModel> get _filteredVendors {
     return _vendors.where((vendor) {
-      if (_approvedOnly && !vendor.approved) return false;
-      if (_preferredOnly && !vendor.preferred) return false;
+      if (_approvedOnly && !vendor.isApproved) return false;
+      if (_preferredOnly && !vendor.isPreferred) return false;
       if (_categoryFilter != 'All Categories' &&
           vendor.category != _categoryFilter) {
         return false;
@@ -503,7 +514,7 @@ class _FrontEndPlanningProcurementScreenState
     });
   }
 
-  Future<void> _openEditVendorDialog(_VendorRow vendor) async {
+  Future<void> _openEditVendorDialog(VendorModel vendor) async {
     final categoryOptions = const [
       'IT Equipment',
       'Construction Services',
@@ -514,12 +525,12 @@ class _FrontEndPlanningProcurementScreenState
       'Materials',
     ];
 
-    final result = await showDialog<_VendorRow>(
+    final result = await showDialog<VendorModel>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (dialogContext) {
-        return _AddVendorDialog(
+        return AddVendorDialog(
           contextChips: _buildDialogContextChips(),
           categoryOptions: categoryOptions,
           initialVendor: vendor,
@@ -554,6 +565,13 @@ class _FrontEndPlanningProcurementScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _generateProcurementDataIfNeeded() async {
+    final data = ProjectDataHelper.getData(context);
+    final projectId = data.projectId ?? '';
+    if (projectId.isEmpty) return;
+    await _seedProcurementDataIfNeeded(projectId, data);
   }
 
   Future<bool> _persistProcurementNotes({bool showConfirmation = false}) async {
@@ -955,9 +973,14 @@ class _FrontEndPlanningProcurementScreenState
         projectId: result.projectId,
         name: result.name,
         category: result.category,
+        criticality: result.criticality,
         rating: result.rating,
         status: result.status,
         sla: result.sla,
+        slaPerformance: result.slaPerformance,
+        leadTime: result.leadTime,
+        requiredDeliverables: result.requiredDeliverables,
+        nextReview: result.nextReview,
         onTimeDelivery: result.onTimeDelivery,
         incidentResponse: result.incidentResponse,
         qualityScore: result.qualityScore,
@@ -2261,7 +2284,7 @@ class _TrackableRow extends StatelessWidget {
                   Expanded(
                     flex: 2,
                     child: Text(
-                      item.orderStatus.toUpperCase(),
+                      item.status.label.toUpperCase(),
                       style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -2273,10 +2296,10 @@ class _TrackableRow extends StatelessWidget {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: _BadgePill(
-                        label: item.currentStatus.label,
-                        background: item.currentStatus.backgroundColor,
-                        border: item.currentStatus.borderColor,
-                        foreground: item.currentStatus.textColor,
+                        label: item.status.label,
+                        background: item.status.backgroundColor,
+                        border: item.status.borderColor,
+                        foreground: item.status.textColor,
                       ),
                     ),
                   ),
@@ -2863,7 +2886,7 @@ class _VendorDataTable extends StatelessWidget {
                           ),
                           DataCell(_VendorNameCell(vendor: vendor)),
                           DataCell(Text(vendor.category)),
-                          DataCell(_RatingStars(rating: vendor.rating)),
+                          DataCell(_RatingStars(rating: vendor.ratingScore)),
                           DataCell(_YesNoBadge(value: vendor.status == 'Active')),
                           DataCell(_YesNoBadge(
                               value: false, showStar: true)),
@@ -2938,7 +2961,7 @@ class _VendorGrid extends StatelessWidget {
                   style:
                       const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
               const SizedBox(height: 8),
-              _RatingStars(rating: vendor.rating),
+              _RatingStars(rating: vendor.ratingScore),
               const Spacer(),
               Row(
                 children: [
@@ -3056,6 +3079,38 @@ class _RatingStars extends StatelessWidget {
   }
 }
 
+extension _VendorUi on VendorModel {
+  bool get isApproved {
+    final value = status.toLowerCase();
+    return value == 'active' || value == 'approved';
+  }
+
+  bool get isPreferred {
+    final value = criticality.toLowerCase();
+    return value == 'high' || status.toLowerCase() == 'preferred';
+  }
+
+  int get ratingScore {
+    final raw = rating.trim().toUpperCase();
+    final parsed = int.tryParse(raw);
+    if (parsed != null) return parsed.clamp(1, 5);
+    switch (raw) {
+      case 'A':
+        return 5;
+      case 'B':
+        return 4;
+      case 'C':
+        return 3;
+      case 'D':
+        return 2;
+      case 'E':
+        return 1;
+      default:
+        return 3;
+    }
+  }
+}
+
 class _YesNoBadge extends StatelessWidget {
   const _YesNoBadge({required this.value, this.showStar = false});
 
@@ -3144,10 +3199,10 @@ class _VendorManagementView extends StatelessWidget {
     final isMobile = AppBreakpoints.isMobile(context);
     final totalVendors = allVendors.length;
     final preferredCount =
-        allVendors.where((vendor) => vendor.preferred).length;
+        allVendors.where((vendor) => vendor.isPreferred).length;
     final avgRating = totalVendors == 0
         ? 0
-        : allVendors.fold<int>(0, (sum, vendor) => sum + vendor.rating) /
+        : allVendors.fold<int>(0, (sum, vendor) => sum + vendor.ratingScore) /
             totalVendors;
     final preferredRate =
         totalVendors == 0 ? 0 : (preferredCount / totalVendors * 100).round();
@@ -3588,7 +3643,7 @@ class _RfqWorkflowView extends StatelessWidget {
   });
 
   final List<RfqModel> rfqs;
-  final List<RfqCriterion> criteria;
+  final List<_RfqCriterion> criteria;
   final NumberFormat currencyFormat;
   final VoidCallback onCreateRfq;
 
@@ -3618,8 +3673,10 @@ class _RfqWorkflowView extends StatelessWidget {
           status: _WorkflowStageStatus.upcoming),
     ];
 
-    final totalInvited = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.invited);
-    final totalResponses = rfqs.fold<int>(0, (sum, rfq) => sum + rfq.responses);
+    final totalInvited =
+        rfqs.fold<int>(0, (sum, rfq) => sum + rfq.invitedCount);
+    final totalResponses =
+        rfqs.fold<int>(0, (sum, rfq) => sum + rfq.responseCount);
     final responseRate =
         totalInvited == 0 ? 0 : (totalResponses / totalInvited * 100).round();
     final inEvaluation =
@@ -3876,8 +3933,9 @@ class _RfqItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final double responseRate =
-        rfq.invited == 0 ? 0.0 : rfq.responses / rfq.invited;
+    final double responseRate = rfq.invitedCount == 0
+        ? 0.0
+        : rfq.responseCount / rfq.invitedCount;
     final dueLabel = DateFormat('MMM d').format(rfq.dueDate);
 
     return Container(
@@ -3932,7 +3990,7 @@ class _RfqItemCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 _RfqMeta(
                     label: 'Responses',
-                    value: '${rfq.responses}/${rfq.invited}'),
+                    value: '${rfq.responseCount}/${rfq.invitedCount}'),
                 const SizedBox(height: 8),
                 _RfqMeta(
                     label: 'Budget', value: currencyFormat.format(rfq.budget)),
@@ -3945,7 +4003,8 @@ class _RfqItemCard extends StatelessWidget {
                 Expanded(
                     child: _RfqMeta(
                         label: 'Responses',
-                        value: '${rfq.responses}/${rfq.invited}')),
+                        value:
+                            '${rfq.responseCount}/${rfq.invitedCount}')),
                 Expanded(
                     child: _RfqMeta(
                         label: 'Budget',
@@ -4038,7 +4097,7 @@ class _RfqSidebarCard extends StatelessWidget {
   const _RfqSidebarCard({required this.rfqs, required this.criteria});
 
   final List<RfqModel> rfqs;
-  final List<RfqCriterion> criteria;
+  final List<_RfqCriterion> criteria;
 
   @override
   Widget build(BuildContext context) {
@@ -4169,7 +4228,7 @@ class _PurchaseOrdersView extends StatelessWidget {
     required this.onCreatePo,
   });
 
-  final List<_PurchaseOrder> orders;
+  final List<PurchaseOrderModel> orders;
   final NumberFormat currencyFormat;
   final VoidCallback onCreatePo;
 
@@ -4426,7 +4485,7 @@ class _PurchaseOrderRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(order.vendor,
+                Text(order.vendorName,
                     style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -4539,7 +4598,7 @@ class _PurchaseOrderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(order.vendor,
+          Text(order.vendorName,
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -4644,7 +4703,7 @@ class _ApprovalQueueCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${approvals[i].id} Â· ${approvals[i].vendor}',
+                      '${approvals[i].id} Â· ${approvals[i].vendorName}',
                       style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -4653,7 +4712,7 @@ class _ApprovalQueueCard extends StatelessWidget {
                   ),
                   Text(
                     DateFormat('MMM d')
-                        .format(order.orderedDate),
+                        .format(approvals[i].orderedDate),
                     style:
                         const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
@@ -4982,16 +5041,17 @@ class _AlertSeverityPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: severity.backgroundColor,
+        color: _AlertSeverityExtension(severity).backgroundColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: severity.borderColor),
+        border: Border.all(
+            color: _AlertSeverityExtension(severity).borderColor),
       ),
       child: Text(
-        severity.label,
+        _AlertSeverityExtension(severity).label,
         style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: severity.textColor),
+            color: _AlertSeverityExtension(severity).textColor),
       ),
     );
   }
@@ -6165,6 +6225,3 @@ class _ComplianceMetric {
   final String label;
   final double value;
 }
-
-
-
