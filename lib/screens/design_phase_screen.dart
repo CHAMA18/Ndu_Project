@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/screens/requirements_implementation_screen.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/theme.dart';
@@ -13,13 +12,17 @@ import 'package:ndu_project/services/architecture_service.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/screens/execution_plan_screen.dart';
+import 'package:ndu_project/screens/front_end_planning_technology_screen.dart';
 import 'package:ndu_project/widgets/whiteboard_canvas.dart';
 import 'package:ndu_project/widgets/chart_builder_workspace.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 class DesignPhaseScreen extends StatefulWidget {
-  const DesignPhaseScreen({super.key, this.activeItemLabel = 'Design Management'});
+  const DesignPhaseScreen(
+      {super.key, this.activeItemLabel = 'Design Management'});
 
   final String activeItemLabel;
 
@@ -98,12 +101,13 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       icon: icon,
     );
   }
-  
+
   @override
   void initState() {
     super.initState();
     _richTextController = TextEditingController(
-      text: '### Design Notes\n\nStart drafting your design narrative here. Use the toolbar above for quick formatting.',
+      text:
+          '### Design Notes\n\nStart drafting your design narrative here. Use the toolbar above for quick formatting.',
     );
     _richTextController.addListener(_onRichTextChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -114,6 +118,15 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
         _loadPersisted(pid);
         // Save this page as the last visited page for the project
         await ProjectNavigationService.instance.saveLastPage(pid, 'design');
+      }
+      if (mounted) {
+        // Ensure checkpoint is updated so navigation locks respect sidebar order.
+        await ProjectDataHelper.updateAndSave(
+          context: context,
+          checkpoint: 'design',
+          dataUpdater: (d) => d,
+          showSnackbar: false,
+        );
       }
     });
   }
@@ -148,7 +161,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
             final m = Map<String, dynamic>.from(e as Map);
             return _DocItem(
               m['title']?.toString() ?? 'Untitled',
-              icon: _iconFromCode(m['iconCode'] as int?, m['iconFont']?.toString()),
+              icon: _iconFromCode(
+                  m['iconCode'] as int?, m['iconFont']?.toString()),
               color: _colorFromHex(m['color']?.toString()),
             );
           }));
@@ -165,14 +179,16 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
               label: m['label']?.toString() ?? 'Node',
               position: Offset(dx, dy),
               color: _colorFromHex(m['color']?.toString()) ?? Colors.white,
-              icon: _iconFromCode(m['iconCode'] as int?, m['iconFont']?.toString()),
+              icon: _iconFromCode(
+                  m['iconCode'] as int?, m['iconFont']?.toString()),
             );
           }));
         _nodeCounter = _nodes.fold<int>(0, (acc, n) {
-          final parts = n.id.split('_');
-          final maybe = int.tryParse(parts.isNotEmpty ? parts.last : '');
-          return maybe != null && maybe > acc ? maybe : acc;
-        }) + 1;
+              final parts = n.id.split('_');
+              final maybe = int.tryParse(parts.isNotEmpty ? parts.last : '');
+              return maybe != null && maybe > acc ? maybe : acc;
+            }) +
+            1;
 
         _edges
           ..clear()
@@ -197,26 +213,32 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     _saveDebounce = Timer(const Duration(milliseconds: 600), () async {
       try {
         final payload = {
-          'outputDocs': _outputDocs.map((d) => {
-                'title': d.title,
-                'iconCode': d.icon?.codePoint,
-                'iconFont': d.icon?.fontFamily,
-                'color': _hexFromColor(d.color),
-              }).toList(),
-          'nodes': _nodes.map((n) => {
-                'id': n.id,
-                'label': n.label,
-                'x': n.position.dx,
-                'y': n.position.dy,
-                'iconCode': n.icon?.codePoint,
-                'iconFont': n.icon?.fontFamily,
-                'color': _hexFromColor(n.color),
-              }).toList(),
-          'edges': _edges.map((e) => {
-                'from': e.fromId,
-                'to': e.toId,
-                'label': e.label,
-              }).toList(),
+          'outputDocs': _outputDocs
+              .map((d) => {
+                    'title': d.title,
+                    'iconCode': d.icon?.codePoint,
+                    'iconFont': d.icon?.fontFamily,
+                    'color': _hexFromColor(d.color),
+                  })
+              .toList(),
+          'nodes': _nodes
+              .map((n) => {
+                    'id': n.id,
+                    'label': n.label,
+                    'x': n.position.dx,
+                    'y': n.position.dy,
+                    'iconCode': n.icon?.codePoint,
+                    'iconFont': n.icon?.fontFamily,
+                    'color': _hexFromColor(n.color),
+                  })
+              .toList(),
+          'edges': _edges
+              .map((e) => {
+                    'from': e.fromId,
+                    'to': e.toId,
+                    'label': e.label,
+                  })
+              .toList(),
         };
         await ArchitectureService.save(_projectId!, payload);
         if (mounted) {
@@ -263,7 +285,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     Icons.language.codePoint: Icons.language,
     Icons.admin_panel_settings.codePoint: Icons.admin_panel_settings,
     Icons.link.codePoint: Icons.link,
-    Icons.insert_drive_file_outlined.codePoint: Icons.insert_drive_file_outlined,
+    Icons.insert_drive_file_outlined.codePoint:
+        Icons.insert_drive_file_outlined,
     Icons.widgets_outlined.codePoint: Icons.widgets_outlined,
   };
 
@@ -272,6 +295,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     if (fontFamily != null && fontFamily != 'MaterialIcons') return null;
     return _iconLookup[codePoint];
   }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
@@ -281,10 +305,31 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       activeItemLabel: widget.activeItemLabel,
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Design',
             showImportButton: false,
             showContentButton: false,
+            onBack: () async {
+              await ProjectDataHelper.saveAndNavigate(
+                context: context,
+                checkpoint: 'design',
+                nextScreenBuilder: () => const ExecutionPlanScreen(),
+                dataUpdater: (d) => d,
+                destinationCheckpoint: 'execution_plan',
+                destinationName: 'Execution Plan',
+              );
+            },
+            onForward: () async {
+              await ProjectDataHelper.saveAndNavigate(
+                context: context,
+                checkpoint: 'design',
+                nextScreenBuilder: () =>
+                    const FrontEndPlanningTechnologyScreen(),
+                dataUpdater: (d) => d,
+                destinationCheckpoint: 'technology',
+                destinationName: 'Technology',
+              );
+            },
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -297,10 +342,11 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                     sectionLabel: 'Design',
                     noteKey: 'planning_design_notes',
                     checkpoint: 'design',
-                    description: 'Summarize design goals, artifacts, and key decisions.',
+                    description:
+                        'Summarize design goals, artifacts, and key decisions.',
                   ),
                   const SizedBox(height: 24),
-                  
+
                   Text(
                     'Collaborative workspace for Waterfall design and documentation',
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -314,7 +360,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                       children: [
                         const Text(
                           'Design Management',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const Text(
                           'Develop project design documentation',
@@ -330,7 +377,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                       children: [
                         const Text(
                           'Design Management',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const Text(
                           'Develop project design documentation',
@@ -346,12 +394,29 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           ),
           const SizedBox(height: 24),
           LaunchPhaseNavigation(
-            backLabel: 'Back: Design overview',
-            nextLabel: 'Next: Requirements Implementation',
-            onBack: () => Navigator.of(context).maybePop(),
-            onNext: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const RequirementsImplementationScreen()),
-            ),
+            backLabel: 'Back: Execution Plan',
+            nextLabel: 'Next: Technology',
+            onBack: () async {
+              await ProjectDataHelper.saveAndNavigate(
+                context: context,
+                checkpoint: 'design',
+                nextScreenBuilder: () => const ExecutionPlanScreen(),
+                dataUpdater: (d) => d,
+                destinationCheckpoint: 'execution_plan',
+                destinationName: 'Execution Plan',
+              );
+            },
+            onNext: () async {
+              await ProjectDataHelper.saveAndNavigate(
+                context: context,
+                checkpoint: 'design',
+                nextScreenBuilder: () =>
+                    const FrontEndPlanningTechnologyScreen(),
+                dataUpdater: (d) => d,
+                destinationCheckpoint: 'technology',
+                destinationName: 'Technology',
+              );
+            },
           ),
         ],
       ),
@@ -378,17 +443,21 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Documents', style: TextStyle(fontWeight: FontWeight.w600)),
-              Text('${_outputDocs.length} items', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              const Text('Documents',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('${_outputDocs.length} items',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             ],
           ),
           const SizedBox(height: 16),
-          Text('Input Documents', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          Text('Input Documents',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           const SizedBox(height: 8),
           _buildDocStatic('API Design Spec', isActive: false),
           _buildDocStatic('Security Requirements', isActive: false),
           const SizedBox(height: 16),
-          Text('Output Documents', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          Text('Output Documents',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           const SizedBox(height: 8),
           // DragTarget to add new output docs from the Component Library
           DragTarget<ArchitectureDragPayload>(
@@ -407,20 +476,27 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
             },
             builder: (context, candidates, rejects) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: candidates.isNotEmpty ? LightModeColors.accent.withValues(alpha: 0.2) : cs.surface,
+                  color: candidates.isNotEmpty
+                      ? LightModeColors.accent.withValues(alpha: 0.2)
+                      : cs.surface,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppSemanticColors.border),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.download_for_offline_outlined, size: 18, color: Colors.grey[700]),
+                    Icon(Icons.download_for_offline_outlined,
+                        size: 18, color: Colors.grey[700]),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        candidates.isNotEmpty ? 'Release to add as Output Document' : 'Drag components here to add as Output Docs',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        candidates.isNotEmpty
+                            ? 'Release to add as Output Document'
+                            : 'Drag components here to add as Output Docs',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -429,13 +505,15 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
             },
           ),
           const SizedBox(height: 8),
-          ..._outputDocs.map((d) => _buildDocDraggable(d, isActive: d.title == 'System Architecture')),
+          ..._outputDocs.map((d) => _buildDocDraggable(d,
+              isActive: d.title == 'System Architecture')),
         ],
       ),
     );
   }
 
-  Widget _buildDocItem(String title, {IconData? icon, Color? color, bool isBlue = false}) {
+  Widget _buildDocItem(String title,
+      {IconData? icon, Color? color, bool isBlue = false}) {
     // Legacy static builder (kept for reference)
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -446,7 +524,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       ),
       child: Row(
         children: [
-          if (icon != null) 
+          if (icon != null)
             Icon(icon, size: 16, color: color ?? Colors.blue)
           else
             const SizedBox(width: 16), // Spacer if no icon to align text
@@ -510,12 +588,14 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: elevated ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
+        color:
+            elevated ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         children: [
-          Icon(d.icon ?? Icons.insert_drive_file_outlined, size: 16, color: d.color ?? Colors.blueGrey),
+          Icon(d.icon ?? Icons.insert_drive_file_outlined,
+              size: 16, color: d.color ?? Colors.blueGrey),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -547,12 +627,14 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Design Tools', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Design Tools',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const Icon(Icons.add, size: 16),
             ],
           ),
           const SizedBox(height: 8),
-          Text('Select to use', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          Text('Select to use',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -562,13 +644,15 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                   'Draw.io',
                   Icons.account_tree,
                   isSelected: _activeTool == DesignTool.architecture,
-                  onTap: () => setState(() => _activeTool = DesignTool.architecture),
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.architecture),
                 ),
                 const SizedBox(width: 8),
                 _buildToolItem(
                   'Miro',
                   Icons.dashboard_outlined,
-                  onTap: () => _openToolWebView('Miro', 'https://miro.com/login/'),
+                  onTap: () =>
+                      _openToolWebView('Miro', 'https://miro.com/login/'),
                   showExternalIcon: true,
                 ),
                 const SizedBox(width: 8),
@@ -584,21 +668,24 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                   'Rich Text Editor',
                   Icons.text_fields,
                   isSelected: _activeTool == DesignTool.richText,
-                  onTap: () => setState(() => _activeTool = DesignTool.richText),
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.richText),
                 ),
                 const SizedBox(width: 8),
                 _buildToolItem(
                   'Whiteboard',
                   Icons.brush,
                   isSelected: _activeTool == DesignTool.whiteboard,
-                  onTap: () => setState(() => _activeTool = DesignTool.whiteboard),
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.whiteboard),
                 ),
                 const SizedBox(width: 8),
                 _buildToolItem(
                   'Chart Builder',
                   Icons.bar_chart,
                   isSelected: _activeTool == DesignTool.chartBuilder,
-                  onTap: () => setState(() => _activeTool = DesignTool.chartBuilder),
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.chartBuilder),
                 ),
               ],
             ),
@@ -633,15 +720,15 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: isSelected ? Colors.blue : Colors.grey[700]),
+              Icon(icon,
+                  size: 18, color: isSelected ? Colors.blue : Colors.grey[700]),
               const SizedBox(width: 12),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 13,
                   color: isSelected ? Colors.blue : Colors.black87,
-                  fontWeight:
-                      isSelected ? FontWeight.w500 : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                 ),
               ),
               if (showExternalIcon)
@@ -656,7 +743,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
   Widget _buildCollaboratorsSection() {
     final provider = ProjectDataInherited.maybeOf(context);
     final teamMembers = provider?.projectData.teamMembers ?? [];
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -670,19 +757,24 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Collaborators', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Collaborators',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const Icon(Icons.add, size: 16),
             ],
           ),
           const SizedBox(height: 8),
-          Text('${teamMembers.length} members', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          Text('${teamMembers.length} members',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           const SizedBox(height: 12),
           if (teamMembers.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'No team members yet. Add team members in Team Management.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic),
               ),
             )
           else
@@ -700,23 +792,35 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       ),
     );
   }
-  
+
   String _getInitials(String name) {
     if (name.isEmpty) return '?';
     final parts = name.trim().split(' ');
     if (parts.length == 1) {
       return parts[0].substring(0, 1).toUpperCase();
     }
-    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'.toUpperCase();
+    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'
+        .toUpperCase();
   }
-  
+
   Color _getColorForMember(String name) {
-    final colors = [Colors.blue, Colors.purple, Colors.orange, Colors.teal, Colors.pink, Colors.indigo, Colors.cyan, Colors.amber];
+    final colors = [
+      Colors.blue,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.cyan,
+      Colors.amber
+    ];
     final hash = name.hashCode.abs();
     return colors[hash % colors.length];
   }
 
-  Widget _buildCollaboratorItem(String name, String role, String initials, Color color, {bool isOnline = false, Color? statusColor}) {
+  Widget _buildCollaboratorItem(
+      String name, String role, String initials, Color color,
+      {bool isOnline = false, Color? statusColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -724,15 +828,20 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           CircleAvatar(
             radius: 16,
             backgroundColor: color.withValues(alpha: 0.2),
-            child: Text(initials, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold)),
+            child: Text(initials,
+                style: TextStyle(
+                    fontSize: 12, color: color, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                Text(role, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                Text(name,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w500)),
+                Text(role,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500])),
               ],
             ),
           ),
@@ -768,7 +877,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           Expanded(
             child: _buildCard(
               title: 'Design Specifications',
-              subtitle: 'Identify all applicable Industry, Company and Project specifications for each project requirement here.',
+              subtitle:
+                  'Identify all applicable Industry, Company and Project specifications for each project requirement here.',
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -793,7 +903,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           Expanded(
             child: _buildCard(
               title: 'Design Documents',
-              subtitle: 'Identify design deliverables. Create, upload and/or link them.',
+              subtitle:
+                  'Identify design deliverables. Create, upload and/or link them.',
               content: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -801,7 +912,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                     children: [
                       Expanded(child: _buildActionButton('Design Input', true)),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildActionButton('Design Output', true)),
+                      Expanded(
+                          child: _buildActionButton('Design Output', true)),
                     ],
                   )
                 ],
@@ -820,7 +932,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                     children: [
                       Expanded(child: _buildActionButton('Tools', true)),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildActionButton('External Tools', true)),
+                      Expanded(
+                          child: _buildActionButton('External Tools', true)),
                     ],
                   )
                 ],
@@ -832,7 +945,10 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     );
   }
 
-  Widget _buildCard({required String title, required String subtitle, required Widget content}) {
+  Widget _buildCard(
+      {required String title,
+      required String subtitle,
+      required Widget content}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -843,7 +959,9 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(
             subtitle,
@@ -908,7 +1026,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppSemanticColors.border),
         boxShadow: const [
-          BoxShadow(color: Color(0x12000000), blurRadius: 18, offset: Offset(0, 10)),
+          BoxShadow(
+              color: Color(0x12000000), blurRadius: 18, offset: Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -917,26 +1036,33 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppSemanticColors.border)),
+              border:
+                  Border(bottom: BorderSide(color: AppSemanticColors.border)),
             ),
             child: Row(
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('System Architecture', style: TextStyle(fontWeight: FontWeight.w700)),
+                    const Text('System Architecture',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
-                    Text('Design Editor · Output Document', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    Text('Design Editor · Output Document',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
                   ],
                 ),
                 const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Text('Live canvas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  child: const Text('Live canvas',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
                 const Spacer(),
                 OutlinedButton.icon(
@@ -944,7 +1070,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                     final node = ArchitectureNode(
                       id: 'n_${_nodeCounter++}',
                       label: 'New node',
-                      position: Offset(220 + (_nodes.length * 24).toDouble(), 160 + (_nodes.length * 24).toDouble()),
+                      position: Offset(220 + (_nodes.length * 24).toDouble(),
+                          160 + (_nodes.length * 24).toDouble()),
                       color: Colors.white,
                       icon: Icons.widgets_outlined,
                     );
@@ -954,22 +1081,28 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black87,
                     side: const BorderSide(color: Color(0xFFE5E7EB)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Add node', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  label: const Text('Add node',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppSemanticColors.successSurface,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle_outline, size: 14, color: AppSemanticColors.success),
+                      const Icon(Icons.check_circle_outline,
+                          size: 14, color: AppSemanticColors.success),
                       const SizedBox(width: 4),
                       Text(
                         _isSaving
@@ -977,7 +1110,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                             : _lastSavedAt != null
                                 ? 'Saved'
                                 : 'Ready',
-                        style: const TextStyle(fontSize: 11, color: AppSemanticColors.success),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppSemanticColors.success),
                       ),
                     ],
                   ),
@@ -985,7 +1119,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                 const SizedBox(width: 16),
                 const Icon(Icons.fullscreen, size: 20, color: Colors.grey),
                 const SizedBox(width: 12),
-                const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.grey),
+                const Icon(Icons.chat_bubble_outline,
+                    size: 18, color: Colors.grey),
                 const SizedBox(width: 12),
                 const Icon(Icons.more_horiz, size: 20, color: Colors.grey),
               ],
@@ -1041,7 +1176,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle_outline, size: 16, color: AppSemanticColors.success),
+                const Icon(Icons.check_circle_outline,
+                    size: 16, color: AppSemanticColors.success),
                 const SizedBox(width: 24),
                 Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
                 const SizedBox(width: 8),
@@ -1054,7 +1190,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                   style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
                 const Spacer(),
-                Text(_toolFooterLabel(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                Text(_toolFooterLabel(),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
               ],
             ),
           ),
@@ -1084,7 +1221,9 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Text('Component Library', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w700)),
+            child: Text('Component Library',
+                style: TextStyle(
+                    color: Colors.grey[800], fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -1093,20 +1232,24 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
               itemCount: _library.length,
               itemBuilder: (context, i) {
                 final item = _library[i];
-                final payload = ArchitectureDragPayload(item.label, icon: item.icon, color: Colors.blueGrey[50]);
+                final payload = ArchitectureDragPayload(item.label,
+                    icon: item.icon, color: Colors.blueGrey[50]);
                 return LongPressDraggable<ArchitectureDragPayload>(
                   data: payload,
                   dragAnchorStrategy: pointerDragAnchorStrategy,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: _componentTile(item, isDragging: true, showAddButton: false),
+                    child: _componentTile(item,
+                        isDragging: true, showAddButton: false),
                   ),
                   child: _componentTile(
                     item,
                     showAddButton: true,
                     onAddToCanvas: () {
                       // Add node to center of visible canvas
-                      final centerPos = Offset(200 + (_nodes.length * 40).toDouble(), 200 + (_nodes.length * 40).toDouble());
+                      final centerPos = Offset(
+                          200 + (_nodes.length * 40).toDouble(),
+                          200 + (_nodes.length * 40).toDouble());
                       final newNode = ArchitectureNode(
                         id: 'n_${_nodeCounter++}',
                         label: item.label,
@@ -1182,18 +1325,22 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     }
   }
 
-  Widget _toolSidebarCard({required String title, required List<String> lines}) {
+  Widget _toolSidebarCard(
+      {required String title, required List<String> lines}) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w700)),
+          Text(title,
+              style: TextStyle(
+                  color: Colors.grey[800], fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           ...lines.map(
             (line) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(line, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              child: Text(line,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
             ),
           ),
           const Spacer(),
@@ -1267,12 +1414,20 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
-                Text('Rich Text Editor', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey[800])),
+                Text('Rich Text Editor',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.grey[800])),
                 const Spacer(),
                 TextButton.icon(
-                  onPressed: () => setState(() => _showRichPreview = !_showRichPreview),
-                  icon: Icon(_showRichPreview ? Icons.visibility_off : Icons.visibility, size: 16),
-                  label: Text(_showRichPreview ? 'Hide preview' : 'Show preview'),
+                  onPressed: () =>
+                      setState(() => _showRichPreview = !_showRichPreview),
+                  icon: Icon(
+                      _showRichPreview
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      size: 16),
+                  label:
+                      Text(_showRichPreview ? 'Hide preview' : 'Show preview'),
                 ),
               ],
             ),
@@ -1320,7 +1475,9 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                         child: Markdown(
                           data: _richTextController.text,
                           shrinkWrap: true,
-                          styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                          styleSheet:
+                              MarkdownStyleSheet.fromTheme(Theme.of(context))
+                                  .copyWith(
                             p: const TextStyle(height: 1.5),
                           ),
                         ),
@@ -1361,7 +1518,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
         final width = size.width < 980 ? size.width * 0.92 : 920.0;
         final height = size.height < 720 ? size.height * 0.82 : 700.0;
         return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: SizedBox(
@@ -1411,12 +1569,17 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     );
   }
 
-  Widget _componentTile(_PaletteItem item, {bool isDragging = false, bool showAddButton = false, VoidCallback? onAddToCanvas}) {
+  Widget _componentTile(_PaletteItem item,
+      {bool isDragging = false,
+      bool showAddButton = false,
+      VoidCallback? onAddToCanvas}) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isDragging ? LightModeColors.accent.withValues(alpha: 0.15) : Colors.white,
+        color: isDragging
+            ? LightModeColors.accent.withValues(alpha: 0.15)
+            : Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppSemanticColors.border),
       ),
@@ -1425,7 +1588,9 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           Icon(item.icon, size: 18, color: Colors.blueGrey[800]),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(item.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(item.label,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
           if (showAddButton && onAddToCanvas != null) ...[
             InkWell(
@@ -1433,7 +1598,8 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
               borderRadius: BorderRadius.circular(4),
               child: Container(
                 padding: const EdgeInsets.all(4),
-                child: Icon(Icons.add_circle_outline, size: 18, color: LightModeColors.accent),
+                child: Icon(Icons.add_circle_outline,
+                    size: 18, color: LightModeColors.accent),
               ),
             ),
             const SizedBox(width: 4),

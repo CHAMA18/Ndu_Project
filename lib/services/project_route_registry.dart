@@ -37,8 +37,8 @@ class ProjectRouteRegistry {
   /// Maps Planning Phase checkpoints to their corresponding screen widgets
   static final Map<String, Widget Function()> _screens = {
     'project_framework': () => const ProjectFrameworkScreen(),
-    'work_breakdown_structure': () => const WorkBreakdownStructureScreen(),
     'project_goals_milestones': () => const ProjectFrameworkNextScreen(),
+    'work_breakdown_structure': () => const WorkBreakdownStructureScreen(),
     'organization_roles_responsibilities': () =>
         const OrganizationRolesResponsibilitiesScreen(),
     'organization_staffing_plan': () => const OrganizationStaffingPlanScreen(),

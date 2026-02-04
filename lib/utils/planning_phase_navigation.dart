@@ -28,7 +28,6 @@ import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
 
 class PlanningPhaseNavigation {
-  
   static final List<PlanningPage> pages = [
     PlanningPage(
       id: 'project_details',
@@ -36,14 +35,14 @@ class PlanningPhaseNavigation {
       builder: (_) => const ProjectFrameworkScreen(),
     ),
     PlanningPage(
-      id: 'wbs',
-      title: 'Work Breakdown Structure',
-      builder: (_) => const WorkBreakdownStructureScreen(),
-    ),
-    PlanningPage(
       id: 'project_goals_milestones',
       title: 'Project Goals & Milestones',
       builder: (_) => const ProjectFrameworkNextScreen(),
+    ),
+    PlanningPage(
+      id: 'wbs',
+      title: 'Work Breakdown Structure',
+      builder: (_) => const WorkBreakdownStructureScreen(),
     ),
     PlanningPage(
       id: 'requirements',
@@ -72,7 +71,7 @@ class PlanningPhaseNavigation {
       builder: (_) => const StakeholderManagementScreen(),
     ),
     // End Organization Plan Group
-    
+
     PlanningPage(
       id: 'ssher',
       title: 'SSHER',
@@ -131,7 +130,8 @@ class PlanningPhaseNavigation {
     PlanningPage(
       id: 'project_services',
       title: 'Project Services',
-      builder: (_) => const ScopeTrackingPlanScreen(), // Represents Project Services -> Scope Tracking as per sidebar
+      builder: (_) =>
+          const ScopeTrackingPlanScreen(), // Represents Project Services -> Scope Tracking as per sidebar
     ),
     PlanningPage(
       id: 'change_management',
@@ -187,10 +187,10 @@ class PlanningPhaseNavigation {
         MaterialPageRoute(builder: nextPage.builder),
       );
     } else {
-       // If last page, maybe go to home or show completion?
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text('End of Planning Phase navigation path.')),
-       );
+      // If last page, maybe go to home or show completion?
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('End of Planning Phase navigation path.')),
+      );
     }
   }
 
@@ -198,7 +198,7 @@ class PlanningPhaseNavigation {
     // Usually handled by Navigator.pop, but if we need explicit back flow:
     int index = getPageIndex(currentId);
     if (index > 0) {
-       Navigator.of(context).pop(); 
+      Navigator.of(context).pop();
     }
   }
 }
