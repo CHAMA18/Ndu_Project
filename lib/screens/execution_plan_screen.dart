@@ -16,6 +16,8 @@ import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/screens/quality_management_screen.dart';
+import 'package:ndu_project/screens/design_phase_screen.dart';
 
 class ExecutionPlanScreen extends StatefulWidget {
   const ExecutionPlanScreen({super.key});
@@ -53,7 +55,7 @@ class _ExecutionPlanScreenState extends State<ExecutionPlanScreen> {
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
               child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Executive Plan Outline'),
+                  activeItemLabel: 'Execution Plan Overview'),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -63,7 +65,14 @@ class _ExecutionPlanScreenState extends State<ExecutionPlanScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
+                      onBack: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const QualityManagementScreen()),
+                      ),
+                      onNext: () =>
+                          ExecutionPlanConstructionPlanScreen.open(context),
+                    ),
                     const SizedBox(height: 32),
                     const _SectionIntro(),
                     const SizedBox(height: 28),
@@ -86,7 +95,8 @@ class _ExecutionPlanScreenState extends State<ExecutionPlanScreen> {
                           _YellowActionButton(
                             label: 'Next',
                             onPressed: () =>
-                                ExecutionPlanSolutionsScreen.open(context),
+                                ExecutionPlanConstructionPlanScreen.open(
+                                    context),
                           ),
                         ],
                       ),
@@ -104,9 +114,10 @@ class _ExecutionPlanScreenState extends State<ExecutionPlanScreen> {
 }
 
 class _ExecutionPlanHeader extends StatelessWidget {
-  const _ExecutionPlanHeader({required this.onBack});
+  const _ExecutionPlanHeader({required this.onBack, this.onNext});
 
   final VoidCallback onBack;
+  final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +140,8 @@ class _ExecutionPlanHeader extends StatelessWidget {
               _CircleIconButton(
                   icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
               const SizedBox(width: 12),
-              _CircleIconButton(icon: Icons.arrow_forward_ios_rounded),
+              _CircleIconButton(
+                  icon: Icons.arrow_forward_ios_rounded, onTap: onNext),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
@@ -333,18 +345,21 @@ class _ExecutionPlanFormState extends State<_ExecutionPlanForm> {
         context: context,
         checkpoint: 'execution_$noteKey',
         dataUpdater: (data) {
-          final currentExecutionData = data.executionPhaseData ?? ExecutionPhaseData();
+          final currentExecutionData =
+              data.executionPhaseData ?? ExecutionPhaseData();
           final updatedExecutionData = (noteKey == 'execution_plan_outline')
               ? currentExecutionData.copyWith(executionPlanOutline: trimmed)
               : (noteKey == 'execution_plan_strategy')
-                  ? currentExecutionData.copyWith(executionPlanStrategy: trimmed)
+                  ? currentExecutionData.copyWith(
+                      executionPlanStrategy: trimmed)
                   : currentExecutionData;
-          
+
           return data.copyWith(
             executionPhaseData: updatedExecutionData,
             planningNotes: {
               ...data.planningNotes,
-              noteKey: trimmed, // Keep in planningNotes for backward compatibility
+              noteKey:
+                  trimmed, // Keep in planningNotes for backward compatibility
             },
           );
         },
@@ -362,19 +377,19 @@ class _ExecutionPlanFormState extends State<_ExecutionPlanForm> {
     if (noteKey != null && _currentText.isEmpty) {
       final projectData = ProjectDataHelper.getData(context);
       String saved = '';
-      
+
       // Try to load from executionPhaseData first
       if (noteKey == 'execution_plan_outline') {
         saved = projectData.executionPhaseData?.executionPlanOutline ?? '';
       } else if (noteKey == 'execution_plan_strategy') {
         saved = projectData.executionPhaseData?.executionPlanStrategy ?? '';
       }
-      
+
       // Fallback to planningNotes for backward compatibility
       if (saved.isEmpty) {
         saved = projectData.planningNotes[noteKey] ?? '';
       }
-      
+
       if (saved.trim().isNotEmpty) {
         _currentText = saved;
       }
@@ -394,11 +409,13 @@ class _ExecutionPlanFormState extends State<_ExecutionPlanForm> {
                   final projectData = ProjectDataHelper.getData(context);
                   // Try executionPhaseData first
                   if (noteKey == 'execution_plan_outline') {
-                    return projectData.executionPhaseData?.executionPlanOutline ?? 
-                           projectData.planningNotes[noteKey];
+                    return projectData
+                            .executionPhaseData?.executionPlanOutline ??
+                        projectData.planningNotes[noteKey];
                   } else if (noteKey == 'execution_plan_strategy') {
-                    return projectData.executionPhaseData?.executionPlanStrategy ?? 
-                           projectData.planningNotes[noteKey];
+                    return projectData
+                            .executionPhaseData?.executionPlanStrategy ??
+                        projectData.planningNotes[noteKey];
                   }
                   // Fallback to planningNotes
                   return projectData.planningNotes[noteKey];
@@ -3752,7 +3769,14 @@ class ExecutionPlanConstructionPlanScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
+                      onBack: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ExecutionPlanScreen()),
+                      ),
+                      onNext: () =>
+                          ExecutionPlanInfrastructurePlanScreen.open(context),
+                    ),
                     const SizedBox(height: 32),
                     const _SectionIntro(
                         title: 'Execution Plan - Construction Plan'),
@@ -3801,7 +3825,8 @@ class _ConstructionPlanSection extends StatelessWidget {
           question: 'Will construction work be done by this project?',
           planKeyPrefix: 'execution_construction_plan',
           formTitle: 'Construction Plan Inputs',
-          formSubtitle: 'Capture the sequencing, resources, and controls needed to deliver construction work safely.',
+          formSubtitle:
+              'Capture the sequencing, resources, and controls needed to deliver construction work safely.',
           fields: [
             _PlanFieldConfig(
               keyName: 'scope',
@@ -3949,7 +3974,15 @@ class ExecutionPlanInfrastructurePlanScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
+                      onBack: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const ExecutionPlanConstructionPlanScreen()),
+                      ),
+                      onNext: () =>
+                          ExecutionPlanAgileDeliveryPlanScreen.open(context),
+                    ),
                     const SizedBox(height: 32),
                     const _SectionIntro(
                         title: 'Execution Plan - Infrastructure Plan'),
@@ -3998,7 +4031,8 @@ class _InfrastructurePlanSection extends StatelessWidget {
           question: 'Will infrastructure work be done by this project?',
           planKeyPrefix: 'execution_infrastructure_plan',
           formTitle: 'Infrastructure Plan Inputs',
-          formSubtitle: 'Define the environments, capacity, and operational readiness needed for delivery.',
+          formSubtitle:
+              'Define the environments, capacity, and operational readiness needed for delivery.',
           fields: [
             _PlanFieldConfig(
               keyName: 'scope',
@@ -4025,7 +4059,8 @@ class _InfrastructurePlanSection extends StatelessWidget {
             _PlanFieldConfig(
               keyName: 'security',
               label: 'Security, compliance & DR',
-              hint: 'Security controls, data protection, backup/restore, RTO/RPO.',
+              hint:
+                  'Security controls, data protection, backup/restore, RTO/RPO.',
               minLines: 2,
               maxLines: 4,
               fullWidth: true,
@@ -4089,8 +4124,7 @@ class _DesktopInfrastructurePlanActions extends StatelessWidget {
         const SizedBox(width: 24),
         _YellowActionButton(
           label: 'Next',
-          onPressed: () =>
-              ExecutionPlanStakeholderIdentificationScreen.open(context),
+          onPressed: () => ExecutionPlanAgileDeliveryPlanScreen.open(context),
         ),
       ],
     );
@@ -4113,8 +4147,7 @@ class _MobileInfrastructurePlanActions extends StatelessWidget {
         const SizedBox(height: 20),
         _YellowActionButton(
           label: 'Next',
-          onPressed: () =>
-              ExecutionPlanStakeholderIdentificationScreen.open(context),
+          onPressed: () => ExecutionPlanAgileDeliveryPlanScreen.open(context),
         ),
       ],
     );
@@ -4155,7 +4188,19 @@ class ExecutionPlanAgileDeliveryPlanScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
+                      onBack: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const ExecutionPlanInfrastructurePlanScreen()),
+                      ),
+                      onNext: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const DesignPhaseScreen(
+                                activeItemLabel: 'Design')),
+                      ),
+                    ),
                     const SizedBox(height: 32),
                     const _SectionIntro(
                         title: 'Execution Plan - Agile Delivery Plan'),
@@ -4204,7 +4249,8 @@ class _AgileDeliveryPlanSection extends StatelessWidget {
           question: 'Will agile delivery be used for this project?',
           planKeyPrefix: 'execution_agile_delivery_plan',
           formTitle: 'Agile Delivery Plan Inputs',
-          formSubtitle: 'Define cadence, governance, and delivery guardrails for agile execution.',
+          formSubtitle:
+              'Define cadence, governance, and delivery guardrails for agile execution.',
           fields: [
             _PlanFieldConfig(
               keyName: 'model',
@@ -4231,7 +4277,8 @@ class _AgileDeliveryPlanSection extends StatelessWidget {
             _PlanFieldConfig(
               keyName: 'backlog',
               label: 'Backlog governance',
-              hint: 'Definition of Ready/Done, prioritization, and grooming cadence.',
+              hint:
+                  'Definition of Ready/Done, prioritization, and grooming cadence.',
               minLines: 2,
               maxLines: 4,
               fullWidth: true,
@@ -4239,21 +4286,24 @@ class _AgileDeliveryPlanSection extends StatelessWidget {
             _PlanFieldConfig(
               keyName: 'team',
               label: 'Team structure & roles',
-              hint: 'Squad ownership, product roles, and cross-functional coverage.',
+              hint:
+                  'Squad ownership, product roles, and cross-functional coverage.',
               minLines: 2,
               maxLines: 4,
             ),
             _PlanFieldConfig(
               keyName: 'metrics',
               label: 'Metrics & reporting',
-              hint: 'Velocity, throughput, predictability, and quality measures.',
+              hint:
+                  'Velocity, throughput, predictability, and quality measures.',
               minLines: 2,
               maxLines: 4,
             ),
             _PlanFieldConfig(
               keyName: 'risks',
               label: 'Impediment & risk handling',
-              hint: 'Escalation process, dependency tracking, and blockers removal.',
+              hint:
+                  'Escalation process, dependency tracking, and blockers removal.',
               minLines: 2,
               maxLines: 4,
               fullWidth: true,
@@ -4261,9 +4311,22 @@ class _AgileDeliveryPlanSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        Align(
-          alignment: isMobile ? Alignment.centerLeft : Alignment.centerRight,
-          child: const _InfoBadge(),
+        Row(
+          mainAxisAlignment:
+              isMobile ? MainAxisAlignment.start : MainAxisAlignment.end,
+          children: [
+            const _InfoBadge(),
+            const SizedBox(width: 16),
+            _YellowActionButton(
+              label: 'Next',
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        const DesignPhaseScreen(activeItemLabel: 'Design')),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -4383,10 +4446,12 @@ class _PlanDecisionSectionState extends State<_PlanDecisionSection> {
 
   Future<void> _saveNow() async {
     final updates = <String, String>{
-      '${widget.planKeyPrefix}_decision': _decision == null ? '' : (_decision! ? 'yes' : 'no'),
+      '${widget.planKeyPrefix}_decision':
+          _decision == null ? '' : (_decision! ? 'yes' : 'no'),
     };
     for (final field in widget.fields) {
-      updates['${widget.planKeyPrefix}_${field.keyName}'] = _controllers[field.keyName]?.text.trim() ?? '';
+      updates['${widget.planKeyPrefix}_${field.keyName}'] =
+          _controllers[field.keyName]?.text.trim() ?? '';
     }
     final success = await ProjectDataHelper.updateAndSave(
       context: context,
@@ -4397,8 +4462,8 @@ class _PlanDecisionSectionState extends State<_PlanDecisionSection> {
           ...updates,
         },
       ),
-        showSnackbar: false,
-      );
+      showSnackbar: false,
+    );
     final firestoreSaved = await _saveToFirestore(updates);
     if (mounted && success && firestoreSaved) {
       setState(() => _lastSavedAt = DateTime.now());
@@ -4412,7 +4477,8 @@ class _PlanDecisionSectionState extends State<_PlanDecisionSection> {
       'decision': updates['${widget.planKeyPrefix}_decision'] ?? '',
       'fields': {
         for (final field in widget.fields)
-          field.keyName: updates['${widget.planKeyPrefix}_${field.keyName}'] ?? '',
+          field.keyName:
+              updates['${widget.planKeyPrefix}_${field.keyName}'] ?? '',
       },
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -4594,7 +4660,8 @@ class _PlanInputCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 6)),
+          BoxShadow(
+              color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 6)),
         ],
       ),
       child: LayoutBuilder(
@@ -4607,11 +4674,16 @@ class _PlanInputCard extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827))),
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
+                style: const TextStyle(
+                    fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
               ),
               const SizedBox(height: 18),
               Wrap(
@@ -4636,7 +4708,8 @@ class _PlanInputCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   'Saved ${TimeOfDay.fromDateTime(lastSavedAt!).format(context)}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                 ),
               ],
             ],

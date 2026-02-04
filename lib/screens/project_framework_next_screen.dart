@@ -28,21 +28,27 @@ class ProjectFrameworkNextScreen extends StatefulWidget {
   }
 
   @override
-  State<ProjectFrameworkNextScreen> createState() => _ProjectFrameworkNextScreenState();
+  State<ProjectFrameworkNextScreen> createState() =>
+      _ProjectFrameworkNextScreenState();
 }
 
-class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen> {
-  final List<TextEditingController> _goalTitleControllers = List.generate(3, (_) => TextEditingController());
-  final List<TextEditingController> _goalDescControllers = List.generate(3, (_) => TextEditingController());
-  final List<TextEditingController> _goalYearControllers = List.generate(3, (_) => TextEditingController());
-  final List<List<_Milestone>> _goalMilestones = List.generate(3, (_) => [_Milestone()]);
+class _ProjectFrameworkNextScreenState
+    extends State<ProjectFrameworkNextScreen> {
+  final List<TextEditingController> _goalTitleControllers =
+      List.generate(3, (_) => TextEditingController());
+  final List<TextEditingController> _goalDescControllers =
+      List.generate(3, (_) => TextEditingController());
+  final List<TextEditingController> _goalYearControllers =
+      List.generate(3, (_) => TextEditingController());
+  final List<List<_Milestone>> _goalMilestones =
+      List.generate(3, (_) => [_Milestone()]);
   final List<bool> _isHighPriority = [false, false, false];
-  
+
   // FocusNodes for auto-save on blur
   final List<FocusNode> _titleFocusNodes = List.generate(3, (_) => FocusNode());
   final List<FocusNode> _descFocusNodes = List.generate(3, (_) => FocusNode());
   final List<FocusNode> _yearFocusNodes = List.generate(3, (_) => FocusNode());
-  
+
   String _potentialSolution = '';
   String _projectObjective = '';
   String _currentFilter = 'View All';
@@ -50,15 +56,17 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
   /// Saves goal data to provider when focus is lost
   void _saveData() {
     if (!mounted) return;
-    
+
     final planningGoals = <PlanningGoal>[];
     for (int i = 0; i < 3; i++) {
-      final milestones = _goalMilestones[i].map((m) => PlanningMilestone(
-        title: m.titleController.text.trim(),
-        deadline: m.deadlineController.text.trim(),
-        status: m.status,
-      )).toList();
-      
+      final milestones = _goalMilestones[i]
+          .map((m) => PlanningMilestone(
+                title: m.titleController.text.trim(),
+                deadline: m.deadlineController.text.trim(),
+                status: m.status,
+              ))
+          .toList();
+
       planningGoals.add(PlanningGoal(
         goalNumber: i + 1,
         title: _goalTitleControllers[i].text.trim(),
@@ -68,7 +76,7 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
         milestones: milestones,
       ));
     }
-    
+
     ProjectDataHelper.getProvider(context).updateField(
       (data) => data.copyWith(planningGoals: planningGoals),
     );
@@ -79,39 +87,13 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final projectData = ProjectDataHelper.getProvider(context).projectData;
-      
+
       // Populate from project goals
       if (projectData.projectGoals.isNotEmpty) {
         for (int i = 0; i < projectData.projectGoals.length && i < 3; i++) {
           final goal = projectData.projectGoals[i];
           _goalTitleControllers[i].text = goal.name;
           _goalDescControllers[i].text = goal.description;
-        }
-      }
-      
-      // Populate from planning goals if available
-      for (int i = 0; i < projectData.planningGoals.length && i < 3; i++) {
-        final planningGoal = projectData.planningGoals[i];
-        if (planningGoal.title.isNotEmpty) {
-          _goalTitleControllers[i].text = planningGoal.title;
-        }
-        if (planningGoal.description.isNotEmpty) {
-          _goalDescControllers[i].text = planningGoal.description;
-        }
-        _goalYearControllers[i].text = planningGoal.targetYear;
-        _isHighPriority[i] = planningGoal.isHighPriority;
-        
-        // Populate milestones
-        _goalMilestones[i].clear();
-        for (final milestone in planningGoal.milestones) {
-          final m = _Milestone();
-          m.titleController.text = milestone.title;
-          m.deadlineController.text = milestone.deadline;
-          m.status = milestone.status;
-          _goalMilestones[i].add(m);
-        }
-        if (_goalMilestones[i].isEmpty) {
-          _goalMilestones[i].add(_Milestone());
         }
       }
 
@@ -121,35 +103,29 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
           if (mounted) setState(() {});
         });
       }
-      
+
       // Fetch context data
       final analysis = projectData.preferredSolutionAnalysis;
       // Heuristic: If selectedSolutionTitle exists, use it. Else first potential solution.
-      if (analysis?.selectedSolutionTitle != null && analysis!.selectedSolutionTitle!.isNotEmpty) {
+      if (analysis?.selectedSolutionTitle != null &&
+          analysis!.selectedSolutionTitle!.isNotEmpty) {
         _potentialSolution = analysis.selectedSolutionTitle ?? '';
       } else if (projectData.potentialSolutions.isNotEmpty) {
         _potentialSolution = projectData.potentialSolutions.first.title;
       }
-      
+
       // Fetch Objective (from Business Case Scope or similar if specialized field missing)
       // Assuming 'projectObjective' might not be a direct string on ProjectData yet based on imports.
       // Looking at usage in other screens, Scope Statement often serves as objective.
-      _projectObjective = projectData.projectObjective.isNotEmpty 
-          ? projectData.projectObjective 
-          : (projectData.businessCase.isNotEmpty ? projectData.businessCase : '');
+      _projectObjective = projectData.projectObjective.isNotEmpty
+          ? projectData.projectObjective
+          : (projectData.businessCase.isNotEmpty
+              ? projectData.businessCase
+              : '');
 
       // Setup nomenclature listeners
       for (int i = 0; i < 3; i++) {
         _setupGoalNomenclature(i);
-        // Manually trigger for pre-existing data
-        if (_goalDescControllers[i].text.isNotEmpty) {
-          final text = _goalDescControllers[i].text.trim();
-          final words = text.split(RegExp(r'\s+')).take(3);
-          final initials = words.where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase()).join();
-          if (initials.isNotEmpty) {
-            _goalTitleControllers[i].text = 'G${i + 1} $initials';
-          }
-        }
       }
 
       // Setup focus listeners for auto-save on blur
@@ -172,9 +148,15 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
   void _setupGoalNomenclature(int index) {
     _goalDescControllers[index].addListener(() {
       final text = _goalDescControllers[index].text.trim();
+      if (_goalTitleControllers[index].text.trim().isNotEmpty) {
+        return;
+      }
       if (text.isNotEmpty) {
         final words = text.split(RegExp(r'\s+')).take(3);
-        final initials = words.where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase()).join();
+        final initials = words
+            .where((w) => w.isNotEmpty)
+            .map((w) => w[0].toUpperCase())
+            .join();
         if (initials.isNotEmpty) {
           final newTitle = 'G${index + 1} $initials';
           if (_goalTitleControllers[index].text != newTitle) {
@@ -199,8 +181,6 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
       _isHighPriority[index] = false;
     });
   }
-
-
 
   void _togglePriority(int index) {
     setState(() {
@@ -251,7 +231,6 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
   void _navigateToNext() async {
     // Validation removed to match top navigation behavior
 
-
     final planningGoals = List.generate(3, (i) {
       return PlanningGoal(
         goalNumber: i + 1,
@@ -259,11 +238,13 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
         description: _goalDescControllers[i].text.trim(),
         targetYear: _goalYearControllers[i].text.trim(),
         isHighPriority: _isHighPriority[i],
-        milestones: _goalMilestones[i].map((m) => PlanningMilestone(
-          title: m.titleController.text.trim(),
-          deadline: m.deadlineController.text.trim(),
-          status: m.status,
-        )).toList(),
+        milestones: _goalMilestones[i]
+            .map((m) => PlanningMilestone(
+                  title: m.titleController.text.trim(),
+                  deadline: m.deadlineController.text.trim(),
+                  status: m.status,
+                ))
+            .toList(),
       );
     });
 
@@ -271,7 +252,9 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
       context: context,
       checkpoint: 'project_goals_milestones',
       nextScreenBuilder: () {
-        final nextIdx = PlanningPhaseNavigation.getPageIndex('project_goals_milestones') + 1;
+        final nextIdx =
+            PlanningPhaseNavigation.getPageIndex('project_goals_milestones') +
+                1;
         return PlanningPhaseNavigation.pages[nextIdx].builder(context);
       },
       dataUpdater: (data) => data.copyWith(planningGoals: planningGoals),
@@ -288,11 +271,13 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Project Goals & Milestones'),
+              child: const InitiationLikeSidebar(
+                  activeItemLabel: 'Project Goals & Milestones'),
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -303,13 +288,23 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
                       sectionLabel: 'Project Summary',
                       noteKey: 'planning_project_summary_notes',
                       checkpoint: 'project_framework_next',
-                      description: 'Summarize planning goals, milestones, and delivery themes.',
+                      description:
+                          'Summarize planning goals, milestones, and delivery themes.',
                     ),
                     const SizedBox(height: 24),
                     const SizedBox(height: 24),
-                    _LabeledField(label: '', value: _potentialSolution.isNotEmpty ? _potentialSolution : 'Not selected'),
+                    _LabeledField(
+                        label: '',
+                        value: _potentialSolution.isNotEmpty
+                            ? _potentialSolution
+                            : 'Not selected'),
                     const SizedBox(height: 24),
-                    _LabeledField(label: 'Project Objective  (Detailed aim of the project.)', value: _projectObjective.isNotEmpty ? _projectObjective : 'Pending input'),
+                    _LabeledField(
+                        label:
+                            'Project Objective  (Detailed aim of the project.)',
+                        value: _projectObjective.isNotEmpty
+                            ? _projectObjective
+                            : 'Pending input'),
                     const SizedBox(height: 40),
                     _GoalsSection(
                       titleControllers: _goalTitleControllers,
@@ -337,13 +332,15 @@ class _ProjectFrameworkNextScreenState extends State<ProjectFrameworkNextScreen>
                     const SizedBox(height: 48),
                     _MilestonesSection(
                       goalMilestones: _goalMilestones,
-                      goalTitles: _goalTitleControllers.map((c) => c.text).toList(),
+                      goalTitles:
+                          _goalTitleControllers.map((c) => c.text).toList(),
                       currentFilter: _currentFilter,
                     ),
                     const SizedBox(height: 32),
                     _GoalFilters(
                       currentFilter: _currentFilter,
-                      goalTitles: _goalTitleControllers.map((c) => c.text).toList(),
+                      goalTitles:
+                          _goalTitleControllers.map((c) => c.text).toList(),
                       onSelect: (val) => setState(() => _currentFilter = val),
                     ),
                     const SizedBox(height: 24),
@@ -365,41 +362,46 @@ class _HeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final displayName = FirebaseAuthService.displayNameOrEmail(fallback: 'User');
-    final userInitial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+    final displayName =
+        FirebaseAuthService.displayNameOrEmail(fallback: 'User');
+    final userInitial =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
     final email = user?.email ?? '';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _circleIconButton(
-          icon: Icons.arrow_back_ios_new_rounded, 
-          onTap: () {
-            final idx = PlanningPhaseNavigation.getPageIndex('project_goals_milestones');
-            if (idx > 0) {
-              final prevPage = PlanningPhaseNavigation.pages[idx - 1];
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: prevPage.builder));
-            } else {
-              Navigator.maybePop(context);
-            }
-          }
-        ),
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () {
+              final idx = PlanningPhaseNavigation.getPageIndex(
+                  'project_goals_milestones');
+              if (idx > 0) {
+                final prevPage = PlanningPhaseNavigation.pages[idx - 1];
+                Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: prevPage.builder));
+              } else {
+                Navigator.maybePop(context);
+              }
+            }),
         const SizedBox(width: 12),
         _circleIconButton(
-          icon: Icons.arrow_forward_ios_rounded, 
-          backgroundColor: _kAccentColor,
-          onTap: () {
-            final idx = PlanningPhaseNavigation.getPageIndex('project_goals_milestones');
-            if (idx < PlanningPhaseNavigation.pages.length - 1) {
-              final nextPage = PlanningPhaseNavigation.pages[idx + 1];
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: nextPage.builder));
-            }
-          }
-        ),
+            icon: Icons.arrow_forward_ios_rounded,
+            backgroundColor: _kAccentColor,
+            onTap: () {
+              final idx = PlanningPhaseNavigation.getPageIndex(
+                  'project_goals_milestones');
+              if (idx < PlanningPhaseNavigation.pages.length - 1) {
+                final nextPage = PlanningPhaseNavigation.pages[idx + 1];
+                Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: nextPage.builder));
+              }
+            }),
         const SizedBox(width: 16),
         const Text(
           'Planning Phase',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: _kPrimaryText),
+          style: TextStyle(
+              fontSize: 24, fontWeight: FontWeight.w700, color: _kPrimaryText),
         ),
         const Spacer(),
         Container(
@@ -414,17 +416,28 @@ class _HeaderRow extends StatelessWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: _kAccentColor,
-                child: Text(userInitial, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kPrimaryText)),
+                child: Text(userInitial,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _kPrimaryText)),
               ),
               const SizedBox(width: 10),
-              Text(displayName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kPrimaryText)),
+              Text(displayName,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _kPrimaryText)),
               const SizedBox(width: 6),
               StreamBuilder<bool>(
                 stream: UserService.watchAdminStatus(),
                 builder: (context, snapshot) {
-                  final isAdmin = snapshot.data ?? UserService.isAdminEmail(email);
+                  final isAdmin =
+                      snapshot.data ?? UserService.isAdminEmail(email);
                   final role = isAdmin ? 'Admin' : 'Member';
-                  return Text(role, style: const TextStyle(fontSize: 12, color: _kSecondaryText));
+                  return Text(role,
+                      style: const TextStyle(
+                          fontSize: 12, color: _kSecondaryText));
                 },
               ),
             ],
@@ -434,7 +447,8 @@ class _HeaderRow extends StatelessWidget {
     );
   }
 
-  static Widget _circleIconButton({required IconData icon, Color? backgroundColor, VoidCallback? onTap}) {
+  static Widget _circleIconButton(
+      {required IconData icon, Color? backgroundColor, VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
@@ -445,7 +459,9 @@ class _HeaderRow extends StatelessWidget {
           color: backgroundColor ?? Colors.white,
           shape: BoxShape.circle,
           border: Border.all(color: _kBorderColor),
-          boxShadow: const [BoxShadow(color: _kCardShadow, blurRadius: 8, offset: Offset(0, 4))],
+          boxShadow: const [
+            BoxShadow(color: _kCardShadow, blurRadius: 8, offset: Offset(0, 4))
+          ],
         ),
         child: Icon(icon, color: Colors.black87, size: 20),
       ),
@@ -464,7 +480,11 @@ class _LabeledField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _kPrimaryText)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: _kPrimaryText)),
         const SizedBox(height: 12),
         Container(
           height: 56,
@@ -476,7 +496,11 @@ class _LabeledField extends StatelessWidget {
             border: Border.all(color: _kBorderColor),
           ),
           alignment: Alignment.centerLeft,
-          child: Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _kPrimaryText)),
+          child: Text(value,
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _kPrimaryText)),
         ),
       ],
     );
@@ -522,8 +546,19 @@ class _GoalsSection extends StatelessWidget {
         RichText(
           text: const TextSpan(
             children: [
-              TextSpan(text: 'Project Goals', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _kPrimaryText)),
-              TextSpan(text: ' (Breakdown the project objective into attainable areas)', style: TextStyle(fontSize: 14, color: _kSecondaryText, fontWeight: FontWeight.w500)),
+              TextSpan(
+                  text: 'Project Goals',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: _kPrimaryText)),
+              TextSpan(
+                  text:
+                      ' (Breakdown the project objective into attainable areas)',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: _kSecondaryText,
+                      fontWeight: FontWeight.w500)),
             ],
           ),
         ),
@@ -532,7 +567,8 @@ class _GoalsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (int i = 0; i < 3; i++)
-              if (currentFilter == 'View All' || currentFilter == 'Goal ${i + 1}')
+              if (currentFilter == 'View All' ||
+                  currentFilter == 'Goal ${i + 1}')
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: 18),
@@ -548,7 +584,8 @@ class _GoalsSection extends StatelessWidget {
                         onAddMilestone: () => onAddMilestone(i),
                         onClear: () => onClear(i),
                         onTogglePriority: () => onTogglePriority(i),
-                        onDeleteMilestone: (mIndex) => onDeleteMilestone(i, mIndex),
+                        onDeleteMilestone: (mIndex) =>
+                            onDeleteMilestone(i, mIndex),
                       ),
                       child: _GoalCard(
                         goalNumber: i + 1,
@@ -560,7 +597,8 @@ class _GoalsSection extends StatelessWidget {
                         onAddMilestone: () => onAddMilestone(i),
                         onClear: () => onClear(i),
                         onTogglePriority: () => onTogglePriority(i),
-                        onDeleteMilestone: (mIndex) => onDeleteMilestone(i, mIndex),
+                        onDeleteMilestone: (mIndex) =>
+                            onDeleteMilestone(i, mIndex),
                         titleFocusNode: titleFocusNodes[i],
                         descFocusNode: descFocusNodes[i],
                         yearFocusNode: yearFocusNodes[i],
@@ -569,7 +607,9 @@ class _GoalsSection extends StatelessWidget {
                   ),
                 )
               else
-                const Expanded(child: SizedBox()), // Placeholder to keep layout alignment if using Row
+                const Expanded(
+                    child:
+                        SizedBox()), // Placeholder to keep layout alignment if using Row
           ],
         ),
       ],
@@ -608,9 +648,10 @@ class _GoalsSection extends StatelessWidget {
   }
 }
 
-
 class _Milestone {
-  _Milestone() : titleController = TextEditingController(), deadlineController = TextEditingController();
+  _Milestone()
+      : titleController = TextEditingController(),
+        deadlineController = TextEditingController();
   final TextEditingController titleController;
   final TextEditingController deadlineController;
   String status = 'Not Started'; // Default status
@@ -686,7 +727,8 @@ class _GoalCardState extends State<_GoalCard> {
   Future<void> _pickTargetDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _targetCompletionDate ?? DateTime.now().add(const Duration(days: 365)),
+      initialDate: _targetCompletionDate ??
+          DateTime.now().add(const Duration(days: 365)),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       builder: (context, child) {
@@ -706,7 +748,8 @@ class _GoalCardState extends State<_GoalCard> {
     if (picked != null) {
       setState(() {
         _targetCompletionDate = picked;
-        widget.yearController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+        widget.yearController.text =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
@@ -714,7 +757,8 @@ class _GoalCardState extends State<_GoalCard> {
   Future<void> _pickMilestoneDate(_Milestone milestone) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: milestone.deadlineDate ?? DateTime.now().add(const Duration(days: 90)),
+      initialDate: milestone.deadlineDate ??
+          DateTime.now().add(const Duration(days: 90)),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       builder: (context, child) {
@@ -734,14 +778,28 @@ class _GoalCardState extends State<_GoalCard> {
     if (picked != null) {
       setState(() {
         milestone.deadlineDate = picked;
-        milestone.deadlineController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+        milestone.deadlineController.text =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Select date';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
@@ -753,7 +811,9 @@ class _GoalCardState extends State<_GoalCard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: _kBorderColor),
-        boxShadow: const [BoxShadow(color: _kCardShadow, blurRadius: 16, offset: Offset(0, 8))],
+        boxShadow: const [
+          BoxShadow(color: _kCardShadow, blurRadius: 16, offset: Offset(0, 8))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,36 +830,45 @@ class _GoalCardState extends State<_GoalCard> {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _kPrimaryText),
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: _kPrimaryText),
                 ),
               ),
               GestureDetector(
                 onTap: widget.onTogglePriority,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: widget.isHighPriority ? const Color(0xFFFEE2E2) : Colors.grey[100], 
-                    borderRadius: BorderRadius.circular(999)
-                  ),
-                  child: Text(
-                    'High priority', 
-                    style: TextStyle(
-                      fontSize: 11, 
-                      fontWeight: FontWeight.w700, 
-                      color: widget.isHighPriority ? const Color(0xFFDC2626) : Colors.grey[500]
-                    )
-                  ),
+                      color: widget.isHighPriority
+                          ? const Color(0xFFFEE2E2)
+                          : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Text('High priority',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: widget.isHighPriority
+                              ? const Color(0xFFDC2626)
+                              : Colors.grey[500])),
                 ),
               ),
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: widget.onClear,
-                child: const Icon(Icons.delete_outline_rounded, size: 18, color: _kSecondaryText),
+                child: const Icon(Icons.delete_outline_rounded,
+                    size: 18, color: _kSecondaryText),
               ),
             ],
           ),
           const SizedBox(height: 18),
-          const Text('Description', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kSecondaryText)),
+          const Text('Description',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _kSecondaryText)),
           const SizedBox(height: 8),
           Container(
             height: 52,
@@ -819,11 +888,18 @@ class _GoalCardState extends State<_GoalCard> {
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _kPrimaryText),
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: _kPrimaryText),
             ),
           ),
           const SizedBox(height: 18),
-          const Text('Target Completion', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kSecondaryText)),
+          const Text('Target Completion',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _kSecondaryText)),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: _pickTargetDate,
@@ -838,19 +914,25 @@ class _GoalCardState extends State<_GoalCard> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined, size: 18, color: _kSecondaryText),
+                  const Icon(Icons.calendar_today_outlined,
+                      size: 18, color: _kSecondaryText),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      _targetCompletionDate != null ? _formatDate(_targetCompletionDate) : 'Select target date',
+                      _targetCompletionDate != null
+                          ? _formatDate(_targetCompletionDate)
+                          : 'Select target date',
                       style: TextStyle(
-                        fontSize: 15, 
-                        fontWeight: FontWeight.w600, 
-                        color: _targetCompletionDate != null ? _kPrimaryText : _kSecondaryText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: _targetCompletionDate != null
+                            ? _kPrimaryText
+                            : _kSecondaryText,
                       ),
                     ),
                   ),
-                  const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: _kSecondaryText),
+                  const Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 20, color: _kSecondaryText),
                 ],
               ),
             ),
@@ -862,7 +944,8 @@ class _GoalCardState extends State<_GoalCard> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF7E6),
                   borderRadius: BorderRadius.circular(22),
@@ -876,8 +959,11 @@ class _GoalCardState extends State<_GoalCard> {
                         Container(
                           width: 40,
                           height: 40,
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                          child: const Icon(Icons.sync_rounded, size: 22, color: Color(0xFFF59E0B)),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14)),
+                          child: const Icon(Icons.sync_rounded,
+                              size: 22, color: Color(0xFFF59E0B)),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -889,12 +975,16 @@ class _GoalCardState extends State<_GoalCard> {
                               isDense: true,
                               contentPadding: EdgeInsets.zero,
                             ),
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kPrimaryText),
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: _kPrimaryText),
                           ),
                         ),
                         GestureDetector(
                           onTap: () => widget.onDeleteMilestone(index),
-                          child: const Icon(Icons.close_rounded, size: 18, color: _kSecondaryText),
+                          child: const Icon(Icons.close_rounded,
+                              size: 18, color: _kSecondaryText),
                         ),
                       ],
                     ),
@@ -907,25 +997,30 @@ class _GoalCardState extends State<_GoalCard> {
                             onTap: () => _pickMilestoneDate(milestone),
                             child: Container(
                               height: 36,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFFFE0A3)),
+                                border:
+                                    Border.all(color: const Color(0xFFFFE0A3)),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.calendar_today_outlined, size: 14, color: _kSecondaryText),
+                                  const Icon(Icons.calendar_today_outlined,
+                                      size: 14, color: _kSecondaryText),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      milestone.deadlineDate != null 
+                                      milestone.deadlineDate != null
                                           ? _formatDate(milestone.deadlineDate)
                                           : 'Select deadline',
                                       style: TextStyle(
-                                        fontSize: 12, 
-                                        fontWeight: FontWeight.w500, 
-                                        color: milestone.deadlineDate != null ? _kPrimaryText : _kSecondaryText,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: milestone.deadlineDate != null
+                                            ? _kPrimaryText
+                                            : _kSecondaryText,
                                       ),
                                     ),
                                   ),
@@ -958,10 +1053,10 @@ class _GoalCardState extends State<_GoalCard> {
                                   height: 8,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: milestone.status == 'Completed' 
-                                        ? const Color(0xFF10B981) 
-                                        : (milestone.status == 'In Progress' 
-                                            ? const Color(0xFFEF4444) 
+                                    color: milestone.status == 'Completed'
+                                        ? const Color(0xFF10B981)
+                                        : (milestone.status == 'In Progress'
+                                            ? const Color(0xFFEF4444)
                                             : Colors.grey),
                                   ),
                                 ),
@@ -969,23 +1064,29 @@ class _GoalCardState extends State<_GoalCard> {
                                 Text(
                                   milestone.status,
                                   style: TextStyle(
-                                    fontSize: 12, 
-                                    fontWeight: FontWeight.w600, 
-                                    color: milestone.status == 'Completed' 
-                                        ? const Color(0xFF10B981) 
-                                        : (milestone.status == 'In Progress' 
-                                            ? const Color(0xFFEF4444) 
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: milestone.status == 'Completed'
+                                        ? const Color(0xFF10B981)
+                                        : (milestone.status == 'In Progress'
+                                            ? const Color(0xFFEF4444)
                                             : Colors.grey),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: _kSecondaryText),
+                                const Icon(Icons.keyboard_arrow_down_rounded,
+                                    size: 16, color: _kSecondaryText),
                               ],
                             ),
                             itemBuilder: (context) => [
-                              const PopupMenuItem(value: 'Not Started', child: Text('Not Started')),
-                              const PopupMenuItem(value: 'In Progress', child: Text('In Progress')),
-                              const PopupMenuItem(value: 'Completed', child: Text('Completed')),
+                              const PopupMenuItem(
+                                  value: 'Not Started',
+                                  child: Text('Not Started')),
+                              const PopupMenuItem(
+                                  value: 'In Progress',
+                                  child: Text('In Progress')),
+                              const PopupMenuItem(
+                                  value: 'Completed', child: Text('Completed')),
                             ],
                           ),
                         ),
@@ -1002,11 +1103,19 @@ class _GoalCardState extends State<_GoalCard> {
             children: [
               GestureDetector(
                 onTap: widget.onAddMilestone,
-                child: const Text('+ Add Milestone', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kAccentColor)),
+                child: const Text('+ Add Milestone',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kAccentColor)),
               ),
               GestureDetector(
                 onTap: widget.onClear,
-                child: const Text('Clear', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kPrimaryText)),
+                child: const Text('Clear',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kPrimaryText)),
               ),
             ],
           ),
@@ -1015,7 +1124,6 @@ class _GoalCardState extends State<_GoalCard> {
     );
   }
 }
-
 
 class _GoalCardExpandedDialog extends StatefulWidget {
   const _GoalCardExpandedDialog({
@@ -1043,7 +1151,8 @@ class _GoalCardExpandedDialog extends StatefulWidget {
   final void Function(int) onDeleteMilestone;
 
   @override
-  State<_GoalCardExpandedDialog> createState() => _GoalCardExpandedDialogState();
+  State<_GoalCardExpandedDialog> createState() =>
+      _GoalCardExpandedDialogState();
 }
 
 class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
@@ -1072,7 +1181,8 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
   Future<void> _pickTargetDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _targetCompletionDate ?? DateTime.now().add(const Duration(days: 365)),
+      initialDate: _targetCompletionDate ??
+          DateTime.now().add(const Duration(days: 365)),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       builder: (context, child) {
@@ -1092,7 +1202,8 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
     if (picked != null) {
       setState(() {
         _targetCompletionDate = picked;
-        widget.yearController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+        widget.yearController.text =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
@@ -1100,7 +1211,8 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
   Future<void> _pickMilestoneDate(_Milestone milestone) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: milestone.deadlineDate ?? DateTime.now().add(const Duration(days: 90)),
+      initialDate: milestone.deadlineDate ??
+          DateTime.now().add(const Duration(days: 90)),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       builder: (context, child) {
@@ -1120,14 +1232,28 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
     if (picked != null) {
       setState(() {
         milestone.deadlineDate = picked;
-        milestone.deadlineController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+        milestone.deadlineController.text =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Select date';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
@@ -1160,15 +1286,21 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _kPrimaryText),
+                      style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: _kPrimaryText),
                     ),
                   ),
                   GestureDetector(
                     onTap: widget.onTogglePriority,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: widget.isHighPriority ? const Color(0xFFFEE2E2) : Colors.grey[100],
+                        color: widget.isHighPriority
+                            ? const Color(0xFFFEE2E2)
+                            : Colors.grey[100],
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -1176,7 +1308,9 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: widget.isHighPriority ? const Color(0xFFDC2626) : Colors.grey[500],
+                          color: widget.isHighPriority
+                              ? const Color(0xFFDC2626)
+                              : Colors.grey[500],
                         ),
                       ),
                     ),
@@ -1184,7 +1318,8 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                   const SizedBox(width: 16),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: _kSecondaryText),
+                    icon:
+                        const Icon(Icons.close_rounded, color: _kSecondaryText),
                   ),
                 ],
               ),
@@ -1196,7 +1331,11 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Description', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kSecondaryText)),
+                    const Text('Description',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _kSecondaryText)),
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -1210,16 +1349,24 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                         minLines: 4,
                         maxLines: 6,
                         decoration: const InputDecoration(
-                          hintText: 'Enter a detailed description of this goal...',
+                          hintText:
+                              'Enter a detailed description of this goal...',
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: EdgeInsets.zero,
                         ),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: _kPrimaryText),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: _kPrimaryText),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text('Target Completion', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kSecondaryText)),
+                    const Text('Target Completion',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _kSecondaryText)),
                     const SizedBox(height: 10),
                     GestureDetector(
                       onTap: _pickTargetDate,
@@ -1233,19 +1380,25 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today_outlined, size: 20, color: _kSecondaryText),
+                            const Icon(Icons.calendar_today_outlined,
+                                size: 20, color: _kSecondaryText),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Text(
-                                _targetCompletionDate != null ? _formatDate(_targetCompletionDate) : 'Select target date',
+                                _targetCompletionDate != null
+                                    ? _formatDate(_targetCompletionDate)
+                                    : 'Select target date',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: _targetCompletionDate != null ? _kPrimaryText : _kSecondaryText,
+                                  color: _targetCompletionDate != null
+                                      ? _kPrimaryText
+                                      : _kSecondaryText,
                                 ),
                               ),
                             ),
-                            const Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: _kSecondaryText),
+                            const Icon(Icons.keyboard_arrow_down_rounded,
+                                size: 22, color: _kSecondaryText),
                           ],
                         ),
                       ),
@@ -1253,7 +1406,11 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                     const SizedBox(height: 28),
                     Row(
                       children: [
-                        const Text('Milestones', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kSecondaryText)),
+                        const Text('Milestones',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: _kSecondaryText)),
                         const Spacer(),
                         GestureDetector(
                           onTap: () {
@@ -1261,7 +1418,8 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                             setState(() {});
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               color: _kAccentColor,
                               borderRadius: BorderRadius.circular(10),
@@ -1271,7 +1429,11 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                               children: [
                                 Icon(Icons.add, size: 16, color: _kPrimaryText),
                                 SizedBox(width: 6),
-                                Text('Add Milestone', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kPrimaryText)),
+                                Text('Add Milestone',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: _kPrimaryText)),
                               ],
                             ),
                           ),
@@ -1298,8 +1460,11 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                                 Container(
                                   width: 44,
                                   height: 44,
-                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                                  child: const Icon(Icons.flag_outlined, size: 22, color: Color(0xFFF59E0B)),
+                                  decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(14)),
+                                  child: const Icon(Icons.flag_outlined,
+                                      size: 22, color: Color(0xFFF59E0B)),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
@@ -1311,7 +1476,10 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                                       isDense: true,
                                       contentPadding: EdgeInsets.zero,
                                     ),
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kPrimaryText),
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: _kPrimaryText),
                                   ),
                                 ),
                                 GestureDetector(
@@ -1319,7 +1487,10 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                                     widget.onDeleteMilestone(index);
                                     setState(() {});
                                   },
-                                  child: const Icon(Icons.delete_outline_rounded, size: 20, color: _kSecondaryText),
+                                  child: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 20,
+                                      color: _kSecondaryText),
                                 ),
                               ],
                             ),
@@ -1331,25 +1502,34 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                                     onTap: () => _pickMilestoneDate(milestone),
                                     child: Container(
                                       height: 44,
-                                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: const Color(0xFFFFE0A3)),
+                                        border: Border.all(
+                                            color: const Color(0xFFFFE0A3)),
                                       ),
                                       child: Row(
                                         children: [
-                                          const Icon(Icons.calendar_today_outlined, size: 16, color: _kSecondaryText),
+                                          const Icon(
+                                              Icons.calendar_today_outlined,
+                                              size: 16,
+                                              color: _kSecondaryText),
                                           const SizedBox(width: 10),
                                           Expanded(
                                             child: Text(
                                               milestone.deadlineDate != null
-                                                  ? _formatDate(milestone.deadlineDate)
+                                                  ? _formatDate(
+                                                      milestone.deadlineDate)
                                                   : 'Select deadline',
                                               style: TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w500,
-                                                color: milestone.deadlineDate != null ? _kPrimaryText : _kSecondaryText,
+                                                color: milestone.deadlineDate !=
+                                                        null
+                                                    ? _kPrimaryText
+                                                    : _kSecondaryText,
                                               ),
                                             ),
                                           ),
@@ -1361,11 +1541,13 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                                 const SizedBox(width: 14),
                                 Container(
                                   height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFFFE0A3)),
+                                    border: Border.all(
+                                        color: const Color(0xFFFFE0A3)),
                                   ),
                                   child: PopupMenuButton<String>(
                                     initialValue: milestone.status,
@@ -1381,9 +1563,11 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                                           height: 10,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: milestone.status == 'Completed'
+                                            color: milestone.status ==
+                                                    'Completed'
                                                 ? const Color(0xFF10B981)
-                                                : (milestone.status == 'In Progress'
+                                                : (milestone.status ==
+                                                        'In Progress'
                                                     ? const Color(0xFFEF4444)
                                                     : Colors.grey),
                                           ),
@@ -1394,21 +1578,32 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
-                                            color: milestone.status == 'Completed'
+                                            color: milestone.status ==
+                                                    'Completed'
                                                 ? const Color(0xFF10B981)
-                                                : (milestone.status == 'In Progress'
+                                                : (milestone.status ==
+                                                        'In Progress'
                                                     ? const Color(0xFFEF4444)
                                                     : Colors.grey),
                                           ),
                                         ),
                                         const SizedBox(width: 6),
-                                        const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _kSecondaryText),
+                                        const Icon(
+                                            Icons.keyboard_arrow_down_rounded,
+                                            size: 18,
+                                            color: _kSecondaryText),
                                       ],
                                     ),
                                     itemBuilder: (context) => [
-                                      const PopupMenuItem(value: 'Not Started', child: Text('Not Started')),
-                                      const PopupMenuItem(value: 'In Progress', child: Text('In Progress')),
-                                      const PopupMenuItem(value: 'Completed', child: Text('Completed')),
+                                      const PopupMenuItem(
+                                          value: 'Not Started',
+                                          child: Text('Not Started')),
+                                      const PopupMenuItem(
+                                          value: 'In Progress',
+                                          child: Text('In Progress')),
+                                      const PopupMenuItem(
+                                          value: 'Completed',
+                                          child: Text('Completed')),
                                     ],
                                   ),
                                 ),
@@ -1427,8 +1622,10 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
               decoration: BoxDecoration(
                 color: Colors.grey[50],
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
-                border: Border(top: BorderSide(color: _kBorderColor.withOpacity(0.5))),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(28)),
+                border: Border(
+                    top: BorderSide(color: _kBorderColor.withOpacity(0.5))),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -1438,7 +1635,10 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                       widget.onClear();
                       setState(() {});
                     },
-                    child: const Text('Clear', style: TextStyle(color: _kSecondaryText, fontWeight: FontWeight.w600)),
+                    child: const Text('Clear',
+                        style: TextStyle(
+                            color: _kSecondaryText,
+                            fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -1446,11 +1646,14 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _kAccentColor,
                       foregroundColor: _kPrimaryText,
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
-                    child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text('Done',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -1461,7 +1664,6 @@ class _GoalCardExpandedDialogState extends State<_GoalCardExpandedDialog> {
     );
   }
 }
-
 
 class _MilestonesSection extends StatelessWidget {
   const _MilestonesSection({
@@ -1486,18 +1688,24 @@ class _MilestonesSection extends StatelessWidget {
     // Flatten rows based on filter
     final List<List<String>> rows = [];
     for (int i = 0; i < 3; i++) {
-       if (currentFilter != 'View All' && currentFilter != 'Goal ${i + 1}') continue;
-       
-       for (final m in goalMilestones[i]) {
-         if (m.titleController.text.isNotEmpty || m.deadlineController.text.isNotEmpty) {
-           rows.add([
-             '${i + 1}',
-             m.titleController.text.isEmpty ? 'Untitled Milestone' : m.titleController.text,
-             m.status,
-             m.deadlineController.text.isEmpty ? 'No Deadline' : m.deadlineController.text,
-           ]);
-         }
-       }
+      if (currentFilter != 'View All' && currentFilter != 'Goal ${i + 1}')
+        continue;
+
+      for (final m in goalMilestones[i]) {
+        if (m.titleController.text.isNotEmpty ||
+            m.deadlineController.text.isNotEmpty) {
+          rows.add([
+            '${i + 1}',
+            m.titleController.text.isEmpty
+                ? 'Untitled Milestone'
+                : m.titleController.text,
+            m.status,
+            m.deadlineController.text.isEmpty
+                ? 'No Deadline'
+                : m.deadlineController.text,
+          ]);
+        }
+      }
     }
 
     if (rows.isEmpty) {
@@ -1510,8 +1718,18 @@ class _MilestonesSection extends StatelessWidget {
         RichText(
           text: const TextSpan(
             children: [
-              TextSpan(text: 'Key Project Milestones', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _kPrimaryText)),
-              TextSpan(text: ' (List core milestones associated with each goal)', style: TextStyle(fontSize: 14, color: _kSecondaryText, fontWeight: FontWeight.w500)),
+              TextSpan(
+                  text: 'Key Project Milestones',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: _kPrimaryText)),
+              TextSpan(
+                  text: ' (List core milestones associated with each goal)',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: _kSecondaryText,
+                      fontWeight: FontWeight.w500)),
             ],
           ),
         ),
@@ -1523,7 +1741,10 @@ class _MilestonesSection extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: _kBorderColor),
-            boxShadow: const [BoxShadow(color: _kCardShadow, blurRadius: 16, offset: Offset(0, 8))],
+            boxShadow: const [
+              BoxShadow(
+                  color: _kCardShadow, blurRadius: 16, offset: Offset(0, 8))
+            ],
           ),
           child: Column(
             children: [
@@ -1532,7 +1753,8 @@ class _MilestonesSection extends StatelessWidget {
                   color: Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                 child: Row(
                   children: [
                     for (int i = 0; i < _headers.length; i++)
@@ -1547,10 +1769,13 @@ class _MilestonesSection extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: _kBorderColor.withOpacity(index == rows.length - 1 ? 0 : 0.6)),
+                      bottom: BorderSide(
+                          color: _kBorderColor
+                              .withOpacity(index == rows.length - 1 ? 0 : 0.6)),
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: Row(
                     children: [
                       for (int cell = 0; cell < rows[index].length; cell++)
@@ -1578,7 +1803,9 @@ class _HeaderCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
-      child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kPrimaryText)),
+      child: Text(label,
+          style: const TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, color: _kPrimaryText)),
     );
   }
 }
@@ -1592,7 +1819,11 @@ class _DataCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
-      child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kSecondaryText)),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: _kSecondaryText)),
     );
   }
 }
@@ -1612,39 +1843,46 @@ class _GoalFilters extends StatelessWidget {
   Widget build(BuildContext context) {
     final filters = [
       _FilterChipData(
-        label: goalTitles.isNotEmpty && goalTitles[0].trim().isNotEmpty ? goalTitles[0] : 'Goal 1', 
-        value: 'Goal 1',
-        color: const Color(0xFFFFC107)
-      ),
+          label: goalTitles.isNotEmpty && goalTitles[0].trim().isNotEmpty
+              ? goalTitles[0]
+              : 'Goal 1',
+          value: 'Goal 1',
+          color: const Color(0xFFFFC107)),
       _FilterChipData(
-        label: goalTitles.length > 1 && goalTitles[1].trim().isNotEmpty ? goalTitles[1] : 'Goal 2', 
-        value: 'Goal 2',
-        color: const Color(0xFF0EA5E9)
-      ),
+          label: goalTitles.length > 1 && goalTitles[1].trim().isNotEmpty
+              ? goalTitles[1]
+              : 'Goal 2',
+          value: 'Goal 2',
+          color: const Color(0xFF0EA5E9)),
       _FilterChipData(
-        label: goalTitles.length > 2 && goalTitles[2].trim().isNotEmpty ? goalTitles[2] : 'Goal 3', 
-        value: 'Goal 3',
-        color: const Color(0xFFFB923C)
-      ),
-      _FilterChipData(label: 'View All', value: 'View All', color: const Color(0xFF10B981)),
+          label: goalTitles.length > 2 && goalTitles[2].trim().isNotEmpty
+              ? goalTitles[2]
+              : 'Goal 3',
+          value: 'Goal 3',
+          color: const Color(0xFFFB923C)),
+      _FilterChipData(
+          label: 'View All', value: 'View All', color: const Color(0xFF10B981)),
     ];
 
     return Wrap(
       spacing: 16,
       runSpacing: 12,
-      children: filters.map((chip) => GestureDetector(
-        onTap: () => onSelect(chip.value),
-        child: _GoalFilterChip(
-          data: chip, 
-          isSelected: currentFilter == chip.value,
-        ),
-      )).toList(),
+      children: filters
+          .map((chip) => GestureDetector(
+                onTap: () => onSelect(chip.value),
+                child: _GoalFilterChip(
+                  data: chip,
+                  isSelected: currentFilter == chip.value,
+                ),
+              ))
+          .toList(),
     );
   }
 }
 
 class _FilterChipData {
-  const _FilterChipData({required this.label, required this.value, required this.color});
+  const _FilterChipData(
+      {required this.label, required this.value, required this.color});
 
   final String label;
   final String value;
@@ -1667,16 +1905,14 @@ class _GoalFilterChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: isSelected ? data.color : data.color.withOpacity(0.18),
         borderRadius: BorderRadius.circular(22),
-        border: isSelected ? null : Border.all(color: data.color.withOpacity(0.3)),
+        border:
+            isSelected ? null : Border.all(color: data.color.withOpacity(0.3)),
       ),
-      child: Text(
-        data.label, 
-        style: TextStyle(
-          fontSize: 13, 
-          fontWeight: FontWeight.w700, 
-          color: isSelected ? Colors.white : data.color.darken()
-        )
-      ),
+      child: Text(data.label,
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isSelected ? Colors.white : data.color.darken())),
     );
   }
 }
@@ -1699,7 +1935,10 @@ class _BottomGuidance extends StatelessWidget {
             ),
             child: const Text(
               'Goal milestones would be a foundation for the project schedule. Focus on the key milestones required for project success.',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kPrimaryText),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _kPrimaryText),
             ),
           ),
         ),
@@ -1711,9 +1950,11 @@ class _BottomGuidance extends StatelessWidget {
             foregroundColor: _kPrimaryText,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 18),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
           ),
-          child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          child: const Text('Next',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         ),
       ],
     );

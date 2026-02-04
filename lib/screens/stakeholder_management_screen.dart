@@ -25,10 +25,12 @@ class StakeholderManagementScreen extends StatefulWidget {
   }
 
   @override
-  State<StakeholderManagementScreen> createState() => _StakeholderManagementScreenState();
+  State<StakeholderManagementScreen> createState() =>
+      _StakeholderManagementScreenState();
 }
 
-class _StakeholderManagementScreenState extends State<StakeholderManagementScreen> {
+class _StakeholderManagementScreenState
+    extends State<StakeholderManagementScreen> {
   int _activeTabIndex = 1; // 0 = Stakeholders, 1 = Engagement Plans
 
   final _stakeholderSaveDebounce = _Debouncer();
@@ -60,16 +62,16 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
     final filteredStakeholders = projectData.stakeholderEntries.where((s) {
       if (_searchQuery.isEmpty) return true;
       final q = _searchQuery.toLowerCase();
-      return s.name.toLowerCase().contains(q) || 
-             s.organization.toLowerCase().contains(q) || 
-             s.role.toLowerCase().contains(q);
+      return s.name.toLowerCase().contains(q) ||
+          s.organization.toLowerCase().contains(q) ||
+          s.role.toLowerCase().contains(q);
     }).toList();
 
     final filteredPlans = projectData.engagementPlanEntries.where((p) {
       if (_searchQuery.isEmpty) return true;
       final q = _searchQuery.toLowerCase();
-      return p.stakeholder.toLowerCase().contains(q) || 
-             p.objective.toLowerCase().contains(q);
+      return p.stakeholder.toLowerCase().contains(q) ||
+          p.objective.toLowerCase().contains(q);
     }).toList();
 
     return Scaffold(
@@ -78,7 +80,8 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
         children: [
           DraggableSidebar(
             openWidth: AppBreakpoints.sidebarWidth(context),
-            child: const InitiationLikeSidebar(activeItemLabel: 'Stakeholder Management'),
+            child: const InitiationLikeSidebar(
+                activeItemLabel: 'Stakeholder Management'),
           ),
           Expanded(
             child: Column(
@@ -89,7 +92,8 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
                     children: [
                       SingleChildScrollView(
                         child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 32),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding, vertical: 32),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -105,19 +109,27 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
                                 sectionLabel: 'Stakeholder Management',
                                 noteKey: 'planning_stakeholder_notes',
                                 checkpoint: 'stakeholder_management',
-                                description: 'Capture overall stakeholder strategy, risks, and communication protocols.',
+                                description:
+                                    'Capture overall stakeholder strategy, risks, and communication protocols.',
                               ),
                               const SizedBox(height: 32),
                               _StatsRow(
-                                totalStakeholders: projectData.stakeholderEntries.length,
-                                externalCount: projectData.stakeholderEntries.where((s) => s.organization.toLowerCase() != 'internal').length,
+                                totalStakeholders:
+                                    projectData.stakeholderEntries.length,
+                                externalCount: projectData.stakeholderEntries
+                                    .where((s) =>
+                                        s.organization.toLowerCase() !=
+                                        'internal')
+                                    .length,
                               ),
                               const SizedBox(height: 32),
-                              _InfluenceInterestMatrix(stakeholders: projectData.stakeholderEntries),
+                              _InfluenceInterestMatrix(
+                                  stakeholders: projectData.stakeholderEntries),
                               const SizedBox(height: 32),
                               _EngagementSection(
                                 activeTabIndex: _activeTabIndex,
-                                onTabChanged: (idx) => setState(() => _activeTabIndex = idx),
+                                onTabChanged: (idx) =>
+                                    setState(() => _activeTabIndex = idx),
                                 stakeholderTable: _StakeholdersTable(
                                   entries: filteredStakeholders,
                                   isLoading: false,
@@ -130,15 +142,19 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
                                   onChanged: _updateEngagementPlan,
                                   onDelete: _deleteEngagementPlan,
                                 ),
-                                onAdd: _activeTabIndex == 0 ? _addStakeholder : _addEngagementPlan,
-                                onSearch: (v) => setState(() => _searchQuery = v),
+                                onAdd: _activeTabIndex == 0
+                                    ? _addStakeholder
+                                    : _addEngagementPlan,
+                                onSearch: (v) =>
+                                    setState(() => _searchQuery = v),
                               ),
                               const SizedBox(height: 60),
                             ],
                           ),
                         ),
                       ),
-                      const Positioned(right: 24, bottom: 24, child: KazAiChatBubble()),
+                      const Positioned(
+                          right: 24, bottom: 24, child: KazAiChatBubble()),
                     ],
                   ),
                 ),
@@ -165,20 +181,18 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
   }
 
   void _updateStakeholder(StakeholderEntry updated) async {
-    final projectData = ProjectDataHelper.getData(context);
-    final entries = List<StakeholderEntry>.from(projectData.stakeholderEntries);
+    final provider = ProjectDataHelper.getProvider(context);
+    final entries =
+        List<StakeholderEntry>.from(provider.projectData.stakeholderEntries);
     final index = entries.indexWhere((entry) => entry.id == updated.id);
     if (index == -1) return;
     entries[index] = updated.copyWith(updatedAt: DateTime.now());
-    
-    // Use a debonced save here to avoid too many writes while typing in the table
+
+    // Update local state immediately for responsive UI (matrix updates),
+    // then debounce the remote save to reduce write volume.
+    provider.updateField((d) => d.copyWith(stakeholderEntries: entries));
     _stakeholderSaveDebounce.run(() async {
-        await ProjectDataHelper.updateAndSave(
-            context: context,
-            checkpoint: 'stakeholder_management',
-            showSnackbar: false,
-            dataUpdater: (d) => d.copyWith(stakeholderEntries: entries),
-        );
+      await provider.saveToFirebase(checkpoint: 'stakeholder_management');
     });
   }
 
@@ -187,7 +201,8 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
       context: context,
       checkpoint: 'stakeholder_management',
       dataUpdater: (d) => d.copyWith(
-        stakeholderEntries: d.stakeholderEntries.where((e) => e.id != id).toList(),
+        stakeholderEntries:
+            d.stakeholderEntries.where((e) => e.id != id).toList(),
       ),
     );
   }
@@ -197,25 +212,29 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
       context: context,
       checkpoint: 'stakeholder_management',
       dataUpdater: (d) => d.copyWith(
-        engagementPlanEntries: [...d.engagementPlanEntries, EngagementPlanEntry.empty()],
+        engagementPlanEntries: [
+          ...d.engagementPlanEntries,
+          EngagementPlanEntry.empty()
+        ],
       ),
     );
   }
 
   void _updateEngagementPlan(EngagementPlanEntry updated) async {
     final projectData = ProjectDataHelper.getData(context);
-    final entries = List<EngagementPlanEntry>.from(projectData.engagementPlanEntries);
+    final entries =
+        List<EngagementPlanEntry>.from(projectData.engagementPlanEntries);
     final index = entries.indexWhere((entry) => entry.id == updated.id);
     if (index == -1) return;
     entries[index] = updated.copyWith(updatedAt: DateTime.now());
 
     _planSaveDebounce.run(() async {
-        await ProjectDataHelper.updateAndSave(
-            context: context,
-            checkpoint: 'stakeholder_management',
-            showSnackbar: false,
-            dataUpdater: (d) => d.copyWith(engagementPlanEntries: entries),
-        );
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'stakeholder_management',
+        showSnackbar: false,
+        dataUpdater: (d) => d.copyWith(engagementPlanEntries: entries),
+      );
     });
   }
 
@@ -224,56 +243,58 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
       context: context,
       checkpoint: 'stakeholder_management',
       dataUpdater: (d) => d.copyWith(
-        engagementPlanEntries: d.engagementPlanEntries.where((e) => e.id != id).toList(),
+        engagementPlanEntries:
+            d.engagementPlanEntries.where((e) => e.id != id).toList(),
       ),
     );
   }
 
   Future<void> _autoPopulateFromInitiation() async {
-    final projectData = ProjectDataHelper.getData(context);
+    final projectData = ProjectDataHelper.getProvider(context).projectData;
     final coreStakeholders = projectData.coreStakeholdersData;
     if (coreStakeholders == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No stakeholder data found in Initiation Phase.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No stakeholder data found in Initiation Phase.')));
       return;
     }
 
     final selectedSolutionId = projectData.preferredSolutionId;
     final solutionData = coreStakeholders.solutionStakeholderData.firstWhere(
       (s) => s.solutionTitle == projectData.preferredSolution?.title,
-      orElse: () => coreStakeholders.solutionStakeholderData.isNotEmpty 
-          ? coreStakeholders.solutionStakeholderData.first 
+      orElse: () => coreStakeholders.solutionStakeholderData.isNotEmpty
+          ? coreStakeholders.solutionStakeholderData.first
           : SolutionStakeholderData(),
     );
 
-    if (solutionData.solutionTitle.isEmpty && coreStakeholders.solutionStakeholderData.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No stakeholder data found in Initiation Phase.')));
-        return;
+    if (solutionData.solutionTitle.isEmpty &&
+        coreStakeholders.solutionStakeholderData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No stakeholder data found in Initiation Phase.')));
+      return;
     }
 
     final List<StakeholderEntry> newEntries = [];
 
     void parseAndAdd(String text, String org) {
       final lines = text.split('\n');
-      final projectData = ProjectDataHelper.getData(context);
       for (var line in lines) {
         final cleaned = line.replaceAll(RegExp(r'^[-*•]\s*'), '').trim();
         if (cleaned.isNotEmpty) {
-          if (!projectData.stakeholderEntries.any((s) => s.name.toLowerCase() == cleaned.toLowerCase())) {
-            newEntries.add(StakeholderEntry(
-              id: DateTime.now().microsecondsSinceEpoch.toString() + cleaned.hashCode.toString(),
-              name: cleaned,
-              organization: org,
-              role: 'TBD',
-              contactInfo: '',
-              influence: 'Medium',
-              interest: 'Medium',
-              channel: 'Email',
-              owner: 'Project Manager',
-              notes: 'Added from Initiation Phase',
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            ));
-          }
+          newEntries.add(StakeholderEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString() +
+                cleaned.hashCode.toString(),
+            name: cleaned,
+            organization: org,
+            role: 'TBD',
+            contactInfo: '',
+            influence: 'Medium',
+            interest: 'Medium',
+            channel: 'Email',
+            owner: 'Project Manager',
+            notes: 'Added from Initiation Phase',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ));
         }
       }
     }
@@ -282,7 +303,8 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
     parseAndAdd(solutionData.externalStakeholders, 'External');
 
     if (newEntries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All stakeholders from Initiation are already present.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No stakeholders found in Initiation Phase.')));
       return;
     }
 
@@ -290,10 +312,12 @@ class _StakeholderManagementScreenState extends State<StakeholderManagementScree
       context: context,
       checkpoint: 'stakeholder_management',
       dataUpdater: (d) => d.copyWith(
-        stakeholderEntries: [...d.stakeholderEntries, ...newEntries],
+        stakeholderEntries: newEntries,
       ),
     );
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${newEntries.length} stakeholders from Initiation Phase.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Loaded ${newEntries.length} stakeholders from Initiation Phase.')));
   }
 }
 
@@ -311,20 +335,25 @@ class _TopUtilityBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _circleButton(icon: Icons.arrow_back_ios_new_rounded, onTap: () => Navigator.maybePop(context)),
+          _circleButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              onTap: () => Navigator.maybePop(context)),
           const SizedBox(width: 12),
           _circleButton(
-             icon: Icons.arrow_forward_ios_rounded,
-             onTap: () async {
-                 final navIndex = PlanningPhaseNavigation.getPageIndex('stakeholder_management');
-                 if (navIndex != -1 && navIndex < PlanningPhaseNavigation.pages.length - 1) {
-                   final nextPage = PlanningPhaseNavigation.pages[navIndex + 1];
-                   Navigator.pushReplacement(context, MaterialPageRoute(builder: nextPage.builder));
-                 } else {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No next screen available')));
-                 }
-             }
-          ),
+              icon: Icons.arrow_forward_ios_rounded,
+              onTap: () async {
+                final navIndex = PlanningPhaseNavigation.getPageIndex(
+                    'stakeholder_management');
+                if (navIndex != -1 &&
+                    navIndex < PlanningPhaseNavigation.pages.length - 1) {
+                  final nextPage = PlanningPhaseNavigation.pages[navIndex + 1];
+                  Navigator.pushReplacement(
+                      context, MaterialPageRoute(builder: nextPage.builder));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('No next screen available')));
+                }
+              }),
           const Spacer(),
           const _UserChip(
             name: '',
@@ -362,9 +391,12 @@ class _UserChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final displayName = FirebaseAuthService.displayNameOrEmail(fallback: name.isNotEmpty ? name : 'User');
+    final displayName = FirebaseAuthService.displayNameOrEmail(
+        fallback: name.isNotEmpty ? name : 'User');
     final email = user?.email ?? '';
-    final primary = displayName.isNotEmpty ? displayName : (email.isNotEmpty ? email : name);
+    final primary = displayName.isNotEmpty
+        ? displayName
+        : (email.isNotEmpty ? email : name);
     final photoUrl = user?.photoURL ?? '';
 
     return StreamBuilder<bool>(
@@ -387,11 +419,15 @@ class _UserChip extends StatelessWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: const Color(0xFFE5E7EB),
-                backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                backgroundImage:
+                    photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
                 child: photoUrl.isEmpty
                     ? Text(
                         primary.isNotEmpty ? primary[0].toUpperCase() : 'U',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF374151)),
                       )
                     : null,
               ),
@@ -399,12 +435,19 @@ class _UserChip extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(primary, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                  Text(roleText, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                  Text(primary,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827))),
+                  Text(roleText,
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF6B7280))),
                 ],
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF9CA3AF)),
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: Color(0xFF9CA3AF)),
             ],
           ),
         );
@@ -414,7 +457,11 @@ class _UserChip extends StatelessWidget {
 }
 
 class _TitleSection extends StatelessWidget {
-  const _TitleSection({required this.showButtonsBelow, required this.onExport, required this.onAddProject, this.onAutoPopulate});
+  const _TitleSection(
+      {required this.showButtonsBelow,
+      required this.onExport,
+      required this.onAddProject,
+      this.onAutoPopulate});
 
   final bool showButtonsBelow;
   final VoidCallback onExport;
@@ -437,29 +484,43 @@ class _TitleSection extends StatelessWidget {
                 children: const [
                   Text(
                     'Stakeholder Management',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                    style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827)),
                   ),
                   SizedBox(height: 10),
                   Text(
                     'Manage stakeholders, communication plans, and engagement strategies',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF6B7280), height: 1.5),
+                    style: TextStyle(
+                        fontSize: 15, color: Color(0xFF6B7280), height: 1.5),
                   ),
                 ],
               ),
             ),
             if (!showButtonsBelow) ...[
-                if (onAutoPopulate != null)
-                   _topButton(label: 'Auto-populate', icon: Icons.auto_awesome, color: const Color(0xFFFFC107), textColor: Colors.black, onPressed: onAutoPopulate!),
-                   const SizedBox(width: 12),
-                buttons,
+              if (onAutoPopulate != null)
+                _topButton(
+                    label: 'Auto-populate',
+                    icon: Icons.auto_awesome,
+                    color: const Color(0xFFFFC107),
+                    textColor: Colors.black,
+                    onPressed: onAutoPopulate!),
+              const SizedBox(width: 12),
+              buttons,
             ],
           ],
         ),
         if (showButtonsBelow) ...[
           const SizedBox(height: 16),
           if (onAutoPopulate != null) ...[
-             _topButton(label: 'Auto-populate from Initiation', icon: Icons.auto_awesome, color: const Color(0xFFFFC107), textColor: Colors.black, onPressed: onAutoPopulate!),
-             const SizedBox(height: 12),
+            _topButton(
+                label: 'Auto-populate from Initiation',
+                icon: Icons.auto_awesome,
+                color: const Color(0xFFFFC107),
+                textColor: Colors.black,
+                onPressed: onAutoPopulate!),
+            const SizedBox(height: 12),
           ],
           buttons,
         ],
@@ -467,22 +528,27 @@ class _TitleSection extends StatelessWidget {
     );
   }
 
-  Widget _topButton({required String label, required IconData icon, required Color color, required Color textColor, required VoidCallback onPressed}) {
-      return ElevatedButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon, size: 16, color: textColor),
-          label: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
-          style: ElevatedButton.styleFrom(
-              backgroundColor: color,
-              foregroundColor: textColor,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-      );
+  Widget _topButton(
+      {required String label,
+      required IconData icon,
+      required Color color,
+      required Color textColor,
+      required VoidCallback onPressed}) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: textColor),
+      label: Text(label,
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: textColor,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
-
-
 }
 
 class _StatsRow extends StatelessWidget {
@@ -497,7 +563,7 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = AppBreakpoints.isMobile(context);
-    
+
     final children = [
       _MetricCard(
         title: 'Total Stakeholders',
@@ -536,7 +602,11 @@ class _StatsRow extends StatelessWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.title, required this.value, required this.icon, required this.accentColor});
+  const _MetricCard(
+      {required this.title,
+      required this.value,
+      required this.icon,
+      required this.accentColor});
 
   final String title;
   final String value;
@@ -552,7 +622,8 @@ class _MetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x08000000), blurRadius: 24, offset: Offset(0, 10)),
+          BoxShadow(
+              color: Color(0x08000000), blurRadius: 24, offset: Offset(0, 10)),
         ],
       ),
       child: Row(
@@ -570,9 +641,15 @@ class _MetricCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
+              Text(title,
+                  style:
+                      const TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
               const SizedBox(height: 6),
-              Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827))),
             ],
           ),
         ],
@@ -638,7 +715,11 @@ class _CommunicationFrequencyCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Communication Frequency', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+          const Text('Communication Frequency',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827))),
           const SizedBox(height: 16),
           for (var item in _items)
             Padding(
@@ -648,11 +729,14 @@ class _CommunicationFrequencyCard extends StatelessWidget {
                 children: [
                   const Padding(
                     padding: EdgeInsets.only(top: 4),
-                    child: Icon(Icons.circle, size: 8, color: Color(0xFF111827)),
+                    child:
+                        Icon(Icons.circle, size: 8, color: Color(0xFF111827)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(item, style: const TextStyle(fontSize: 14, color: Color(0xFF374151))),
+                    child: Text(item,
+                        style: const TextStyle(
+                            fontSize: 14, color: Color(0xFF374151))),
                   ),
                 ],
               ),
@@ -683,22 +767,43 @@ class _InfluenceInterestMatrix extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hHighILow = stakeholders.where((s) => s.influence == 'High' && s.interest == 'Low').toList();
-    final hHighIHigh = stakeholders.where((s) => s.influence == 'High' && s.interest == 'High').toList();
-    final hLowILow = stakeholders.where((s) => s.influence == 'Low' && s.interest == 'Low').toList();
-    final hLowIHigh = stakeholders.where((s) => s.influence == 'Low' && s.interest == 'High').toList();
-    final hMid = stakeholders.where((s) => s.influence == 'Medium' || s.interest == 'Medium').toList();
+    final hHighILow = stakeholders
+        .where((s) => s.influence == 'High' && s.interest == 'Low')
+        .toList();
+    final hHighIHigh = stakeholders
+        .where((s) => s.influence == 'High' && s.interest == 'High')
+        .toList();
+    final hLowILow = stakeholders
+        .where((s) => s.influence == 'Low' && s.interest == 'Low')
+        .toList();
+    final hLowIHigh = stakeholders
+        .where((s) => s.influence == 'Low' && s.interest == 'High')
+        .toList();
+    final hMid = stakeholders
+        .where((s) => s.influence == 'Medium' || s.interest == 'Medium')
+        .toList();
     // 3. Keep Informed (Low/Med Influence, High Interest)
-    final keepInformed = stakeholders.where((s) => (s.influence == 'Low' || s.influence == 'Medium') && s.interest == 'High').toList();
+    final keepInformed = stakeholders
+        .where((s) =>
+            (s.influence == 'Low' || s.influence == 'Medium') &&
+            s.interest == 'High')
+        .toList();
     // 4. Monitor (Low/Med Influence, Low/Med Interest)
-    final monitor = stakeholders.where((s) => (s.influence == 'Low' || s.influence == 'Medium') && (s.interest == 'Low' || s.interest == 'Medium')).toList();
+    final monitor = stakeholders
+        .where((s) =>
+            (s.influence == 'Low' || s.influence == 'Medium') &&
+            (s.interest == 'Low' || s.interest == 'Medium'))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Influence / Interest Matrix',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827)),
         ),
         const SizedBox(height: 16),
         Container(
@@ -707,7 +812,10 @@ class _InfluenceInterestMatrix extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFE5E7EB)),
             boxShadow: const [
-              BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
+              BoxShadow(
+                  color: Color(0x05000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 4)),
             ],
           ),
           child: Column(
@@ -726,7 +834,7 @@ class _InfluenceInterestMatrix extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   // Y-axis label (Influence)
+                  // Y-axis label (Influence)
                   _verticalAxisLabel('HIGH INFLUENCE'),
                   Expanded(
                     child: _matrixQuadrant(
@@ -780,7 +888,11 @@ class _InfluenceInterestMatrix extends StatelessWidget {
     return Center(
       child: Text(
         text,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF9CA3AF)),
+        style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+            color: Color(0xFF9CA3AF)),
       ),
     );
   }
@@ -794,7 +906,11 @@ class _InfluenceInterestMatrix extends StatelessWidget {
         quarterTurns: 3,
         child: Text(
           text,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFF9CA3AF)),
+          style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: Color(0xFF9CA3AF)),
         ),
       ),
     );
@@ -823,13 +939,17 @@ class _InfluenceInterestMatrix extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
+                decoration:
+                    BoxDecoration(color: accentColor, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: accentColor),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: accentColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -842,14 +962,19 @@ class _InfluenceInterestMatrix extends StatelessWidget {
                 ? Center(
                     child: Text(
                       'None',
-                      style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: accentColor.withOpacity(0.5)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: accentColor.withOpacity(0.5)),
                     ),
                   )
                 : SingleChildScrollView(
                     child: Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: stakeholders.map((s) => _stakeholderChip(s, accentColor)).toList(),
+                      children: stakeholders
+                          .map((s) => _stakeholderChip(s, accentColor))
+                          .toList(),
                     ),
                   ),
           ),
@@ -868,14 +993,18 @@ class _InfluenceInterestMatrix extends StatelessWidget {
       ),
       child: Text(
         s.name.isEmpty ? 'Unnamed' : s.name,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color.withOpacity(0.8)),
+        style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: color.withOpacity(0.8)),
       ),
     );
   }
 }
 
 class _SectionEmptyState extends StatelessWidget {
-  const _SectionEmptyState({required this.title, required this.message, required this.icon});
+  const _SectionEmptyState(
+      {required this.title, required this.message, required this.icon});
 
   final String title;
   final String message;
@@ -907,9 +1036,15 @@ class _SectionEmptyState extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827))),
                 const SizedBox(height: 6),
-                Text(message, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                Text(message,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF6B7280))),
               ],
             ),
           ),
@@ -977,13 +1112,16 @@ class _EngagementSection extends StatelessWidget {
                     ElevatedButton.icon(
                       onPressed: onAdd,
                       icon: const Icon(Icons.add),
-                      label: Text(activeTabIndex == 0 ? 'Add stakeholder' : 'Add plan'),
+                      label: Text(
+                          activeTabIndex == 0 ? 'Add stakeholder' : 'Add plan'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFD84D),
                         foregroundColor: const Color(0xFF1F2937),
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ],
@@ -1032,7 +1170,8 @@ class _EngagementSection extends StatelessWidget {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField({required this.enabled, required this.value, required this.onChanged});
+  const _SearchField(
+      {required this.enabled, required this.value, required this.onChanged});
 
   final bool enabled;
   final String value;
@@ -1045,8 +1184,10 @@ class _SearchField extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: 'Search stakeholders...',
-        prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        prefixIcon:
+            const Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         filled: true,
         fillColor: Colors.white,
         enabledBorder: OutlineInputBorder(
@@ -1126,7 +1267,8 @@ class _StakeholdersTable extends StatelessWidget {
                 value: entry.organization,
                 fieldKey: '${entry.id}_organization',
                 hintText: 'Organization',
-                onChanged: (value) => onChanged(entry.copyWith(organization: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(organization: value)),
               ),
               _TextCell(
                 value: entry.role,
@@ -1138,19 +1280,22 @@ class _StakeholdersTable extends StatelessWidget {
                 value: entry.contactInfo,
                 fieldKey: '${entry.id}_contactInfo',
                 hintText: 'Email/Phone',
-                onChanged: (value) => onChanged(entry.copyWith(contactInfo: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(contactInfo: value)),
               ),
               _DropdownCell(
                 value: entry.influence,
                 fieldKey: '${entry.id}_influence',
                 options: const ['High', 'Medium', 'Low'],
-                onChanged: (value) => onChanged(entry.copyWith(influence: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(influence: value)),
               ),
               _DropdownCell(
                 value: entry.interest,
                 fieldKey: '${entry.id}_interest',
                 options: const ['High', 'Medium', 'Low'],
-                onChanged: (value) => onChanged(entry.copyWith(interest: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(interest: value)),
               ),
               _TextCell(
                 value: entry.channel,
@@ -1231,7 +1376,8 @@ class _EngagementPlansTable extends StatelessWidget {
                 value: entry.stakeholder,
                 fieldKey: '${entry.id}_stakeholder',
                 hintText: 'Stakeholder',
-                onChanged: (value) => onChanged(entry.copyWith(stakeholder: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(stakeholder: value)),
               ),
               _TextCell(
                 value: entry.objective,
@@ -1239,7 +1385,8 @@ class _EngagementPlansTable extends StatelessWidget {
                 hintText: 'Objective',
                 minLines: 1,
                 maxLines: 2,
-                onChanged: (value) => onChanged(entry.copyWith(objective: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(objective: value)),
               ),
               _TextCell(
                 value: entry.method,
@@ -1251,7 +1398,8 @@ class _EngagementPlansTable extends StatelessWidget {
                 value: entry.frequency,
                 fieldKey: '${entry.id}_frequency',
                 hintText: 'Frequency',
-                onChanged: (value) => onChanged(entry.copyWith(frequency: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(frequency: value)),
               ),
               _TextCell(
                 value: entry.owner,
@@ -1262,14 +1410,20 @@ class _EngagementPlansTable extends StatelessWidget {
               _DropdownCell(
                 value: entry.status,
                 fieldKey: '${entry.id}_status',
-                options: const ['Planned', 'In progress', 'At risk', 'Completed'],
+                options: const [
+                  'Planned',
+                  'In progress',
+                  'At risk',
+                  'Completed'
+                ],
                 onChanged: (value) => onChanged(entry.copyWith(status: value)),
               ),
               _TextCell(
                 value: entry.nextTouchpoint,
                 fieldKey: '${entry.id}_next_touchpoint',
                 hintText: 'Next touchpoint',
-                onChanged: (value) => onChanged(entry.copyWith(nextTouchpoint: value)),
+                onChanged: (value) =>
+                    onChanged(entry.copyWith(nextTouchpoint: value)),
               ),
               _TextCell(
                 value: entry.notes,
@@ -1299,7 +1453,8 @@ class _EditableTable extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: const BoxDecoration(
         color: Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(18), topRight: Radius.circular(18)),
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(18), topRight: Radius.circular(18)),
       ),
       child: Row(
         children: columns
@@ -1307,7 +1462,11 @@ class _EditableTable extends StatelessWidget {
                   width: column.width,
                   child: Text(
                     column.label.toUpperCase(),
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: Color(0xFF6B7280)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
+                        color: Color(0xFF6B7280)),
                   ),
                 ))
             .toList(),
@@ -1322,17 +1481,22 @@ class _EditableTable extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: columns.fold<double>(0, (total, col) => total + col.width)),
+          constraints: BoxConstraints(
+              minWidth:
+                  columns.fold<double>(0, (total, col) => total + col.width)),
           child: Column(
             children: [
               header,
               for (int i = 0; i < rows.length; i++)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: i.isEven ? Colors.white : const Color(0xFFF9FAFB),
                     border: Border(
-                      top: BorderSide(color: const Color(0xFFE5E7EB), width: i == 0 ? 1 : 0.5),
+                      top: BorderSide(
+                          color: const Color(0xFFE5E7EB),
+                          width: i == 0 ? 1 : 0.5),
                     ),
                   ),
                   child: rows[i],
@@ -1462,7 +1626,9 @@ class _DropdownCell extends StatelessWidget {
       key: ValueKey(fieldKey),
       initialValue: resolvedValue,
       items: options
-          .map((option) => DropdownMenuItem(value: option, child: Text(option, style: const TextStyle(fontSize: 13))))
+          .map((option) => DropdownMenuItem(
+              value: option,
+              child: Text(option, style: const TextStyle(fontSize: 13))))
           .toList(),
       onChanged: (value) {
         if (value != null) onChanged(value);
@@ -1472,7 +1638,8 @@ class _DropdownCell extends StatelessWidget {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       ),
     );
   }
@@ -1498,7 +1665,8 @@ class _DeleteCell extends StatelessWidget {
 // Private entry classes removed in favor of StakeholderEntry and EngagementPlanEntry in project_data_model.dart
 
 class _Debouncer {
-  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 700);
+  _Debouncer({Duration? delay})
+      : delay = delay ?? const Duration(milliseconds: 700);
 
   final Duration delay;
   Timer? _timer;

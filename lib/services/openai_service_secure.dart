@@ -2298,7 +2298,7 @@ Context notes (optional): $notes
     }
 
     return '''
-For each solution below, separately identify INTERNAL stakeholders (employees, departments, teams within your organization) and EXTERNAL stakeholders (regulatory bodies, vendors, government agencies, external partners, community groups). 
+For each solution below, separately identify INTERNAL stakeholders (employees, departments, teams within your organization) and EXTERNAL stakeholders (regulatory bodies, vendors, government agencies, external partners, community groups).
 
 IMPORTANT: Tailor stakeholders to EACH solution's specific title and description. Do NOT reuse the exact same list across different solutions. Keep each item under 12 words.
 IMPORTANT: Be detailed and specific. Do not use "etc.", "and similar", or vague groupings. State each stakeholder explicitly.
@@ -4133,7 +4133,7 @@ $escaped
     }
 
     return '''
-For each solution below, list 3-6 core technologies/services/frameworks that would be SPECIFICALLY required to implement that particular solution. 
+For each solution below, list 3-6 core technologies/services/frameworks that would be SPECIFICALLY required to implement that particular solution.
 
 IMPORTANT: Each solution must have DIFFERENT and UNIQUE technology recommendations tailored to its specific title, description, and requirements. Do NOT repeat the same generic technologies across all solutions. Consider:
 - The nature of the solution (cloud-native vs on-premise, mobile vs web, etc.)
@@ -4337,7 +4337,11 @@ CRITICAL Requirements:
 3. Each item MUST have a "title" and "description".
 4. Use "children" for sub-items.
 5. Use "dependencies" as a list of titles of sibling items that must be completed first.
-6. Keep the structure 2-3 levels deep.
+6. Keep the structure 2-3 levels deep (never deeper than Level 3).
+7. Prefix titles with WBS numbering using the Goal-based scheme:
+   - Level 1: "G1: Goal Title", "G2: Goal Title" in order
+   - Level 2: "G1.1: Deliverable", "G1.2: Deliverable"
+   - Level 3: "G1.1.1: Sub-deliverable"
 
 Return strict JSON only in this format:
 {
@@ -6006,5 +6010,102 @@ $escaped
     }
 
     return baseStrategy;
+  }
+
+  /// Generate a concise goal title based on description in G1, G2, G3 format
+  /// Example: "Establish a comprehensive budget" -> "G1 ESTABLISH BUDGET"
+  Future<String> generateGoalTitle({
+    required String description,
+    required int goalNumber,
+    int maxTokens = 50,
+    double temperature = 0.3,
+  }) async {
+    final trimmedDescription = description.trim();
+    if (trimmedDescription.isEmpty) return 'Goal $goalNumber';
+
+    if (!OpenAiConfig.isConfigured) {
+      // Fallback to simple keyword extraction
+      return _fallbackGoalTitle(trimmedDescription, goalNumber);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
+    };
+
+    final prompt = '''
+Based on this goal description, generate a concise, impactful title in the format "G$goalNumber [ACTION_KEYWORD]".
+
+Description: $trimmedDescription
+
+Requirements:
+- Use G$goalNumber prefix exactly
+- Use 2-3 powerful action words in ALL CAPS
+- Focus on the main objective/outcome
+- Be concise and professional
+- Examples: "G1 ESTABLISH BUDGET", "G2 DEVELOP SYSTEM", "G3 LAUNCH PLATFORM"
+
+Return only the title, no additional text.''';
+
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_tokens': maxTokens,
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a project management expert. Generate concise, impactful goal titles in the specified format. Return only the title.'
+        },
+        {
+          'role': 'user',
+          'content': prompt,
+        }
+      ],
+    });
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 401) throw Exception('Invalid API key');
+      if (response.statusCode == 429) throw Exception('API quota exceeded');
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final title = content.trim().toUpperCase();
+
+      // Ensure it starts with G[goalNumber]
+      if (!RegExp(r'^G\d+\s').hasMatch(title)) {
+        return 'G$goalNumber ${title.replaceAll(RegExp(r'[^A-Z\s]'), '').trim()}';
+      }
+
+      return title;
+    } catch (e) {
+      // Fallback to simple keyword extraction
+      return _fallbackGoalTitle(trimmedDescription, goalNumber);
+    }
+  }
+
+  /// Fallback method for goal title generation without AI
+  String _fallbackGoalTitle(String description, int goalNumber) {
+    final words = description
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .take(3)
+        .map((w) => w.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), ''))
+        .where((w) => w.isNotEmpty)
+        .toList();
+
+    if (words.isEmpty) return 'Goal $goalNumber';
+    return 'G$goalNumber ${words.join(' ')}';
   }
 }

@@ -8,6 +8,8 @@ import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/premium_edit_dialog.dart';
+import 'package:ndu_project/screens/ssher_stacked_screen.dart';
+import 'package:ndu_project/screens/execution_plan_screen.dart';
 
 enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics }
 
@@ -21,7 +23,8 @@ class QualityManagementScreen extends StatefulWidget {
   }
 
   @override
-  State<QualityManagementScreen> createState() => _QualityManagementScreenState();
+  State<QualityManagementScreen> createState() =>
+      _QualityManagementScreenState();
 }
 
 class _QualityManagementScreenState extends State<QualityManagementScreen> {
@@ -44,13 +47,15 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
           children: [
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Quality Management'),
+              child: const InitiationLikeSidebar(
+                  activeItemLabel: 'Quality Management'),
             ),
             Expanded(
               child: Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 28),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 28),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -61,12 +66,40 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                           sectionLabel: 'Quality Management',
                           noteKey: 'planning_quality_management_notes',
                           checkpoint: 'quality_management',
-                          description: 'Summarize quality targets, assurance cadence, and control measures.',
+                          description:
+                              'Summarize quality targets, assurance cadence, and control measures.',
                         ),
                         const SizedBox(height: 24),
-                        _TabStrip(selectedTab: _selectedTab, onSelected: _handleTabSelected),
+                        _TabStrip(
+                            selectedTab: _selectedTab,
+                            onSelected: _handleTabSelected),
                         const SizedBox(height: 28),
                         _TabContent(selectedTab: _selectedTab),
+                        const SizedBox(height: 28),
+                        _NavigationRow(
+                          onBack: () async {
+                            await ProjectDataHelper.saveAndNavigate(
+                              context: context,
+                              checkpoint: 'quality_management',
+                              nextScreenBuilder: () =>
+                                  const SsherStackedScreen(),
+                              dataUpdater: (d) => d,
+                              destinationCheckpoint: 'ssher',
+                              destinationName: 'SSHER',
+                            );
+                          },
+                          onNext: () async {
+                            await ProjectDataHelper.saveAndNavigate(
+                              context: context,
+                              checkpoint: 'quality_management',
+                              nextScreenBuilder: () =>
+                                  const ExecutionPlanScreen(),
+                              dataUpdater: (d) => d,
+                              destinationCheckpoint: 'execution_plan',
+                              destinationName: 'Execution Plan',
+                            );
+                          },
+                        ),
                         const SizedBox(height: 48),
                       ],
                     ),
@@ -92,12 +125,61 @@ class _PageHeader extends StatelessWidget {
       children: const [
         Text(
           'Quality Management',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827)),
         ),
         SizedBox(height: 8),
         Text(
           'Manage quality targets, assurance processes, and control measures for your project',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B7280)),
+        ),
+      ],
+    );
+  }
+}
+
+class _NavigationRow extends StatelessWidget {
+  const _NavigationRow({required this.onBack, required this.onNext});
+
+  final VoidCallback onBack;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        ElevatedButton.icon(
+          onPressed: onBack,
+          icon: const Icon(Icons.arrow_back, size: 16),
+          label: const Text('Back to SSHER'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF374151),
+            elevation: 0,
+            side: const BorderSide(color: Color(0xFFD1D5DB)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        ElevatedButton.icon(
+          onPressed: onNext,
+          icon: const Icon(Icons.arrow_forward, size: 16),
+          label: const Text('Next: Execution Plan'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFFC044),
+            foregroundColor: const Color(0xFF111827),
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
         ),
       ],
     );
@@ -113,11 +195,26 @@ class _TabStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const tabs = [
-      _TabData(label: 'Quality Plan', icon: Icons.description_outlined, tab: _QualityTab.plan),
-      _TabData(label: 'Targets', icon: Icons.flag_outlined, tab: _QualityTab.targets),
-      _TabData(label: 'QA Tracking', icon: Icons.verified_outlined, tab: _QualityTab.qaTracking),
-      _TabData(label: 'QC Tracking', icon: Icons.fact_check_outlined, tab: _QualityTab.qcTracking),
-      _TabData(label: 'Metrics', icon: Icons.analytics_outlined, tab: _QualityTab.metrics),
+      _TabData(
+          label: 'Quality Plan',
+          icon: Icons.description_outlined,
+          tab: _QualityTab.plan),
+      _TabData(
+          label: 'Targets',
+          icon: Icons.flag_outlined,
+          tab: _QualityTab.targets),
+      _TabData(
+          label: 'QA Tracking',
+          icon: Icons.verified_outlined,
+          tab: _QualityTab.qaTracking),
+      _TabData(
+          label: 'QC Tracking',
+          icon: Icons.fact_check_outlined,
+          tab: _QualityTab.qcTracking),
+      _TabData(
+          label: 'Metrics',
+          icon: Icons.analytics_outlined,
+          tab: _QualityTab.metrics),
     ];
 
     return Container(
@@ -127,7 +224,10 @@ class _TabStrip extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 18, offset: const Offset(0, 12)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 12)),
         ],
       ),
       child: SingleChildScrollView(
@@ -158,7 +258,8 @@ class _TabData {
 }
 
 class _TabChip extends StatelessWidget {
-  const _TabChip({required this.data, required this.selected, required this.onTap});
+  const _TabChip(
+      {required this.data, required this.selected, required this.onTap});
 
   final _TabData data;
   final bool selected;
@@ -166,8 +267,10 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color background = selected ? const Color(0xFFFFC044) : Colors.transparent;
-    final Color textColor = selected ? const Color(0xFF1A1D1F) : const Color(0xFF4B5563);
+    final Color background =
+        selected ? const Color(0xFFFFC044) : Colors.transparent;
+    final Color textColor =
+        selected ? const Color(0xFF1A1D1F) : const Color(0xFF4B5563);
 
     return Material(
       color: Colors.transparent,
@@ -188,7 +291,10 @@ class _TabChip extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 data.label,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: textColor),
               ),
             ],
           ),
@@ -258,7 +364,9 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
       context: context,
       checkpoint: 'quality_management_plan',
       dataUpdater: (data) => data.copyWith(
-        qualityManagementData: (data.qualityManagementData ?? QualityManagementData.empty()).copyWith(
+        qualityManagementData:
+            (data.qualityManagementData ?? QualityManagementData.empty())
+                .copyWith(
           qualityPlan: _controller.text.trim(),
         ),
       ),
@@ -281,7 +389,8 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
       iconBackground: const Color(0xFFEFF6FF),
       iconColor: const Color(0xFF2563EB),
       title: 'Quality Plan',
-      subtitle: 'Describe the quality plan including quality targets, quality assurance, and quality control aspects',
+      subtitle:
+          'Describe the quality plan including quality targets, quality assurance, and quality control aspects',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -292,7 +401,8 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
             decoration: InputDecoration(
               hintText:
                   'Enter your quality plan details here...\n\nQuality Targets: Identify key aspects that need quality assurance and control\nQuality Assurance: Define systematic processes to prevent defects\nQuality Control: Outline inspections, checks, and testing methods\nMonitor and Measure: Track progress against quality metrics',
-              hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14, height: 1.45),
+              hintStyle: const TextStyle(
+                  color: Color(0xFF9CA3AF), fontSize: 14, height: 1.45),
               filled: true,
               fillColor: const Color(0xFFF9FAFB),
               border: OutlineInputBorder(
@@ -305,11 +415,14 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.6),
+                borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.primary, width: 1.6),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
             ),
-            style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937), height: 1.5),
+            style: const TextStyle(
+                fontSize: 15, color: Color(0xFF1F2937), height: 1.5),
           ),
           const SizedBox(height: 24),
           Align(
@@ -322,9 +435,12 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                textStyle:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
@@ -354,10 +470,13 @@ class _TargetsViewState extends State<_TargetsView> {
         context: context,
         checkpoint: 'quality_management_targets',
         dataUpdater: (data) {
-          final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-          final updatedTargets = List<QualityTarget>.from(currentQualityData.targets)..add(result);
+          final currentQualityData =
+              data.qualityManagementData ?? QualityManagementData.empty();
+          final updatedTargets =
+              List<QualityTarget>.from(currentQualityData.targets)..add(result);
           return data.copyWith(
-            qualityManagementData: currentQualityData.copyWith(targets: updatedTargets),
+            qualityManagementData:
+                currentQualityData.copyWith(targets: updatedTargets),
           );
         },
       );
@@ -380,10 +499,12 @@ class _TargetsViewState extends State<_TargetsView> {
       context: context,
       checkpoint: 'quality_management_targets',
       dataUpdater: (data) {
-        final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-        final updatedTargets = List<QualityTarget>.from(currentQualityData.targets);
+        final currentQualityData =
+            data.qualityManagementData ?? QualityManagementData.empty();
+        final updatedTargets =
+            List<QualityTarget>.from(currentQualityData.targets);
         final removed = updatedTargets.removeAt(index);
-        
+
         // Show snackbar
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -394,9 +515,10 @@ class _TargetsViewState extends State<_TargetsView> {
             ),
           );
         }
-        
+
         return data.copyWith(
-          qualityManagementData: currentQualityData.copyWith(targets: updatedTargets),
+          qualityManagementData:
+              currentQualityData.copyWith(targets: updatedTargets),
         );
       },
       showSnackbar: false, // We show our own descriptive snackbar
@@ -404,9 +526,12 @@ class _TargetsViewState extends State<_TargetsView> {
   }
 
   Future<void> _handleEditTarget(int index) async {
-    final targets = ProjectDataHelper.getData(context, listen: false).qualityManagementData?.targets ?? [];
+    final targets = ProjectDataHelper.getData(context, listen: false)
+            .qualityManagementData
+            ?.targets ??
+        [];
     if (index < 0 || index >= targets.length) return;
-    
+
     final original = targets[index];
 
     final updated = await showDialog<QualityTarget>(
@@ -420,11 +545,14 @@ class _TargetsViewState extends State<_TargetsView> {
         context: context,
         checkpoint: 'quality_management_targets',
         dataUpdater: (data) {
-          final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-          final updatedTargets = List<QualityTarget>.from(currentQualityData.targets);
+          final currentQualityData =
+              data.qualityManagementData ?? QualityManagementData.empty();
+          final updatedTargets =
+              List<QualityTarget>.from(currentQualityData.targets);
           updatedTargets[index] = updated;
           return data.copyWith(
-            qualityManagementData: currentQualityData.copyWith(targets: updatedTargets),
+            qualityManagementData:
+                currentQualityData.copyWith(targets: updatedTargets),
           );
         },
       );
@@ -444,7 +572,8 @@ class _TargetsViewState extends State<_TargetsView> {
 
   @override
   Widget build(BuildContext context) {
-    final targets = ProjectDataHelper.getData(context).qualityManagementData?.targets ?? [];
+    final targets =
+        ProjectDataHelper.getData(context).qualityManagementData?.targets ?? [];
     return _PrimaryCard(
       icon: Icons.flag_outlined,
       iconBackground: const Color(0xFFF3F4FF),
@@ -461,8 +590,10 @@ class _TargetsViewState extends State<_TargetsView> {
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            textStyle:
+                const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],
@@ -498,7 +629,8 @@ class _TargetsViewState extends State<_TargetsView> {
 }
 
 class _QualityTargetsTable extends StatelessWidget {
-  const _QualityTargetsTable({required this.targets, required this.onRemove, required this.onEdit});
+  const _QualityTargetsTable(
+      {required this.targets, required this.onRemove, required this.onEdit});
 
   final List<QualityTarget> targets;
   final ValueChanged<int> onRemove;
@@ -557,7 +689,10 @@ class _QualityTargetsTable extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 'No quality targets defined yet. Click "Add Target" to get started.',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280)),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -568,7 +703,8 @@ class _QualityTargetsTable extends StatelessWidget {
 }
 
 class _TargetsHeaderCell extends StatelessWidget {
-  const _TargetsHeaderCell({required this.label, required this.flex, this.alignEnd = false});
+  const _TargetsHeaderCell(
+      {required this.label, required this.flex, this.alignEnd = false});
 
   final String label;
   final int flex;
@@ -582,7 +718,10 @@ class _TargetsHeaderCell extends StatelessWidget {
         alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
         child: Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4B5563)),
         ),
       ),
     );
@@ -614,7 +753,9 @@ class _TargetDataRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: index.isEven ? Colors.white : const Color(0xFFFAFAFF),
         border: Border(
-          bottom: isLast ? BorderSide.none : const BorderSide(color: Color(0xFFE5E7EB)),
+          bottom: isLast
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE5E7EB)),
         ),
       ),
       child: Row(
@@ -623,7 +764,10 @@ class _TargetDataRow extends StatelessWidget {
             flex: 25,
             child: Text(
               data.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937)),
             ),
           ),
           Expanded(
@@ -652,14 +796,18 @@ class _TargetDataRow extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   _TargetsViewState._statusLabel(data.status),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: statusColor),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor),
                 ),
               ),
             ),
@@ -692,7 +840,6 @@ class _TargetDataRow extends StatelessWidget {
     );
   }
 }
-
 
 class _TargetDialog extends StatefulWidget {
   const _TargetDialog({this.target});
@@ -730,7 +877,7 @@ class _TargetDialogState extends State<_TargetDialog> {
 
   void _save() {
     if (_name.text.isEmpty) return;
-    
+
     final newTarget = QualityTarget(
       id: widget.target?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       name: _name.text.trim(),
@@ -753,10 +900,12 @@ class _TargetDialogState extends State<_TargetDialog> {
       },
       children: [
         PremiumEditDialog.fieldLabel('Target Name'),
-        PremiumEditDialog.textField(controller: _name, hint: 'e.g. Defect Rate'),
+        PremiumEditDialog.textField(
+            controller: _name, hint: 'e.g. Defect Rate'),
         const SizedBox(height: 16),
         PremiumEditDialog.fieldLabel('Metric'),
-        PremiumEditDialog.textField(controller: _metric, hint: 'e.g. Defects per 1000 items'),
+        PremiumEditDialog.textField(
+            controller: _metric, hint: 'e.g. Defects per 1000 items'),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -765,7 +914,8 @@ class _TargetDialogState extends State<_TargetDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PremiumEditDialog.fieldLabel('Target Value'),
-                  PremiumEditDialog.textField(controller: _target, hint: '< 1%'),
+                  PremiumEditDialog.textField(
+                      controller: _target, hint: '< 1%'),
                 ],
               ),
             ),
@@ -775,7 +925,8 @@ class _TargetDialogState extends State<_TargetDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PremiumEditDialog.fieldLabel('Current Value'),
-                  PremiumEditDialog.textField(controller: _current, hint: '0.5%'),
+                  PremiumEditDialog.textField(
+                      controller: _current, hint: '0.5%'),
                 ],
               ),
             ),
@@ -794,10 +945,12 @@ class _TargetDialogState extends State<_TargetDialog> {
             child: DropdownButton<QualityTargetStatus>(
               value: _status,
               isExpanded: true,
-              items: QualityTargetStatus.values.map((s) => DropdownMenuItem(
-                value: s,
-                child: Text(_TargetsViewState._statusLabel(s)),
-              )).toList(),
+              items: QualityTargetStatus.values
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(_TargetsViewState._statusLabel(s)),
+                      ))
+                  .toList(),
               onChanged: (v) => setState(() => _status = v!),
             ),
           ),
@@ -806,7 +959,6 @@ class _TargetDialogState extends State<_TargetDialog> {
     );
   }
 }
-
 
 class _QaTechniqueDialog extends StatefulWidget {
   const _QaTechniqueDialog({this.technique});
@@ -844,7 +996,8 @@ class _QaTechniqueDialogState extends State<_QaTechniqueDialog> {
     if (_name.text.isEmpty) return;
 
     final newTechnique = QaTechnique(
-      id: widget.technique?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id: widget.technique?.id ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       name: _name.text.trim(),
       description: _description.text.trim(),
       frequency: _frequency.text.trim(),
@@ -856,7 +1009,8 @@ class _QaTechniqueDialogState extends State<_QaTechniqueDialog> {
   @override
   Widget build(BuildContext context) {
     return PremiumEditDialog(
-      title: widget.technique == null ? 'Add QA Technique' : 'Edit QA Technique',
+      title:
+          widget.technique == null ? 'Add QA Technique' : 'Edit QA Technique',
       icon: Icons.verified_outlined, // Consistent with QA Tracking View icon
       onSave: () {
         print('DEBUG: Save clicked in QaTechniqueDialog');
@@ -864,10 +1018,14 @@ class _QaTechniqueDialogState extends State<_QaTechniqueDialog> {
       },
       children: [
         PremiumEditDialog.fieldLabel('Technique Name'),
-        PremiumEditDialog.textField(controller: _name, hint: 'e.g. Code Review'),
+        PremiumEditDialog.textField(
+            controller: _name, hint: 'e.g. Code Review'),
         const SizedBox(height: 16),
         PremiumEditDialog.fieldLabel('Description'),
-        PremiumEditDialog.textField(controller: _description, hint: 'Brief description of the technique', maxLines: 3),
+        PremiumEditDialog.textField(
+            controller: _description,
+            hint: 'Brief description of the technique',
+            maxLines: 3),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -876,7 +1034,8 @@ class _QaTechniqueDialogState extends State<_QaTechniqueDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PremiumEditDialog.fieldLabel('Frequency'),
-                  PremiumEditDialog.textField(controller: _frequency, hint: 'e.g. Weekly'),
+                  PremiumEditDialog.textField(
+                      controller: _frequency, hint: 'e.g. Weekly'),
                 ],
               ),
             ),
@@ -886,7 +1045,8 @@ class _QaTechniqueDialogState extends State<_QaTechniqueDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PremiumEditDialog.fieldLabel('Standards'),
-                  PremiumEditDialog.textField(controller: _standards, hint: 'e.g. ISO 9001'),
+                  PremiumEditDialog.textField(
+                      controller: _standards, hint: 'e.g. ISO 9001'),
                 ],
               ),
             ),
@@ -896,7 +1056,6 @@ class _QaTechniqueDialogState extends State<_QaTechniqueDialog> {
     );
   }
 }
-
 
 class _QcTechniqueDialog extends StatefulWidget {
   const _QcTechniqueDialog({this.technique});
@@ -931,7 +1090,8 @@ class _QcTechniqueDialogState extends State<_QcTechniqueDialog> {
     if (_name.text.isEmpty) return;
 
     final newTechnique = QcTechnique(
-      id: widget.technique?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id: widget.technique?.id ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       name: _name.text.trim(),
       description: _description.text.trim(),
       frequency: _frequency.text.trim(),
@@ -942,7 +1102,8 @@ class _QcTechniqueDialogState extends State<_QcTechniqueDialog> {
   @override
   Widget build(BuildContext context) {
     return PremiumEditDialog(
-      title: widget.technique == null ? 'Add QC Technique' : 'Edit QC Technique',
+      title:
+          widget.technique == null ? 'Add QC Technique' : 'Edit QC Technique',
       icon: Icons.fact_check_outlined, // Consistent with QC Tracking View icon
       onSave: () {
         print('DEBUG: Save clicked in QcTechniqueDialog');
@@ -950,10 +1111,14 @@ class _QcTechniqueDialogState extends State<_QcTechniqueDialog> {
       },
       children: [
         PremiumEditDialog.fieldLabel('Technique Name'),
-        PremiumEditDialog.textField(controller: _name, hint: 'e.g. Unit Testing'),
+        PremiumEditDialog.textField(
+            controller: _name, hint: 'e.g. Unit Testing'),
         const SizedBox(height: 16),
         PremiumEditDialog.fieldLabel('Description'),
-        PremiumEditDialog.textField(controller: _description, hint: 'Brief description of the technique', maxLines: 3),
+        PremiumEditDialog.textField(
+            controller: _description,
+            hint: 'Brief description of the technique',
+            maxLines: 3),
         const SizedBox(height: 16),
         PremiumEditDialog.fieldLabel('Frequency'),
         PremiumEditDialog.textField(controller: _frequency, hint: 'e.g. Daily'),
@@ -985,10 +1150,14 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
         context: context,
         checkpoint: 'quality_management_qa',
         dataUpdater: (data) {
-          final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-          final updatedTechniques = List<QaTechnique>.from(currentQualityData.qaTechniques)..add(result);
+          final currentQualityData =
+              data.qualityManagementData ?? QualityManagementData.empty();
+          final updatedTechniques =
+              List<QaTechnique>.from(currentQualityData.qaTechniques)
+                ..add(result);
           return data.copyWith(
-            qualityManagementData: currentQualityData.copyWith(qaTechniques: updatedTechniques),
+            qualityManagementData:
+                currentQualityData.copyWith(qaTechniques: updatedTechniques),
           );
         },
       );
@@ -1011,10 +1180,12 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
       context: context,
       checkpoint: 'quality_management_qa',
       dataUpdater: (data) {
-        final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-        final updatedTechniques = List<QaTechnique>.from(currentQualityData.qaTechniques);
+        final currentQualityData =
+            data.qualityManagementData ?? QualityManagementData.empty();
+        final updatedTechniques =
+            List<QaTechnique>.from(currentQualityData.qaTechniques);
         final removed = updatedTechniques.removeAt(index);
-        
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1024,9 +1195,10 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
             ),
           );
         }
-        
+
         return data.copyWith(
-          qualityManagementData: currentQualityData.copyWith(qaTechniques: updatedTechniques),
+          qualityManagementData:
+              currentQualityData.copyWith(qaTechniques: updatedTechniques),
         );
       },
       showSnackbar: false,
@@ -1035,9 +1207,10 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
 
   Future<void> _handleEditTechnique(int index) async {
     final projectData = ProjectDataHelper.getData(context, listen: false);
-    final currentQualityData = projectData.qualityManagementData ?? QualityManagementData.empty();
+    final currentQualityData =
+        projectData.qualityManagementData ?? QualityManagementData.empty();
     final original = currentQualityData.qaTechniques[index];
-    
+
     final result = await showDialog<QaTechnique>(
       context: context,
       builder: (context) => _QaTechniqueDialog(technique: original),
@@ -1049,11 +1222,14 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
         context: context,
         checkpoint: 'quality_management_qa',
         dataUpdater: (data) {
-          final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-          final updatedTechniques = List<QaTechnique>.from(currentQualityData.qaTechniques);
+          final currentQualityData =
+              data.qualityManagementData ?? QualityManagementData.empty();
+          final updatedTechniques =
+              List<QaTechnique>.from(currentQualityData.qaTechniques);
           updatedTechniques[index] = result;
           return data.copyWith(
-            qualityManagementData: currentQualityData.copyWith(qaTechniques: updatedTechniques),
+            qualityManagementData:
+                currentQualityData.copyWith(qaTechniques: updatedTechniques),
           );
         },
       );
@@ -1078,7 +1254,8 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
       iconBackground: const Color(0xFFF3F4FF),
       iconColor: const Color(0xFF7C3AED),
       title: 'Quality Assurance Techniques',
-      subtitle: 'Systematic processes to prevent defects and ensure quality standards',
+      subtitle:
+          'Systematic processes to prevent defects and ensure quality standards',
       actions: [
         ElevatedButton.icon(
           onPressed: _showAddTechniqueDialog,
@@ -1089,13 +1266,18 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            textStyle:
+                const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],
       child: _QaTechniquesTable(
-        techniques: ProjectDataHelper.getData(context).qualityManagementData?.qaTechniques ?? [],
+        techniques: ProjectDataHelper.getData(context)
+                .qualityManagementData
+                ?.qaTechniques ??
+            [],
         onRemove: _handleRemoveTechnique,
         onEdit: _handleEditTechnique,
       ),
@@ -1123,10 +1305,14 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
         context: context,
         checkpoint: 'quality_management_qc',
         dataUpdater: (data) {
-          final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-          final updatedTechniques = List<QcTechnique>.from(currentQualityData.qcTechniques)..add(result);
+          final currentQualityData =
+              data.qualityManagementData ?? QualityManagementData.empty();
+          final updatedTechniques =
+              List<QcTechnique>.from(currentQualityData.qcTechniques)
+                ..add(result);
           return data.copyWith(
-            qualityManagementData: currentQualityData.copyWith(qcTechniques: updatedTechniques),
+            qualityManagementData:
+                currentQualityData.copyWith(qcTechniques: updatedTechniques),
           );
         },
       );
@@ -1149,10 +1335,12 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
       context: context,
       checkpoint: 'quality_management_qc',
       dataUpdater: (data) {
-        final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-        final updatedTechniques = List<QcTechnique>.from(currentQualityData.qcTechniques);
+        final currentQualityData =
+            data.qualityManagementData ?? QualityManagementData.empty();
+        final updatedTechniques =
+            List<QcTechnique>.from(currentQualityData.qcTechniques);
         final removed = updatedTechniques.removeAt(index);
-        
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1162,9 +1350,10 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
             ),
           );
         }
-        
+
         return data.copyWith(
-          qualityManagementData: currentQualityData.copyWith(qcTechniques: updatedTechniques),
+          qualityManagementData:
+              currentQualityData.copyWith(qcTechniques: updatedTechniques),
         );
       },
       showSnackbar: false,
@@ -1173,7 +1362,8 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
 
   Future<void> _handleEditTechnique(int index) async {
     final projectData = ProjectDataHelper.getData(context, listen: false);
-    final currentQualityData = projectData.qualityManagementData ?? QualityManagementData.empty();
+    final currentQualityData =
+        projectData.qualityManagementData ?? QualityManagementData.empty();
     final original = currentQualityData.qcTechniques[index];
 
     final result = await showDialog<QcTechnique>(
@@ -1187,11 +1377,14 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
         context: context,
         checkpoint: 'quality_management_qc',
         dataUpdater: (data) {
-          final currentQualityData = data.qualityManagementData ?? QualityManagementData.empty();
-          final updatedTechniques = List<QcTechnique>.from(currentQualityData.qcTechniques);
+          final currentQualityData =
+              data.qualityManagementData ?? QualityManagementData.empty();
+          final updatedTechniques =
+              List<QcTechnique>.from(currentQualityData.qcTechniques);
           updatedTechniques[index] = result;
           return data.copyWith(
-            qualityManagementData: currentQualityData.copyWith(qcTechniques: updatedTechniques),
+            qualityManagementData:
+                currentQualityData.copyWith(qcTechniques: updatedTechniques),
           );
         },
       );
@@ -1227,13 +1420,18 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            textStyle:
+                const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],
       child: _QcTechniquesTable(
-        techniques: ProjectDataHelper.getData(context).qualityManagementData?.qcTechniques ?? [],
+        techniques: ProjectDataHelper.getData(context)
+                .qualityManagementData
+                ?.qcTechniques ??
+            [],
         onRemove: _handleRemoveTechnique,
         onEdit: _handleEditTechnique,
       ),
@@ -1304,7 +1502,10 @@ class _QcTechniquesTable extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: const Text(
                 'No QC techniques defined yet. Click "Add Technique" to get started.',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280)),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -1315,7 +1516,8 @@ class _QcTechniquesTable extends StatelessWidget {
 }
 
 class _QcHeaderCell extends StatelessWidget {
-  const _QcHeaderCell({required this.label, required this.flex, this.alignEnd = false});
+  const _QcHeaderCell(
+      {required this.label, required this.flex, this.alignEnd = false});
 
   final String label;
   final int flex;
@@ -1329,7 +1531,10 @@ class _QcHeaderCell extends StatelessWidget {
         alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
         child: Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4B5563)),
         ),
       ),
     );
@@ -1359,7 +1564,9 @@ class _QcDataRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: index.isEven ? Colors.white : const Color(0xFFFAFAFF),
         border: Border(
-          bottom: isLast ? BorderSide.none : const BorderSide(color: Color(0xFFE5E7EB)),
+          bottom: isLast
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE5E7EB)),
         ),
       ),
       child: Row(
@@ -1368,14 +1575,18 @@ class _QcDataRow extends StatelessWidget {
             flex: 26,
             child: Text(
               data.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937)),
             ),
           ),
           Expanded(
             flex: 44,
             child: Text(
               data.description,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563), height: 1.45),
+              style: const TextStyle(
+                  fontSize: 14, color: Color(0xFF4B5563), height: 1.45),
             ),
           ),
           Expanded(
@@ -1383,14 +1594,21 @@ class _QcDataRow extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   data.frequency,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.primary),
                 ),
               ),
             ),
@@ -1404,12 +1622,14 @@ class _QcDataRow extends StatelessWidget {
                 children: [
                   IconButton(
                     tooltip: 'Edit technique',
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF6B7280)),
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 18, color: Color(0xFF6B7280)),
                     onPressed: () => onEdit(index),
                   ),
                   IconButton(
                     tooltip: 'Remove technique',
-                    icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                    icon: const Icon(Icons.delete_outline,
+                        size: 18, color: Color(0xFFEF4444)),
                     onPressed: () => onRemove(index),
                   ),
                 ],
@@ -1430,7 +1650,8 @@ class _MetricsView extends StatelessWidget {
   @override
   @override
   Widget build(BuildContext context) {
-    final qualityData = ProjectDataHelper.getData(context, listen: true).qualityManagementData;
+    final qualityData =
+        ProjectDataHelper.getData(context, listen: true).qualityManagementData;
     final targets = qualityData?.targets ?? [];
     final metrics = qualityData?.metrics ?? QualityMetrics.empty();
 
@@ -1438,10 +1659,16 @@ class _MetricsView extends StatelessWidget {
     String achievementValue = '0%';
     _MetricTrend achievementTrend = _MetricTrend.neutral;
     if (targets.isNotEmpty) {
-      final onTrackCount = targets.where((t) => t.status == QualityTargetStatus.onTrack).length;
-      final achievementPercentage = (onTrackCount / targets.length * 100).round();
+      final onTrackCount =
+          targets.where((t) => t.status == QualityTargetStatus.onTrack).length;
+      final achievementPercentage =
+          (onTrackCount / targets.length * 100).round();
       achievementValue = '$achievementPercentage%';
-      achievementTrend = achievementPercentage >= 80 ? _MetricTrend.up : (achievementPercentage >= 50 ? _MetricTrend.neutral : _MetricTrend.down);
+      achievementTrend = achievementPercentage >= 80
+          ? _MetricTrend.up
+          : (achievementPercentage >= 50
+              ? _MetricTrend.neutral
+              : _MetricTrend.down);
     }
 
     final summaries = [
@@ -1454,31 +1681,50 @@ class _MetricsView extends StatelessWidget {
       ),
       _MetricSummaryData(
         title: 'Defect Density',
-        value: metrics.defectDensity.value.isEmpty ? 'N/A' : metrics.defectDensity.value,
+        value: metrics.defectDensity.value.isEmpty
+            ? 'N/A'
+            : metrics.defectDensity.value,
         changeLabel: metrics.defectDensity.change,
-        changeContext: metrics.defectDensity.unit.isEmpty ? 'per kLOC' : metrics.defectDensity.unit,
+        changeContext: metrics.defectDensity.unit.isEmpty
+            ? 'per kLOC'
+            : metrics.defectDensity.unit,
         trend: _parseTrendEnum(metrics.defectDensity.trendDirection),
       ),
       _MetricSummaryData(
         title: 'Customer Satisfaction',
-        value: metrics.customerSatisfaction.value.isEmpty ? 'N/A' : metrics.customerSatisfaction.value,
+        value: metrics.customerSatisfaction.value.isEmpty
+            ? 'N/A'
+            : metrics.customerSatisfaction.value,
         changeLabel: metrics.customerSatisfaction.change,
-        changeContext: metrics.customerSatisfaction.unit.isEmpty ? 'from surveys' : metrics.customerSatisfaction.unit,
+        changeContext: metrics.customerSatisfaction.unit.isEmpty
+            ? 'from surveys'
+            : metrics.customerSatisfaction.unit,
         trend: _parseTrendEnum(metrics.customerSatisfaction.trendDirection),
       ),
       _MetricSummaryData(
         title: 'On-Time Delivery',
-        value: metrics.onTimeDelivery.value.isEmpty ? 'N/A' : metrics.onTimeDelivery.value,
+        value: metrics.onTimeDelivery.value.isEmpty
+            ? 'N/A'
+            : metrics.onTimeDelivery.value,
         changeLabel: metrics.onTimeDelivery.change,
-        changeContext: metrics.onTimeDelivery.unit.isEmpty ? 'last quarter' : metrics.onTimeDelivery.unit,
+        changeContext: metrics.onTimeDelivery.unit.isEmpty
+            ? 'last quarter'
+            : metrics.onTimeDelivery.unit,
         trend: _parseTrendEnum(metrics.onTimeDelivery.trendDirection),
       ),
     ];
 
-    final defectTrendPoints = metrics.defectTrendData.isNotEmpty 
-        ? metrics.defectTrendData 
+    final defectTrendPoints = metrics.defectTrendData.isNotEmpty
+        ? metrics.defectTrendData
         : [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    const defectLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
+    const defectLabels = [
+      'Week 1',
+      'Week 2',
+      'Week 3',
+      'Week 4',
+      'Week 5',
+      'Week 6'
+    ];
 
     final satisfactionTrendPoints = metrics.satisfactionTrendData.isNotEmpty
         ? metrics.satisfactionTrendData
@@ -1490,11 +1736,15 @@ class _MetricsView extends StatelessWidget {
       iconBackground: const Color(0xFFF0F9F9),
       iconColor: const Color(0xFF0F766E),
       title: 'Metrics',
-      subtitle: 'Review quantitative indicators that describe overall quality performance',
+      subtitle:
+          'Review quantitative indicators that describe overall quality performance',
       actions: [
         OutlinedButton.icon(
           onPressed: () async {
-            final metrics = ProjectDataHelper.getData(context, listen: false).qualityManagementData?.metrics ?? QualityMetrics.empty();
+            final metrics = ProjectDataHelper.getData(context, listen: false)
+                    .qualityManagementData
+                    ?.metrics ??
+                QualityMetrics.empty();
             final result = await showDialog<QualityMetrics>(
               context: context,
               builder: (context) => _MetricsEditDialog(metrics: metrics),
@@ -1506,7 +1756,8 @@ class _MetricsView extends StatelessWidget {
                 context: context,
                 checkpoint: 'quality_management_metrics',
                 dataUpdater: (data) {
-                  final qData = data.qualityManagementData ?? QualityManagementData.empty();
+                  final qData = data.qualityManagementData ??
+                      QualityManagementData.empty();
                   return data.copyWith(
                     qualityManagementData: qData.copyWith(metrics: result),
                   );
@@ -1520,7 +1771,8 @@ class _MetricsView extends StatelessWidget {
             foregroundColor: const Color(0xFF374151),
             side: const BorderSide(color: Color(0xFFD1D5DB)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
       ],
@@ -1543,13 +1795,17 @@ class _MetricsView extends StatelessWidget {
                 );
               }
 
-              final double itemWidth = isTablet ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth;
+              final double itemWidth = isTablet
+                  ? (constraints.maxWidth - 16) / 2
+                  : constraints.maxWidth;
               return Wrap(
                 spacing: 16,
                 runSpacing: 16,
                 children: [
                   for (final data in summaries)
-                    SizedBox(width: itemWidth, child: _MetricSummaryCard(data: data)),
+                    SizedBox(
+                        width: itemWidth,
+                        child: _MetricSummaryCard(data: data)),
                 ],
               );
             },
@@ -1648,7 +1904,10 @@ class _PrimaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 20, offset: const Offset(0, 14)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 20,
+              offset: const Offset(0, 14)),
         ],
       ),
       child: Column(
@@ -1673,12 +1932,18 @@ class _PrimaryCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827)),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B7280)),
                     ),
                   ],
                 ),
@@ -1745,7 +2010,8 @@ class _QaTechniquesTable extends StatelessWidget {
                 _QaTechniqueHeaderCell(label: 'Description', flex: 32),
                 _QaTechniqueHeaderCell(label: 'Frequency', flex: 16),
                 _QaTechniqueHeaderCell(label: 'Standards', flex: 20),
-                _QaTechniqueHeaderCell(label: 'Actions', flex: 8, alignEnd: true),
+                _QaTechniqueHeaderCell(
+                    label: 'Actions', flex: 8, alignEnd: true),
               ],
             ),
           ),
@@ -1766,7 +2032,10 @@ class _QaTechniquesTable extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: const Text(
                 'No QA techniques defined yet. Click "Add Technique" to get started.',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280)),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -1777,7 +2046,8 @@ class _QaTechniquesTable extends StatelessWidget {
 }
 
 class _QaTechniqueHeaderCell extends StatelessWidget {
-  const _QaTechniqueHeaderCell({required this.label, required this.flex, this.alignEnd = false});
+  const _QaTechniqueHeaderCell(
+      {required this.label, required this.flex, this.alignEnd = false});
 
   final String label;
   final int flex;
@@ -1791,7 +2061,10 @@ class _QaTechniqueHeaderCell extends StatelessWidget {
         alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
         child: Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4B5563)),
         ),
       ),
     );
@@ -1821,7 +2094,9 @@ class _QaTechniqueDataRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: index.isEven ? Colors.white : const Color(0xFFFAFAFF),
         border: Border(
-          bottom: isLast ? BorderSide.none : const BorderSide(color: Color(0xFFE5E7EB)),
+          bottom: isLast
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE5E7EB)),
         ),
       ),
       child: Row(
@@ -1830,7 +2105,10 @@ class _QaTechniqueDataRow extends StatelessWidget {
             flex: 24,
             child: Text(
               data.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937)),
             ),
           ),
           Expanded(
@@ -1883,8 +2161,6 @@ class _QaTechniqueDataRow extends StatelessWidget {
   }
 }
 
-
-
 class _MetricsEditDialog extends StatefulWidget {
   const _MetricsEditDialog({required this.metrics});
   final QualityMetrics metrics;
@@ -1917,7 +2193,7 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
   void initState() {
     super.initState();
     final m = widget.metrics;
-    
+
     _ddValue = TextEditingController(text: m.defectDensity.value);
     _ddChange = TextEditingController(text: m.defectDensity.change);
     _ddTrend = m.defectDensity.trendDirection;
@@ -1931,14 +2207,15 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
     _otdTrend = m.onTimeDelivery.trendDirection;
 
     _defectTrend = TextEditingController(text: m.defectTrendData.join(', '));
-    _satisfactionTrend = TextEditingController(text: m.satisfactionTrendData.join(', '));
+    _satisfactionTrend =
+        TextEditingController(text: m.satisfactionTrendData.join(', '));
   }
 
   @override
   void dispose() {
     _ddValue.dispose();
     _ddChange.dispose();
-    
+
     _csValue.dispose();
     _csChange.dispose();
 
@@ -1952,7 +2229,8 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
 
   List<double> _parseTrend(String text) {
     if (text.trim().isEmpty) return [];
-    return text.split(',')
+    return text
+        .split(',')
         .map((e) => double.tryParse(e.trim()) ?? 0.0)
         .toList();
   }
@@ -1988,18 +2266,20 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
       padding: const EdgeInsets.only(top: 16, bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+        style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF374151)),
       ),
     );
   }
 
   Widget _buildMetricGroup(
-    String label, 
-    TextEditingController valueCtx, 
-    TextEditingController changeCtx, 
-    String trend, 
-    ValueChanged<String?> onTrendChanged
-  ) {
+      String label,
+      TextEditingController valueCtx,
+      TextEditingController changeCtx,
+      String trend,
+      ValueChanged<String?> onTrendChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2008,12 +2288,14 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
           children: [
             Expanded(
               flex: 2,
-              child: PremiumEditDialog.textField(controller: valueCtx, hint: 'Value'),
+              child: PremiumEditDialog.textField(
+                  controller: valueCtx, hint: 'Value'),
             ),
             const SizedBox(width: 8),
             Expanded(
               flex: 2,
-              child: PremiumEditDialog.textField(controller: changeCtx, hint: 'Change %'),
+              child: PremiumEditDialog.textField(
+                  controller: changeCtx, hint: 'Change %'),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -2031,9 +2313,12 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
                     value: trend,
                     isExpanded: true,
                     items: const [
-                      DropdownMenuItem(value: 'neutral', child: Text('Neutral')),
-                      DropdownMenuItem(value: 'up', child: Text('Improving (Up)')),
-                      DropdownMenuItem(value: 'down', child: Text('Declining (Down)')),
+                      DropdownMenuItem(
+                          value: 'neutral', child: Text('Neutral')),
+                      DropdownMenuItem(
+                          value: 'up', child: Text('Improving (Up)')),
+                      DropdownMenuItem(
+                          value: 'down', child: Text('Declining (Down)')),
                     ],
                     onChanged: onTrendChanged,
                   ),
@@ -2053,18 +2338,22 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
       icon: Icons.analytics_outlined,
       onSave: _save,
       children: [
-        _buildMetricGroup('Defect Density', _ddValue, _ddChange, _ddTrend, (v) => setState(() => _ddTrend = v!)),
-        _buildMetricGroup('Customer Satisfaction', _csValue, _csChange, _csTrend, (v) => setState(() => _csTrend = v!)),
-        _buildMetricGroup('On-Time Delivery', _otdValue, _otdChange, _otdTrend, (v) => setState(() => _otdTrend = v!)),
-        
+        _buildMetricGroup('Defect Density', _ddValue, _ddChange, _ddTrend,
+            (v) => setState(() => _ddTrend = v!)),
+        _buildMetricGroup('Customer Satisfaction', _csValue, _csChange,
+            _csTrend, (v) => setState(() => _csTrend = v!)),
+        _buildMetricGroup('On-Time Delivery', _otdValue, _otdChange, _otdTrend,
+            (v) => setState(() => _otdTrend = v!)),
         const Divider(height: 32),
-        
         _buildSectionHeader('Trend Graphs (comma separated values)'),
         PremiumEditDialog.fieldLabel('Defect Trend (6 points)'),
-        PremiumEditDialog.textField(controller: _defectTrend, hint: 'e.g. 12, 9, 15, 8, 6, 7'),
+        PremiumEditDialog.textField(
+            controller: _defectTrend, hint: 'e.g. 12, 9, 15, 8, 6, 7'),
         const SizedBox(height: 12),
         PremiumEditDialog.fieldLabel('Satisfaction Trend (6 points)'),
-        PremiumEditDialog.textField(controller: _satisfactionTrend, hint: 'e.g. 4.0, 4.2, 4.3, 4.5, 4.6, 4.6'),
+        PremiumEditDialog.textField(
+            controller: _satisfactionTrend,
+            hint: 'e.g. 4.0, 4.2, 4.3, 4.5, 4.6, 4.6'),
       ],
     );
   }
@@ -2125,7 +2414,10 @@ class _MetricSummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 10)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -2136,7 +2428,10 @@ class _MetricSummaryCard extends StatelessWidget {
             children: [
               Text(
                 data.title,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF4B5563)),
               ),
               Icon(_trendIcon(), color: trendColor, size: 20),
             ],
@@ -2144,7 +2439,10 @@ class _MetricSummaryCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             data.value,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827)),
           ),
           const SizedBox(height: 8),
           RichText(
@@ -2160,7 +2458,10 @@ class _MetricSummaryCard extends StatelessWidget {
                 ),
                 TextSpan(
                   text: data.changeContext,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280)),
                 ),
               ],
             ),
@@ -2199,7 +2500,10 @@ class _TrendCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 12)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 12)),
         ],
       ),
       child: Column(
@@ -2207,12 +2511,18 @@ class _TrendCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827)),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 24),
           AspectRatio(
@@ -2234,7 +2544,10 @@ class _TrendCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF9CA3AF)),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF9CA3AF)),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -2275,9 +2588,11 @@ class _TrendLinePainter extends CustomPainter {
 
     final double minValue = values.reduce((a, b) => a < b ? a : b);
     final double maxValue = values.reduce((a, b) => a > b ? a : b) + maxYBuffer;
-    final double verticalRange = (maxValue - minValue).abs() < 0.0001 ? 1 : maxValue - minValue;
+    final double verticalRange =
+        (maxValue - minValue).abs() < 0.0001 ? 1 : maxValue - minValue;
 
-    final double horizontalStep = values.length == 1 ? 0 : size.width / (values.length - 1);
+    final double horizontalStep =
+        values.length == 1 ? 0 : size.width / (values.length - 1);
 
     final path = Path();
     final areaPath = Path();
@@ -2293,7 +2608,8 @@ class _TrendLinePainter extends CustomPainter {
         areaPath.lineTo(x, y);
       } else {
         final double prevX = horizontalStep * (i - 1);
-        final double prevNormalizedY = (values[i - 1] - minValue) / verticalRange;
+        final double prevNormalizedY =
+            (values[i - 1] - minValue) / verticalRange;
         final double prevY = size.height - (prevNormalizedY * size.height);
 
         final double controlPointX = (prevX + x) / 2;

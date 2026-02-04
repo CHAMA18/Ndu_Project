@@ -203,13 +203,6 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
   Future<void> _fetchSuggestions() async {
     if (!_aiEnabled) return;
     final text = _controller.text.trim();
-    if (text.isEmpty) {
-      setState(() {
-        _suggestions = const [];
-        _error = null;
-      });
-      return;
-    }
     if (_aiLimitReached) {
       setState(() {
         _suggestions = const [];
@@ -219,14 +212,29 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
     }
 
     final data = ProjectDataHelper.getData(context);
-    final sectionLower = widget.sectionLabel.toLowerCase();
+    final contextSection =
+        (widget.autoGenerateSection?.trim().isNotEmpty ?? false)
+            ? widget.autoGenerateSection!.trim()
+            : widget.sectionLabel.trim();
+    final sectionLower = contextSection.toLowerCase();
     final useExecutiveContext = sectionLower.contains('executive') ||
         sectionLower.contains('execution plan');
     final contextText = useExecutiveContext
         ? ProjectDataHelper.buildExecutivePlanContext(data,
-            sectionLabel: widget.sectionLabel)
-        : ProjectDataHelper.buildFepContext(data,
-            sectionLabel: widget.sectionLabel);
+            sectionLabel: contextSection)
+        : ProjectDataHelper.buildFepContext(data, sectionLabel: contextSection);
+    final seedText = text.isNotEmpty
+        ? text
+        : (widget.hintText.trim().isNotEmpty
+            ? widget.hintText.trim()
+            : widget.fieldLabel.trim());
+    if (seedText.isEmpty) {
+      setState(() {
+        _suggestions = const [];
+        _error = null;
+      });
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -236,7 +244,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
     try {
       final items = await OpenAiAutocompleteService.instance.fetchSuggestions(
         fieldName: widget.fieldLabel,
-        currentText: text,
+        currentText: seedText,
         context: contextText,
         maxSuggestions: 4,
       );
@@ -265,7 +273,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
 
   void _applySuggestion(String suggestion) {
     final sanitized = TextSanitizer.sanitizeAiText(suggestion);
-    
+
     if (_isReplaceMode) {
       // Replace entire field content
       _controller.text = sanitized;
@@ -277,28 +285,27 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
       final selection = _controller.selection;
       final beforeCursor = current.substring(0, selection.baseOffset);
       final afterCursor = current.substring(selection.extentOffset);
-      final needsSpace = beforeCursor.isNotEmpty && 
-          !beforeCursor.endsWith('\n') && 
+      final needsSpace = beforeCursor.isNotEmpty &&
+          !beforeCursor.endsWith('\n') &&
           !beforeCursor.endsWith(' ') &&
           !beforeCursor.endsWith('.');
-      final next = beforeCursor + 
-          (needsSpace ? ' ' : '') + 
-          sanitized + 
-          afterCursor;
+      final next =
+          beforeCursor + (needsSpace ? ' ' : '') + sanitized + afterCursor;
       _controller.text = next;
-      final newOffset = selection.baseOffset + (needsSpace ? 1 : 0) + sanitized.length;
-      _controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: newOffset));
+      final newOffset =
+          selection.baseOffset + (needsSpace ? 1 : 0) + sanitized.length;
+      _controller.selection =
+          TextSelection.fromPosition(TextPosition(offset: newOffset));
     }
     widget.onChanged?.call(_controller.text);
   }
 
   Future<void> _copyToClipboard(String suggestion) async {
     await Clipboard.setData(ClipboardData(text: suggestion));
-    
+
     // Auto-paste into active field
     _applySuggestion(suggestion);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -359,8 +366,8 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                               child: SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2)),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2)),
                             )
                           : Row(
                               mainAxisSize: MainAxisSize.min,
@@ -377,7 +384,9 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                       minHeight: 32,
                                     ),
                                   ),
-                                if (_isHovering && widget.onUndo != null && widget.canUndo)
+                                if (_isHovering &&
+                                    widget.onUndo != null &&
+                                    widget.canUndo)
                                   IconButton(
                                     tooltip: 'Undo last change',
                                     icon: const Icon(Icons.undo, size: 18),

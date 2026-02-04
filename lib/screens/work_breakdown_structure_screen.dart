@@ -64,6 +64,7 @@ class _WorkBreakdownStructureBody extends StatefulWidget {
 
 class _WorkBreakdownStructureBodyState
     extends State<_WorkBreakdownStructureBody> {
+  static const int _maxWbsDepth = 3;
   static const List<Map<String, String>> _criteriaOptions = [
     {
       'value': 'Project Area',
@@ -131,6 +132,20 @@ class _WorkBreakdownStructureBodyState
   }
 
   Future<void> _handleAddNode({WorkItem? parent}) async {
+    if (parent != null) {
+      final parentDepth = _getDepthForNode(parent);
+      if (parentDepth >= _maxWbsDepth) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Maximum WBS depth is Level 3.'),
+              backgroundColor: Color(0xFFEF4444),
+            ),
+          );
+        }
+        return;
+      }
+    }
     final newNode = await _openAddNodeDialog(parentId: parent?.id ?? '');
     if (newNode == null) return;
 
@@ -320,53 +335,17 @@ class _WorkBreakdownStructureBodyState
 
       if (generatedItems.isNotEmpty) {
         setState(() {
+          _trimWbsDepth(generatedItems, _maxWbsDepth);
           _wbsItems = generatedItems;
         });
 
-        // Map WBS items to Project Goals & Milestones
-        // Level 1 items (max 3) -> Planning Goals
-        // Level 2 items -> Milestones for that goal
-        final List<PlanningGoal> newPlanningGoals = [];
-        
-        for (int i = 0; i < generatedItems.length && i < 3; i++) {
-          final wbsItem = generatedItems[i];
-          
-          final milestones = wbsItem.children.map((child) {
-            return PlanningMilestone(
-              title: child.title,
-              status: 'In Progress',
-            );
-          }).toList();
-          
-          // Ensure at least one milestone exists
-          if (milestones.isEmpty) {
-            milestones.add(PlanningMilestone(title: 'Initial Milestone'));
-          }
-
-          newPlanningGoals.add(PlanningGoal(
-            goalNumber: i + 1,
-            title: wbsItem.title,
-            description: wbsItem.description,
-            milestones: milestones,
-          ));
-        }
-        
-        // Pad with empty goals if fewer than 3
-        while (newPlanningGoals.length < 3) {
-          newPlanningGoals.add(PlanningGoal(
-            goalNumber: newPlanningGoals.length + 1
-          ));
-        }
-
         if (mounted) {
           final provider = ProjectDataHelper.getProvider(context);
-          // Update both WBS and Planning Goals
           provider.updateWBSData(wbsTree: _wbsItems);
-          provider.updatePlanningData(planningGoals: newPlanningGoals);
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('WBS Structure updated and synced to Project Goals'),
+              content: Text('WBS Structure updated'),
               backgroundColor: Color(0xFF059669),
             ),
           );
@@ -560,8 +539,8 @@ class _WorkBreakdownStructureBodyState
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (var item in _wbsItems) ...[
-              _buildWbsNodeRecursive(item, level: 0),
+            for (var i = 0; i < _wbsItems.length; i++) ...[
+              _buildWbsNodeRecursive(_wbsItems[i], path: [i + 1]),
               const SizedBox(width: 32),
             ],
             _buildAddTopLevelButton(),
@@ -571,11 +550,11 @@ class _WorkBreakdownStructureBodyState
     );
   }
 
-  Widget _buildWbsNodeRecursive(WorkItem item, {required int level}) {
+  Widget _buildWbsNodeRecursive(WorkItem item, {required List<int> path}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildWbsNodeCard(item, level: level),
+        _buildWbsNodeCard(item, path: path),
         if (item.children.isNotEmpty) ...[
           const SizedBox(height: 24),
           Padding(
@@ -584,7 +563,8 @@ class _WorkBreakdownStructureBodyState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (var i = 0; i < item.children.length; i++) ...[
-                  _buildWbsNodeRecursive(item.children[i], level: level + 1),
+                  _buildWbsNodeRecursive(item.children[i],
+                      path: [...path, i + 1]),
                   if (i != item.children.length - 1) const SizedBox(height: 16),
                 ],
               ],
@@ -595,8 +575,11 @@ class _WorkBreakdownStructureBodyState
     );
   }
 
-  Widget _buildWbsNodeCard(WorkItem item, {required int level}) {
+  Widget _buildWbsNodeCard(WorkItem item, {required List<int> path}) {
+    final level = path.length - 1;
     final nodeColor = _getNodeColor(level);
+    final canAddChild = path.length < _maxWbsDepth;
+    final displayTitle = _formatWbsTitle(path: path, title: item.title);
     return Container(
       width: 280,
       decoration: BoxDecoration(
@@ -633,7 +616,7 @@ class _WorkBreakdownStructureBodyState
                   children: [
                     Expanded(
                       child: Text(
-                        item.title,
+                        displayTitle,
                         style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -672,11 +655,22 @@ class _WorkBreakdownStructureBodyState
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(
-                      onTap: () => _handleAddNode(parent: item),
+                      onTap: () {
+                        if (!canAddChild) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Maximum WBS depth is Level 3.'),
+                              backgroundColor: Color(0xFFEF4444),
+                            ),
+                          );
+                          return;
+                        }
+                        _handleAddNode(parent: item);
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: _kAccentColor.withOpacity(0.2),
+                          color: (_kAccentColor.withOpacity(0.2)),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Icon(Icons.add,
@@ -742,6 +736,56 @@ class _WorkBreakdownStructureBodyState
       default:
         return Colors.blueGrey.shade100;
     }
+  }
+
+  String _formatWbsTitle({
+    required List<int> path,
+    required String title,
+  }) {
+    if (path.isEmpty) return title;
+    final goalIndex = path.first;
+    final suffix = path.length > 1 ? '.${path.sublist(1).join('.')}' : '';
+    final label = 'G$goalIndex$suffix';
+    final cleanTitle = _stripWbsPrefix(title);
+    return '$label: $cleanTitle';
+  }
+
+  String _stripWbsPrefix(String title) {
+    final pattern = RegExp(r'^G\d+(?:\.\d+)*:\s*');
+    return title.replaceFirst(pattern, '');
+  }
+
+  void _trimWbsDepth(List<WorkItem> items, int maxDepth,
+      {int currentDepth = 1}) {
+    for (final item in items) {
+      if (currentDepth >= maxDepth) {
+        item.children.clear();
+      } else {
+        _trimWbsDepth(item.children, maxDepth, currentDepth: currentDepth + 1);
+      }
+    }
+  }
+
+  int _getDepthForNode(WorkItem node) {
+    int maxDepth = 0;
+    bool found = false;
+
+    void visit(List<WorkItem> items, int depth) {
+      for (final item in items) {
+        if (found) return;
+        if (identical(item, node) || item.id == node.id) {
+          maxDepth = depth;
+          found = true;
+          return;
+        }
+        if (item.children.isNotEmpty) {
+          visit(item.children, depth + 1);
+        }
+      }
+    }
+
+    visit(_wbsItems, 1);
+    return maxDepth;
   }
 
   Widget _buildStatusIcon(String status) {
@@ -876,26 +920,33 @@ class _WorkBreakdownStructureBodyState
                             foregroundColor: const Color(0xFF374151),
                             elevation: 0,
                             side: const BorderSide(color: Color(0xFFD1D5DB)),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                         ElevatedButton.icon(
                           onPressed: () async {
-                               final navIndex = PlanningPhaseNavigation.getPageIndex('wbs');
-                               if (navIndex != -1 && navIndex < PlanningPhaseNavigation.pages.length - 1) {
-                                 final nextPage = PlanningPhaseNavigation.pages[navIndex + 1];
-                                 
-                                 await ProjectDataHelper.saveAndNavigate(
-                                   context: context,
-                                   checkpoint: 'work_breakdown_structure',
-                                   nextScreenBuilder: () => nextPage.builder(context),
-                                   dataUpdater: (data) => data.copyWith(
-                                      wbsCriteriaA: _selectedCriteriaA,
-                                      wbsTree: _wbsItems,
-                                   ),
-                                 );
-                               }
+                            final navIndex =
+                                PlanningPhaseNavigation.getPageIndex('wbs');
+                            if (navIndex != -1 &&
+                                navIndex <
+                                    PlanningPhaseNavigation.pages.length - 1) {
+                              final nextPage =
+                                  PlanningPhaseNavigation.pages[navIndex + 1];
+
+                              await ProjectDataHelper.saveAndNavigate(
+                                context: context,
+                                checkpoint: 'work_breakdown_structure',
+                                nextScreenBuilder: () =>
+                                    nextPage.builder(context),
+                                dataUpdater: (data) => data.copyWith(
+                                  wbsCriteriaA: _selectedCriteriaA,
+                                  wbsTree: _wbsItems,
+                                ),
+                              );
+                            }
                           },
                           icon: const Icon(Icons.arrow_forward, size: 16),
                           label: const Text('Next'),
@@ -903,8 +954,10 @@ class _WorkBreakdownStructureBodyState
                             backgroundColor: const Color(0xFFFFC044),
                             foregroundColor: const Color(0xFF111827),
                             elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                       ],

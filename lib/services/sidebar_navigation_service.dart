@@ -68,10 +68,12 @@ class SidebarNavigationService {
   }
 
   /// Get the next accessible item in the sidebar order
-  SidebarItem? getNextAccessibleItem(String? currentCheckpoint, bool isBasicPlan) {
+  SidebarItem? getNextAccessibleItem(
+      String? currentCheckpoint, bool isBasicPlan) {
     if (currentCheckpoint == null) return _sidebarOrder.first;
 
-    int currentIndex = _sidebarOrder.indexWhere((item) => item.checkpoint == currentCheckpoint);
+    int currentIndex = _sidebarOrder
+        .indexWhere((item) => item.checkpoint == currentCheckpoint);
     if (currentIndex == -1) return null;
 
     // Look ahead for the first non-locked item
@@ -120,14 +122,13 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'project_charter', label: 'Project Charter'),
 
     // Planning Phase
-    SidebarItem(
-        checkpoint: 'project_framework', label: 'Project Details'),
-    SidebarItem(
-        checkpoint: 'work_breakdown_structure',
-        label: 'Work Breakdown Structure'),
+    SidebarItem(checkpoint: 'project_framework', label: 'Project Details'),
     SidebarItem(
         checkpoint: 'project_goals_milestones',
         label: 'Project Goals & Milestones'),
+    SidebarItem(
+        checkpoint: 'work_breakdown_structure',
+        label: 'Work Breakdown Structure'),
     SidebarItem(checkpoint: 'ssher', label: 'SSHER'),
     SidebarItem(checkpoint: 'change_management', label: 'Change Management'),
     SidebarItem(checkpoint: 'issue_management', label: 'Issue Management'),
@@ -349,8 +350,7 @@ class SidebarNavigationService {
   /// Check if a checkpoint is the first item of a phase.
   static bool isPhaseStartCheckpoint(String? checkpoint) {
     if (checkpoint == null || checkpoint.isEmpty) return false;
-    return _phaseRanges
-        .any((range) => range.startCheckpoint == checkpoint);
+    return _phaseRanges.any((range) => range.startCheckpoint == checkpoint);
   }
 }
 

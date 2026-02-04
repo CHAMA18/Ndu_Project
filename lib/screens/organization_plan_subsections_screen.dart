@@ -15,21 +15,28 @@ class OrganizationRolesResponsibilitiesScreen extends StatefulWidget {
   const OrganizationRolesResponsibilitiesScreen({super.key});
 
   @override
-  State<OrganizationRolesResponsibilitiesScreen> createState() => _OrganizationRolesResponsibilitiesScreenState();
+  State<OrganizationRolesResponsibilitiesScreen> createState() =>
+      _OrganizationRolesResponsibilitiesScreenState();
 }
 
-class _OrganizationRolesResponsibilitiesScreenState extends State<OrganizationRolesResponsibilitiesScreen> {
+class _OrganizationRolesResponsibilitiesScreenState
+    extends State<OrganizationRolesResponsibilitiesScreen> {
   @override
   Widget build(BuildContext context) {
     final projectData = ProjectDataHelper.getData(context);
     final roles = projectData.projectRoles;
 
     final List<_MetricData> metrics = [
-      _MetricData('Total Roles', roles.length.toString(), const Color(0xFF3B82F6)),
-      _MetricData('Workstreams', roles.map<String>((r) => r.workstream).toSet().length.toString(), const Color(0xFF10B981)),
+      _MetricData(
+          'Total Roles', roles.length.toString(), const Color(0xFF3B82F6)),
+      _MetricData(
+          'Deciplines',
+          roles.map<String>((r) => r.workstream).toSet().length.toString(),
+          const Color(0xFF10B981)),
     ];
 
-    final List<_SectionData> sections = roles.asMap().entries.map<_SectionData>((entry) {
+    final List<_SectionData> sections =
+        roles.asMap().entries.map<_SectionData>((entry) {
       final index = entry.key;
       final role = entry.value;
       return _SectionData(
@@ -54,12 +61,17 @@ class _OrganizationRolesResponsibilitiesScreenState extends State<OrganizationRo
         sections: sections,
       ),
       onAdd: () async {
-        final newRole = RoleDefinition(title: 'New Role', description: 'Role description', workstream: 'Default');
+        final newRole = RoleDefinition(
+            title: 'New Role',
+            description: 'Role description',
+            workstream: 'Default');
         await ProjectDataHelper.saveAndNavigate(
           context: context,
           checkpoint: 'organization_roles_responsibilities',
-          nextScreenBuilder: () => const OrganizationRolesResponsibilitiesScreen(),
-          dataUpdater: (d) => d.copyWith(projectRoles: [...d.projectRoles, newRole]),
+          nextScreenBuilder: () =>
+              const OrganizationRolesResponsibilitiesScreen(),
+          dataUpdater: (d) =>
+              d.copyWith(projectRoles: [...d.projectRoles, newRole]),
         );
         setState(() {});
       },
@@ -68,20 +80,43 @@ class _OrganizationRolesResponsibilitiesScreenState extends State<OrganizationRo
   }
 
   void _showPredefinedRolesDialog(BuildContext context) {
+    final rootContext = context;
     final List<RoleDefinition> predefined = [
-      RoleDefinition(title: 'Project Manager', description: 'Overall project leadership and coordination.', workstream: 'Management', isPredefined: true),
-      RoleDefinition(title: 'Product Engineer', description: 'Responsible for product design and technical specifications.', workstream: 'Engineering', isPredefined: true),
-      RoleDefinition(title: 'Cost Person', description: 'Financial planning, budgeting, and cost control.', workstream: 'Finance', isPredefined: true),
-      RoleDefinition(title: 'Developer', description: 'Software development and implementation.', workstream: 'Development', isPredefined: true),
-      RoleDefinition(title: 'Tester', description: 'Quality assurance and testing of deliverables.', workstream: 'QA', isPredefined: true),
+      RoleDefinition(
+          title: 'Project Manager',
+          description: 'Overall project leadership and coordination.',
+          workstream: 'Management',
+          isPredefined: true),
+      RoleDefinition(
+          title: 'Product Engineer',
+          description:
+              'Responsible for product design and technical specifications.',
+          workstream: 'Engineering',
+          isPredefined: true),
+      RoleDefinition(
+          title: 'Cost Person',
+          description: 'Financial planning, budgeting, and cost control.',
+          workstream: 'Finance',
+          isPredefined: true),
+      RoleDefinition(
+          title: 'Developer',
+          description: 'Software development and implementation.',
+          workstream: 'Development',
+          isPredefined: true),
+      RoleDefinition(
+          title: 'Tester',
+          description: 'Quality assurance and testing of deliverables.',
+          workstream: 'QA',
+          isPredefined: true),
     ];
 
-    final currentRoles = ProjectDataHelper.getData(context).projectRoles;
+    final currentRoles =
+        ProjectDataHelper.getProvider(context).projectData.projectRoles;
     final selectedIndices = <int>{};
 
     showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
+      context: rootContext,
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Add Standard Roles'),
           content: SizedBox(
@@ -91,37 +126,51 @@ class _OrganizationRolesResponsibilitiesScreenState extends State<OrganizationRo
               itemCount: predefined.length,
               itemBuilder: (context, index) {
                 final role = predefined[index];
-                final alreadyAdded = currentRoles.any((r) => r.title == role.title);
+                final alreadyAdded =
+                    currentRoles.any((r) => r.title == role.title);
                 return CheckboxListTile(
                   title: Text(role.title),
                   subtitle: Text(role.workstream),
                   value: selectedIndices.contains(index) || alreadyAdded,
                   enabled: !alreadyAdded,
-                  onChanged: alreadyAdded ? null : (val) {
-                    setDialogState(() {
-                      if (val == true) selectedIndices.add(index);
-                      else selectedIndices.remove(index);
-                    });
-                  },
+                  onChanged: alreadyAdded
+                      ? null
+                      : (val) {
+                          setDialogState(() {
+                            if (val == true)
+                              selectedIndices.add(index);
+                            else
+                              selectedIndices.remove(index);
+                          });
+                        },
                 );
               },
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel')),
             ElevatedButton(
-              onPressed: selectedIndices.isEmpty ? null : () async {
-                final newRoles = selectedIndices.map((i) => predefined[i]).toList();
-                Navigator.pop(context);
-                await ProjectDataHelper.saveAndNavigate(
-                  context: context,
-                  checkpoint: 'organization_roles_responsibilities',
-                  nextScreenBuilder: () => const OrganizationRolesResponsibilitiesScreen(),
-                  dataUpdater: (d) => d.copyWith(projectRoles: [...d.projectRoles, ...newRoles]),
-                );
-                setState(() {});
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107), foregroundColor: Colors.black),
+              onPressed: selectedIndices.isEmpty
+                  ? null
+                  : () async {
+                      final newRoles =
+                          selectedIndices.map((i) => predefined[i]).toList();
+                      Navigator.pop(dialogContext);
+                      await ProjectDataHelper.saveAndNavigate(
+                        context: rootContext,
+                        checkpoint: 'organization_roles_responsibilities',
+                        nextScreenBuilder: () =>
+                            const OrganizationRolesResponsibilitiesScreen(),
+                        dataUpdater: (d) => d.copyWith(
+                            projectRoles: [...d.projectRoles, ...newRoles]),
+                      );
+                      if (mounted) setState(() {});
+                    },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC107),
+                  foregroundColor: Colors.black),
               child: const Text('Add Selected'),
             ),
           ],
@@ -131,65 +180,82 @@ class _OrganizationRolesResponsibilitiesScreenState extends State<OrganizationRo
   }
 
   void _editRole(BuildContext context, int index, RoleDefinition role) {
+    final rootContext = context;
     final titleController = TextEditingController(text: role.title);
     final workstreamController = TextEditingController(text: role.workstream);
     final descController = TextEditingController(text: role.description);
 
     showDialog(
-      context: context,
-      builder: (context) => PremiumEditDialog(
+      context: rootContext,
+      builder: (dialogContext) => PremiumEditDialog(
         title: 'Edit Role',
         icon: Icons.badge_outlined,
         onSave: () async {
-          final updatedRoles = List<RoleDefinition>.from(ProjectDataHelper.getData(context).projectRoles);
+          final updatedRoles = List<RoleDefinition>.from(
+              ProjectDataHelper.getProvider(rootContext)
+                  .projectData
+                  .projectRoles);
           updatedRoles[index] = RoleDefinition(
             title: titleController.text.trim(),
             workstream: workstreamController.text.trim(),
             description: descController.text.trim(),
           );
-          Navigator.pop(context);
+          Navigator.pop(dialogContext);
           await ProjectDataHelper.saveAndNavigate(
-            context: context,
+            context: rootContext,
             checkpoint: 'organization_roles_responsibilities',
-            nextScreenBuilder: () => const OrganizationRolesResponsibilitiesScreen(),
+            nextScreenBuilder: () =>
+                const OrganizationRolesResponsibilitiesScreen(),
             dataUpdater: (d) => d.copyWith(projectRoles: updatedRoles),
           );
-          setState(() {});
+          if (mounted) setState(() {});
         },
         children: [
           PremiumEditDialog.fieldLabel('Title'),
-          PremiumEditDialog.textField(controller: titleController, hint: 'e.g. Project Manager'),
+          PremiumEditDialog.textField(
+              controller: titleController, hint: 'e.g. Project Manager'),
           const SizedBox(height: 16),
-          PremiumEditDialog.fieldLabel('Workstream'),
-          PremiumEditDialog.textField(controller: workstreamController, hint: 'e.g. Management'),
+          PremiumEditDialog.fieldLabel('Decipline'),
+          PremiumEditDialog.textField(
+              controller: workstreamController, hint: 'e.g. Management'),
           const SizedBox(height: 16),
           PremiumEditDialog.fieldLabel('Description'),
-          PremiumEditDialog.textField(controller: descController, hint: 'Role responsibilities...', maxLines: 4),
+          PremiumEditDialog.textField(
+              controller: descController,
+              hint: 'Role responsibilities...',
+              maxLines: 4),
         ],
       ),
     );
   }
 
   void _deleteRole(BuildContext context, int index) {
+    final rootContext = context;
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: rootContext,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Role'),
         content: const Text('Are you sure you want to delete this role?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
-              final updatedRoles = List<RoleDefinition>.from(ProjectDataHelper.getData(context).projectRoles);
+              final updatedRoles = List<RoleDefinition>.from(
+                  ProjectDataHelper.getProvider(rootContext)
+                      .projectData
+                      .projectRoles);
               updatedRoles.removeAt(index);
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await ProjectDataHelper.saveAndNavigate(
-                context: context,
+                context: rootContext,
                 checkpoint: 'organization_roles_responsibilities',
-                nextScreenBuilder: () => const OrganizationRolesResponsibilitiesScreen(),
+                nextScreenBuilder: () =>
+                    const OrganizationRolesResponsibilitiesScreen(),
                 dataUpdater: (d) => d.copyWith(projectRoles: updatedRoles),
               );
-              setState(() {});
+              if (mounted) setState(() {});
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -203,10 +269,52 @@ class OrganizationStaffingPlanScreen extends StatefulWidget {
   const OrganizationStaffingPlanScreen({super.key});
 
   @override
-  State<OrganizationStaffingPlanScreen> createState() => _OrganizationStaffingPlanScreenState();
+  State<OrganizationStaffingPlanScreen> createState() =>
+      _OrganizationStaffingPlanScreenState();
 }
 
-class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPlanScreen> {
+class _OrganizationStaffingPlanScreenState
+    extends State<OrganizationStaffingPlanScreen> {
+  bool _didAutoPopulate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _didAutoPopulate) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      final roles = provider.projectData.projectRoles;
+      final requirements = provider.projectData.staffingRequirements;
+      if (requirements.isEmpty && roles.isNotEmpty) {
+        final newStaff = roles
+            .map((role) => StaffingRequirement(
+                  title: role.title,
+                  startDate: 'TBD',
+                  endDate: 'TBD',
+                  employeeType: role.workstream == 'Engineering' ||
+                          role.workstream == 'Development'
+                      ? 'Contractor'
+                      : 'Employee',
+                ))
+            .toList();
+        await ProjectDataHelper.updateAndSave(
+          context: context,
+          checkpoint: 'organization_staffing_plan',
+          dataUpdater: (d) => d.copyWith(
+              staffingRequirements: [...d.staffingRequirements, ...newStaff]),
+          showSnackbar: false,
+        );
+        if (mounted) {
+          setState(() {
+            _didAutoPopulate = true;
+          });
+        }
+      } else {
+        _didAutoPopulate = true;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final projectData = ProjectDataHelper.getData(context);
@@ -230,7 +338,8 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
               child: Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 24),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -240,10 +349,16 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                             _CircleIconButton(
                               icon: Icons.arrow_back_ios_new_rounded,
                               onTap: () {
-                                final navIdx = PlanningPhaseNavigation.getPageIndex('organization_staffing_plan');
+                                final navIdx =
+                                    PlanningPhaseNavigation.getPageIndex(
+                                        'organization_staffing_plan');
                                 if (navIdx > 0) {
-                                  final prevPage = PlanningPhaseNavigation.pages[navIdx - 1];
-                                  Navigator.pushReplacement(context, MaterialPageRoute(builder: prevPage.builder));
+                                  final prevPage =
+                                      PlanningPhaseNavigation.pages[navIdx - 1];
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: prevPage.builder));
                                 } else {
                                   Navigator.maybePop(context);
                                 }
@@ -253,13 +368,20 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                             _CircleIconButton(
                               icon: Icons.arrow_forward_ios_rounded,
                               onTap: () async {
-                                final navIndex = PlanningPhaseNavigation.getPageIndex('organization_staffing_plan');
-                                if (navIndex != -1 && navIndex < PlanningPhaseNavigation.pages.length - 1) {
-                                  final nextPage = PlanningPhaseNavigation.pages[navIndex + 1];
+                                final navIndex =
+                                    PlanningPhaseNavigation.getPageIndex(
+                                        'organization_staffing_plan');
+                                if (navIndex != -1 &&
+                                    navIndex <
+                                        PlanningPhaseNavigation.pages.length -
+                                            1) {
+                                  final nextPage = PlanningPhaseNavigation
+                                      .pages[navIndex + 1];
                                   await ProjectDataHelper.saveAndNavigate(
                                     context: context,
                                     checkpoint: 'organization_staffing_plan',
-                                    nextScreenBuilder: () => nextPage.builder(context),
+                                    nextScreenBuilder: () =>
+                                        nextPage.builder(context),
                                     dataUpdater: (d) => d,
                                   );
                                 }
@@ -268,31 +390,28 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                             const SizedBox(width: 16),
                             const Text(
                               'Staffing Plan',
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
-                            ),
-                            const SizedBox(width: 24),
-                            ElevatedButton.icon(
-                              onPressed: () => _showSyncRolesDialog(context),
-                              icon: const Icon(Icons.sync, size: 16),
-                              label: const Text('Sync from Roles'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFFC107),
-                                foregroundColor: const Color(0xFF1F2933),
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                              ),
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF111827)),
                             ),
                             const SizedBox(width: 12),
                             ElevatedButton.icon(
                               onPressed: () async {
-                                final newReq = StaffingRequirement(title: 'New Position', startDate: 'TBD', endDate: 'TBD');
+                                final newReq = StaffingRequirement(
+                                    title: 'New Position',
+                                    startDate: 'TBD',
+                                    endDate: 'TBD');
                                 await ProjectDataHelper.saveAndNavigate(
                                   context: context,
                                   checkpoint: 'organization_staffing_plan',
-                                  nextScreenBuilder: () => const OrganizationStaffingPlanScreen(),
-                                  dataUpdater: (d) => d.copyWith(staffingRequirements: [...d.staffingRequirements, newReq]),
+                                  nextScreenBuilder: () =>
+                                      const OrganizationStaffingPlanScreen(),
+                                  dataUpdater: (d) => d.copyWith(
+                                      staffingRequirements: [
+                                        ...d.staffingRequirements,
+                                        newReq
+                                      ]),
                                 );
                                 setState(() {});
                               },
@@ -302,9 +421,12 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                                 backgroundColor: const Color(0xFFFFC107),
                                 foregroundColor: const Color(0xFF1F2933),
                                 elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                textStyle: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w700),
                               ),
                             ),
                             const Spacer(),
@@ -314,16 +436,25 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                         const SizedBox(height: 8),
                         const Text(
                           'Plan resource needs, staffing timeline, and onboarding cadence.',
-                          style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                          style:
+                              TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                         ),
                         const SizedBox(height: 24),
 
                         // Metrics row
                         Row(
                           children: [
-                            _MetricCard(label: 'Total Staff', value: requirements.fold<int>(0, (sum, r) => sum + r.headcount).toString(), accent: const Color(0xFFF59E0B)),
+                            _MetricCard(
+                                label: 'Total Staff',
+                                value: requirements
+                                    .fold<int>(0, (sum, r) => sum + r.headcount)
+                                    .toString(),
+                                accent: const Color(0xFFF59E0B)),
                             const SizedBox(width: 16),
-                            _MetricCard(label: 'Positions', value: requirements.length.toString(), accent: const Color(0xFF8B5CF6)),
+                            _MetricCard(
+                                label: 'Positions',
+                                value: requirements.length.toString(),
+                                accent: const Color(0xFF8B5CF6)),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -332,7 +463,8 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                         if (requirements.isEmpty)
                           const _SectionEmptyState(
                             title: 'No staffing positions yet',
-                            message: 'Add positions manually or sync from defined roles.',
+                            message:
+                                'Add positions manually or sync from defined roles.',
                             icon: Icons.group_outlined,
                           )
                         else
@@ -340,9 +472,13 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                              border:
+                                  Border.all(color: const Color(0xFFE5E7EB)),
                               boxShadow: const [
-                                BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 6)),
+                                BoxShadow(
+                                    color: Color(0x0A000000),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 6)),
                               ],
                             ),
                             child: ClipRRect(
@@ -352,16 +488,25 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                                   return SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     child: ConstrainedBox(
-                                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                                      constraints: BoxConstraints(
+                                          minWidth: constraints.maxWidth),
                                       child: DataTable(
                                         dataRowMinHeight: 64.0,
                                         dataRowMaxHeight: 64.0,
                                         headingRowHeight: 56.0,
-                                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF9FAFB)),
-                                        headingTextStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151)),
-                                        dataTextStyle: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
+                                        headingRowColor:
+                                            WidgetStateProperty.all(
+                                                const Color(0xFFF9FAFB)),
+                                        headingTextStyle: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF374151)),
+                                        dataTextStyle: const TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF111827)),
                                         columnSpacing: 40,
                                         columns: const [
+                                          DataColumn(label: Text('#')),
                                           DataColumn(label: Text('Position')),
                                           DataColumn(label: Text('Person')),
                                           DataColumn(label: Text('Location')),
@@ -371,50 +516,97 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                                           DataColumn(label: Text('Timeline')),
                                           DataColumn(label: Text('Actions')),
                                         ],
-                                        rows: requirements.asMap().entries.map((entry) {
+                                        rows: requirements
+                                            .asMap()
+                                            .entries
+                                            .map((entry) {
                                           final index = entry.key;
                                           final req = entry.value;
                                           return DataRow(
                                             cells: [
-                                              DataCell(Text(req.title, style: const TextStyle(fontWeight: FontWeight.w600))),
-                                              DataCell(Text(req.personName.isEmpty ? 'TBD' : req.personName)),
-                                              DataCell(Text(req.location.isEmpty ? 'TBD' : req.location)),
-                                              DataCell(Text('${req.employmentType} / ${req.employeeType}')),
-                                              DataCell(Text(req.headcount.toString())),
+                                              DataCell(Text('${index + 1}')),
+                                              DataCell(Text(req.title,
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600))),
+                                              DataCell(Text(
+                                                  req.personName.isEmpty
+                                                      ? 'TBD'
+                                                      : req.personName)),
+                                              DataCell(Text(req.location.isEmpty
+                                                  ? 'TBD'
+                                                  : req.location)),
+                                              DataCell(Text(
+                                                  '${req.employmentType} / ${req.employeeType}')),
+                                              DataCell(Text(
+                                                  req.headcount.toString())),
                                               DataCell(
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4),
                                                   decoration: BoxDecoration(
-                                                    color: req.status == 'Hired' ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7),
-                                                    borderRadius: BorderRadius.circular(999),
+                                                    color: req.status == 'Hired'
+                                                        ? const Color(
+                                                            0xFFD1FAE5)
+                                                        : const Color(
+                                                            0xFFFEF3C7),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            999),
                                                   ),
                                                   child: Text(
-                                                    req.status.isEmpty ? 'Open' : req.status,
+                                                    req.status.isEmpty
+                                                        ? 'Open'
+                                                        : req.status,
                                                     style: TextStyle(
                                                       fontSize: 11,
-                                                      fontWeight: FontWeight.w700,
-                                                      color: req.status == 'Hired' ? const Color(0xFF059669) : const Color(0xFFD97706),
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color:
+                                                          req.status == 'Hired'
+                                                              ? const Color(
+                                                                  0xFF059669)
+                                                              : const Color(
+                                                                  0xFFD97706),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                              DataCell(Text('${req.startDate} → ${req.endDate}')),
+                                              DataCell(Text(
+                                                  '${req.startDate} → ${req.endDate}')),
                                               DataCell(
                                                 Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
                                                     IconButton(
-                                                      icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF6B7280)),
-                                                      onPressed: () => _editStaffing(context, index, req),
+                                                      icon: const Icon(
+                                                          Icons.edit_outlined,
+                                                          size: 18,
+                                                          color: Color(
+                                                              0xFF6B7280)),
+                                                      onPressed: () =>
+                                                          _editStaffing(context,
+                                                              index, req),
                                                       padding: EdgeInsets.zero,
-                                                      constraints: const BoxConstraints(),
+                                                      constraints:
+                                                          const BoxConstraints(),
                                                     ),
                                                     const SizedBox(width: 8),
                                                     IconButton(
-                                                      icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
-                                                      onPressed: () => _deleteStaffing(context, index),
+                                                      icon: const Icon(
+                                                          Icons.delete_outline,
+                                                          size: 18,
+                                                          color: Color(
+                                                              0xFFEF4444)),
+                                                      onPressed: () =>
+                                                          _deleteStaffing(
+                                                              context, index),
                                                       padding: EdgeInsets.zero,
-                                                      constraints: const BoxConstraints(),
+                                                      constraints:
+                                                          const BoxConstraints(),
                                                     ),
                                                   ],
                                                 ),
@@ -433,7 +625,8 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                       ],
                     ),
                   ),
-                  const Positioned(right: 24, bottom: 24, child: KazAiChatBubble()),
+                  const Positioned(
+                      right: 24, bottom: 24, child: KazAiChatBubble()),
                 ],
               ),
             ),
@@ -443,84 +636,13 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
     );
   }
 
-  void _showSyncRolesDialog(BuildContext context) {
-    final roles = ProjectDataHelper.getData(context).projectRoles;
-    if (roles.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('No Roles Defined'),
-          content: const Text('Please define roles in the "Roles & Responsibilities" section first.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
-        ),
-      );
-      return;
-    }
-
-    final currentStaff = ProjectDataHelper.getData(context).staffingRequirements;
-    final selectedIndices = <int>{};
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Sync from Roles'),
-          content: SizedBox(
-            width: 400,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: roles.length,
-              itemBuilder: (context, index) {
-                final role = roles[index];
-                final alreadyStaffed = currentStaff.any((s) => s.title == role.title);
-                return CheckboxListTile(
-                  title: Text(role.title),
-                  subtitle: Text(role.workstream),
-                  value: selectedIndices.contains(index) || alreadyStaffed,
-                  enabled: !alreadyStaffed,
-                  onChanged: alreadyStaffed ? null : (val) {
-                    setDialogState(() {
-                      if (val == true) selectedIndices.add(index);
-                      else selectedIndices.remove(index);
-                    });
-                  },
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: selectedIndices.isEmpty ? null : () async {
-                final newStaff = selectedIndices.map((i) => StaffingRequirement(
-                  title: roles[i].title,
-                  startDate: 'TBD',
-                  endDate: 'TBD',
-                  employeeType: roles[i].workstream == 'Engineering' || roles[i].workstream == 'Development' ? 'Contractor' : 'Employee',
-                )).toList();
-                Navigator.pop(context);
-                await ProjectDataHelper.saveAndNavigate(
-                  context: context,
-                  checkpoint: 'organization_staffing_plan',
-                  nextScreenBuilder: () => const OrganizationStaffingPlanScreen(),
-                  dataUpdater: (d) => d.copyWith(staffingRequirements: [...d.staffingRequirements, ...newStaff]),
-                );
-                setState(() {});
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107), foregroundColor: Colors.black),
-              child: const Text('Sync Selected'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _editStaffing(BuildContext context, int index, StaffingRequirement req) {
+    final rootContext = context;
     final titleController = TextEditingController(text: req.title);
     final personController = TextEditingController(text: req.personName);
     final locationController = TextEditingController(text: req.location);
-    final headcountController = TextEditingController(text: req.headcount.toString());
+    final headcountController =
+        TextEditingController(text: req.headcount.toString());
     final statusController = TextEditingController(text: req.status);
     final startController = TextEditingController(text: req.startDate);
     final endController = TextEditingController(text: req.endDate);
@@ -528,13 +650,16 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
     String employeeType = req.employeeType;
 
     showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
+      context: rootContext,
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => PremiumEditDialog(
           title: 'Edit Staffing Requirement',
           icon: Icons.person_add_alt_1_outlined,
           onSave: () async {
-            final updated = List<StaffingRequirement>.from(ProjectDataHelper.getData(context).staffingRequirements);
+            final updated = List<StaffingRequirement>.from(
+                ProjectDataHelper.getProvider(rootContext)
+                    .projectData
+                    .staffingRequirements);
             updated[index] = req.copyWith(
               title: titleController.text.trim(),
               personName: personController.text.trim(),
@@ -546,24 +671,28 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
               employmentType: empType,
               employeeType: employeeType,
             );
-            Navigator.pop(context);
+            Navigator.pop(dialogContext);
             await ProjectDataHelper.saveAndNavigate(
-              context: context,
+              context: rootContext,
               checkpoint: 'organization_staffing_plan',
               nextScreenBuilder: () => const OrganizationStaffingPlanScreen(),
               dataUpdater: (d) => d.copyWith(staffingRequirements: updated),
             );
-            setState(() {});
+            if (mounted) setState(() {});
           },
           children: [
             PremiumEditDialog.fieldLabel('Job Title'),
-            PremiumEditDialog.textField(controller: titleController, hint: 'e.g. Senior Developer'),
+            PremiumEditDialog.textField(
+                controller: titleController, hint: 'e.g. Senior Developer'),
             const SizedBox(height: 16),
             PremiumEditDialog.fieldLabel('Person Name'),
-            PremiumEditDialog.textField(controller: personController, hint: 'Assign to...'),
+            PremiumEditDialog.textField(
+                controller: personController, hint: 'Assign to...'),
             const SizedBox(height: 16),
             PremiumEditDialog.fieldLabel('Location'),
-            PremiumEditDialog.textField(controller: locationController, hint: 'e.g. Remote, Office, Site'),
+            PremiumEditDialog.textField(
+                controller: locationController,
+                hint: 'e.g. Remote, Office, Site'),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -574,12 +703,17 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                       PremiumEditDialog.fieldLabel('Employment'),
                       DropdownButtonFormField<String>(
                         value: empType,
-                        items: ['FT', 'PT'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        items: ['FT', 'PT']
+                            .map((s) =>
+                                DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
                         onChanged: (v) => setDialogState(() => empType = v!),
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.grey[50],
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none),
                         ),
                       ),
                     ],
@@ -593,12 +727,18 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                       PremiumEditDialog.fieldLabel('Category'),
                       DropdownButtonFormField<String>(
                         value: employeeType,
-                        items: ['Employee', 'Contractor'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                        onChanged: (v) => setDialogState(() => employeeType = v!),
+                        items: ['Employee', 'Contractor']
+                            .map((s) =>
+                                DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: (v) =>
+                            setDialogState(() => employeeType = v!),
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.grey[50],
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none),
                         ),
                       ),
                     ],
@@ -614,7 +754,8 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       PremiumEditDialog.fieldLabel('Status'),
-                      PremiumEditDialog.textField(controller: statusController, hint: 'e.g. Hired'),
+                      PremiumEditDialog.textField(
+                          controller: statusController, hint: 'e.g. Hired'),
                     ],
                   ),
                 ),
@@ -624,7 +765,9 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       PremiumEditDialog.fieldLabel('Headcount'),
-                      PremiumEditDialog.textField(controller: headcountController, keyboardType: TextInputType.number),
+                      PremiumEditDialog.textField(
+                          controller: headcountController,
+                          keyboardType: TextInputType.number),
                     ],
                   ),
                 ),
@@ -638,7 +781,8 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       PremiumEditDialog.fieldLabel('Mobilization Date'),
-                      PremiumEditDialog.textField(controller: startController, hint: 'Q1 2024'),
+                      PremiumEditDialog.textField(
+                          controller: startController, hint: 'Q1 2024'),
                     ],
                   ),
                 ),
@@ -648,7 +792,8 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       PremiumEditDialog.fieldLabel('Release Date'),
-                      PremiumEditDialog.textField(controller: endController, hint: 'Q4 2024'),
+                      PremiumEditDialog.textField(
+                          controller: endController, hint: 'Q4 2024'),
                     ],
                   ),
                 ),
@@ -661,25 +806,32 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
   }
 
   void _deleteStaffing(BuildContext context, int index) {
+    final rootContext = context;
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: rootContext,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Position'),
-        content: const Text('Are you sure you want to delete this staffing position?'),
+        content: const Text(
+            'Are you sure you want to delete this staffing position?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
-              final updated = List<StaffingRequirement>.from(ProjectDataHelper.getData(context).staffingRequirements);
+              final updated = List<StaffingRequirement>.from(
+                  ProjectDataHelper.getProvider(rootContext)
+                      .projectData
+                      .staffingRequirements);
               updated.removeAt(index);
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await ProjectDataHelper.saveAndNavigate(
-                context: context,
+                context: rootContext,
                 checkpoint: 'organization_staffing_plan',
                 nextScreenBuilder: () => const OrganizationStaffingPlanScreen(),
                 dataUpdater: (d) => d.copyWith(staffingRequirements: updated),
               );
-              setState(() {});
+              if (mounted) setState(() {});
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -690,7 +842,8 @@ class _OrganizationStaffingPlanScreenState extends State<OrganizationStaffingPla
 }
 
 class _PlanningSubsectionScreen extends StatelessWidget {
-  const _PlanningSubsectionScreen({required this.config, this.onAdd, this.onAddPredefined});
+  const _PlanningSubsectionScreen(
+      {required this.config, this.onAdd, this.onAddPredefined});
 
   final _PlanningSubsectionConfig config;
   final VoidCallback? onAdd;
@@ -730,19 +883,25 @@ class _PlanningSubsectionScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _TopHeader(
-                                title: config.title,
-                                onBack: () {
-                                  final navIdx = PlanningPhaseNavigation.getPageIndex(config.checkpoint);
-                                  if (navIdx > 0) {
-                                    final prevPage = PlanningPhaseNavigation.pages[navIdx - 1];
-                                    Navigator.pushReplacement(context, MaterialPageRoute(builder: prevPage.builder));
-                                  } else {
-                                    Navigator.maybePop(context);
-                                  }
-                                },
-                                onNext: () => _handleNext(context),
-                                onAdd: onAdd,
-                                onAddPredefined: onAddPredefined,
+                              title: config.title,
+                              onBack: () {
+                                final navIdx =
+                                    PlanningPhaseNavigation.getPageIndex(
+                                        config.checkpoint);
+                                if (navIdx > 0) {
+                                  final prevPage =
+                                      PlanningPhaseNavigation.pages[navIdx - 1];
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: prevPage.builder));
+                                } else {
+                                  Navigator.maybePop(context);
+                                }
+                              },
+                              onNext: () => _handleNext(context),
+                              onAdd: onAdd,
+                              onAddPredefined: onAddPredefined,
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -795,6 +954,7 @@ class _PlanningSubsectionScreen extends StatelessWidget {
       ),
     );
   }
+
   void _handleNext(BuildContext context) async {
     final navIndex = PlanningPhaseNavigation.getPageIndex(config.checkpoint);
     if (navIndex != -1 && navIndex < PlanningPhaseNavigation.pages.length - 1) {
@@ -834,7 +994,12 @@ class _PlanningSubsectionConfig {
 }
 
 class _TopHeader extends StatelessWidget {
-  const _TopHeader({required this.title, required this.onBack, this.onNext, this.onAdd, this.onAddPredefined});
+  const _TopHeader(
+      {required this.title,
+      required this.onBack,
+      this.onNext,
+      this.onAdd,
+      this.onAddPredefined});
 
   final String title;
   final VoidCallback onBack;
@@ -849,9 +1014,7 @@ class _TopHeader extends StatelessWidget {
         _CircleIconButton(
             icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
         const SizedBox(width: 12),
-        _CircleIconButton(
-            icon: Icons.arrow_forward_ios_rounded,
-            onTap: onNext),
+        _CircleIconButton(icon: Icons.arrow_forward_ios_rounded, onTap: onNext),
         const SizedBox(width: 16),
         Text(
           title,
@@ -863,15 +1026,19 @@ class _TopHeader extends StatelessWidget {
         const SizedBox(width: 24),
         if (onAddPredefined != null) ...[
           _yellowButton(
-            label: onAddPredefined!.toString().contains('SyncRoles') ? 'Sync from Roles' : 'Standard Roles',
-            icon: onAddPredefined!.toString().contains('SyncRoles') ? Icons.sync : Icons.assignment_outlined,
+            label: onAddPredefined!.toString().contains('SyncRoles')
+                ? 'Sync from Roles'
+                : 'Standard Roles',
+            icon: onAddPredefined!.toString().contains('SyncRoles')
+                ? Icons.sync
+                : Icons.assignment_outlined,
             onPressed: onAddPredefined!,
           ),
           const SizedBox(width: 12),
         ],
         if (onAdd != null)
           _yellowButton(
-            label: 'Add Item',
+            label: 'Add Role',
             icon: Icons.add,
             onPressed: onAdd!,
           ),
@@ -881,7 +1048,10 @@ class _TopHeader extends StatelessWidget {
     );
   }
 
-  Widget _yellowButton({required String label, required IconData icon, required VoidCallback onPressed}) {
+  Widget _yellowButton(
+      {required String label,
+      required IconData icon,
+      required VoidCallback onPressed}) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 16),
@@ -968,8 +1138,12 @@ class _UserChip extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(displayName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  Text(role, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+                  Text(displayName,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(role,
+                      style: const TextStyle(
+                          fontSize: 10, color: Color(0xFF6B7280))),
                 ],
               );
             },
@@ -1118,7 +1292,8 @@ class _SectionCard extends StatelessWidget {
                     if (data.onEdit != null)
                       IconButton(
                         onPressed: data.onEdit,
-                        icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF6B7280)),
+                        icon: const Icon(Icons.edit_outlined,
+                            size: 18, color: Color(0xFF6B7280)),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
@@ -1126,7 +1301,8 @@ class _SectionCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       IconButton(
                         onPressed: data.onDelete,
-                        icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18, color: Color(0xFFEF4444)),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
