@@ -3174,60 +3174,95 @@ class StaffingRequirement {
 class TrainingActivity {
   String id;
   String title;
+  String description;
   String date;
   String duration;
   String category; // Training or Team Building
   String status;
   bool isMandatory;
+  String? attachedFile;
+  String? attachedFileUrl;
+  String? attachedFileStoragePath;
+  bool isCompleted;
 
   TrainingActivity({
     String? id,
     this.title = '',
+    this.description = '',
     this.date = '',
     this.duration = '',
     this.category = 'Training',
     this.status = 'Upcoming',
     this.isMandatory = false,
+    this.attachedFile,
+    this.attachedFileUrl,
+    this.attachedFileStoragePath,
+    this.isCompleted = false,
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
+        'description': description,
         'date': date,
         'duration': duration,
         'category': category,
         'status': status,
         'isMandatory': isMandatory,
+        'attachedFile': attachedFile,
+        'attachedFileUrl': attachedFileUrl,
+        'attachedFileStoragePath': attachedFileStoragePath,
+        'isCompleted': isCompleted,
       };
 
   factory TrainingActivity.fromJson(Map<String, dynamic> json) {
     return TrainingActivity(
       id: json['id']?.toString(),
       title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
       duration: json['duration']?.toString() ?? '',
       category: json['category']?.toString() ?? 'Training',
       status: json['status']?.toString() ?? 'Upcoming',
       isMandatory: json['isMandatory'] == true,
+      attachedFile: json['attachedFile']?.toString(),
+      attachedFileUrl: json['attachedFileUrl']?.toString(),
+      attachedFileStoragePath: json['attachedFileStoragePath']?.toString(),
+      isCompleted: json['isCompleted'] == true,
     );
   }
 
   TrainingActivity copyWith({
     String? title,
+    String? description,
     String? date,
     String? duration,
     String? category,
     String? status,
     bool? isMandatory,
+    String? attachedFile,
+    String? attachedFileUrl,
+    String? attachedFileStoragePath,
+    bool? isCompleted,
+    bool clearAttachment = false,
   }) {
     return TrainingActivity(
       id: id,
       title: title ?? this.title,
+      description: description ?? this.description,
       date: date ?? this.date,
       duration: duration ?? this.duration,
       category: category ?? this.category,
       status: status ?? this.status,
       isMandatory: isMandatory ?? this.isMandatory,
+      attachedFile:
+          clearAttachment ? null : (attachedFile ?? this.attachedFile),
+      attachedFileUrl:
+          clearAttachment ? null : (attachedFileUrl ?? this.attachedFileUrl),
+      attachedFileStoragePath: clearAttachment
+          ? null
+          : (attachedFileStoragePath ?? this.attachedFileStoragePath),
+      isCompleted: isCompleted ?? this.isCompleted,
     );
   }
 }

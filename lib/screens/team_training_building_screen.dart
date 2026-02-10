@@ -1,18 +1,105 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/utils/download_helper.dart' as download_helper;
+import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/premium_edit_dialog.dart';
+import 'package:ndu_project/widgets/responsive.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class TeamTrainingAndBuildingScreen extends StatelessWidget {
+class TeamTrainingAndBuildingScreen extends StatefulWidget {
   const TeamTrainingAndBuildingScreen({super.key});
+
+  @override
+  State<TeamTrainingAndBuildingScreen> createState() =>
+      _TeamTrainingAndBuildingScreenState();
+}
+
+class _TeamTrainingAndBuildingScreenState
+    extends State<TeamTrainingAndBuildingScreen> {
+  final GlobalKey _onboardingSectionKey =
+      GlobalKey(debugLabel: 'team_training_onboarding');
+  final GlobalKey _disciplineSectionKey =
+      GlobalKey(debugLabel: 'team_training_discipline');
+  final GlobalKey _teamBuildingSectionKey =
+      GlobalKey(debugLabel: 'team_training_team_building');
+
+  late final List<_ResourceButtonSpec> _resourceButtons = [
+    const _ResourceButtonSpec(
+      id: 'welcome',
+      label: 'Welcome',
+      description:
+          'Company and project introduction, location, hours, and first-week orientation.',
+      category: 'Onboarding',
+      defaultDuration: '30 mins',
+      mandatory: true,
+      icon: Icons.handshake_outlined,
+    ),
+    const _ResourceButtonSpec(
+      id: 'project_onboarding',
+      label: 'Project Onboarding',
+      description:
+          'Project summary, framework, goals, milestone windows, and core tools.',
+      category: 'Onboarding',
+      defaultDuration: '60 mins',
+      mandatory: true,
+      icon: Icons.auto_awesome,
+    ),
+    const _ResourceButtonSpec(
+      id: 'team_vacation',
+      label: 'Team & Vacation',
+      description:
+          'Role map, responsibilities, ownership handoff, and vacation coverage.',
+      category: 'Onboarding',
+      defaultDuration: '45 mins',
+      mandatory: true,
+      icon: Icons.group_outlined,
+    ),
+    const _ResourceButtonSpec(
+      id: 'meetings',
+      label: 'Meetings',
+      description:
+          'Core recurring ceremonies and cadence for planning, execution, and retros.',
+      category: 'Discipline-Specific',
+      defaultDuration: '15 mins daily',
+      mandatory: true,
+      icon: Icons.event_note_outlined,
+    ),
+    const _ResourceButtonSpec(
+      id: 'trainings',
+      label: 'Trainings',
+      description:
+          'Required discipline training plan with objective, owner, and verification.',
+      category: 'Discipline-Specific',
+      defaultDuration: '2 hours',
+      mandatory: true,
+      icon: Icons.school_outlined,
+    ),
+    const _ResourceButtonSpec(
+      id: 'team_building',
+      label: 'Team Building',
+      description:
+          'Collaboration rituals, ice breakers, recognition, and team cohesion actions.',
+      category: 'Team Building',
+      defaultDuration: '60 mins',
+      mandatory: false,
+      icon: Icons.favorite_outline,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -33,13 +120,23 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
   }
 
   Widget _buildMain(BuildContext context) {
+    final data = ProjectDataHelper.getData(context);
+    final onboardingActivities = data.trainingActivities
+        .where((a) => _normalizeCategory(a.category) == 'Onboarding')
+        .toList();
+    final disciplineActivities = data.trainingActivities
+        .where((a) => _normalizeCategory(a.category) == 'Discipline-Specific')
+        .toList();
+    final teamBuildingActivities = data.trainingActivities
+        .where((a) => _normalizeCategory(a.category) == 'Team Building')
+        .toList();
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 _circleIconButton(Icons.arrow_back_ios,
@@ -93,7 +190,6 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 16, color: Colors.black87),
               ),
             ),
-
             const SizedBox(height: 16),
             const PlanningAiNotesCard(
               title: 'Notes',
@@ -104,7 +200,8 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                   'Outline training themes, cadence, and team-building priorities.',
             ),
             const SizedBox(height: 16),
-            // Main overview card
+            _buildTopButtonRow(context),
+            const SizedBox(height: 24),
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -112,9 +209,10 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                 border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2))
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  )
                 ],
               ),
               padding: const EdgeInsets.all(16),
@@ -126,223 +224,129 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Text(
-                    'Identify team training opportunities and team building intervals to boost team spirit and collaboration. Could be team shares (like safety moments).',
+                    'Templates above map into these three sections. Uploads are stored and downloadable, and each activity can be marked read/completed.',
                     style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Onboarding
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Text('Onboarding',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
-                                const SizedBox(width: 12),
-                                _yellowButton(
-                                  label: 'Add Onboarding',
-                                  icon: Icons.checklist_rtl,
-                                  onPressed: () async {
-                                    final newActivity = TrainingActivity(
-                                        title: 'New Onboarding',
-                                        category: 'Onboarding',
-                                        isMandatory: true);
-                                    await ProjectDataHelper.saveAndNavigate(
-                                      context: context,
-                                      checkpoint: 'team_training',
-                                      nextScreenBuilder: () =>
-                                          const TeamTrainingAndBuildingScreen(),
-                                      dataUpdater: (d) => d.copyWith(
-                                          trainingActivities: [
-                                            ...d.trainingActivities,
-                                            newActivity
-                                          ]),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Mandatory steps to integrate new project members.',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[700]),
-                            ),
-                            const SizedBox(height: 12),
-                            _UpcomingTrainingList(
-                              activities: ProjectDataHelper.getData(context)
-                                  .trainingActivities
-                                  .where((a) => a.category == 'Onboarding')
-                                  .toList(),
-                              accent: Colors.green,
-                              onEdit: (activity) =>
-                                  _editActivity(context, activity),
-                              onDelete: (activity) =>
-                                  _deleteActivity(context, activity),
-                            ),
-                          ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 1120;
+                      final onboardingSection = _buildOverviewSectionCard(
+                        context: context,
+                        sectionKey: _onboardingSectionKey,
+                        title: 'Onboarding',
+                        subtitle:
+                            'Mandatory steps to integrate new project members.',
+                        addLabel: 'Add Onboarding',
+                        addIcon: Icons.checklist_rtl,
+                        activities: onboardingActivities,
+                        accent: Colors.green,
+                        onAdd: () => _addActivity(
+                          context,
+                          title: 'New Onboarding',
+                          category: 'Onboarding',
+                          mandatory: true,
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Discipline-Specific
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Text('Discipline-Specific',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
-                                const SizedBox(width: 12),
-                                _yellowButton(
-                                  label: 'Add Discipline Training',
-                                  icon: Icons.school_outlined,
-                                  onPressed: () async {
-                                    final newActivity = TrainingActivity(
-                                        title: 'New Training',
-                                        category: 'Discipline-Specific');
-                                    await ProjectDataHelper.saveAndNavigate(
-                                      context: context,
-                                      checkpoint: 'team_training',
-                                      nextScreenBuilder: () =>
-                                          const TeamTrainingAndBuildingScreen(),
-                                      dataUpdater: (d) => d.copyWith(
-                                          trainingActivities: [
-                                            ...d.trainingActivities,
-                                            newActivity
-                                          ]),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Technical training tailored to specific roles and tasks.',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[700]),
-                            ),
-                            const SizedBox(height: 12),
-                            _UpcomingTrainingList(
-                              activities: ProjectDataHelper.getData(context)
-                                  .trainingActivities
-                                  .where((a) =>
-                                      a.category == 'Discipline-Specific' ||
-                                      (a.category == 'Training' &&
-                                          a.category != 'Onboarding'))
-                                  .toList(),
-                              accent: Colors.blue,
-                              onEdit: (activity) =>
-                                  _editActivity(context, activity),
-                              onDelete: (activity) =>
-                                  _deleteActivity(context, activity),
-                            ),
-                          ],
+                      );
+                      final disciplineSection = _buildOverviewSectionCard(
+                        context: context,
+                        sectionKey: _disciplineSectionKey,
+                        title: 'Discipline-Specific',
+                        subtitle:
+                            'Technical training tailored to specific roles and tasks.',
+                        addLabel: 'Add Discipline Training',
+                        addIcon: Icons.school_outlined,
+                        activities: disciplineActivities,
+                        accent: Colors.blue,
+                        onAdd: () => _addActivity(
+                          context,
+                          title: 'New Training',
+                          category: 'Discipline-Specific',
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Team Building
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Text('Team Building',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
-                                const SizedBox(width: 12),
-                                _yellowButton(
-                                  label: 'Add Team Building',
-                                  icon: Icons.favorite_outline,
-                                  onPressed: () async {
-                                    final newActivity = TrainingActivity(
-                                        title: 'New Event',
-                                        category: 'Team Building');
-                                    await ProjectDataHelper.saveAndNavigate(
-                                      context: context,
-                                      checkpoint: 'team_training',
-                                      nextScreenBuilder: () =>
-                                          const TeamTrainingAndBuildingScreen(),
-                                      dataUpdater: (d) => d.copyWith(
-                                          trainingActivities: [
-                                            ...d.trainingActivities,
-                                            newActivity
-                                          ]),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Strengthen relationships and improve communication.',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[700]),
-                            ),
-                            const SizedBox(height: 12),
-                            _UpcomingTrainingList(
-                              activities: ProjectDataHelper.getData(context)
-                                  .trainingActivities
-                                  .where((a) => a.category == 'Team Building')
-                                  .toList(),
-                              accent: Colors.purple,
-                              heart: true,
-                              onEdit: (activity) =>
-                                  _editActivity(context, activity),
-                              onDelete: (activity) =>
-                                  _deleteActivity(context, activity),
-                            ),
-                          ],
+                      );
+                      final teamBuildingSection = _buildOverviewSectionCard(
+                        context: context,
+                        sectionKey: _teamBuildingSectionKey,
+                        title: 'Team Building',
+                        subtitle:
+                            'Strengthen relationships and improve communication.',
+                        addLabel: 'Add Team Building',
+                        addIcon: Icons.favorite_outline,
+                        activities: teamBuildingActivities,
+                        accent: Colors.purple,
+                        heart: true,
+                        onAdd: () => _addActivity(
+                          context,
+                          title: 'New Event',
+                          category: 'Team Building',
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (compact) {
+                        return Column(
+                          children: [
+                            onboardingSection,
+                            const SizedBox(height: 16),
+                            disciplineSection,
+                            const SizedBox(height: 16),
+                            teamBuildingSection,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: onboardingSection),
+                          const SizedBox(width: 16),
+                          Expanded(child: disciplineSection),
+                          const SizedBox(width: 16),
+                          Expanded(child: teamBuildingSection),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
-            // Benefits row
             Row(
               children: const [
                 Expanded(
-                    child: _BenefitCard(
-                        icon: Icons.lightbulb_outline,
-                        title: 'Skill Development',
-                        subtitle:
-                            'Enhance technical and soft skills through structured learning')),
+                  child: _BenefitCard(
+                    icon: Icons.lightbulb_outline,
+                    title: 'Skill Development',
+                    subtitle:
+                        'Enhance technical and soft skills through structured learning',
+                  ),
+                ),
                 SizedBox(width: 12),
                 Expanded(
-                    child: _BenefitCard(
-                        icon: Icons.favorite_border,
-                        title: 'Team Cohesion',
-                        subtitle:
-                            'Build stronger relationships and mutual trust')),
+                  child: _BenefitCard(
+                    icon: Icons.favorite_border,
+                    title: 'Team Cohesion',
+                    subtitle: 'Build stronger relationships and mutual trust',
+                  ),
+                ),
                 SizedBox(width: 12),
                 Expanded(
-                    child: _BenefitCard(
-                        icon: Icons.speed_outlined,
-                        title: 'Improved Performance',
-                        subtitle:
-                            'Boost productivity and quality of deliverables')),
+                  child: _BenefitCard(
+                    icon: Icons.speed_outlined,
+                    title: 'Improved Performance',
+                    subtitle: 'Boost productivity and quality of deliverables',
+                  ),
+                ),
                 SizedBox(width: 12),
                 Expanded(
-                    child: _BenefitCard(
-                        icon: Icons.auto_awesome_outlined,
-                        title: 'Innovation',
-                        subtitle:
-                            'Enhance technical and soft skills through structured learning')),
+                  child: _BenefitCard(
+                    icon: Icons.auto_awesome_outlined,
+                    title: 'Innovation',
+                    subtitle:
+                        'Improve delivery through practical learning and feedback',
+                  ),
+                ),
               ],
             ),
-
-            const SizedBox(height: 20),
             const SizedBox(height: 40),
           ],
         ),
@@ -350,108 +354,162 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
     );
   }
 
-  void _editActivity(BuildContext context, TrainingActivity activity) {
-    final rootContext = context;
-    final titleController = TextEditingController(text: activity.title);
-    final dateController = TextEditingController(text: activity.date);
-    final durationController = TextEditingController(text: activity.duration);
-    bool isMandatory = activity.isMandatory;
-    String category = activity.category;
-    if (category == 'Training')
-      category = 'Discipline-Specific'; // Cleanup legacy
-
-    showDialog(
-      context: rootContext,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => PremiumEditDialog(
-          title: 'Edit Activity',
-          icon: category == 'Onboarding'
-              ? Icons.checklist_rtl
-              : (category == 'Team Building'
-                  ? Icons.favorite_border
-                  : Icons.school_outlined),
-          onSave: () async {
-            final updated = List<TrainingActivity>.from(
-                ProjectDataHelper.getProvider(rootContext)
-                    .projectData
-                    .trainingActivities);
-            final index = updated.indexWhere((a) => a.id == activity.id);
-            if (index != -1) {
-              updated[index] = activity.copyWith(
-                title: titleController.text.trim(),
-                date: dateController.text.trim(),
-                duration: durationController.text.trim(),
-                isMandatory: isMandatory,
-                category: category,
-              );
-            }
-            Navigator.pop(dialogContext);
-            await ProjectDataHelper.saveAndNavigate(
-              context: rootContext,
-              checkpoint: 'team_training',
-              nextScreenBuilder: () => const TeamTrainingAndBuildingScreen(),
-              dataUpdater: (d) => d.copyWith(trainingActivities: updated),
-            );
-          },
-          children: [
-            PremiumEditDialog.fieldLabel('Title'),
-            PremiumEditDialog.textField(
-                controller: titleController, hint: 'Activity name...'),
-            const SizedBox(height: 16),
-            PremiumEditDialog.fieldLabel('Category'),
-            DropdownButtonFormField<String>(
-              value: category,
-              items: ['Onboarding', 'Discipline-Specific', 'Team Building']
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: (v) => setDialogState(() => category = v!),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.grey[50],
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
+  Widget _buildOverviewSectionCard({
+    required BuildContext context,
+    required GlobalKey sectionKey,
+    required String title,
+    required String subtitle,
+    required String addLabel,
+    required IconData addIcon,
+    required List<TrainingActivity> activities,
+    required Color accent,
+    required VoidCallback onAdd,
+    bool heart = false,
+  }) {
+    return Container(
+      key: sectionKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(width: 12),
+              _yellowButton(
+                label: addLabel,
+                icon: addIcon,
+                onPressed: onAdd,
               ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 12),
+          _UpcomingTrainingList(
+            activities: activities,
+            accent: accent,
+            heart: heart,
+            onDownload: (activity) => _downloadAttachment(
+              context,
+              activity.attachedFileUrl,
             ),
-            const SizedBox(height: 16),
-            CheckboxListTile(
-              title: const Text('Mandatory Requirement',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              value: isMandatory,
-              onChanged: (v) => setDialogState(() => isMandatory = v!),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      PremiumEditDialog.fieldLabel('Date'),
-                      PremiumEditDialog.textField(
-                          controller: dateController, hint: 'e.g. Q3 2024'),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      PremiumEditDialog.fieldLabel('Duration / Interval'),
-                      PremiumEditDialog.textField(
-                          controller: durationController, hint: 'e.g. 2 hours'),
-                    ],
-                  ),
-                ),
-              ],
+            onEdit: (activity) => _editActivity(context, activity),
+            onDelete: (activity) => _deleteActivity(context, activity),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopButtonRow(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: _resourceButtons.map((b) => _topButton(context, b)).toList(),
+    );
+  }
+
+  Widget _topButton(BuildContext context, _ResourceButtonSpec spec) {
+    return InkWell(
+      onTap: () => _showResourceDialog(context, spec),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 146,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1F2933),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(spec.icon, size: 18, color: Colors.white),
+            const SizedBox(height: 8),
+            Text(
+              spec.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _addActivity(
+    BuildContext context, {
+    required String title,
+    required String category,
+    bool mandatory = false,
+  }) async {
+    final data = ProjectDataHelper.getData(context);
+    final newActivity = TrainingActivity(
+      title: title,
+      category: category,
+      isMandatory: mandatory,
+    );
+    final updated = [...data.trainingActivities, newActivity];
+    await _saveActivities(context, updated);
+  }
+
+  Future<void> _saveActivities(
+      BuildContext context, List<TrainingActivity> updated) async {
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'team_training',
+      nextScreenBuilder: () => const TeamTrainingAndBuildingScreen(),
+      dataUpdater: (d) => d.copyWith(trainingActivities: updated),
+    );
+  }
+
+  Future<void> _saveActivitiesSilently(
+      BuildContext context, List<TrainingActivity> updated) async {
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'team_training',
+      dataUpdater: (d) => d.copyWith(trainingActivities: updated),
+      showSnackbar: false,
+    );
+  }
+
+  bool _activityMatchesDraft(TrainingActivity current, TrainingActivity draft) {
+    return current.title == draft.title &&
+        current.description == draft.description &&
+        current.date == draft.date &&
+        current.duration == draft.duration &&
+        _normalizeCategory(current.category) ==
+            _normalizeCategory(draft.category) &&
+        current.status == draft.status &&
+        current.isMandatory == draft.isMandatory &&
+        current.attachedFile == draft.attachedFile &&
+        current.attachedFileUrl == draft.attachedFileUrl &&
+        current.attachedFileStoragePath == draft.attachedFileStoragePath &&
+        current.isCompleted == draft.isCompleted;
+  }
+
+  Future<void> _persistActivityDraft(
+      BuildContext context, TrainingActivity draft) async {
+    final updated = List<TrainingActivity>.from(
+      ProjectDataHelper.getProvider(context).projectData.trainingActivities,
+    );
+    final index = updated.indexWhere((a) => a.id == draft.id);
+    if (index == -1) return;
+    if (_activityMatchesDraft(updated[index], draft)) return;
+    updated[index] = draft;
+    await _saveActivitiesSilently(context, updated);
   }
 
   Future<void> _editActivity(
@@ -473,8 +531,50 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
     final manualUrlController =
         TextEditingController(text: attachedFileUrl ?? '');
     bool uploading = false;
+    var latestAutoSaveToken = 0;
+    Timer? autoSaveDebounce;
+    var didExplicitSave = false;
 
-    showDialog(
+    TrainingActivity buildDraft() {
+      final manualUrl = manualUrlController.text.trim();
+      return TrainingActivity(
+        id: activity.id,
+        title: titleController.text.trim(),
+        description: descriptionController.text.trim(),
+        date: dateController.text.trim(),
+        duration: durationController.text.trim(),
+        category: _normalizeCategory(category),
+        status: activity.status,
+        isMandatory: isMandatory,
+        attachedFile: attachedFile ??
+            (manualUrl.isNotEmpty ? _baseName(manualUrl) : null),
+        attachedFileUrl: manualUrl.isNotEmpty ? manualUrl : attachedFileUrl,
+        attachedFileStoragePath: attachedFileStoragePath,
+        isCompleted: isCompleted,
+      );
+    }
+
+    void scheduleAutoSave() {
+      autoSaveDebounce?.cancel();
+      final token = ++latestAutoSaveToken;
+      autoSaveDebounce = Timer(const Duration(milliseconds: 700), () async {
+        if (!rootContext.mounted) return;
+        await _persistActivityDraft(rootContext, buildDraft());
+        if (token != latestAutoSaveToken) return;
+      });
+    }
+
+    for (final controller in [
+      titleController,
+      descriptionController,
+      dateController,
+      durationController,
+      manualUrlController,
+    ]) {
+      controller.addListener(scheduleAutoSave);
+    }
+
+    await showDialog(
       context: rootContext,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -492,31 +592,17 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                     ? Icons.favorite_border
                     : Icons.school_outlined,
             onSave: () async {
+              didExplicitSave = true;
               final updated = List<TrainingActivity>.from(
                 ProjectDataHelper.getProvider(rootContext)
                     .projectData
                     .trainingActivities,
               );
               final index = updated.indexWhere((a) => a.id == activity.id);
-              final manualUrl = manualUrlController.text.trim();
               if (index != -1) {
-                updated[index] = TrainingActivity(
-                  id: activity.id,
-                  title: titleController.text.trim(),
-                  description: descriptionController.text.trim(),
-                  date: dateController.text.trim(),
-                  duration: durationController.text.trim(),
-                  category: _normalizeCategory(category),
-                  status: activity.status,
-                  isMandatory: isMandatory,
-                  attachedFile: attachedFile ??
-                      (manualUrl.isNotEmpty ? _baseName(manualUrl) : null),
-                  attachedFileUrl:
-                      manualUrl.isNotEmpty ? manualUrl : attachedFileUrl,
-                  attachedFileStoragePath: attachedFileStoragePath,
-                  isCompleted: isCompleted,
-                );
+                updated[index] = buildDraft();
               }
+              autoSaveDebounce?.cancel();
               Navigator.pop(dialogContext);
               await _saveActivities(rootContext, updated);
             },
@@ -579,6 +665,7 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                   setDialogState(() {
                     category = v;
                     selectedExistingDocUrl = null;
+                    scheduleAutoSave();
                   });
                 },
                 decoration: InputDecoration(
@@ -597,8 +684,10 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 value: isMandatory,
-                onChanged: (v) =>
-                    setDialogState(() => isMandatory = v ?? false),
+                onChanged: (v) => setDialogState(() {
+                  isMandatory = v ?? false;
+                  scheduleAutoSave();
+                }),
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
               ),
@@ -608,8 +697,10 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 value: isCompleted,
-                onChanged: (v) =>
-                    setDialogState(() => isCompleted = v ?? false),
+                onChanged: (v) => setDialogState(() {
+                  isCompleted = v ?? false;
+                  scheduleAutoSave();
+                }),
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
               ),
@@ -655,6 +746,7 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                           attachedFileStoragePath = null;
                           selectedExistingDocUrl = null;
                           manualUrlController.text = '';
+                          scheduleAutoSave();
                         }),
                         icon: const Icon(Icons.close,
                             size: 16, color: Colors.blue),
@@ -683,6 +775,7 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                                 selectedExistingDocUrl = uploaded.url;
                                 manualUrlController.text = uploaded.url;
                               }
+                              scheduleAutoSave();
                             });
                           },
                     icon: uploading
@@ -737,6 +830,7 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
                       attachedFileUrl = doc.url;
                       attachedFileStoragePath = doc.storagePath;
                       manualUrlController.text = doc.url;
+                      scheduleAutoSave();
                     });
                   },
                   decoration: InputDecoration(
@@ -800,6 +894,16 @@ class TeamTrainingAndBuildingScreen extends StatelessWidget {
         },
       ),
     );
+
+    autoSaveDebounce?.cancel();
+    if (!didExplicitSave && rootContext.mounted) {
+      await _persistActivityDraft(rootContext, buildDraft());
+    }
+    titleController.dispose();
+    descriptionController.dispose();
+    dateController.dispose();
+    durationController.dispose();
+    manualUrlController.dispose();
   }
 
   Future<void> _showResourceDialog(
@@ -1888,22 +1992,18 @@ $notesText
         content: const Text('Are you sure you want to delete this activity?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
               final updated = List<TrainingActivity>.from(
-                  ProjectDataHelper.getProvider(rootContext)
-                      .projectData
-                      .trainingActivities);
-              updated.removeWhere((a) => a.id == activity.id);
+                ProjectDataHelper.getProvider(rootContext)
+                    .projectData
+                    .trainingActivities,
+              )..removeWhere((a) => a.id == activity.id);
               Navigator.pop(dialogContext);
-              await ProjectDataHelper.saveAndNavigate(
-                context: rootContext,
-                checkpoint: 'team_training',
-                nextScreenBuilder: () => const TeamTrainingAndBuildingScreen(),
-                dataUpdater: (d) => d.copyWith(trainingActivities: updated),
-              );
+              await _saveActivities(rootContext, updated);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -1912,10 +2012,11 @@ $notesText
     );
   }
 
-  Widget _yellowButton(
-      {required String label,
-      required IconData icon,
-      required VoidCallback onPressed}) {
+  Widget _yellowButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 16),
@@ -1943,9 +2044,10 @@ $notesText
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 2))
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            )
           ],
         ),
         child: Icon(icon, size: 16, color: Colors.grey[700]),
@@ -1979,9 +2081,10 @@ $notesText
                 borderRadius: BorderRadius.circular(26),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2))
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
                 ],
               ),
               child: Row(
@@ -1996,9 +2099,10 @@ $notesText
                         ? Text(
                             name.isNotEmpty ? name[0].toUpperCase() : 'U',
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           )
                         : null,
                   ),
@@ -2007,12 +2111,16 @@ $notesText
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(name,
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600)),
-                      Text(role,
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.grey)),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        role,
+                        style:
+                            const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
                     ],
                   ),
                   const SizedBox(width: 8),
@@ -2028,54 +2136,22 @@ $notesText
   }
 }
 
-class _StatTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _StatTile(
-      {required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F9FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blue[600]),
-          const SizedBox(width: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-          ]),
-        ],
-      ),
-    );
-  }
-}
-
 class _UpcomingTrainingList extends StatelessWidget {
-  final List<TrainingActivity> activities;
-  final Color accent;
-  final bool heart;
-  final ValueChanged<TrainingActivity>? onEdit;
-  final ValueChanged<TrainingActivity>? onDelete;
-
   const _UpcomingTrainingList({
     required this.activities,
     required this.accent,
     this.heart = false,
     this.onEdit,
     this.onDelete,
+    this.onDownload,
   });
+
+  final List<TrainingActivity> activities;
+  final Color accent;
+  final bool heart;
+  final ValueChanged<TrainingActivity>? onEdit;
+  final ValueChanged<TrainingActivity>? onDelete;
+  final ValueChanged<TrainingActivity>? onDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -2100,9 +2176,10 @@ class _UpcomingTrainingList extends StatelessWidget {
                 Icon(heart ? Icons.favorite_border : Icons.auto_awesome,
                     color: accent),
                 const SizedBox(width: 8),
-                Text(heart ? 'Upcoming Events' : 'Upcoming Training',
-                    style:
-                        TextStyle(color: accent, fontWeight: FontWeight.w700)),
+                Text(
+                  heart ? 'Upcoming Events' : 'Upcoming Training',
+                  style: TextStyle(color: accent, fontWeight: FontWeight.w700),
+                ),
               ],
             ),
           ),
@@ -2125,51 +2202,129 @@ class _UpcomingTrainingList extends StatelessWidget {
   }
 
   Widget _trainingItem(TrainingActivity activity) {
+    final hasDownload = (activity.attachedFileUrl ?? '').trim().isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(
-                children: [
-                  Text(activity.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  if (activity.isMandatory) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (activity.isCompleted)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Icon(Icons.check_circle,
+                            size: 16, color: Colors.green[700]),
+                      ),
+                    Expanded(
+                      child: Text(
+                        activity.title,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    if (activity.attachedFile != null) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.attach_file,
+                          size: 14, color: Colors.blue),
+                    ],
+                    if (activity.isMandatory) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
                           color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(4)),
-                      child: Text('MANDATORY',
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'MANDATORY',
                           style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.red[700])),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.red[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (activity.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    activity.description.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                  ),
+                ],
+                if (activity.attachedFile != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.insert_drive_file_outlined,
+                          size: 14, color: Colors.blue[800]),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          activity.attachedFile!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blue[800],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                      if (!hasDownload)
+                        Text(
+                          'No URL',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.event_outlined,
+                        size: 18, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      activity.date.isEmpty ? 'TBD' : activity.date,
+                      style: const TextStyle(color: Colors.black87),
+                    ),
+                    const SizedBox(width: 12),
+                    const Icon(Icons.schedule_outlined,
+                        size: 18, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      activity.duration.isEmpty ? 'TBD' : activity.duration,
+                      style: const TextStyle(color: Colors.black87),
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(children: [
-                const Icon(Icons.event_outlined, size: 18, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(activity.date.isEmpty ? 'TBD' : activity.date,
-                    style: const TextStyle(color: Colors.black87)),
-                const SizedBox(width: 12),
-                const Icon(Icons.schedule_outlined,
-                    size: 18, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(activity.duration.isEmpty ? 'TBD' : activity.duration,
-                    style: const TextStyle(color: Colors.black87)),
-              ]),
-            ]),
+                ),
+              ],
+            ),
           ),
-          if (onEdit != null)
+          if (onDownload != null && hasDownload)
+            IconButton(
+              onPressed: () => onDownload!(activity),
+              icon: const Icon(Icons.download_outlined,
+                  size: 18, color: Colors.blue),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          if (onEdit != null) ...[
+            const SizedBox(width: 8),
             IconButton(
               onPressed: () => onEdit!(activity),
               icon:
@@ -2177,6 +2332,7 @@ class _UpcomingTrainingList extends StatelessWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
+          ],
           if (onDelete != null) ...[
             const SizedBox(width: 8),
             IconButton(
@@ -2194,11 +2350,15 @@ class _UpcomingTrainingList extends StatelessWidget {
 }
 
 class _BenefitCard extends StatelessWidget {
+  const _BenefitCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
   final IconData icon;
   final String title;
   final String subtitle;
-  const _BenefitCard(
-      {required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -2210,18 +2370,20 @@ class _BenefitCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.grey.withValues(alpha: 0.15),
-              child: Icon(icon, color: Colors.blueGrey[700])),
+            radius: 18,
+            backgroundColor: Colors.grey.withValues(alpha: 0.15),
+            child: Icon(icon, color: Colors.blueGrey[700]),
+          ),
           const SizedBox(height: 12),
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
@@ -2231,4 +2393,74 @@ class _BenefitCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ResourceButtonSpec {
+  const _ResourceButtonSpec({
+    required this.id,
+    required this.label,
+    required this.description,
+    required this.category,
+    required this.defaultDuration,
+    required this.mandatory,
+    required this.icon,
+  });
+
+  final String id;
+  final String label;
+  final String description;
+  final String category;
+  final String defaultDuration;
+  final bool mandatory;
+  final IconData icon;
+}
+
+class _SectionDocumentRef {
+  const _SectionDocumentRef({
+    required this.name,
+    required this.url,
+    required this.storagePath,
+  });
+
+  final String name;
+  final String url;
+  final String? storagePath;
+}
+
+class _UploadedDoc {
+  const _UploadedDoc({
+    required this.name,
+    required this.url,
+    required this.storagePath,
+  });
+
+  final String name;
+  final String url;
+  final String storagePath;
+}
+
+class _ProjectContextSnapshot {
+  const _ProjectContextSnapshot({
+    required this.projectName,
+    required this.objective,
+    required this.framework,
+    required this.location,
+    required this.manager,
+    required this.sponsor,
+    required this.roleLines,
+    required this.goalLines,
+    required this.milestoneLines,
+    required this.noteHighlights,
+  });
+
+  final String projectName;
+  final String objective;
+  final String framework;
+  final String location;
+  final String manager;
+  final String sponsor;
+  final List<String> roleLines;
+  final List<String> goalLines;
+  final List<String> milestoneLines;
+  final List<String> noteHighlights;
 }
