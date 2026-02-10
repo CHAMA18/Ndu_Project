@@ -105,6 +105,44 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
       }
 
       if (!mounted) return;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && !user.emailVerified) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Email Not Verified'),
+            content: const Text(
+                'Please verify your email address to continue. Check your inbox for the verification link.'),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await user.sendEmailVerification();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Verification email resent!')),
+                    );
+                    context.pop();
+                  }
+                },
+                child: const Text('Resend Email'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Sign out if not verified
+                  FirebaseAuth.instance.signOut();
+                  context.pop();
+                },
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
       context.go('/${AppRoutes.dashboard}');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -302,12 +340,7 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // TODO: Implement forgot password
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('Forgot password feature coming soon')),
-                      );
+                      context.push('/forgot-password');
                     },
                     child: const Text(
                       'Forgot password?',
