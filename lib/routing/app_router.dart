@@ -12,6 +12,7 @@ import 'package:ndu_project/screens/create_account_screen.dart';
 import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/mobile_dashboard_screen.dart';
+import 'package:ndu_project/screens/auth/mobile_forgot_password_screen.dart';
 import 'package:ndu_project/screens/project_dashboard_screen.dart';
 import 'package:ndu_project/screens/program_dashboard_screen.dart';
 import 'package:ndu_project/screens/portfolio_dashboard_screen.dart';
@@ -136,6 +137,7 @@ class AppRoutes {
   static const landing = 'landing';
   static const signIn = 'sign-in';
   static const createAccount = 'create-account';
+  static const forgotPassword = 'forgot-password';
   static const pricing = 'pricing';
   static const mobilePricing = 'mobile-pricing';
   static const settings = 'settings';
@@ -349,6 +351,11 @@ class AppRouter {
         name: AppRoutes.createAccount,
         path: '/${AppRoutes.createAccount}',
         builder: (context, state) => const CreateAccountScreen(),
+      ),
+      GoRoute(
+        name: AppRoutes.forgotPassword,
+        path: '/${AppRoutes.forgotPassword}',
+        builder: (context, state) => const MobileForgotPasswordScreen(),
       ),
       GoRoute(
         name: AppRoutes.pricing,

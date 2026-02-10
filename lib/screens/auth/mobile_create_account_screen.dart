@@ -112,8 +112,33 @@ class _MobileCreateAccountScreenState extends State<MobileCreateAccountScreen> {
       // Create user document
       await _createUserDocument(userCredential.user!);
 
+      // Send verification email
+      if (!userCredential.user!.emailVerified) {
+        await userCredential.user!.sendEmailVerification();
+      }
+
       if (!mounted) return;
-      context.go('/${AppRoutes.dashboard}');
+
+      // Show success dialog
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Account Created'),
+          content: const Text(
+            'Depending on project settings, a verification email may have been sent to your inbox. Please check and verify your email.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                context.pop(); // Close dialog
+                context.go('/${AppRoutes.dashboard}');
+              },
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       String message = 'Account creation failed';
