@@ -1218,19 +1218,6 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  List<String> _ownerOptions() {
-    final provider = ProjectDataInherited.maybeOf(context);
-    final members = provider?.projectData.teamMembers ?? [];
-    final names = members
-        .map((member) => member.name.trim().isNotEmpty
-            ? member.name.trim()
-            : member.email.trim())
-        .where((value) => value.isNotEmpty)
-        .toList();
-    if (names.isEmpty) return const ['Owner'];
-    return names.toSet().toList();
-  }
-
   Widget _buildOwnerDropdown({
     required String value,
     required List<String> options,

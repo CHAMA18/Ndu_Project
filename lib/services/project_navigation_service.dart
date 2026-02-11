@@ -9,6 +9,28 @@ class ProjectNavigationService {
   static final ProjectNavigationService instance = ProjectNavigationService._();
 
   static const String _keyPrefix = 'project_last_page_';
+  Future<SharedPreferences>? _prefsFuture;
+
+  Future<SharedPreferences> _prefs() {
+    _prefsFuture ??= SharedPreferences.getInstance();
+    return _prefsFuture!;
+  }
+
+  /// Warm up shared preferences early to reduce navigation checkpoint latency.
+  Future<void> warmUp() async {
+    await _prefs();
+  }
+
+  /// Save the last visited route for a project locally only.
+  /// This is intentionally fast and avoids any network calls.
+  Future<void> saveLastPageLocal(String projectId, String routeName) async {
+    try {
+      final prefs = await _prefs();
+      await prefs.setString('$_keyPrefix$projectId', routeName);
+    } catch (e) {
+      debugPrint('ProjectNavigationService: Error saving local last page: $e');
+    }
+  }
 
   /// Save the last visited route for a project
   /// Writes to both Firestore (primary) and SharedPreferences (for offline support)
@@ -22,7 +44,7 @@ class ProjectNavigationService {
       
       // Secondary: Save to SharedPreferences for offline support
       try {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await _prefs();
         await prefs.setString('$_keyPrefix$projectId', routeName);
       } catch (e) {
         debugPrint('ProjectNavigationService: Error saving to SharedPreferences: $e');
@@ -35,7 +57,7 @@ class ProjectNavigationService {
       debugPrint('ProjectNavigationService: Error saving last page: $e');
       // Fallback to SharedPreferences only if Firestore fails
       try {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await _prefs();
         await prefs.setString('$_keyPrefix$projectId', routeName);
       } catch (e2) {
         debugPrint('ProjectNavigationService: Error saving to SharedPreferences fallback: $e2');
@@ -58,7 +80,7 @@ class ProjectNavigationService {
       }
       
       // Fallback: Read from SharedPreferences (for backward compatibility)
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs();
       final lastPage = prefs.getString('$_keyPrefix$projectId');
       if (kDebugMode) {
         debugPrint('ProjectNavigationService: Retrieved from SharedPreferences for $projectId -> ${lastPage ?? 'initiation (default)'}');
@@ -68,7 +90,7 @@ class ProjectNavigationService {
       debugPrint('ProjectNavigationService: Error getting last page: $e');
       // Final fallback to SharedPreferences
       try {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await _prefs();
         final lastPage = prefs.getString('$_keyPrefix$projectId');
         return lastPage ?? 'initiation';
       } catch (e2) {
@@ -81,7 +103,7 @@ class ProjectNavigationService {
   /// Clear the saved page for a project (useful when deleting a project)
   Future<void> clearLastPage(String projectId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs();
       await prefs.remove('$_keyPrefix$projectId');
       if (kDebugMode) {
         debugPrint('ProjectNavigationService: Cleared last page for $projectId');

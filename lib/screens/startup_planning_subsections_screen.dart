@@ -1281,7 +1281,7 @@ class _StartUpPlanningInputsState extends State<_StartUpPlanningInputs> {
                 .map((bullet) => _EditableBullet(id: _newId(), text: bullet.text, isCheck: bullet.isCheck))
                 .toList(),
             statuses: section.statusRows
-                .map((row) => _EditableStatus(id: _newId(), label: row.label, value: row.value, colorValue: row.color.value))
+                .map((row) => _EditableStatus(id: _newId(), label: row.label, value: row.value, colorValue: row.color.toARGB32()))
                 .toList(),
           ),
         )
@@ -1296,7 +1296,7 @@ class _StartUpPlanningInputsState extends State<_StartUpPlanningInputs> {
         id: (data['id'] as String?) ?? _newId(),
         label: (data['label'] as String?) ?? '',
         value: (data['value'] as String?) ?? '',
-        color: Color((data['color'] as num?)?.toInt() ?? const Color(0xFF2563EB).value),
+        color: Color((data['color'] as num?)?.toInt() ?? 0xFF2563EB),
       );
     }).toList();
   }
@@ -1335,7 +1335,7 @@ class _StartUpPlanningInputsState extends State<_StartUpPlanningInputs> {
         id: (data['id'] as String?) ?? _newId(),
         label: (data['label'] as String?) ?? '',
         value: (data['value'] as String?) ?? '',
-        colorValue: (data['color'] as num?)?.toInt() ?? const Color(0xFF2563EB).value,
+        colorValue: (data['color'] as num?)?.toInt() ?? 0xFF2563EB,
       );
     }).toList();
   }
@@ -1497,7 +1497,7 @@ class _EditableMetric {
       'id': id,
       'label': label,
       'value': value,
-      'color': color.value,
+      'color': color.toARGB32(),
     };
   }
 }
@@ -1790,7 +1790,7 @@ class _EditableSectionCard extends StatelessWidget {
                   id: DateTime.now().microsecondsSinceEpoch.toString(),
                   label: '',
                   value: '',
-                  colorValue: statusColors.first.color.value,
+                  colorValue: statusColors.first.color.toARGB32(),
                 ),
               );
               onSectionChanged(section);
@@ -1923,7 +1923,7 @@ class _StatusInputRow extends StatelessWidget {
               items: options
                   .map(
                     (option) => DropdownMenuItem<int>(
-                      value: option.color.value,
+                      value: option.color.toARGB32(),
                       child: Row(
                         children: [
                           Container(width: 10, height: 10, decoration: BoxDecoration(color: option.color, shape: BoxShape.circle)),

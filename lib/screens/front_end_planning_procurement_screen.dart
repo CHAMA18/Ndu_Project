@@ -663,6 +663,7 @@ class _FrontEndPlanningProcurementScreenState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'fep_procurement',
+      saveInBackground: true,
       destinationCheckpoint: 'fep_security',
       destinationName: 'Security',
       nextScreenBuilder: () => const FrontEndPlanningSecurityScreen(),

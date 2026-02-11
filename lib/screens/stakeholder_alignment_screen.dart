@@ -547,8 +547,8 @@ class _StakeholderAlignmentScreenState
                   setState(() {
                     _items.add(newItem);
                   });
-                  await _saveItems();
                   Navigator.of(dialogContext).pop();
+                  await _saveItems();
 
                   // Auto-generate engagement strategy if key fields are filled
                   if (name.isNotEmpty &&

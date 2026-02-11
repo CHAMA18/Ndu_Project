@@ -316,6 +316,7 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                             await ProjectDataHelper.saveAndNavigate(
                               context: context,
                               checkpoint: 'quality_management',
+                              saveInBackground: true,
                               nextScreenBuilder: () =>
                                   const SsherStackedScreen(),
                               dataUpdater: (data) => data,
@@ -327,6 +328,7 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                             await ProjectDataHelper.saveAndNavigate(
                               context: context,
                               checkpoint: 'quality_management',
+                              saveInBackground: true,
                               nextScreenBuilder: () =>
                                   const ExecutionPlanScreen(),
                               dataUpdater: (data) => data,

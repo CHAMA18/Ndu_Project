@@ -712,6 +712,7 @@ class _FrontEndPlanningAllowanceScreenState
                     ProjectDataHelper.saveAndNavigate(
                       context: context,
                       checkpoint: 'fep_allowance',
+                      saveInBackground: true,
                       nextScreenBuilder: () =>
                           const ProjectCharterScreen(), // Usually next is charter or similar
                       dataUpdater: (data) => data.copyWith(

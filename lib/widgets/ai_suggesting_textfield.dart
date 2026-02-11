@@ -300,6 +300,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
     widget.onChanged?.call(_controller.text);
   }
 
+  // ignore: unused_element
   Future<void> _copyToClipboard(String suggestion) async {
     await Clipboard.setData(ClipboardData(text: suggestion));
 

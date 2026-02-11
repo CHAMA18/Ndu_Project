@@ -835,8 +835,9 @@ class _WorkBreakdownStructureBodyState
     );
   }
 
+  // ignore: unused_element
   Future<void> _handleNextPressed() async {
-// Use ProjectRouteRegistry to find next accessible screen
+    // Use ProjectRouteRegistry to find next accessible screen
     final nextScreen =
         ProjectRouteRegistry.getNextScreen(context, 'work_breakdown_structure');
 
@@ -850,6 +851,7 @@ class _WorkBreakdownStructureBodyState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'work_breakdown_structure',
+      saveInBackground: true,
       nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(
         wbsCriteriaA: _selectedCriteriaA,
@@ -937,6 +939,7 @@ class _WorkBreakdownStructureBodyState
                               await ProjectDataHelper.saveAndNavigate(
                                 context: context,
                                 checkpoint: 'work_breakdown_structure',
+                                saveInBackground: true,
                                 nextScreenBuilder: () =>
                                     nextPage.builder(context),
                                 dataUpdater: (data) => data.copyWith(

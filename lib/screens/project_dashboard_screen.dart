@@ -200,7 +200,7 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
     );
 
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       provider.reset();
       provider.updateInitiationData(
         projectName: projectName,
@@ -2345,7 +2345,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
     );
 
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       debugPrint('📥 Calling loadFromFirebase for project: ${project.id}');
 
       final success = await provider.loadFromFirebase(project.id);

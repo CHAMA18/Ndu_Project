@@ -9,39 +9,103 @@ import '../utils/diagram_model.dart';
 /// Lightweight renderer for simple node-link diagrams
 class _DiagramPainter extends CustomPainter {
   final DiagramModel model;
+
+  // Layout constants (kept in one place so both layout and paint are consistent).
+  static const double _hGap = 180;
+  static const double _vGap = 110;
+  static const double _nodeW = 150;
+  static const double _nodeH = 56;
+  static const double _pad = 40;
+
+  // Paint objects are relatively expensive to allocate repeatedly during paint.
+  // Keep them as fields so a single painter instance can reuse them across paints.
+  static final Paint _borderPaint = Paint()
+    ..color = const Color(0xFFE5E7EB)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.4;
+  static final Paint _fillPaint = Paint()..color = Colors.white;
+  static final Paint _edgePaint = Paint()
+    ..color = const Color(0xFF9CA3AF)
+    ..strokeWidth = 1.2
+    ..style = PaintingStyle.stroke;
+  static final Paint _arrowPaint = Paint()
+    ..color = const Color(0xFF9CA3AF)
+    ..style = PaintingStyle.fill;
+
+  // Precomputed layout for this model. This avoids recomputing topology + text
+  // layout every time the framework asks us to repaint.
+  late final _DiagramLayout _layout = _DiagramLayout.fromModel(model);
+
   _DiagramPainter(this.model);
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Simple layered layout: compute levels using a topological traversal.
-    // This is O(nodes + edges) and avoids unbounded loops on cyclic graphs.
+    if (_layout.nodes.isEmpty) return;
+
+    // draw edges
+    for (final e in _layout.edges) {
+      canvas.drawPath(e.path, _edgePaint);
+      canvas.drawPath(e.arrowHead, _arrowPaint);
+      final label = e.label;
+      if (label != null) {
+        label.text.paint(canvas, label.offset);
+      }
+    }
+
+    // draw nodes
+    for (final n in _layout.nodes) {
+      canvas.drawRRect(n.rect, _fillPaint);
+      canvas.drawRRect(n.rect, _borderPaint);
+      n.text.paint(canvas, n.textOffset);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DiagramPainter oldDelegate) => oldDelegate.model != model;
+}
+
+class _DiagramLayout {
+  final List<_NodeDraw> nodes;
+  final List<_EdgeDraw> edges;
+
+  _DiagramLayout({required this.nodes, required this.edges});
+
+  factory _DiagramLayout.fromModel(DiagramModel model) {
     final nodes = model.nodes;
     final edges = model.edges;
-    if (nodes.isEmpty) return;
+    if (nodes.isEmpty) return _DiagramLayout(nodes: const [], edges: const []);
 
+    // Simple layered layout: compute levels using a topological traversal.
+    // O(nodes + edges), avoids unbounded loops on cyclic graphs.
     final incoming = <String, int>{for (final n in nodes) n.id: 0};
     final outgoing = <String, List<DiagramEdge>>{
       for (final n in nodes) n.id: <DiagramEdge>[],
     };
     for (final e in edges) {
-      if (incoming.containsKey(e.to)) incoming[e.to] = (incoming[e.to] ?? 0) + 1;
+      if (incoming.containsKey(e.to)) {
+        incoming[e.to] = (incoming[e.to] ?? 0) + 1;
+      }
       final bucket = outgoing[e.from];
       if (bucket != null) bucket.add(e);
     }
+
     final level = <String, int>{};
-    final queue = <String>[...incoming.entries.where((e) => e.value == 0).map((e) => e.key)];
+    final queue = <String>[
+      ...incoming.entries.where((e) => e.value == 0).map((e) => e.key),
+    ];
     for (int qi = 0; qi < queue.length; qi++) {
       final id = queue[qi];
       final currentLevel = level[id] ?? 0;
       for (final e in outgoing[id] ?? const <DiagramEdge>[]) {
         final next = e.to;
         if (!incoming.containsKey(next)) continue;
-        final nextLevel = (level[next] ?? 0);
+        final nextLevel = level[next] ?? 0;
         if (currentLevel + 1 > nextLevel) level[next] = currentLevel + 1;
         incoming[next] = (incoming[next] ?? 0) - 1;
         if (incoming[next] == 0) queue.add(next);
       }
     }
+
     // group by level
     final groups = <int, List<DiagramNode>>{};
     for (final n in nodes) {
@@ -49,95 +113,124 @@ class _DiagramPainter extends CustomPainter {
       groups.putIfAbsent(l, () => []).add(n);
     }
 
-    // layout constants
-    const double hGap = 180;
-    const double vGap = 110;
-    const double nodeW = 150;
-    const double nodeH = 56;
-
+    // compute positions (stable for a given model)
     final positions = <String, Offset>{};
     final levels = groups.keys.toList()..sort();
     for (var i = 0; i < levels.length; i++) {
       final l = levels[i];
       final row = groups[l]!;
       for (var j = 0; j < row.length; j++) {
-        final x = 40 + j * (nodeW + hGap);
-        final y = 40 + i * (nodeH + vGap);
+        final x = _DiagramPainter._pad + j * (_DiagramPainter._nodeW + _DiagramPainter._hGap);
+        final y = _DiagramPainter._pad + i * (_DiagramPainter._nodeH + _DiagramPainter._vGap);
         positions[row[j].id] = Offset(x, y);
       }
     }
 
-    final border = Paint()
-      ..color = const Color(0xFFE5E7EB)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-    final fill = Paint()..color = Colors.white;
-    final textPainter = TextPainter(textDirection: TextDirection.ltr, maxLines: 3, ellipsis: '…');
+    // Pre-layout text so paint avoids repeated paragraph work.
+    final nodeDraws = <_NodeDraw>[];
+    for (final n in nodes) {
+      final pos = positions[n.id];
+      if (pos == null) continue;
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(pos.dx, pos.dy, _DiagramPainter._nodeW, _DiagramPainter._nodeH),
+        const Radius.circular(12),
+      );
 
-    // draw edges
-    final edgePaint = Paint()
-      ..color = const Color(0xFF9CA3AF)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-    final arrowPaint = Paint()
-      ..color = const Color(0xFF9CA3AF)
-      ..style = PaintingStyle.fill;
+      final title = n.label.trim().isEmpty ? n.id : n.label.trim();
+      final tp = TextPainter(
+        textDirection: TextDirection.ltr,
+        maxLines: 3,
+        ellipsis: '…',
+        text: TextSpan(
+          text: title,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF111827),
+            fontWeight: FontWeight.w600,
+            height: 1.2,
+          ),
+        ),
+      )..layout(maxWidth: _DiagramPainter._nodeW - 20);
+
+      final textOffset = Offset(
+        pos.dx + 10,
+        pos.dy + (_DiagramPainter._nodeH - tp.height) / 2,
+      );
+      nodeDraws.add(_NodeDraw(rect: rect, text: tp, textOffset: textOffset));
+    }
+
+    final edgeDraws = <_EdgeDraw>[];
     for (final e in edges) {
       final a = positions[e.from];
       final b = positions[e.to];
       if (a == null || b == null) continue;
-      final start = Offset(a.dx + nodeW, a.dy + nodeH / 2);
-      final end = Offset(b.dx, b.dy + nodeH / 2);
+      final start = Offset(a.dx + _DiagramPainter._nodeW, a.dy + _DiagramPainter._nodeH / 2);
+      final end = Offset(b.dx, b.dy + _DiagramPainter._nodeH / 2);
       final midX = (start.dx + end.dx) / 2;
       final path = Path()
         ..moveTo(start.dx, start.dy)
         ..cubicTo(midX, start.dy, midX, end.dy, end.dx, end.dy);
-      canvas.drawPath(path, edgePaint);
 
       // arrow head
       const double arrow = 6;
       final p1 = end.translate(-arrow * 1.4, -arrow / 1.4);
       final p2 = end.translate(-arrow * 1.4, arrow / 1.4);
-      final tri = Path()
+      final arrowHead = Path()
         ..moveTo(end.dx, end.dy)
         ..lineTo(p1.dx, p1.dy)
         ..lineTo(p2.dx, p2.dy)
         ..close();
-      canvas.drawPath(tri, arrowPaint);
 
-      if (e.label.trim().isNotEmpty) {
-        textPainter.text = TextSpan(
-          text: e.label,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), fontWeight: FontWeight.w500),
-        );
-        textPainter.layout(maxWidth: 140);
-        final tx = (start.dx + end.dx) / 2 - textPainter.width / 2;
+      _EdgeLabelDraw? labelDraw;
+      final trimmed = e.label.trim();
+      if (trimmed.isNotEmpty) {
+        final labelTp = TextPainter(
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+          ellipsis: '…',
+          text: TextSpan(
+            text: trimmed,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        )..layout(maxWidth: 140);
+
+        final tx = (start.dx + end.dx) / 2 - labelTp.width / 2;
         final ty = (start.dy + end.dy) / 2 - 10;
-        textPainter.paint(canvas, Offset(tx, ty));
+        labelDraw = _EdgeLabelDraw(text: labelTp, offset: Offset(tx, ty));
       }
+
+      edgeDraws.add(_EdgeDraw(path: path, arrowHead: arrowHead, label: labelDraw));
     }
 
-    // draw nodes
-    for (final n in nodes) {
-      final pos = positions[n.id];
-      if (pos == null) continue;
-      final r = RRect.fromRectAndRadius(Rect.fromLTWH(pos.dx, pos.dy, nodeW, nodeH), const Radius.circular(12));
-      canvas.drawRRect(r, fill);
-      canvas.drawRRect(r, border);
-
-      final title = n.label.trim().isEmpty ? n.id : n.label.trim();
-      textPainter.text = TextSpan(
-        text: title,
-        style: const TextStyle(fontSize: 13, color: Color(0xFF111827), fontWeight: FontWeight.w600, height: 1.2),
-      );
-      textPainter.layout(maxWidth: nodeW - 20);
-      final tp = Offset(pos.dx + 10, pos.dy + (nodeH - textPainter.height) / 2);
-      textPainter.paint(canvas, tp);
-    }
+    return _DiagramLayout(nodes: nodeDraws, edges: edgeDraws);
   }
+}
 
-  @override
-  bool shouldRepaint(covariant _DiagramPainter oldDelegate) => oldDelegate.model != model;
+class _NodeDraw {
+  final RRect rect;
+  final TextPainter text;
+  final Offset textOffset;
+
+  _NodeDraw({required this.rect, required this.text, required this.textOffset});
+}
+
+class _EdgeDraw {
+  final Path path;
+  final Path arrowHead;
+  final _EdgeLabelDraw? label;
+
+  _EdgeDraw({required this.path, required this.arrowHead, required this.label});
+}
+
+class _EdgeLabelDraw {
+  final TextPainter text;
+  final Offset offset;
+
+  _EdgeLabelDraw({required this.text, required this.offset});
 }
 
 class AiDiagramPanel extends StatefulWidget {

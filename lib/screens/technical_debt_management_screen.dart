@@ -261,6 +261,7 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
             // Call AI to seed debt items and persist via ProjectDataHelper
             final ctx = ProjectDataHelper.buildFepContext(ProjectDataHelper.getData(context));
             final text = await _ai.generateFepSectionText(section: 'Technical Debt', context: ctx, maxTokens: 600);
+            if (!mounted) return;
             // naive parse: split lines and create DebtItem titles
             final lines = text.split('\n').map((s) => s.replaceAll('*', '').trim()).where((s) => s.isNotEmpty).toList();
             final newItems = lines.map((l) => DebtItem(id: DateTime.now().microsecondsSinceEpoch.toString(), title: l)).toList();

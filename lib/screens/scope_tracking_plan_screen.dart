@@ -594,7 +594,8 @@ class _ChangeRegisterCardState extends State<_ChangeRegisterCard> {
       context: context,
       builder: (_) => NewChangeRequestDialog(changeRequest: request),
     );
-    if (result == true && mounted) {
+    if (!mounted) return;
+    if (result == true) {
       final message = request == null ? 'Change request created' : 'Change request updated';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
@@ -615,16 +616,19 @@ class _ChangeRegisterCardState extends State<_ChangeRegisterCard> {
         ],
       ),
     );
+    if (!mounted) return;
     if (confirmed != true) return;
     try {
       await ChangeRequestService.deleteChangeRequest(request.id);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Change request deleted')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Change request deleted')),
+      );
     } catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $error')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete failed: $error')),
+      );
     }
   }
 
@@ -715,16 +719,18 @@ class _ChangeRegisterCardState extends State<_ChangeRegisterCard> {
                 builder: (context, constraints) {
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                      child: DataTable(
-                        headingRowHeight: 44,
-                        dataRowHeight: 52,
-                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                        columnSpacing: 24,
-                        columns: const [
-                          DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
-                          DataColumn(label: Text('Request', style: TextStyle(fontWeight: FontWeight.w600))),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                        child: DataTable(
+                          headingRowHeight: 44,
+                          // dataRowHeight is deprecated; use min/max.
+                          dataRowMinHeight: 52,
+                          dataRowMaxHeight: 52,
+                          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                          columnSpacing: 24,
+                          columns: const [
+                            DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Request', style: TextStyle(fontWeight: FontWeight.w600))),
                           DataColumn(label: Text('Impact', style: TextStyle(fontWeight: FontWeight.w600))),
                           DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
                           DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),

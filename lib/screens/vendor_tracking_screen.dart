@@ -653,6 +653,9 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
     // Vendor Notes - regular TextEditingController (prose)
     final notesController = TextEditingController(text: vendor?.notes ?? '');
 
+    // Grab provider early so we don't cross async gaps with BuildContext.
+    final provider = ProjectDataInherited.maybeOf(context);
+
     // Load contracts for linking
     List<ContractModel> contracts = [];
     try {
@@ -663,9 +666,9 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
     } catch (e) {
       debugPrint('Error loading contracts: $e');
     }
+    if (!context.mounted) return;
 
     // Load infrastructure data for vendor suggestions
-    final provider = ProjectDataInherited.maybeOf(context);
     List<String> infrastructureSuggestions = [];
     if (provider != null) {
       final infraData = provider.projectData.infrastructureConsiderationsData;

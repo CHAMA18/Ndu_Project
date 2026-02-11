@@ -250,6 +250,7 @@ class _ProjectFrameworkNextScreenState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'project_goals_milestones',
+      saveInBackground: true,
       nextScreenBuilder: () {
         final nextIdx =
             PlanningPhaseNavigation.getPageIndex('project_goals_milestones') +

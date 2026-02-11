@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
+import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 
 /// Splash screen shown only on native mobile apps (iOS/Android)
@@ -15,6 +16,9 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
+  static const Duration _minimumSplashDuration = Duration(milliseconds: 900);
+  static const Duration _maxPrewarmWait = Duration(milliseconds: 250);
+
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
@@ -45,28 +49,70 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateAfterSplash() async {
-    // Wait for minimum splash duration (1.5 seconds)
-    await Future.delayed(const Duration(milliseconds: 1500));
+    final minimumDelay = Future<void>.delayed(_minimumSplashDuration);
+    final decisionFuture = _prepareStartupDecision();
+    final prewarmFuture = _prewarmCriticalResources();
+
+    await minimumDelay;
+    await prewarmFuture.timeout(_maxPrewarmWait, onTimeout: () {});
 
     if (!mounted) return;
 
-    // Check if first-time user
-    final isFirstTime = await UserPreferencesService.isFirstTimeUser();
+    final decision = await decisionFuture;
+    if (!mounted) return;
 
-    if (isFirstTime) {
+    if (decision.isFirstTime) {
       // First time user → Onboarding
       context.go('/onboarding');
     } else {
       // Returning user → Check auth status
-      final user = FirebaseAuth.instance.currentUser;
-
-      if (user != null) {
+      if (decision.user != null) {
         // Authenticated → Dashboard
         context.go('/${AppRoutes.dashboard}');
       } else {
         // Not authenticated → Login
         context.go('/${AppRoutes.signIn}');
       }
+    }
+  }
+
+  Future<_SplashDecision> _prepareStartupDecision() async {
+    final isFirstTimeFuture = UserPreferencesService.isFirstTimeUser();
+    final user = FirebaseAuth.instance.currentUser;
+    final isFirstTime = await isFirstTimeFuture;
+    return _SplashDecision(isFirstTime: isFirstTime, user: user);
+  }
+
+  Future<void> _prewarmCriticalResources() async {
+    // Fire-and-forget warmups while splash is visible.
+    final futures = <Future<void>>[
+      UserPreferencesService.warmUp(),
+      ProjectNavigationService.instance.warmUp(),
+      _prewarmRouteLocations(),
+      // Pre-cache common assets used immediately after splash.
+      _safePrecacheAsset('assets/images/Logo.png'),
+      _safePrecacheAsset('assets/images/search.png'),
+    ];
+    await Future.wait(futures);
+  }
+
+  Future<void> _prewarmRouteLocations() {
+    try {
+      final router = GoRouter.of(context);
+      router.namedLocation(AppRoutes.onboarding);
+      router.namedLocation(AppRoutes.signIn);
+      router.namedLocation(AppRoutes.dashboard);
+    } catch (_) {
+      // Router prewarm is best-effort.
+    }
+    return Future.value();
+  }
+
+  Future<void> _safePrecacheAsset(String assetPath) async {
+    try {
+      await precacheImage(AssetImage(assetPath), context);
+    } catch (_) {
+      // Prewarming is best-effort; never block startup on missing assets.
     }
   }
 
@@ -126,4 +172,11 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
+}
+
+class _SplashDecision {
+  const _SplashDecision({required this.isFirstTime, required this.user});
+
+  final bool isFirstTime;
+  final User? user;
 }

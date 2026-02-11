@@ -128,7 +128,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   void _loadExistingData() {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       final itData = provider.projectData.itConsiderationsData;
 
       if (itData == null) return;
@@ -761,7 +761,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     if (!mounted) return;
 
     // 2. Validate data completeness
-    final provider = ProjectDataInherited.of(context);
+    final provider = ProjectDataInherited.read(context);
     final projectData = provider.projectData;
     final hasITData = projectData.itConsiderationsData != null &&
         projectData.itConsiderationsData!.solutionITData.isNotEmpty &&
@@ -830,7 +830,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Future<void> _saveITConsiderationsData() async {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
 
       // Collect all IT data from all solutions (including manually added items)
       final solutionITData = <SolutionITData>[];

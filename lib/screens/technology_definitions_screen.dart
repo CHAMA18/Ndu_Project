@@ -103,8 +103,8 @@ class _TechnologyDefinitionsScreenState extends State<TechnologyDefinitionsScree
           ElevatedButton(
             onPressed: () async {
               setState(() => _items.add({'term': t.text.trim(), 'definition': d.text.trim()}));
-              await _save();
               Navigator.of(c).pop();
+              await _save();
             },
             child: const Text('Add'),
           ),

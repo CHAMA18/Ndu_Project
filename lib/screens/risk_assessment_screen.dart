@@ -292,7 +292,10 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
                 RadioListTile<String?>(
                   title: Text(option),
                   value: option == 'All' ? null : option,
+                  // TODO: Migrate to RadioGroup when this screen is revisited.
+                  // ignore: deprecated_member_use
                   groupValue: current,
+                  // ignore: deprecated_member_use
                   onChanged: (value) => Navigator.of(context).pop(value),
                 ),
             ],
@@ -686,12 +689,12 @@ class _MetricsWrap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Derive metrics dynamically from project data; no hardcoded defaults.
-    final project = context.watch<ProjectDataProvider>().projectData;
-    final allRisks = project.solutionRisks
-        .expand((sr) => sr.risks)
-        .where((r) => r.trim().isNotEmpty)
-        .toList();
-    final int totalRisks = allRisks.length;
+    final totalRisks = context.select<ProjectDataProvider, int>(
+      (provider) => provider.projectData.solutionRisks
+          .expand((sr) => sr.risks)
+          .where((r) => r.trim().isNotEmpty)
+          .length,
+    );
 
     // Placeholder logic for areas/status until richer data exists.
     // Keep UI consistent without implying default data.

@@ -837,6 +837,7 @@ class _FrontEndPlanningRisksScreenState
                       await ProjectDataHelper.saveAndNavigate(
                         context: context,
                         checkpoint: 'fep_risks',
+                        saveInBackground: true,
                         nextScreenBuilder: () =>
                             const FrontEndPlanningOpportunitiesScreen(),
                         dataUpdater: (data) => data.copyWith(
