@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/models/project_data_model.dart'; // Import for DesignDeliverablesData
+import 'package:ndu_project/services/architecture_service.dart';
 
 class DesignPhaseService {
   // Singleton instance
@@ -247,38 +248,60 @@ class DesignPhaseService {
 
   // --- Progress Calculation ---
 
-  Future<DesignPhaseProgress> getDesignProgress(String projectId) async {
+  // --- Readiness Engine (Progress Calculation) ---
+
+  Future<DesignReadinessModel> getDesignProgress(String projectId) async {
     try {
+      // 1. Fetch all component data
       final reqDoc =
           await _sectionDoc(projectId, 'requirements_implementation').get();
       final alignDoc =
           await _sectionDoc(projectId, 'technical_alignment').get();
+      // Architecture check (check if nodes exist)
+      final archData = await ArchitectureService.load(projectId);
 
-      final double reqProgress = _calculateRequirementsProgress(reqDoc.data());
-      final double alignProgress = _calculateAlignmentProgress(alignDoc.data());
+      // 2. Calculate Component Scores
+      final double reqScore = _calculateRequirementsProgress(reqDoc.data());
+      final double alignScore = _calculateAlignmentProgress(alignDoc.data());
+      final double archScore = _calculateArchitectureProgress(archData);
 
-      // Simple average for now, can be weighted later
-      final double overall = (reqProgress + alignProgress) / 2.0;
+      // Risk Score - Placeholder for now (would check if risks are mitigated)
+      // For now, assume if Alignment is done, Risks are partially addressed
+      double riskScore = alignScore * 0.8;
+      if (reqScore > 0.8) riskScore += 0.2;
 
-      return DesignPhaseProgress(
-        specificationsProgress: reqProgress,
-        alignmentProgress: alignProgress,
-        overallProgress: overall,
+      // 3. Identify Missing Items
+      final missingItems = <String>[];
+      if (reqScore < 1.0) missingItems.add('Req. Checklist incomplete');
+      if (alignScore < 0.5) missingItems.add('Tech Alignment pending');
+      if (archScore < 0.1) missingItems.add('Architecture Diagram missing');
+      // Add more specific checks...
+
+      // 4. Calculate Overall Weighted Score
+      // Specs: 30%, Alignment: 30%, Arch: 20%, Risk: 20%
+      final double overall = (reqScore * 0.3) +
+          (alignScore * 0.3) +
+          (archScore * 0.2) +
+          (riskScore * 0.2);
+
+      return DesignReadinessModel(
+        specificationsScore: reqScore,
+        alignmentScore: alignScore,
+        architectureScore: archScore,
+        riskScore: riskScore,
+        overallScore: overall,
+        missingItems: missingItems,
       );
     } catch (e) {
-      debugPrint('Error calculating design progress: $e');
-      return DesignPhaseProgress(
-          specificationsProgress: 0, alignmentProgress: 0, overallProgress: 0);
+      debugPrint('Error calculating design readiness: $e');
+      return DesignReadinessModel();
     }
   }
 
   double _calculateRequirementsProgress(Map<String, dynamic>? data) {
     if (data == null) return 0.0;
-
     final checklist = (data['checklist'] as List?) ?? [];
-    if (checklist.isEmpty) {
-      return 0.0;
-    }
+    if (checklist.isEmpty) return 0.0;
 
     int completed = 0;
     for (var item in checklist) {
@@ -289,15 +312,11 @@ class DesignPhaseService {
         completed++;
       }
     }
-
-    // Requirements definition count could also play a part
-    // For now, base purely on checklist items if they exist
     return completed / checklist.length;
   }
 
   double _calculateAlignmentProgress(Map<String, dynamic>? data) {
     if (data == null) return 0.0;
-
     final constraints = (data['constraints'] as List?) ?? [];
     final mappings = (data['mappings'] as List?) ?? [];
     final dependencies = (data['dependencies'] as List?) ?? [];
@@ -307,62 +326,51 @@ class DesignPhaseService {
     if (totalItems == 0) return 0.0;
 
     int completed = 0;
-
     for (var item in constraints) {
-      if (item['status'] == 'Aligned' || item['status'] == 'Validated') {
+      if (item['status'] == 'Aligned' || item['status'] == 'Validated')
         completed++;
-      }
     }
     for (var item in mappings) {
-      if (item['status'] == 'Aligned') {
-        completed++;
-      }
+      if (item['status'] == 'Aligned') completed++;
     }
     for (var item in dependencies) {
-      if (item['status'] == 'Resolved' || item['status'] == 'Aligned') {
+      if (item['status'] == 'Resolved' || item['status'] == 'Aligned')
         completed++;
-      }
     }
-
     return completed / totalItems;
   }
 
+  double _calculateArchitectureProgress(Map<String, dynamic>? data) {
+    if (data == null) return 0.0;
+    final nodes = (data['nodes'] as List?) ?? [];
+    // Basic heuristic: If > 5 nodes, assume some meaningful architecture exists
+    if (nodes.isEmpty) return 0.0;
+    return (nodes.length / 10).clamp(0.0, 1.0);
+  }
+
   Stream<Map<String, dynamic>> calculateOverallProgress(String projectId) {
-    // Wrap in error handling to gracefully handle permission errors
     return Stream.fromFuture(_getOverallProgressMap(projectId))
         .handleError((error) {
       debugPrint('Error in calculateOverallProgress stream: $error');
-      // Return fallback data on error
-      return {
-        'progress': 0.0,
-        'completed': 0,
-        'total': 14,
-      };
+      return {'progress': 0.0, 'completed': 0, 'total': 14};
     });
   }
 
   Future<Map<String, dynamic>> _getOverallProgressMap(String projectId) async {
     try {
-      final progress = await getDesignProgress(projectId);
-      // Mocking 'approved sections' based on progress * total sections (14)
-      // In a real scenario, this would count actual approved section documents.
+      final readiness = await getDesignProgress(projectId);
       final totalSections = 14;
       final completedSections =
-          (progress.overallProgress * totalSections).round();
+          (readiness.overallScore * totalSections).round();
 
       return {
-        'progress': progress.overallProgress,
+        'progress': readiness.overallScore,
         'completed': completedSections,
         'total': totalSections,
       };
     } catch (e) {
       debugPrint('Error getting overall progress map: $e');
-      // Return fallback data on error (e.g., permission denied)
-      return {
-        'progress': 0.0,
-        'completed': 0,
-        'total': 14,
-      };
+      return {'progress': 0.0, 'completed': 0, 'total': 14};
     }
   }
 }

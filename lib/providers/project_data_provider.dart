@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/services/project_intelligence_service.dart';
 
 /// Provider that manages project data state across the entire application
 class ProjectDataProvider extends ChangeNotifier {
@@ -19,14 +20,14 @@ class ProjectDataProvider extends ChangeNotifier {
 
   /// Update project data and notify listeners
   void updateProjectData(ProjectDataModel data) {
-    if (_projectData == data) return; // Skip if no change
-    _projectData = data;
+    _projectData = ProjectIntelligenceService.rebuildActivityLog(data);
     notifyListeners();
   }
 
   /// Update specific fields in project data
   void updateField(ProjectDataModel Function(ProjectDataModel) updater) {
-    _projectData = updater(_projectData);
+    final updated = updater(_projectData);
+    _projectData = ProjectIntelligenceService.rebuildActivityLog(updated);
     notifyListeners();
   }
 
@@ -77,6 +78,8 @@ class ProjectDataProvider extends ChangeNotifier {
     _lastError = null;
 
     try {
+      _projectData =
+          ProjectIntelligenceService.rebuildActivityLog(_projectData);
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         _lastError = 'User not authenticated';
@@ -88,7 +91,7 @@ class ProjectDataProvider extends ChangeNotifier {
 
       final projectsCol = FirebaseFirestore.instance.collection('projects');
       final now = FieldValue.serverTimestamp();
-      
+
       // Prepare data payload
       final dataPayload = {
         ..._projectData.toJson(),
@@ -106,28 +109,33 @@ class ProjectDataProvider extends ChangeNotifier {
       } else {
         // Create new project
         dataPayload['createdAt'] = now;
-        dataPayload['status'] = dataPayload['status'] ?? 'Initiation'; // Use Initiation instead of 'In Progress' to match query expectations
+        dataPayload['status'] = dataPayload['status'] ??
+            'Initiation'; // Use Initiation instead of 'In Progress' to match query expectations
         dataPayload['progress'] = dataPayload['progress'] ?? 0.1;
-        dataPayload['investmentMillions'] = dataPayload['investmentMillions'] ?? 0.0;
+        dataPayload['investmentMillions'] =
+            dataPayload['investmentMillions'] ?? 0.0;
         dataPayload['milestone'] = checkpoint ?? 'initiation';
-        
+
         // Ensure both 'name' and 'projectName' are set for query compatibility
-        final projectName = dataPayload['projectName'] ?? dataPayload['name'] ?? '';
+        final projectName =
+            dataPayload['projectName'] ?? dataPayload['name'] ?? '';
         if (projectName.isNotEmpty) {
           dataPayload['name'] = projectName;
           dataPayload['projectName'] = projectName;
         }
-        
+
         // Ensure isBasicPlanProject is set
-        dataPayload['isBasicPlanProject'] = dataPayload['isBasicPlanProject'] ?? false;
-        
+        dataPayload['isBasicPlanProject'] =
+            dataPayload['isBasicPlanProject'] ?? false;
+
         final ref = await projectsCol.add(dataPayload);
         _projectData = _projectData.copyWith(
           projectId: ref.id,
           createdAt: DateTime.now(),
         );
-        
-        debugPrint('✅ Project created with ID: ${ref.id}, name: $projectName, ownerId: ${user.uid}');
+
+        debugPrint(
+            '✅ Project created with ID: ${ref.id}, name: $projectName, ownerId: ${user.uid}');
       }
 
       _projectData = _projectData.copyWith(
@@ -157,13 +165,16 @@ class ProjectDataProvider extends ChangeNotifier {
   /// Load project data from Firebase by ID
   Future<bool> loadFromFirebase(String projectId) async {
     // Skip if already loaded and cached, but only if data is valid
-    if (_cachedProjectId == projectId && 
-        _projectData.projectId == projectId && 
+    if (_cachedProjectId == projectId &&
+        _projectData.projectId == projectId &&
         _projectData.projectId != null &&
         _projectData.projectId!.isNotEmpty) {
       // Verify the cached data is still valid by checking if project exists
       try {
-        final doc = await FirebaseFirestore.instance.collection('projects').doc(projectId).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('projects')
+            .doc(projectId)
+            .get();
         if (doc.exists) {
           return true; // Cached data is valid
         }
@@ -174,8 +185,11 @@ class ProjectDataProvider extends ChangeNotifier {
     }
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('projects').doc(projectId).get();
-      
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .get();
+
       if (!doc.exists) {
         _lastError = 'Project not found';
         debugPrint('❌ Project not found: $projectId');
@@ -195,13 +209,17 @@ class ProjectDataProvider extends ChangeNotifier {
       debugPrint('Raw data keys: ${data.keys.toList()}');
 
       // Convert Firestore Timestamps to ISO8601 strings for compatibility (recursive)
-      final sanitizedData = _sanitizeTimestampsRecursive(data) as Map<String, dynamic>;
+      final sanitizedData =
+          _sanitizeTimestampsRecursive(data) as Map<String, dynamic>;
 
       try {
         _projectData = ProjectDataModel.fromJson(sanitizedData);
-        _projectData = _projectData.copyWith(projectId: projectId);
+        _projectData = ProjectIntelligenceService.rebuildActivityLog(
+          _projectData.copyWith(projectId: projectId),
+        );
         _cachedProjectId = projectId;
-        debugPrint('✅ Project loaded successfully: ${_projectData.projectName}');
+        debugPrint(
+            '✅ Project loaded successfully: ${_projectData.projectName}');
         notifyListeners();
         return true;
       } catch (parseError) {
@@ -259,7 +277,8 @@ class ProjectDataProvider extends ChangeNotifier {
     _projectData = _projectData.copyWith(
       projectName: projectName ?? _projectData.projectName,
       solutionTitle: solutionTitle ?? _projectData.solutionTitle,
-      solutionDescription: solutionDescription ?? _projectData.solutionDescription,
+      solutionDescription:
+          solutionDescription ?? _projectData.solutionDescription,
       businessCase: businessCase ?? _projectData.businessCase,
       notes: notes ?? _projectData.notes,
       tags: tags ?? _projectData.tags,
@@ -334,8 +353,10 @@ class ProjectDataProvider extends ChangeNotifier {
   }
 
   /// Add a field value to history for undo functionality
-  void addFieldToHistory(String fieldName, String value, {bool isAiGenerated = false}) {
-    _projectData.addFieldToHistory(fieldName, value, isAiGenerated: isAiGenerated);
+  void addFieldToHistory(String fieldName, String value,
+      {bool isAiGenerated = false}) {
+    _projectData.addFieldToHistory(fieldName, value,
+        isAiGenerated: isAiGenerated);
     notifyListeners();
   }
 
@@ -376,7 +397,7 @@ class ProjectDataProvider extends ChangeNotifier {
   Future<bool> deletePotentialSolution(String id, {String? checkpoint}) async {
     final hadSolution = _projectData.potentialSolutions.any((s) => s.id == id);
     if (!hadSolution) return false;
-    
+
     _projectData.deletePotentialSolution(id);
     notifyListeners();
     if (checkpoint != null) {
@@ -386,10 +407,12 @@ class ProjectDataProvider extends ChangeNotifier {
   }
 
   /// Set the preferred solution
-  Future<bool> setPreferredSolution(String solutionId, {String? checkpoint}) async {
-    final solutionExists = _projectData.potentialSolutions.any((s) => s.id == solutionId);
+  Future<bool> setPreferredSolution(String solutionId,
+      {String? checkpoint}) async {
+    final solutionExists =
+        _projectData.potentialSolutions.any((s) => s.id == solutionId);
     if (!solutionExists) return false;
-    
+
     _projectData.setPreferredSolution(solutionId);
     notifyListeners();
     if (checkpoint != null) {
@@ -417,7 +440,9 @@ class ProjectDataInherited extends InheritedNotifier<ProjectDataProvider> {
   }) : super(notifier: provider);
 
   static ProjectDataProvider? maybeOf(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<ProjectDataInherited>()?.notifier;
+    return context
+        .dependOnInheritedWidgetOfExactType<ProjectDataInherited>()
+        ?.notifier;
   }
 
   static ProjectDataProvider? maybeRead(BuildContext context) {

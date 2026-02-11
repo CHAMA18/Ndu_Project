@@ -134,7 +134,6 @@ class SidebarNavigationService {
     SidebarItem(
         checkpoint: 'scope_tracking_plan', label: 'Scope Tracking Plan'),
     SidebarItem(checkpoint: 'contracts', label: 'Contract'),
-    SidebarItem(checkpoint: 'fep_procurement', label: 'Procurement'),
     // Project Plan sub-items
     SidebarItem(checkpoint: 'project_plan', label: 'Project Plan Overview'),
     // Execution Plan sub-items
