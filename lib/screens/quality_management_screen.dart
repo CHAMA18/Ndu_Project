@@ -15,7 +15,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 
 enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics }
 
-const _dateHint = 'YYYY-MM-DD or MM/DD';
+const _dateHint = 'Select date';
 
 String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
@@ -100,6 +100,47 @@ DateTime? _parseFlexibleDate(String raw) {
 String _formatDate(DateTime? value) {
   if (value == null) return '';
   return DateFormat('yyyy-MM-dd').format(value);
+}
+
+String _normalizedDateText(String raw, {bool fallbackToToday = false}) {
+  final parsed = _parseFlexibleDate(raw);
+  if (parsed != null) return _formatDate(parsed);
+  return fallbackToToday ? _formatDate(DateTime.now()) : '';
+}
+
+Future<DateTime?> _showQualityDatePicker(
+  BuildContext context, {
+  required String currentValue,
+}) async {
+  final now = DateTime.now();
+  final firstDate = DateTime(now.year - 20);
+  final lastDate = DateTime(now.year + 20);
+  final parsed = _parseFlexibleDate(currentValue);
+  var initialDate = parsed ?? now;
+  if (initialDate.isBefore(firstDate)) initialDate = firstDate;
+  if (initialDate.isAfter(lastDate)) initialDate = lastDate;
+
+  return showDatePicker(
+    context: context,
+    initialDate: initialDate,
+    firstDate: firstDate,
+    lastDate: lastDate,
+  );
+}
+
+Widget _datePickerField(
+  BuildContext context, {
+  required TextEditingController controller,
+  required Future<void> Function() onTap,
+}) {
+  return TextField(
+    controller: controller,
+    readOnly: true,
+    onTap: () => onTap(),
+    decoration: _inputDecoration(context, _dateHint).copyWith(
+      suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+    ),
+  );
 }
 
 int? _durationDays(String start, String end) {
@@ -3514,14 +3555,36 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
     _task = TextEditingController(text: initial?.task ?? '');
     _percent = TextEditingController(
         text: (initial?.percentComplete ?? 0).toStringAsFixed(0));
-    _start = TextEditingController(text: initial?.startDate ?? '');
-    _end = TextEditingController(text: initial?.endDate ?? '');
+    _start = TextEditingController(
+      text: _normalizedDateText(initial?.startDate ?? ''),
+    );
+    _end = TextEditingController(
+      text: _normalizedDateText(initial?.endDate ?? ''),
+    );
     _comments = TextEditingController(text: initial?.comments ?? '');
     _responsible = initial?.responsible.isNotEmpty == true
         ? initial!.responsible
         : widget.ownerOptions.first;
     _status = initial?.status ?? QualityTaskStatus.notStarted;
     _priority = initial?.priority ?? QualityTaskPriority.minimal;
+  }
+
+  Future<void> _pickStartDate() async {
+    final picked = await _showQualityDatePicker(
+      context,
+      currentValue: _start.text.trim(),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _start.text = _formatDate(picked));
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await _showQualityDatePicker(
+      context,
+      currentValue: _end.text.trim(),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _end.text = _formatDate(picked));
   }
 
   @override
@@ -3642,9 +3705,10 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Start Date'),
-                      TextField(
+                      _datePickerField(
+                        context,
                         controller: _start,
-                        decoration: _inputDecoration(context, _dateHint),
+                        onTap: _pickStartDate,
                       ),
                     ],
                   ),
@@ -3655,9 +3719,10 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('End Date'),
-                      TextField(
+                      _datePickerField(
+                        context,
                         controller: _end,
-                        decoration: _inputDecoration(context, _dateHint),
+                        onTap: _pickEndDate,
                       ),
                     ],
                   ),
@@ -3775,14 +3840,36 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
     final initial = widget.initialValue;
     _title = TextEditingController(text: initial?.title ?? '');
     _scope = TextEditingController(text: initial?.scope ?? '');
-    _planned = TextEditingController(text: initial?.plannedDate ?? '');
-    _completed = TextEditingController(text: initial?.completedDate ?? '');
+    _planned = TextEditingController(
+      text: _normalizedDateText(initial?.plannedDate ?? ''),
+    );
+    _completed = TextEditingController(
+      text: _normalizedDateText(initial?.completedDate ?? ''),
+    );
     _findings = TextEditingController(text: initial?.findings ?? '');
     _notes = TextEditingController(text: initial?.notes ?? '');
     _owner = initial?.owner.isNotEmpty == true
         ? initial!.owner
         : widget.ownerOptions.first;
     _result = initial?.result ?? AuditResultStatus.pending;
+  }
+
+  Future<void> _pickPlannedDate() async {
+    final picked = await _showQualityDatePicker(
+      context,
+      currentValue: _planned.text.trim(),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _planned.text = _formatDate(picked));
+  }
+
+  Future<void> _pickCompletedDate() async {
+    final picked = await _showQualityDatePicker(
+      context,
+      currentValue: _completed.text.trim(),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _completed.text = _formatDate(picked));
   }
 
   @override
@@ -3868,9 +3955,10 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Planned Date'),
-                      TextField(
+                      _datePickerField(
+                        context,
                         controller: _planned,
-                        decoration: _inputDecoration(context, _dateHint),
+                        onTap: _pickPlannedDate,
                       ),
                     ],
                   ),
@@ -3881,9 +3969,10 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Completed Date'),
-                      TextField(
+                      _datePickerField(
+                        context,
                         controller: _completed,
-                        decoration: _inputDecoration(context, _dateHint),
+                        onTap: _pickCompletedDate,
                       ),
                     ],
                   ),
@@ -3999,6 +4088,7 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
   late final TextEditingController _verification;
   late String _owner;
   late CorrectiveActionStatus _status;
+  String? _validationMessage;
 
   @override
   void initState() {
@@ -4007,13 +4097,27 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
     _title = TextEditingController(text: initial?.title ?? '');
     _rootCause = TextEditingController(text: initial?.rootCause ?? '');
     _action = TextEditingController(text: initial?.action ?? '');
-    _dueDate = TextEditingController(text: initial?.dueDate ?? '');
+    _dueDate = TextEditingController(
+      text: _normalizedDateText(initial?.dueDate ?? ''),
+    );
     _verification =
         TextEditingController(text: initial?.verificationNotes ?? '');
     _owner = initial?.owner.isNotEmpty == true
         ? initial!.owner
         : widget.ownerOptions.first;
     _status = initial?.status ?? CorrectiveActionStatus.open;
+  }
+
+  Future<void> _pickDueDate() async {
+    final picked = await _showQualityDatePicker(
+      context,
+      currentValue: _dueDate.text.trim(),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _dueDate.text = _formatDate(picked);
+      _validationMessage = null;
+    });
   }
 
   @override
@@ -4031,23 +4135,24 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
         _action.text.trim().isEmpty ||
         _owner.trim().isEmpty ||
         _dueDate.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Root cause, action, owner, and due date are required')),
-      );
+      setState(() {
+        _validationMessage =
+            'Root cause, action, owner, and due date are required';
+      });
       return;
     }
 
     final due = _parseFlexibleDate(_dueDate.text.trim());
     if (due == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Due date must be a valid date')),
-      );
+      setState(() {
+        _validationMessage = 'Due date must be selected from the date picker';
+      });
       return;
     }
 
     final now = DateTime.now();
+    _validationMessage = null;
+    if (!mounted) return;
 
     Navigator.of(context).pop(
       CorrectiveActionEntry(
@@ -4128,9 +4233,10 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Due Date'),
-                      TextField(
+                      _datePickerField(
+                        context,
                         controller: _dueDate,
-                        decoration: _inputDecoration(context, _dateHint),
+                        onTap: _pickDueDate,
                       ),
                     ],
                   ),
@@ -4170,6 +4276,17 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
               maxLines: 4,
               decoration: _inputDecoration(context, ''),
             ),
+            if (_validationMessage != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _validationMessage!,
+                style: const TextStyle(
+                  color: Color(0xFFDC2626),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -4209,9 +4326,21 @@ class _QualityChangeDialogState extends State<_QualityChangeDialog> {
     _requestedBy = TextEditingController(text: initial?.requestedBy ?? '');
     _approvedBy = TextEditingController(text: initial?.approvedBy ?? '');
     _date = TextEditingController(
-      text: initial?.date ?? _formatDate(DateTime.now()),
+      text: _normalizedDateText(
+        initial?.date ?? '',
+        fallbackToToday: true,
+      ),
     );
     _status = TextEditingController(text: initial?.status ?? 'Draft');
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await _showQualityDatePicker(
+      context,
+      currentValue: _date.text.trim(),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _date.text = _formatDate(picked));
   }
 
   @override
@@ -4302,9 +4431,11 @@ class _QualityChangeDialogState extends State<_QualityChangeDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Date'),
-                      TextField(
-                          controller: _date,
-                          decoration: _inputDecoration(context, _dateHint)),
+                      _datePickerField(
+                        context,
+                        controller: _date,
+                        onTap: _pickDate,
+                      ),
                     ],
                   ),
                 ),
@@ -4393,6 +4524,15 @@ class _TrainingShortcutDialogState extends State<_TrainingShortcutDialog> {
     );
   }
 
+  Future<void> _pickDate() async {
+    final picked = await _showQualityDatePicker(
+      context,
+      currentValue: _date.text.trim(),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _date.text = _formatDate(picked));
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -4421,9 +4561,11 @@ class _TrainingShortcutDialogState extends State<_TrainingShortcutDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Date'),
-                      TextField(
-                          controller: _date,
-                          decoration: _inputDecoration(context, _dateHint)),
+                      _datePickerField(
+                        context,
+                        controller: _date,
+                        onTap: _pickDate,
+                      ),
                     ],
                   ),
                 ),
