@@ -513,6 +513,47 @@ class _TeamTrainingAndBuildingScreenState
     await _saveActivitiesSilently(context, updated);
   }
 
+  String _templateDraftNoteKey(String templateId) =>
+      'team_training_template_$templateId';
+
+  String _templateTextForButton(
+      _ResourceButtonSpec spec, ProjectDataModel data) {
+    final saved = data.planningNotes[_templateDraftNoteKey(spec.id)]?.trim();
+    if (saved != null && saved.isNotEmpty) {
+      return saved;
+    }
+    return _buildTemplateForButton(spec, data);
+  }
+
+  Future<void> _persistTemplateDraft(
+    BuildContext context, {
+    required _ResourceButtonSpec spec,
+    required String templateText,
+  }) async {
+    final nextValue = templateText.trim();
+    final noteKey = _templateDraftNoteKey(spec.id);
+    final currentValue =
+        (ProjectDataHelper.getData(context).planningNotes[noteKey] ?? '')
+            .trim();
+    if (currentValue == nextValue) return;
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'team_training',
+      showSnackbar: false,
+      dataUpdater: (data) {
+        final notes = Map<String, String>.from(data.planningNotes);
+        final generatedDefault = _buildTemplateForButton(spec, data).trim();
+        if (nextValue.isEmpty || nextValue == generatedDefault) {
+          notes.remove(noteKey);
+        } else {
+          notes[noteKey] = nextValue;
+        }
+        return data.copyWith(planningNotes: notes);
+      },
+    );
+  }
+
   Future<void> _editActivity(
       BuildContext context, TrainingActivity activity) async {
     final rootContext = context;
@@ -911,8 +952,8 @@ class _TeamTrainingAndBuildingScreenState
       BuildContext context, _ResourceButtonSpec spec) async {
     final rootContext = context;
     final data = ProjectDataHelper.getData(rootContext);
-    final templateController =
-        TextEditingController(text: _buildTemplateForButton(spec, data));
+    final initialTemplateText = _templateTextForButton(spec, data).trim();
+    final templateController = TextEditingController(text: initialTemplateText);
     final titleController = TextEditingController(text: '${spec.label} Plan');
     final dateController = TextEditingController();
     final durationController =
@@ -928,7 +969,7 @@ class _TeamTrainingAndBuildingScreenState
     final manualUrlController = TextEditingController();
     bool uploading = false;
 
-    showDialog(
+    await showDialog(
       context: rootContext,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -1310,6 +1351,21 @@ class _TeamTrainingAndBuildingScreenState
         },
       ),
     );
+
+    if (rootContext.mounted &&
+        templateController.text.trim() != initialTemplateText) {
+      await _persistTemplateDraft(
+        rootContext,
+        spec: spec,
+        templateText: templateController.text,
+      );
+    }
+
+    templateController.dispose();
+    titleController.dispose();
+    dateController.dispose();
+    durationController.dispose();
+    manualUrlController.dispose();
   }
 
   Future<_UploadedDoc?> _pickAndUploadAttachment(
@@ -1951,28 +2007,28 @@ $notesText
     final template = [
       TrainingActivity(
         title: 'Welcome Orientation',
-        description: _buildTemplateForButton(welcomeSpec, data),
+        description: _templateTextForButton(welcomeSpec, data),
         category: 'Onboarding',
         isMandatory: true,
         duration: '30 mins',
       ),
       TrainingActivity(
         title: 'Project Overview & Objectives',
-        description: _buildTemplateForButton(projectSpec, data),
+        description: _templateTextForButton(projectSpec, data),
         category: 'Onboarding',
         isMandatory: true,
         duration: '60 mins',
       ),
       TrainingActivity(
         title: 'Roles, Responsibilities, and Vacation Coverage',
-        description: _buildTemplateForButton(teamSpec, data),
+        description: _templateTextForButton(teamSpec, data),
         category: 'Onboarding',
         isMandatory: true,
         duration: '45 mins',
       ),
       TrainingActivity(
         title: 'Meeting Cadence and Communication Channels',
-        description: _buildTemplateForButton(meetingsSpec, data),
+        description: _templateTextForButton(meetingsSpec, data),
         category: 'Onboarding',
         isMandatory: true,
         duration: '30 mins',
