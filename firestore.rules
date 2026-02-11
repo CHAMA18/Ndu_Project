@@ -208,8 +208,13 @@ service cloud.firestore {
       // Allow users to create trial subscriptions for themselves
       allow create: if isAuthenticated() && (
         (request.resource.data.userId == request.auth.uid
-          && request.resource.data.isTrial == true
-          && request.resource.data.status == 'trial')
+          && (
+            // Trial subscriptions
+            (request.resource.data.isTrial == true && request.resource.data.status == 'trial')
+            // OR Coupon subscriptions (bypass for SAVE200)
+            || (request.resource.data.externalSubscriptionId == 'coupon_SAVE200' && request.resource.data.status == 'active')
+          )
+        )
         || isAdmin()
       );
       allow update: if isAdmin(); // Admin dashboard can update subscriptions

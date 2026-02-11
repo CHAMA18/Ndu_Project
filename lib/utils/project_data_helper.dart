@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/services/project_intelligence_service.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:provider/provider.dart';
@@ -173,6 +174,15 @@ class ProjectDataHelper {
 
   /// Build a compact, structured context string for Front End Planning prompts.
   /// This aggregates prior inputs across the project to enable high‑quality AI suggestions.
+  static String buildProjectContextScan(ProjectDataModel data,
+      {String? sectionLabel}) {
+    final enriched = ProjectIntelligenceService.rebuildActivityLog(data);
+    return ProjectIntelligenceService.buildContextScan(
+      enriched,
+      sectionLabel: sectionLabel,
+    );
+  }
+
   static String buildFepContext(ProjectDataModel data, {String? sectionLabel}) {
     final buf = StringBuffer();
     void w(String label, String? value) {
@@ -666,6 +676,7 @@ class ProjectDataHelper {
     List<RiskRegisterItem>? riskRegisterItems,
     List<AllowanceItem>? allowanceItems,
     List<OpportunityItem>? opportunityItems,
+    List<PlanningDashboardItem>? successCriteriaItems,
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? current.requirements,
@@ -699,6 +710,321 @@ class ProjectDataHelper {
       riskRegisterItems: riskRegisterItems ?? current.riskRegisterItems,
       allowanceItems: allowanceItems ?? current.allowanceItems,
       opportunityItems: opportunityItems ?? current.opportunityItems,
+      successCriteriaItems:
+          successCriteriaItems ?? current.successCriteriaItems,
     );
+  }
+
+  static const String _autoScheduleMarker = '[AUTO_APPLY_SCHEDULE]';
+  static const String _autoTrainingOpportunityPrefix =
+      'auto_apply_training_opp_';
+  static const String _autoTrainingAllowancePrefix =
+      'auto_apply_training_allow_';
+  static const String _autoBenefitOpportunityPrefix = 'auto_apply_benefit_opp_';
+  static const String _autoCostAllowancePrefix = 'auto_apply_cost_allow_';
+
+  /// Applies Front End Planning "Apply To" mappings into downstream sections.
+  ///
+  /// - `Estimate`: creates auto benefit line items from opportunities and auto
+  ///   cost estimate items from allowances.
+  /// - `Schedule`: creates auto milestones.
+  /// - `Training`: creates auto training activities.
+  ///
+  /// Auto-generated entries are refreshed each call and won't overwrite manual
+  /// entries.
+  static ProjectDataModel applyTaggedFrontEndPlanningData(
+      ProjectDataModel data) {
+    final fep = data.frontEndPlanning;
+
+    final mergedMilestones =
+        _mergeAutoScheduleMilestones(data.keyMilestones, fep);
+    final mergedTraining =
+        _mergeAutoTrainingActivities(data.trainingActivities, fep);
+    final mergedCostAnalysis =
+        _mergeAutoBenefitLineItems(data.costAnalysisData, fep);
+    final mergedCostEstimates =
+        _mergeAutoCostEstimateItems(data.costEstimateItems, fep);
+
+    final merged = data.copyWith(
+      keyMilestones: mergedMilestones,
+      trainingActivities: mergedTraining,
+      costAnalysisData: mergedCostAnalysis,
+      costEstimateItems: mergedCostEstimates,
+    );
+    return ProjectIntelligenceService.rebuildActivityLog(merged);
+  }
+
+  /// Count of opportunities shown in charter snapshot.
+  static int getExpectedOpportunitiesCount(ProjectDataModel data) {
+    final structuredCount = data.frontEndPlanning.opportunityItems
+        .where((o) => o.opportunity.trim().isNotEmpty)
+        .length;
+    if (structuredCount > 0) return structuredCount;
+    return data.opportunities.where((o) => o.trim().isNotEmpty).length;
+  }
+
+  /// Sum opportunity savings, optionally only those tagged for `Estimate`.
+  static double getOpportunitySavingsTotal(
+    ProjectDataModel data, {
+    bool estimateOnly = false,
+  }) {
+    return data.frontEndPlanning.opportunityItems
+        .where((o) => o.opportunity.trim().isNotEmpty)
+        .where((o) => !estimateOnly || _hasTag(o.appliesTo, 'Estimate'))
+        .fold<double>(
+            0.0, (sum, o) => sum + _parseNumericValue(o.potentialCostSavings));
+  }
+
+  /// Unified total estimated cost used by Project Charter.
+  static double getTotalEstimatedCostValue(ProjectDataModel data) {
+    final directEstimateTotal = data.costEstimateItems
+        .fold<double>(0.0, (sum, item) => sum + item.amount);
+    if (directEstimateTotal > 0) return directEstimateTotal;
+
+    final operationalTotal = data.contractors
+            .fold<double>(0.0, (sum, item) => sum + item.estimatedCost) +
+        data.vendors
+            .fold<double>(0.0, (sum, item) => sum + item.estimatedPrice) +
+        data.frontEndPlanning.allowanceItems
+            .fold<double>(0.0, (sum, item) => sum + item.amount);
+    if (operationalTotal > 0) return operationalTotal;
+
+    final costAnalysisTotal = data.costAnalysisData?.solutionCosts.fold<double>(
+            0.0,
+            (sum, solution) =>
+                sum +
+                solution.costRows.fold<double>(0.0,
+                    (rowSum, row) => rowSum + _parseNumericValue(row.cost))) ??
+        0.0;
+
+    return costAnalysisTotal;
+  }
+
+  static bool _hasTag(List<String> tags, String expected) {
+    return tags.any((tag) => tag.toLowerCase() == expected.toLowerCase());
+  }
+
+  static String _withFallback(String raw, String fallback) {
+    final text = raw.trim();
+    return text.isNotEmpty ? text : fallback;
+  }
+
+  static double _parseNumericValue(String raw) {
+    final cleaned = raw.replaceAll(',', '');
+    final match = RegExp(r'-?\d+(?:\.\d+)?').firstMatch(cleaned);
+    if (match == null) return 0.0;
+    return double.tryParse(match.group(0) ?? '') ?? 0.0;
+  }
+
+  static String _buildAutoNote({
+    required String source,
+    String? owner,
+    String? extra,
+  }) {
+    final parts = <String>[
+      source,
+      if ((owner ?? '').trim().isNotEmpty) 'Owner: ${owner!.trim()}',
+      if ((extra ?? '').trim().isNotEmpty) extra!.trim(),
+    ];
+    return parts.join(' | ');
+  }
+
+  static List<Milestone> _mergeAutoScheduleMilestones(
+    List<Milestone> current,
+    FrontEndPlanningData fep,
+  ) {
+    final manual = current
+        .where((m) => !m.comments.contains(_autoScheduleMarker))
+        .toList();
+
+    final generated = <Milestone>[];
+
+    for (final opp in fep.opportunityItems) {
+      if (!_hasTag(opp.appliesTo, 'Schedule')) continue;
+      final title =
+          _withFallback(opp.opportunity, 'Opportunity ${generated.length + 1}');
+      final scheduleSavings = opp.potentialScheduleSavings.trim();
+      final marker = '$_autoScheduleMarker | opp:${opp.id}';
+      generated.add(
+        Milestone(
+          name: 'Opportunity: $title',
+          discipline: _withFallback(opp.discipline, 'Planning'),
+          dueDate: '',
+          comments: _buildAutoNote(
+            source: marker,
+            owner: opp.assignedTo,
+            extra: scheduleSavings.isNotEmpty
+                ? 'Potential schedule savings: $scheduleSavings'
+                : null,
+          ),
+        ),
+      );
+    }
+
+    for (final allowance in fep.allowanceItems) {
+      if (!_hasTag(allowance.appliesTo, 'Schedule')) continue;
+      if (allowance.name.trim().isEmpty && allowance.notes.trim().isEmpty) {
+        continue;
+      }
+      final title = _withFallback(
+          allowance.name, 'Allowance ${allowance.number.toString()}');
+      final marker = '$_autoScheduleMarker | allow:${allowance.id}';
+      generated.add(
+        Milestone(
+          name: 'Allowance: $title',
+          discipline: _withFallback(allowance.type, 'Planning'),
+          dueDate: '',
+          comments: _buildAutoNote(
+            source: marker,
+            owner: allowance.assignedTo,
+            extra: allowance.notes.trim().isNotEmpty ? allowance.notes : null,
+          ),
+        ),
+      );
+    }
+
+    return [...manual, ...generated];
+  }
+
+  static List<TrainingActivity> _mergeAutoTrainingActivities(
+    List<TrainingActivity> current,
+    FrontEndPlanningData fep,
+  ) {
+    final manual = current
+        .where((activity) =>
+            !activity.id.startsWith(_autoTrainingOpportunityPrefix) &&
+            !activity.id.startsWith(_autoTrainingAllowancePrefix))
+        .toList();
+
+    final generated = <TrainingActivity>[];
+
+    for (final opp in fep.opportunityItems) {
+      if (!_hasTag(opp.appliesTo, 'Training')) continue;
+      final title =
+          _withFallback(opp.opportunity, 'Opportunity ${generated.length + 1}');
+      final scheduleSavings = opp.potentialScheduleSavings.trim();
+      generated.add(
+        TrainingActivity(
+          id: '$_autoTrainingOpportunityPrefix${opp.id}',
+          title: 'Opportunity Follow-up: $title',
+          description: _buildAutoNote(
+            source: 'Auto-applied from Project Opportunities',
+            owner: opp.assignedTo,
+            extra: scheduleSavings.isNotEmpty
+                ? 'Schedule context: $scheduleSavings'
+                : null,
+          ),
+          category: 'Training',
+          status: 'Upcoming',
+          duration: '',
+          isMandatory: false,
+        ),
+      );
+    }
+
+    for (final allowance in fep.allowanceItems) {
+      if (!_hasTag(allowance.appliesTo, 'Training')) continue;
+      final title = _withFallback(
+          allowance.name, 'Allowance ${allowance.number.toString()}');
+      generated.add(
+        TrainingActivity(
+          id: '$_autoTrainingAllowancePrefix${allowance.id}',
+          title: 'Allowance Readiness: $title',
+          description: _buildAutoNote(
+            source: 'Auto-applied from Allowance',
+            owner: allowance.assignedTo,
+            extra: allowance.notes.trim().isNotEmpty
+                ? allowance.notes.trim()
+                : null,
+          ),
+          category: 'Training',
+          status: 'Upcoming',
+          duration: '',
+          isMandatory: false,
+        ),
+      );
+    }
+
+    return [...manual, ...generated];
+  }
+
+  static CostAnalysisData? _mergeAutoBenefitLineItems(
+    CostAnalysisData? current,
+    FrontEndPlanningData fep,
+  ) {
+    final manualItems = (current?.benefitLineItems ?? const <BenefitLineItem>[])
+        .where((item) => !item.id.startsWith(_autoBenefitOpportunityPrefix))
+        .toList();
+
+    final autoItems = <BenefitLineItem>[];
+    for (final opp in fep.opportunityItems) {
+      if (!_hasTag(opp.appliesTo, 'Estimate')) continue;
+      final savings = _parseNumericValue(opp.potentialCostSavings);
+      if (savings <= 0) continue;
+
+      autoItems.add(
+        BenefitLineItem(
+          id: '$_autoBenefitOpportunityPrefix${opp.id}',
+          categoryKey: 'cost_saving',
+          title: _withFallback(opp.opportunity, 'Opportunity savings'),
+          unitValue: savings.toStringAsFixed(2),
+          units: '1',
+          notes: _buildAutoNote(
+            source: 'Auto-applied from Project Opportunities',
+            owner: opp.assignedTo,
+            extra: opp.potentialCostSavings.trim(),
+          ),
+        ),
+      );
+    }
+
+    final merged = [...manualItems, ...autoItems];
+    if (current == null && merged.isEmpty) return null;
+
+    final base = current ?? CostAnalysisData();
+    return CostAnalysisData(
+      notes: base.notes,
+      solutionCosts: base.solutionCosts,
+      projectValueAmount: base.projectValueAmount,
+      projectValueBenefits: base.projectValueBenefits,
+      benefitLineItems: merged,
+      savingsNotes: base.savingsNotes,
+      savingsTarget: base.savingsTarget,
+      basisFrequency: base.basisFrequency,
+      trackerBasisFrequency: base.trackerBasisFrequency,
+    );
+  }
+
+  static List<CostEstimateItem> _mergeAutoCostEstimateItems(
+    List<CostEstimateItem> current,
+    FrontEndPlanningData fep,
+  ) {
+    final manualItems = current
+        .where((item) => !item.id.startsWith(_autoCostAllowancePrefix))
+        .toList();
+
+    final autoItems = <CostEstimateItem>[];
+    for (final allowance in fep.allowanceItems) {
+      if (!_hasTag(allowance.appliesTo, 'Estimate')) continue;
+      if (allowance.amount <= 0) continue;
+
+      final title = _withFallback(
+          allowance.name, 'Allowance ${allowance.number.toString()}');
+      autoItems.add(
+        CostEstimateItem(
+          id: '$_autoCostAllowancePrefix${allowance.id}',
+          title: 'Allowance: $title',
+          notes: _buildAutoNote(
+            source: 'Auto-applied from Allowance',
+            owner: allowance.assignedTo,
+            extra: allowance.notes.trim(),
+          ),
+          amount: allowance.amount,
+          costType: 'contingency',
+        ),
+      );
+    }
+
+    return [...manualItems, ...autoItems];
   }
 }

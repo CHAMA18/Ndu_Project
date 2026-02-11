@@ -292,15 +292,280 @@ class SpecializedDesignData {
   }
 }
 
-// Progress DTOs
-class DesignPhaseProgress {
-  final double specificationsProgress;
-  final double alignmentProgress;
-  final double overallProgress;
+// --- Enterprise Design Models ---
 
-  DesignPhaseProgress({
-    required this.specificationsProgress,
-    required this.alignmentProgress,
-    required this.overallProgress,
-  });
+enum ProjectMethodology { waterfall, agile, hybrid }
+
+enum ExecutionStrategy { inHouse, contracted, hybrid }
+
+enum ProjectIndustry {
+  generic,
+  software,
+  construction,
+  manufacturing,
+  marketing
 }
+
+class DesignReadinessModel {
+  final double specificationsScore;
+  final double alignmentScore;
+  final double architectureScore;
+  final double riskScore;
+  final double overallScore;
+  final List<String> missingItems;
+
+  DesignReadinessModel({
+    this.specificationsScore = 0.0,
+    this.alignmentScore = 0.0,
+    this.architectureScore = 0.0,
+    this.riskScore = 0.0,
+    this.overallScore = 0.0,
+    this.missingItems = const [],
+  });
+
+  Map<String, dynamic> toMap() => {
+        'specificationsScore': specificationsScore,
+        'alignmentScore': alignmentScore,
+        'architectureScore': architectureScore,
+        'riskScore': riskScore,
+        'overallScore': overallScore,
+        'missingItems': missingItems,
+      };
+
+  factory DesignReadinessModel.fromMap(Map<String, dynamic> map) {
+    return DesignReadinessModel(
+      specificationsScore: (map['specificationsScore'] ?? 0).toDouble(),
+      alignmentScore: (map['alignmentScore'] ?? 0).toDouble(),
+      architectureScore: (map['architectureScore'] ?? 0).toDouble(),
+      riskScore: (map['riskScore'] ?? 0).toDouble(),
+      overallScore: (map['overallScore'] ?? 0).toDouble(),
+      missingItems: List<String>.from(map['missingItems'] ?? []),
+    );
+  }
+}
+
+class DesignManagementData {
+  // Core Strategy
+  ProjectMethodology methodology;
+  ExecutionStrategy executionStrategy;
+  ProjectIndustry industry;
+  List<String> applicableStandards;
+
+  // Readiness
+  DesignReadinessModel readiness;
+
+  // Inherited Context (from Planning)
+  List<String> inheritedRisks;
+  List<String> inheritedConstraints;
+  List<String> inheritedScope;
+
+  // Design Specifics
+  SpecializedDesignData specializedDesign;
+
+  // Legacy Fields for Backward Compatibility
+  List<DesignSpecification> specifications;
+  List<DesignDocument> documents;
+  List<DesignToolLink> tools;
+
+  // Old progress fields for backward compatibility (mapped to readiness)
+  double get specificationsProgress => readiness.specificationsScore;
+  double get alignmentProgress => readiness.alignmentScore;
+
+  DesignManagementData({
+    this.methodology = ProjectMethodology.waterfall,
+    this.executionStrategy = ExecutionStrategy.inHouse,
+    this.industry = ProjectIndustry.generic,
+    this.applicableStandards = const [],
+    DesignReadinessModel? readiness,
+    this.inheritedRisks = const [],
+    this.inheritedConstraints = const [],
+    this.inheritedScope = const [],
+    SpecializedDesignData? specializedDesign,
+    List<DesignSpecification>? specifications,
+    List<DesignDocument>? documents,
+    List<DesignToolLink>? tools,
+  })  : readiness = readiness ?? DesignReadinessModel(),
+        specializedDesign = specializedDesign ?? SpecializedDesignData(),
+        specifications = specifications ?? [],
+        documents = documents ?? [],
+        tools = tools ?? [];
+
+  DesignManagementData copyWith({
+    ProjectMethodology? methodology,
+    ExecutionStrategy? executionStrategy,
+    ProjectIndustry? industry,
+    List<String>? applicableStandards,
+    DesignReadinessModel? readiness,
+    List<String>? inheritedRisks,
+    List<String>? inheritedConstraints,
+    List<String>? inheritedScope,
+    SpecializedDesignData? specializedDesign,
+    List<DesignSpecification>? specifications,
+    List<DesignDocument>? documents,
+    List<DesignToolLink>? tools,
+  }) {
+    return DesignManagementData(
+      methodology: methodology ?? this.methodology,
+      executionStrategy: executionStrategy ?? this.executionStrategy,
+      industry: industry ?? this.industry,
+      applicableStandards: applicableStandards ?? this.applicableStandards,
+      readiness: readiness ?? this.readiness,
+      inheritedRisks: inheritedRisks ?? this.inheritedRisks,
+      inheritedConstraints: inheritedConstraints ?? this.inheritedConstraints,
+      inheritedScope: inheritedScope ?? this.inheritedScope,
+      specializedDesign: specializedDesign ?? this.specializedDesign,
+      specifications: specifications ?? this.specifications,
+      documents: documents ?? this.documents,
+      tools: tools ?? this.tools,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'methodology': methodology.name,
+        'executionStrategy': executionStrategy.name,
+        'industry': industry.name,
+        'applicableStandards': applicableStandards,
+        'readiness': readiness.toMap(),
+        'inheritedRisks': inheritedRisks,
+        'inheritedConstraints': inheritedConstraints,
+        'inheritedScope': inheritedScope,
+        'specializedDesign': specializedDesign.toMap(),
+        'specifications': specifications.map((e) => e.toJson()).toList(),
+        'documents': documents.map((e) => e.toJson()).toList(),
+        'tools': tools.map((e) => e.toJson()).toList(),
+      };
+
+  factory DesignManagementData.fromJson(Map<String, dynamic> json) {
+    return DesignManagementData(
+      methodology: ProjectMethodology.values.firstWhere(
+        (e) => e.name == json['methodology'],
+        orElse: () => ProjectMethodology.waterfall,
+      ),
+      executionStrategy: ExecutionStrategy.values.firstWhere(
+        (e) => e.name == json['executionStrategy'],
+        orElse: () => ExecutionStrategy.inHouse,
+      ),
+      industry: ProjectIndustry.values.firstWhere(
+        (e) => e.name == json['industry'],
+        orElse: () => ProjectIndustry.generic,
+      ),
+      applicableStandards: List<String>.from(json['applicableStandards'] ?? []),
+      readiness: json['readiness'] != null
+          ? DesignReadinessModel.fromMap(json['readiness'])
+          : DesignReadinessModel(),
+      inheritedRisks: List<String>.from(json['inheritedRisks'] ?? []),
+      inheritedConstraints:
+          List<String>.from(json['inheritedConstraints'] ?? []),
+      inheritedScope: List<String>.from(json['inheritedScope'] ?? []),
+      specializedDesign: json['specializedDesign'] != null
+          ? SpecializedDesignData.fromMap(json['specializedDesign'])
+          : SpecializedDesignData(),
+      specifications: (json['specifications'] as List?)
+              ?.map((e) => DesignSpecification.fromJson(e))
+              .toList() ??
+          [],
+      documents: (json['documents'] as List?)
+              ?.map((e) => DesignDocument.fromJson(e))
+              .toList() ??
+          [],
+      tools: (json['tools'] as List?)
+              ?.map((e) => DesignToolLink.fromJson(e))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+class DesignSpecification {
+  String id;
+  String description;
+  String status; // 'Defined', 'Validated', 'Implemented'
+
+  DesignSpecification({
+    String? id,
+    this.description = '',
+    this.status = 'Defined',
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'description': description,
+        'status': status,
+      };
+
+  factory DesignSpecification.fromJson(Map<String, dynamic> json) {
+    return DesignSpecification(
+      id: json['id']?.toString(),
+      description: json['description']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'Defined',
+    );
+  }
+}
+
+class DesignDocument {
+  String id;
+  String title;
+  String type; // 'Input' or 'Output'
+  String? url;
+  String? notes;
+
+  DesignDocument({
+    String? id,
+    this.title = '',
+    this.type = 'Output',
+    this.url,
+    this.notes,
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'type': type,
+        'url': url,
+        'notes': notes,
+      };
+
+  factory DesignDocument.fromJson(Map<String, dynamic> json) {
+    return DesignDocument(
+      id: json['id']?.toString(),
+      title: json['title']?.toString() ?? '',
+      type: json['type']?.toString() ?? 'Output',
+      url: json['url']?.toString(),
+      notes: json['notes']?.toString(),
+    );
+  }
+}
+
+class DesignToolLink {
+  String id;
+  String name;
+  String url;
+  bool isInternal;
+
+  DesignToolLink({
+    String? id,
+    this.name = '',
+    this.url = '',
+    this.isInternal = false,
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'url': url,
+        'isInternal': isInternal,
+      };
+
+  factory DesignToolLink.fromJson(Map<String, dynamic> json) {
+    return DesignToolLink(
+      id: json['id']?.toString(),
+      name: json['name']?.toString() ?? '',
+      url: json['url']?.toString() ?? '',
+      isInternal: json['isInternal'] == true,
+    );
+  }
+}
+
+// Legacy DTO for backward compatibility if needed,
+// allows screens to use old DesignPhaseProgress class name temporarily.
+typedef DesignPhaseProgress = DesignReadinessModel;

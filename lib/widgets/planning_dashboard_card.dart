@@ -10,6 +10,7 @@ class PlanningDashboardCard extends StatelessWidget {
   final Function(PlanningDashboardItem)? onDelete;
   final VoidCallback? onGenerateAI;
   final bool isGenerating;
+  final String emptyStateText;
 
   const PlanningDashboardCard({
     super.key,
@@ -21,6 +22,7 @@ class PlanningDashboardCard extends StatelessWidget {
     this.onDelete,
     this.onGenerateAI,
     this.isGenerating = false,
+    this.emptyStateText = 'No items yet. Add manually or generate with AI.',
   });
 
   @override
@@ -99,7 +101,7 @@ class PlanningDashboardCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24.0),
                 child: Text(
-                  'No items yet. Add manually or generate with AI.',
+                  emptyStateText,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[400],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/expandable_text.dart';
 
 // --- Shared Styles ---
@@ -57,13 +58,30 @@ class CharterExecutiveSnapshot extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildSnapshotItem('TOTAL ESTIMATED COST', totalCost, Colors.white),
+          Expanded(
+            child: _buildSnapshotItem(
+                'TOTAL ESTIMATED COST', totalCost, Colors.white),
+          ),
           _buildDivider(),
-          _buildSnapshotItem('ESTIMATED DURATION', duration, Colors.blueAccent),
+          Expanded(
+            child: _buildSnapshotItem('EXPECTED OPPORTUNITIES',
+                _countExpectedOpportunities(data!), Colors.greenAccent),
+          ),
           _buildDivider(),
-          _buildSnapshotItem('RISK LEVEL', riskLevel, _getRiskColor(riskLevel)),
+          Expanded(
+            child: _buildSnapshotItem(
+                'ESTIMATED DURATION', duration, Colors.blueAccent),
+          ),
           _buildDivider(),
-          _buildSnapshotItem('EXECUTIVE SPONSOR', sponsor, Colors.amberAccent),
+          Expanded(
+            child: _buildSnapshotItem(
+                'RISK LEVEL', riskLevel, _getRiskColor(riskLevel)),
+          ),
+          _buildDivider(),
+          Expanded(
+            child: _buildSnapshotItem(
+                'EXECUTIVE SPONSOR', sponsor, Colors.amberAccent),
+          ),
         ],
       ),
     );
@@ -105,11 +123,13 @@ class CharterExecutiveSnapshot extends StatelessWidget {
   }
 
   String _calculateTotalCost(ProjectDataModel data) {
-    if (data.costEstimateItems.isEmpty) return '\$0.00';
-    final total =
-        data.costEstimateItems.fold(0.0, (sum, item) => sum + item.amount);
+    final total = ProjectDataHelper.getTotalEstimatedCostValue(data);
     return NumberFormat.simpleCurrency(name: data.costBenefitCurrency)
         .format(total);
+  }
+
+  String _countExpectedOpportunities(ProjectDataModel data) {
+    return ProjectDataHelper.getExpectedOpportunitiesCount(data).toString();
   }
 
   // Removed _calculateOpportunitiesCount - replaced with duration display
@@ -165,7 +185,7 @@ class CharterExecutiveSnapshot extends StatelessWidget {
     if (data.charterProjectManagerName.isNotEmpty) {
       return data.charterProjectManagerName; // Fallback to Owner
     }
-    return 'Assign';
+    return 'Not Assigned';
   }
 
   Color _getRiskColor(String level) {
@@ -593,9 +613,154 @@ class CharterProjectDefinition extends StatelessWidget {
               'Detailed Business Justification',
               data!.businessCase,
               'Outline what the project will deliver and its key objectives'),
-          // Removed Goals section as requested
+
+          const Divider(height: 32),
+
+          // 3. Project Goals (Objectives)
+          _buildGoalsSection(data!.projectGoals),
+
+          const Divider(height: 32),
+
+          // 4. Success Criteria
+          _buildSuccessCriteriaSection(
+              data!.frontEndPlanning.successCriteriaItems),
         ],
       ),
+    );
+  }
+
+  Widget _buildGoalsSection(List<ProjectGoal> goals) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('PROJECT GOALS & OBJECTIVES',
+                style: kSectionTitleStyle.copyWith(fontSize: 12)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (goals.isEmpty)
+          const Text(
+            'No specific goals defined.',
+            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+          )
+        else
+          ...goals.map((goal) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 4, right: 12),
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEFF6FF), // Blue 50
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.track_changes,
+                          size: 14, color: Color(0xFF2563EB)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            goal.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          if (goal.description.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                goal.description,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+      ],
+    );
+  }
+
+  Widget _buildSuccessCriteriaSection(List<PlanningDashboardItem> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('SUCCESS CRITERIA',
+                style: kSectionTitleStyle.copyWith(fontSize: 12)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (items.isEmpty)
+          const Text(
+            'No success criteria defined.',
+            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+          )
+        else
+          ...items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 4, right: 12),
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFECFDF5), // Green 50
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check,
+                          size: 14, color: Color(0xFF059669)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title.isNotEmpty
+                                ? item.title
+                                : item.description,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          if (item.title.isNotEmpty &&
+                              item.description.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                item.description,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+      ],
     );
   }
 
@@ -737,15 +902,34 @@ class CharterFinancialOverview extends StatelessWidget {
   Widget build(BuildContext context) {
     if (data == null) return const SizedBox();
 
-    final cost = _calculateTotalCostValue(data!);
+    final cost = ProjectDataHelper.getTotalEstimatedCostValue(data!);
     final costStr = NumberFormat.simpleCurrency(name: data!.costBenefitCurrency)
         .format(cost);
 
-    // Savings target is currently displayed as text; keep parsing logic out until we need numeric calculations again.
+    // Prioritize Estimate-tagged opportunities, then fallback to other sources.
+    final currency =
+        NumberFormat.simpleCurrency(name: data!.costBenefitCurrency);
+    double benefits = ProjectDataHelper.getOpportunitySavingsTotal(
+      data!,
+      estimateOnly: true,
+    );
     String benefitsStr = 'TBD';
-    if (data!.costAnalysisData != null &&
+    if (benefits > 0) {
+      benefitsStr = currency.format(benefits);
+    } else if (data!.costAnalysisData != null &&
         data!.costAnalysisData!.savingsTarget.isNotEmpty) {
       benefitsStr = data!.costAnalysisData!.savingsTarget;
+      final clean = benefitsStr.replaceAll(RegExp(r'[^0-9.]'), '');
+      if (clean.isNotEmpty) {
+        benefits = double.tryParse(clean) ?? 0.0;
+      }
+    } else {
+      final allOpportunityBenefits =
+          ProjectDataHelper.getOpportunitySavingsTotal(data!);
+      if (allOpportunityBenefits > 0) {
+        benefits = allOpportunityBenefits;
+        benefitsStr = currency.format(allOpportunityBenefits);
+      }
     }
 
     return Container(
@@ -923,11 +1107,6 @@ class CharterFinancialOverview extends StatelessWidget {
     ];
     return table[index % table.length];
   }
-
-  double _calculateTotalCostValue(ProjectDataModel data) {
-    if (data.costEstimateItems.isEmpty) return 0.0;
-    return data.costEstimateItems.fold(0.0, (sum, item) => sum + item.amount);
-  }
 }
 
 // --- 6. Risks (Table View + Summary) ---
@@ -944,12 +1123,12 @@ class CharterRisks extends StatelessWidget {
 
     // 1. Get Risks (Prioritize Risk Register)
     final riskRegister = data!.frontEndPlanning.riskRegisterItems;
-    List<Map<String, dynamic>> combinedItems = [];
+    List<Map<String, dynamic>> allRisks = [];
 
-    // Add risks to combined list
+    // Add risks to list
     if (riskRegister.isNotEmpty) {
       for (var risk in riskRegister) {
-        combinedItems.add({
+        allRisks.add({
           'type': 'Risk',
           'description': risk.riskName,
           'impact': risk.impactLevel,
@@ -961,7 +1140,7 @@ class CharterRisks extends StatelessWidget {
       // Fallback to solution risks
       for (var solutionRisk in data!.solutionRisks) {
         for (var riskStr in solutionRisk.risks) {
-          combinedItems.add({
+          allRisks.add({
             'type': 'Risk',
             'description': riskStr,
             'impact': 'Medium',
@@ -972,41 +1151,40 @@ class CharterRisks extends StatelessWidget {
       }
     }
 
-    // Add constraints to combined list
-    for (var constraint in data!.constraints) {
-      if (constraint.trim().isNotEmpty) {
-        combinedItems.add({
-          'type': 'Constraint',
-          'description': constraint,
-          'impact': 'Medium',
-          'likelihood': 'N/A',
-          'mitigation': 'Manage within project scope',
-        });
-      }
-    }
-
-    // Sort: Risks first, then Constraints. Within risks, High -> Medium -> Low
-    combinedItems.sort((a, b) {
-      if (a['type'] != b['type']) {
-        return a['type'] == 'Risk' ? -1 : 1;
-      }
+    // Sort: High -> Medium -> Low
+    allRisks.sort((a, b) {
       final scoreA = _impactScore(a['impact']);
       final scoreB = _impactScore(b['impact']);
-      return scoreB.compareTo(scoreA);
+      return scoreB.compareTo(scoreA); // Descending
     });
 
-    // Filter Logic: Show max 8 items
-    final displayItems = combinedItems.take(8).toList();
+    // Filter Logic for Display: Max 5 items
+    // If High risks < 5, fill with others. (Sorting already handles prioritization)
+    final displayRisks = allRisks.take(5).toList();
 
     // Stats
-    final totalRisks = combinedItems.where((i) => i['type'] == 'Risk').length;
-    final totalConstraints =
-        combinedItems.where((i) => i['type'] == 'Constraint').length;
-    final highRisks = combinedItems
-        .where((i) =>
-            i['type'] == 'Risk' &&
-            i['impact'].toString().toLowerCase() == 'high')
+    final totalRisksCount = allRisks.length;
+    final highRisksCount = allRisks
+        .where((i) => i['impact'].toString().toLowerCase() == 'high')
         .length;
+    final mitigationCount = allRisks
+        .where((i) =>
+            i['mitigation'].toString().isNotEmpty &&
+            i['mitigation'].toString() != 'TBD')
+        .length;
+
+    // Constraints Data (New Structure + Legacy Fallback)
+    final constraints = <String>[];
+    // New structured items
+    for (var item in data!.constraintItems) {
+      if (item.title.isNotEmpty) constraints.add(item.title);
+    }
+    // Legacy strings (if new list empty, or merge? Let's merge unique)
+    for (var c in data!.constraints) {
+      if (c.trim().isNotEmpty && !constraints.contains(c)) {
+        constraints.add(c);
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1019,8 +1197,7 @@ class CharterRisks extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Text('KEY RISKS & CONSTRAINTS',
-                      style: kSectionTitleStyle),
+                  const Text('KEY RISKS', style: kSectionTitleStyle),
                   if (onGenerate != null) ...[
                     const SizedBox(width: 8),
                     IconButton(
@@ -1033,171 +1210,212 @@ class CharterRisks extends StatelessWidget {
                   ],
                 ],
               ),
-              Row(
-                children: [
-                  _buildRiskCount(totalRisks, 'Risks', Colors.red.shade700),
-                  const SizedBox(width: 8),
-                  _buildRiskCount(
-                      totalConstraints, 'Constraints', Colors.orange.shade700),
-                  const SizedBox(width: 8),
-                  _buildRiskCount(highRisks, 'High', Colors.red.shade900),
-                ],
-              ),
             ],
           ),
           const SizedBox(height: 16),
-          if (combinedItems.isEmpty)
-            const Text('No risks or constraints identified.',
+          // Metrics Row
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.shade100),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildMetricColumn(totalRisksCount.toString(), 'Total Risks',
+                    Colors.red.shade900),
+                _buildVerticalDivider(),
+                _buildMetricColumn(highRisksCount.toString(), 'High Impact',
+                    Colors.red.shade900),
+                _buildVerticalDivider(),
+                _buildMetricColumn(
+                    (totalRisksCount - mitigationCount).toString(),
+                    'Needs Mitigation',
+                    Colors.red.shade900),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Risks Table
+          if (allRisks.isEmpty)
+            const Text('No risks identified.',
                 style:
                     TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
-          if (combinedItems.isNotEmpty)
+          if (allRisks.isNotEmpty)
             Column(
               children: [
-                _buildCombinedTableHeader(),
+                _buildRiskTableHeader(),
                 const SizedBox(height: 8),
-                ...displayItems.map((item) => _buildCombinedRow(item)),
+                ...displayRisks.map((item) => _buildRiskRow(item)),
               ],
+            ),
+
+          const SizedBox(height: 32),
+
+          // Constraints Section
+          const Text('Project Constraints',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87)),
+          const SizedBox(height: 8),
+          if (constraints.isEmpty)
+            const Text('No constraints identified.',
+                style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic)),
+          if (constraints.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: constraints
+                  .take(5)
+                  .map((c) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('• ',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 13)),
+                            Expanded(
+                                child: Text(c,
+                                    style: const TextStyle(
+                                        fontSize: 13, color: Colors.black87))),
+                          ],
+                        ),
+                      ))
+                  .toList(),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildRiskCount(int count, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Text('$count $label',
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+  Widget _buildMetricColumn(String value, String label, Color color) {
+    return Column(
+      children: [
+        Text(value,
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 4),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                color: color.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w500)),
+      ],
     );
   }
 
-  Widget _buildCombinedTableHeader() {
+  Widget _buildVerticalDivider() {
+    return Container(
+      height: 24,
+      width: 1,
+      color: Colors.red.shade200,
+    );
+  }
+
+  Widget _buildRiskTableHeader() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 8.0, left: 4, right: 4),
       child: Row(
-        children: [
-          Expanded(
-              flex: 1,
-              child: Text('TYPE',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600]))),
-          Expanded(
-              flex: 4,
-              child: Text('DESCRIPTION',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600]))),
-          Expanded(
-              flex: 2,
-              child: Text('IMPACT',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600]))),
-          Expanded(
-              flex: 2,
-              child: Text('LIKELIHOOD',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600]))),
+        children: const [
           Expanded(
               flex: 3,
-              child: Text('MITIGATION',
+              child: Text('Risk Description',
                   style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[600]))),
+                      color: Colors.black87))),
+          Expanded(
+              flex: 1,
+              child: Text('Impact',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87))),
+          Expanded(
+              flex: 1,
+              child: Text('Likelihood',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87))),
+          Expanded(
+              flex: 1,
+              child: Text('Mitigation',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87))),
         ],
       ),
     );
   }
 
-  Widget _buildCombinedRow(Map<String, dynamic> item) {
+  Widget _buildRiskRow(Map<String, dynamic> item) {
+    final impact = item['impact'].toString();
+    Color badgeColor = Colors.grey;
+    Color badgeText = Colors.black;
+    if (impact.toLowerCase() == 'high') {
+      badgeColor = Colors.red.shade50;
+      badgeText = Colors.red.shade700;
+    } else if (impact.toLowerCase() == 'medium') {
+      badgeColor = Colors.orange.shade50;
+      badgeText = Colors.orange.shade800;
+    } else {
+      badgeColor = Colors.green.shade50;
+      badgeText = Colors.green.shade800;
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Expanded(
+            flex: 3,
+            child: Text(item['description'],
+                style: const TextStyle(
+                    fontSize: 12, color: Colors.black54, height: 1.4)),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             flex: 1,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: item['type'] == 'Risk'
-                    ? Colors.red.shade50
-                    : Colors.orange.shade50,
+                color: badgeColor,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(
-                item['type'],
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: item['type'] == 'Risk'
-                      ? Colors.red.shade700
-                      : Colors.orange.shade700,
-                ),
-              ),
+              child: Text(impact,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: badgeText)),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            flex: 4,
-            child: Text(item['description'],
-                style: const TextStyle(fontSize: 12),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
-          ),
-          Expanded(
-            flex: 2,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _buildImpactBadge(item['impact']),
-            ),
-          ),
-          Expanded(
-            flex: 2,
+            flex: 1,
             child: Text(item['likelihood'],
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ),
+          const SizedBox(width: 8),
           Expanded(
-            flex: 3,
+            flex: 1,
             child: Text(item['mitigation'],
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildImpactBadge(String impact) {
-    Color color = Colors.grey;
-    if (impact.toLowerCase() == 'high') color = Colors.red;
-    if (impact.toLowerCase() == 'medium') color = Colors.orange;
-    if (impact.toLowerCase() == 'low') color = Colors.green;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(4)),
-      child: Text(impact,
-          style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.bold, color: color)),
     );
   }
 
@@ -1379,7 +1597,8 @@ class CharterMilestoneVisualizer extends StatelessWidget {
                                 boxShadow: [
                                   if (isFuture)
                                     BoxShadow(
-                                        color: Colors.grey.withValues(alpha: 0.1),
+                                        color:
+                                            Colors.grey.withValues(alpha: 0.1),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2))
                                 ],
@@ -1722,114 +1941,149 @@ class CharterTechnicalEnvironment extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 24),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. IT CONSIDERATIONS
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSubHeader('IT CONSIDERATIONS'),
-                      const SizedBox(height: 12),
-                      if (it == null)
-                        _buildEmptyState()
-                      else ...[
-                        if (it.hardwareRequirements.isNotEmpty)
+          const SizedBox(height: 20),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 16.0;
+              final columnCount = _columnCountForWidth(constraints.maxWidth);
+              final tileWidth = columnCount == 1
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - (spacing * (columnCount - 1))) /
+                      columnCount;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  SizedBox(
+                    width: tileWidth,
+                    child: _buildPanelCard(
+                      title: 'IT CONSIDERATIONS',
+                      child: _buildScrollableCardBody([
+                        if (it == null) _buildEmptyState(),
+                        if (it != null && it.hardwareRequirements.isNotEmpty)
                           _buildSimpleReq('Hardware', it.hardwareRequirements),
-                        if (it.softwareRequirements.isNotEmpty)
+                        if (it != null && it.softwareRequirements.isNotEmpty)
                           _buildSimpleReq('Software', it.softwareRequirements),
-                        if (it.networkRequirements.isNotEmpty)
+                        if (it != null && it.networkRequirements.isNotEmpty)
                           _buildSimpleReq('Network', it.networkRequirements),
-                        if (it.hardwareRequirements.isEmpty &&
+                        if (it != null &&
+                            it.hardwareRequirements.isEmpty &&
                             it.softwareRequirements.isEmpty &&
                             it.networkRequirements.isEmpty)
                           _buildEmptyState(),
-                      ]
-                    ],
+                      ]),
+                    ),
                   ),
-                ),
-                const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: VerticalDivider()),
-                // 2. INFRASTRUCTURE
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSubHeader('INFRASTRUCTURE'),
-                      const SizedBox(height: 12),
-                      if (infra == null)
-                        _buildEmptyState()
-                      else ...[
-                        if (infra.physicalSpaceRequirements.isNotEmpty)
+                  SizedBox(
+                    width: tileWidth,
+                    child: _buildPanelCard(
+                      title: 'INFRASTRUCTURE',
+                      child: _buildScrollableCardBody([
+                        if (infra == null) _buildEmptyState(),
+                        if (infra != null &&
+                            infra.physicalSpaceRequirements.isNotEmpty)
                           _buildSimpleReq(
                               'Space', infra.physicalSpaceRequirements),
-                        if (infra.powerCoolingRequirements.isNotEmpty)
+                        if (infra != null &&
+                            infra.powerCoolingRequirements.isNotEmpty)
                           _buildSimpleReq(
                               'Power/Cooling', infra.powerCoolingRequirements),
-                        if (infra.connectivityRequirements.isNotEmpty)
+                        if (infra != null &&
+                            infra.connectivityRequirements.isNotEmpty)
                           _buildSimpleReq(
                               'Connectivity', infra.connectivityRequirements),
-                        if (infra.physicalSpaceRequirements.isEmpty &&
+                        if (infra != null &&
+                            infra.physicalSpaceRequirements.isEmpty &&
                             infra.powerCoolingRequirements.isEmpty &&
                             infra.connectivityRequirements.isEmpty)
                           _buildEmptyState(),
-                      ]
-                    ],
+                      ]),
+                    ),
                   ),
-                ),
-                const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: VerticalDivider()),
-                // 3. POTENTIAL CONTRACTS
-                Expanded(
-                  child: _buildProcurementColumn(
-                      'POTENTIAL CONTRACTS',
-                      contractCount,
-                      'Identify and review',
-                      'Contracts Pending',
-                      Colors.blue.shade700,
-                      Colors.blue.shade50),
-                ),
-                const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: VerticalDivider()),
-                // 4. POTENTIAL PROCUREMENT
-                Expanded(
-                  child: _buildProcurementColumn(
-                      'POTENTIAL PROCUREMENT',
-                      vendorCount + procurementCount,
-                      'Major equipment details',
-                      'Items Identified',
-                      Colors.teal.shade700,
-                      Colors.teal.shade50),
-                ),
-              ],
-            ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _buildProcurementColumn(
+                        'POTENTIAL CONTRACTS',
+                        contractCount,
+                        'Identify and review',
+                        'Contracts Pending',
+                        Colors.blue.shade700,
+                        Colors.blue.shade50),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _buildProcurementColumn(
+                        'POTENTIAL PROCUREMENT',
+                        vendorCount + procurementCount,
+                        'Major equipment details',
+                        'Items Identified',
+                        Colors.teal.shade700,
+                        Colors.teal.shade50),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
     );
   }
 
+  int _columnCountForWidth(double width) {
+    if (width >= 1260) return 4;
+    if (width >= 760) return 2;
+    return 1;
+  }
+
+  Widget _buildPanelCard({
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      height: 248,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSubHeader(title),
+          const SizedBox(height: 12),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrollableCardBody(List<Widget> children) {
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+
   Widget _buildSimpleReq(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
               style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey.shade600)),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(value,
-              style: const TextStyle(fontSize: 12),
-              maxLines: 2,
+              style: const TextStyle(fontSize: 12.5),
+              maxLines: 3,
               overflow: TextOverflow.ellipsis),
         ],
       ),
@@ -1838,35 +2092,51 @@ class CharterTechnicalEnvironment extends StatelessWidget {
 
   Widget _buildProcurementColumn(String title, int count, String subtitle,
       String statusLabel, Color color, Color bg) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSubHeader(title),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: color.withValues(alpha: 0.2))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$count',
-                  style: TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold, color: color)),
-              Text(statusLabel,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: color.withValues(alpha: 0.8))),
-              const SizedBox(height: 8),
-              Text(subtitle,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            ],
+    return Container(
+      height: 248,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSubHeader(title),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: color.withValues(alpha: 0.2))),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$count',
+                      style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: color)),
+                  const SizedBox(height: 4),
+                  Text(statusLabel,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: color.withValues(alpha: 0.82))),
+                  const SizedBox(height: 10),
+                  Text(subtitle,
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                ],
+              ),
+            ),
           ),
-        )
-      ],
+        ],
+      ),
     );
   }
 

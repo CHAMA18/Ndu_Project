@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 
 class DesignSpecificationsCard extends StatelessWidget {

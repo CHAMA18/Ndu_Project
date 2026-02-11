@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:ndu_project/models/design_phase_models.dart';
+import 'package:ndu_project/models/project_activity.dart';
 
 /// Comprehensive project data model that captures all information across the application flow
 class ProjectDataModel {
@@ -57,6 +59,7 @@ class ProjectDataModel {
   }
 
   List<String> opportunities;
+  List<ProjectActivity> projectActivities;
 
   // Project Charter (editable in Project Charter screen)
   String charterAssumptions;
@@ -216,6 +219,7 @@ class ProjectDataModel {
     List<String>? opportunities,
     List<List<WorkItem>>? goalWorkItems,
     List<WorkItem>? wbsTree,
+    List<ProjectActivity>? projectActivities,
     List<IssueLogItem>? issueLogItems,
     List<LessonRecord>? lessonsLearned,
     List<Map<String, dynamic>>? technologyDefinitions,
@@ -266,6 +270,7 @@ class ProjectDataModel {
         planningNotes = planningNotes ?? {},
         goalWorkItems = goalWorkItems ?? List.generate(3, (_) => []),
         wbsTree = wbsTree ?? [],
+        projectActivities = projectActivities ?? [],
         issueLogItems = issueLogItems ?? [],
         lessonsLearned = lessonsLearned ?? [],
         technologyDefinitions = technologyDefinitions ?? [],
@@ -348,6 +353,7 @@ class ProjectDataModel {
     String? wbsCriteriaB,
     List<List<WorkItem>>? goalWorkItems,
     List<WorkItem>? wbsTree,
+    List<ProjectActivity>? projectActivities,
     List<IssueLogItem>? issueLogItems,
     List<LessonRecord>? lessonsLearned,
     FrontEndPlanningData? frontEndPlanning,
@@ -436,6 +442,7 @@ class ProjectDataModel {
       wbsCriteriaB: wbsCriteriaB ?? this.wbsCriteriaB,
       goalWorkItems: goalWorkItems ?? this.goalWorkItems,
       wbsTree: wbsTree ?? this.wbsTree,
+      projectActivities: projectActivities ?? this.projectActivities,
       issueLogItems: issueLogItems ?? this.issueLogItems,
       lessonsLearned: lessonsLearned ?? this.lessonsLearned,
       technologyDefinitions:
@@ -536,6 +543,7 @@ class ProjectDataModel {
       'wbsCriteriaB': wbsCriteriaB,
       'goalWorkItems': flattenedWorkItems,
       'wbsTree': wbsTree.map((item) => item.toJson()).toList(),
+      'projectActivities': projectActivities.map((x) => x.toJson()).toList(),
       'issueLogItems': issueLogItems.map((item) => item.toJson()).toList(),
       'lessonsLearned': lessonsLearned.map((l) => l.toJson()).toList(),
       'technologyDefinitions': technologyDefinitions,
@@ -749,6 +757,8 @@ class ProjectDataModel {
       wbsCriteriaB: json['wbsCriteriaB']?.toString(),
       goalWorkItems: reconstructedGoalWorkItems,
       wbsTree: safeParseList('wbsTree', WorkItem.fromJson),
+      projectActivities:
+          safeParseList('projectActivities', ProjectActivity.fromJson),
       issueLogItems: safeParseList('issueLogItems', IssueLogItem.fromJson),
       lessonsLearned: safeParseList('lessonsLearned', LessonRecord.fromJson),
       technologyDefinitions: (json['technologyDefinitions'] as List?)
@@ -1303,6 +1313,8 @@ class FrontEndPlanningData {
   List<RiskRegisterItem> riskRegisterItems;
   // Structured allowance items
   List<AllowanceItem> allowanceItems;
+  // Success Criteria items
+  List<PlanningDashboardItem> successCriteriaItems;
 
   FrontEndPlanningData({
     this.requirements = '',
@@ -1333,6 +1345,7 @@ class FrontEndPlanningData {
     List<RiskRegisterItem>? riskRegisterItems,
     List<AllowanceItem>? allowanceItems,
     List<OpportunityItem>? opportunityItems,
+    List<PlanningDashboardItem>? successCriteriaItems,
   })  : requirementItems = requirementItems ?? [],
         technicalDebtItems = technicalDebtItems ?? [],
         technicalDebtRootCauses = technicalDebtRootCauses ?? [],
@@ -1345,7 +1358,8 @@ class FrontEndPlanningData {
         securitySettings = securitySettings ?? [],
         securityAccessLogs = securityAccessLogs ?? [],
         allowanceItems = allowanceItems ?? [],
-        opportunityItems = opportunityItems ?? [];
+        opportunityItems = opportunityItems ?? [],
+        successCriteriaItems = successCriteriaItems ?? [];
 
   FrontEndPlanningData copyWith({
     String? requirements,
@@ -1376,6 +1390,7 @@ class FrontEndPlanningData {
     List<RiskRegisterItem>? riskRegisterItems,
     List<AllowanceItem>? allowanceItems,
     List<OpportunityItem>? opportunityItems,
+    List<PlanningDashboardItem>? successCriteriaItems,
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? this.requirements,
@@ -1407,6 +1422,7 @@ class FrontEndPlanningData {
       riskRegisterItems: riskRegisterItems ?? this.riskRegisterItems,
       allowanceItems: allowanceItems ?? this.allowanceItems,
       opportunityItems: opportunityItems ?? this.opportunityItems,
+      successCriteriaItems: successCriteriaItems ?? this.successCriteriaItems,
     );
   }
 
@@ -1426,9 +1442,11 @@ class FrontEndPlanningData {
         'contracts': contracts,
         'milestoneStartDate': milestoneStartDate,
         'milestoneEndDate': milestoneEndDate,
-        'allowanceItems': allowanceItems.map((item) => item.toJson()).toList(),
+        'allowanceItems': allowanceItems.map((e) => e.toJson()).toList(),
         'opportunityItems':
             opportunityItems.map((item) => item.toJson()).toList(),
+        'successCriteriaItems':
+            successCriteriaItems.map((item) => item.toJson()).toList(),
         'requirementsItems':
             requirementItems.map((item) => item.toJson()).toList(),
         'riskRegisterItems':
@@ -1476,11 +1494,17 @@ class FrontEndPlanningData {
               ?.map((e) => OpportunityItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      requirementItems: (json['requirementsItems'] as List?)
-              ?.map((item) =>
-                  RequirementItem.fromJson(item as Map<String, dynamic>))
+      successCriteriaItems: (json['successCriteriaItems'] as List?)
+              ?.map((e) =>
+                  PlanningDashboardItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      requirementItems:
+          ((json['requirementItems'] ?? json['requirementsItems']) as List?)
+                  ?.map((item) =>
+                      RequirementItem.fromJson(item as Map<String, dynamic>))
+                  .toList() ??
+              [],
       riskRegisterItems: (json['riskRegisterItems'] as List?)
               ?.map((item) =>
                   RiskRegisterItem.fromJson(item as Map<String, dynamic>))
@@ -2271,6 +2295,8 @@ class CostAnalysisData {
   List<BenefitLineItem> benefitLineItems;
   String savingsNotes;
   String savingsTarget;
+  String? basisFrequency;
+  String trackerBasisFrequency;
 
   CostAnalysisData({
     this.notes = '',
@@ -2280,6 +2306,8 @@ class CostAnalysisData {
     List<BenefitLineItem>? benefitLineItems,
     this.savingsNotes = '',
     this.savingsTarget = '',
+    this.basisFrequency,
+    this.trackerBasisFrequency = 'Annual',
   })  : solutionCosts = solutionCosts ?? [],
         projectValueBenefits = projectValueBenefits ?? {},
         benefitLineItems = benefitLineItems ?? [];
@@ -2292,6 +2320,8 @@ class CostAnalysisData {
         'benefitLineItems': benefitLineItems.map((b) => b.toJson()).toList(),
         'savingsNotes': savingsNotes,
         'savingsTarget': savingsTarget,
+        'basisFrequency': basisFrequency,
+        'trackerBasisFrequency': trackerBasisFrequency,
       };
 
   factory CostAnalysisData.fromJson(Map<String, dynamic> json) {
@@ -2310,6 +2340,9 @@ class CostAnalysisData {
           [],
       savingsNotes: json['savingsNotes'] ?? '',
       savingsTarget: json['savingsTarget'] ?? '',
+      basisFrequency: json['basisFrequency']?.toString(),
+      trackerBasisFrequency:
+          json['trackerBasisFrequency']?.toString() ?? 'Annual',
     );
   }
 }
@@ -5064,138 +5097,6 @@ class Vendor {
       procurementStage: json['procurementStage']?.toString() ?? 'Identified',
       status: json['status']?.toString() ?? 'Pending',
       notes: json['notes']?.toString() ?? '',
-    );
-  }
-}
-
-// --- Design Management Data Models ---
-
-class DesignManagementData {
-  List<DesignSpecification> specifications;
-  List<DesignDocument> documents;
-  List<DesignToolLink> tools;
-
-  DesignManagementData({
-    List<DesignSpecification>? specifications,
-    List<DesignDocument>? documents,
-    List<DesignToolLink>? tools,
-  })  : specifications = specifications ?? [],
-        documents = documents ?? [],
-        tools = tools ?? [];
-
-  Map<String, dynamic> toJson() => {
-        'specifications': specifications.map((e) => e.toJson()).toList(),
-        'documents': documents.map((e) => e.toJson()).toList(),
-        'tools': tools.map((e) => e.toJson()).toList(),
-      };
-
-  factory DesignManagementData.fromJson(Map<String, dynamic> json) {
-    return DesignManagementData(
-      specifications: (json['specifications'] as List?)
-              ?.map((e) =>
-                  DesignSpecification.fromJson(Map<String, dynamic>.from(e)))
-              .toList() ??
-          [],
-      documents: (json['documents'] as List?)
-              ?.map(
-                  (e) => DesignDocument.fromJson(Map<String, dynamic>.from(e)))
-              .toList() ??
-          [],
-      tools: (json['tools'] as List?)
-              ?.map(
-                  (e) => DesignToolLink.fromJson(Map<String, dynamic>.from(e)))
-              .toList() ??
-          [],
-    );
-  }
-}
-
-class DesignSpecification {
-  String id;
-  String description;
-  String status; // 'Defined', 'Validated', 'Implemented'
-
-  DesignSpecification({
-    String? id,
-    this.description = '',
-    this.status = 'Defined',
-  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'description': description,
-        'status': status,
-      };
-
-  factory DesignSpecification.fromJson(Map<String, dynamic> json) {
-    return DesignSpecification(
-      id: json['id']?.toString(),
-      description: json['description']?.toString() ?? '',
-      status: json['status']?.toString() ?? 'Defined',
-    );
-  }
-}
-
-class DesignDocument {
-  String id;
-  String title;
-  String type; // 'Input' or 'Output'
-  String? url;
-  String? notes;
-
-  DesignDocument({
-    String? id,
-    this.title = '',
-    this.type = 'Output',
-    this.url,
-    this.notes,
-  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'type': type,
-        'url': url,
-        'notes': notes,
-      };
-
-  factory DesignDocument.fromJson(Map<String, dynamic> json) {
-    return DesignDocument(
-      id: json['id']?.toString(),
-      title: json['title']?.toString() ?? '',
-      type: json['type']?.toString() ?? 'Output',
-      url: json['url']?.toString(),
-      notes: json['notes']?.toString(),
-    );
-  }
-}
-
-class DesignToolLink {
-  String id;
-  String name;
-  String url;
-  bool isInternal;
-
-  DesignToolLink({
-    String? id,
-    this.name = '',
-    this.url = '',
-    this.isInternal = false,
-  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'url': url,
-        'isInternal': isInternal,
-      };
-
-  factory DesignToolLink.fromJson(Map<String, dynamic> json) {
-    return DesignToolLink(
-      id: json['id']?.toString(),
-      name: json['name']?.toString() ?? '',
-      url: json['url']?.toString() ?? '',
-      isInternal: json['isInternal'] == true,
     );
   }
 }

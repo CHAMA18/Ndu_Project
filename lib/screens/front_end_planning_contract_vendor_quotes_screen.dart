@@ -12,6 +12,7 @@ import 'package:ndu_project/models/procurement/procurement_models.dart';
 import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/widgets/procurement_tables.dart';
 import 'package:ndu_project/widgets/procurement_dialogs.dart';
+import 'package:ndu_project/widgets/content_text.dart';
 import 'dart:convert';
 // Layout Imports
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
@@ -380,6 +381,42 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                                     controller: _notesController,
                                     hint: 'Input your notes here...',
                                     minLines: 3),
+                                const SizedBox(height: 32),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: const [
+                                          EditableContentText(
+                                            contentKey: 'fep_contracting_title',
+                                            fallback: 'Contracting',
+                                            category: 'front_end_planning',
+                                            style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF111827),
+                                            ),
+                                          ),
+                                          SizedBox(height: 6),
+                                          EditableContentText(
+                                            contentKey:
+                                                'fep_contracting_subtitle',
+                                            fallback:
+                                                'Manage contracts for vendors, services, and materials required for project execution. Ensure all agreements align with project scope and budget constraints.',
+                                            category: 'front_end_planning',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF6B7280),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                 const SizedBox(height: 32),
 
                                 // Contracts Section

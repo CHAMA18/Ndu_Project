@@ -68,6 +68,7 @@ class _FrontEndPlanningAllowanceScreenState
 
       _notes.addListener(_syncNotesToProvider);
       _isSyncReady = true;
+      _syncItemsToProvider();
       setState(() {});
     });
   }
@@ -96,12 +97,15 @@ class _FrontEndPlanningAllowanceScreenState
     if (!mounted || !_isSyncReady) return;
     final provider = ProjectDataHelper.getProvider(context);
     provider.updateField(
-      (data) => data.copyWith(
-        frontEndPlanning: ProjectDataHelper.updateFEPField(
-          current: data.frontEndPlanning,
-          allowanceItems: _allowanceItems,
-        ),
-      ),
+      (data) {
+        final updated = data.copyWith(
+          frontEndPlanning: ProjectDataHelper.updateFEPField(
+            current: data.frontEndPlanning,
+            allowanceItems: _allowanceItems,
+          ),
+        );
+        return ProjectDataHelper.applyTaggedFrontEndPlanningData(updated);
+      },
     );
   }
 
@@ -269,11 +273,12 @@ class _FrontEndPlanningAllowanceScreenState
         notes: notesController.text.trim(),
       );
 
+      final editingItemId = item?.id;
       setState(() {
-        if (isEditing) {
-          final index = _allowanceItems.indexWhere((i) => i.id == item.id);
+        if (isEditing && editingItemId != null) {
+          final index = _allowanceItems.indexWhere((i) => i.id == editingItemId);
           if (index != -1) _allowanceItems[index] = newItem;
-        } else {
+        } else if (!isEditing) {
           _allowanceItems.add(newItem);
         }
       });
@@ -712,7 +717,6 @@ class _FrontEndPlanningAllowanceScreenState
                     ProjectDataHelper.saveAndNavigate(
                       context: context,
                       checkpoint: 'fep_allowance',
-                      saveInBackground: true,
                       nextScreenBuilder: () =>
                           const ProjectCharterScreen(), // Usually next is charter or similar
                       dataUpdater: (data) => data.copyWith(

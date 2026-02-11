@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/project_charter_sections.dart';
 
 class CharterGovernanceSection extends StatelessWidget {
@@ -287,10 +288,46 @@ class CharterApprovals extends StatelessWidget {
               ),
               if (!isApproved)
                 InkWell(
-                  onTap: () {
-                    // Placeholder for approval action
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Approval logic not yet connected.')));
+                  onTap: () async {
+                    if (name == 'Pending Assignment') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Assign a sponsor or project owner before approval.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final provider = ProjectDataInherited.maybeOf(context);
+                    if (provider == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Unable to find project context.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    provider.updateField(
+                      (data) => data.copyWith(
+                        charterApprovalDate: DateTime.now(),
+                      ),
+                    );
+                    final success = await provider.saveToFirebase(
+                        checkpoint: 'project_charter');
+
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Project charter approved.'
+                              : 'Approval saved locally, but cloud sync failed.',
+                        ),
+                        backgroundColor: success ? Colors.green : Colors.orange,
+                      ),
+                    );
                   },
                   child: Container(
                     padding:
