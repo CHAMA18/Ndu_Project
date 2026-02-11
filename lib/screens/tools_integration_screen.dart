@@ -318,6 +318,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     _scheduleSave();
   }
 
+  // ignore: unused_element
   void _addStat() {
     setState(() {
       _stats.add(_StatItem(
@@ -383,6 +384,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildBrandMark() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -402,6 +404,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildPhaseTabs() {
     final phases = [
       'Phase 1 · Team & alignment',
@@ -443,6 +446,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSearchBar() {
     return Container(
       height: 40,
@@ -522,6 +526,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildStatsRow(bool isNarrow) {
     if (isNarrow) {
       return Wrap(
@@ -917,11 +922,13 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
     );
   }
 
+  // ignore: unused_element
   Future<void> _openIntegrationConfig(_IntegrationItem item, int index) async {
     final service = IntegrationOAuthService.instance;
     final clientConfig = await service.loadClientConfig(item.provider);
     final authState = await service.loadState(item.provider);
     final config = service.configFor(item.provider);
+    if (!mounted) return;
 
     final scopesController = TextEditingController(text: item.scopes);
     final mapsToController = TextEditingController(text: item.mapsTo);
@@ -1466,7 +1473,7 @@ class _IntegrationItem {
         'name': name,
         'subtitle': subtitle,
         'icon': icon.codePoint,
-        'iconColor': iconColor.value,
+        'iconColor': iconColor.toARGB32(),
         'scopes': scopes,
         'features': features,
         'status': status,
@@ -1499,7 +1506,7 @@ class _IntegrationItem {
           map['icon'] is int ? map['icon'] as int : Icons.link.codePoint,
           fontFamily: 'MaterialIcons',
         ),
-        iconColor: Color(map['iconColor'] is int ? map['iconColor'] as int : const Color(0xFF94A3B8).value),
+        iconColor: Color(map['iconColor'] is int ? map['iconColor'] as int : 0xFF94A3B8),
         scopes: map['scopes']?.toString() ?? '',
         features: map['features']?.toString() ?? '',
         status: map['status']?.toString() ?? 'Not connected',
@@ -1544,7 +1551,7 @@ class _StatItem {
         'id': id,
         'label': label,
         'value': value,
-        'valueColor': valueColor.value,
+        'valueColor': valueColor.toARGB32(),
       };
 
   static List<_StatItem> fromList(dynamic data) {
@@ -1555,7 +1562,7 @@ class _StatItem {
         id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
         label: map['label']?.toString() ?? '',
         value: map['value']?.toString() ?? '',
-        valueColor: Color(map['valueColor'] is int ? map['valueColor'] as int : Colors.grey.value),
+        valueColor: Color(map['valueColor'] is int ? map['valueColor'] as int : Colors.grey.toARGB32()),
       );
     }).toList();
   }

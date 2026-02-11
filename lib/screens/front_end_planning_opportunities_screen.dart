@@ -996,6 +996,7 @@ class _BottomOverlays extends StatelessWidget {
                       await ProjectDataHelper.saveAndNavigate(
                         context: context,
                         checkpoint: 'fep_opportunities',
+                        saveInBackground: true,
                         nextScreenBuilder: () => nextScreen,
                         dataUpdater: (data) => data.copyWith(
                           frontEndPlanning: ProjectDataHelper.updateFEPField(

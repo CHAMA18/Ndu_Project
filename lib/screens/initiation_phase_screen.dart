@@ -79,6 +79,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       await ProjectDataHelper.saveAndNavigate(
         context: context,
         checkpoint: 'business_case',
+        saveInBackground: true,
         nextScreenBuilder: () => const PotentialSolutionsScreen(),
         dataUpdater: (data) => data.copyWith(
           notes: _notesController.text.trim(),

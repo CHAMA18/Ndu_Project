@@ -9,6 +9,9 @@ class ProjectDataProvider extends ChangeNotifier {
   bool _isSaving = false;
   String? _lastError;
   String? _cachedProjectId; // Cache to prevent redundant loads
+  Future<bool>? _activeSaveFuture;
+  bool _queuedAnotherSave = false;
+  String? _queuedCheckpoint;
 
   ProjectDataModel get projectData => _projectData;
   bool get isSaving => _isSaving;
@@ -29,15 +32,56 @@ class ProjectDataProvider extends ChangeNotifier {
 
   /// Save current project data to Firebase
   Future<bool> saveToFirebase({String? checkpoint}) async {
+    // Coalesce rapid consecutive saves. If one save is already in-flight, mark
+    // that another pass is needed and reuse the same future.
+    if (_activeSaveFuture != null) {
+      _queuedAnotherSave = true;
+      if (checkpoint != null) {
+        _queuedCheckpoint = checkpoint;
+      }
+      return _activeSaveFuture!;
+    }
+
+    _queuedCheckpoint = checkpoint;
+    final saveFuture = _drainSaveQueue();
+    _activeSaveFuture = saveFuture;
+    final result = await saveFuture;
+    return result;
+  }
+
+  Future<bool> _drainSaveQueue() async {
+    var overallSuccess = true;
+    var checkpointToSave = _queuedCheckpoint;
+    _queuedCheckpoint = null;
+
+    try {
+      do {
+        _queuedAnotherSave = false;
+        final success = await _performSave(checkpoint: checkpointToSave);
+        overallSuccess = overallSuccess && success;
+        checkpointToSave = _queuedCheckpoint;
+        _queuedCheckpoint = null;
+      } while (_queuedAnotherSave || checkpointToSave != null);
+
+      return overallSuccess;
+    } finally {
+      _activeSaveFuture = null;
+    }
+  }
+
+  Future<bool> _performSave({String? checkpoint}) async {
+    final previousProjectId = _projectData.projectId;
+    final previousCheckpoint = _projectData.currentCheckpoint;
+
     _isSaving = true;
     _lastError = null;
-    notifyListeners();
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         _lastError = 'User not authenticated';
         _isSaving = false;
+        // Failure state should still notify so error surfaces can react.
         notifyListeners();
         return false;
       }
@@ -92,11 +136,19 @@ class ProjectDataProvider extends ChangeNotifier {
       );
 
       _isSaving = false;
-      notifyListeners();
+
+      // Avoid global rebuild churn on every save by notifying only when the
+      // observable project state materially changed.
+      final hasNewProjectId = previousProjectId != _projectData.projectId;
+      final hasCheckpointChange = previousCheckpoint != _projectData.currentCheckpoint;
+      if (hasNewProjectId || hasCheckpointChange) {
+        notifyListeners();
+      }
       return true;
     } catch (e) {
       _lastError = e.toString();
       _isSaving = false;
+      // Failure state should still notify so error surfaces can react.
       notifyListeners();
       return false;
     }
@@ -368,8 +420,24 @@ class ProjectDataInherited extends InheritedNotifier<ProjectDataProvider> {
     return context.dependOnInheritedWidgetOfExactType<ProjectDataInherited>()?.notifier;
   }
 
+  static ProjectDataProvider? maybeRead(BuildContext context) {
+    final element =
+        context.getElementForInheritedWidgetOfExactType<ProjectDataInherited>();
+    final widget = element?.widget;
+    if (widget is ProjectDataInherited) {
+      return widget.notifier;
+    }
+    return null;
+  }
+
   static ProjectDataProvider of(BuildContext context) {
     final provider = maybeOf(context);
+    assert(provider != null, 'No ProjectDataInherited found in context');
+    return provider!;
+  }
+
+  static ProjectDataProvider read(BuildContext context) {
+    final provider = maybeRead(context);
     assert(provider != null, 'No ProjectDataInherited found in context');
     return provider!;
   }

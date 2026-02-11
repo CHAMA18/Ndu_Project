@@ -312,6 +312,7 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'project_framework',
+      saveInBackground: true,
       nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(
         projectName: _projectNameController.text.trim(),

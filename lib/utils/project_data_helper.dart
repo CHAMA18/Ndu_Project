@@ -98,6 +98,7 @@ class ProjectDataHelper {
     String?
         destinationCheckpoint, // Optional: checkpoint of destination screen for lock checking
     String? destinationName, // Optional: human-readable name for error messages
+    bool saveInBackground = false, // Opt-in: navigate immediately, save async
   }) async {
     final provider = Provider.of<ProjectDataProvider>(context, listen: false);
 
@@ -113,7 +114,40 @@ class ProjectDataHelper {
       provider.updateField(dataUpdater);
     }
 
-    // Save to Firebase
+    if (saveInBackground) {
+      // Update checkpoint in-memory so downstream widgets can reflect progress
+      // immediately without waiting on network IO.
+      provider.updateField((data) => data.copyWith(currentCheckpoint: checkpoint));
+
+      // Navigate immediately to reduce perceived latency.
+      if (context.mounted) {
+        PhaseTransitionHelper.pushPhaseAware(
+          context: context,
+          builder: (_) => nextScreenBuilder(),
+          destinationCheckpoint: destinationCheckpoint,
+          sourceCheckpoint: checkpoint,
+        );
+      }
+
+      // Save in the background (no UI blocking). We intentionally avoid showing
+      // snackbars here because the source context may be disposed after nav.
+      Future<void>(() async {
+        try {
+          final success = await provider.saveToFirebase(checkpoint: checkpoint);
+          if (!success) {
+            debugPrint(
+              'Warning: ${provider.lastError ?? "Could not save data"} (background save)',
+            );
+          }
+        } catch (e) {
+          debugPrint('Background save error: $e');
+        }
+      });
+
+      return;
+    }
+
+    // Save to Firebase (blocking)
     final success = await provider.saveToFirebase(checkpoint: checkpoint);
 
     if (!success && context.mounted) {

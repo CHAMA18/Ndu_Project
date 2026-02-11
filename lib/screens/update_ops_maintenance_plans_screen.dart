@@ -576,6 +576,7 @@ class _UpdateOpsMaintenancePlansScreenState extends State<UpdateOpsMaintenancePl
                             );
                             return;
                           }
+                          final navigator = Navigator.of(dialogContext);
                           await FirebaseFirestore.instance
                               .collection('projects')
                               .doc(projectId)
@@ -591,7 +592,8 @@ class _UpdateOpsMaintenancePlansScreenState extends State<UpdateOpsMaintenancePl
                                 'owner': ownerController.text.trim(),
                                 'createdAt': FieldValue.serverTimestamp(),
                               });
-                          if (mounted) Navigator.of(dialogContext).pop();
+                          if (!mounted) return;
+                          navigator.pop();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0EA5E9),
@@ -1095,7 +1097,7 @@ class _CoverageItem {
         'id': id,
         'label': label,
         'progress': progress,
-        'color': color.value,
+        'color': color.toARGB32(),
       };
 
   static List<_CoverageItem> fromList(dynamic data) {
@@ -1108,7 +1110,7 @@ class _CoverageItem {
         progress: (map['progress'] is num)
             ? (map['progress'] as num).toDouble()
             : double.tryParse(map['progress']?.toString() ?? '0') ?? 0,
-        color: Color(map['color'] is int ? map['color'] as int : const Color(0xFF0EA5E9).value),
+        color: Color(map['color'] is int ? map['color'] as int : 0xFF0EA5E9),
       );
     }).toList();
   }
@@ -1187,7 +1189,7 @@ class _StatCardData {
         'label': label,
         'value': value,
         'supporting': supporting,
-        'color': color.value,
+        'color': color.toARGB32(),
       };
 
   static List<_StatCardData> fromList(dynamic data) {
@@ -1199,7 +1201,7 @@ class _StatCardData {
         label: map['label']?.toString() ?? '',
         value: map['value']?.toString() ?? '',
         supporting: map['supporting']?.toString() ?? '',
-        color: Color(map['color'] is int ? map['color'] as int : const Color(0xFF0EA5E9).value),
+        color: Color(map['color'] is int ? map['color'] as int : 0xFF0EA5E9),
       );
     }).toList();
   }

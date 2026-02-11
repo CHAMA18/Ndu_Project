@@ -121,8 +121,8 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
             onPressed: () async {
               final entry = {'name': name.text.trim(), 'category': category.text.trim(), 'notes': notes.text.trim()};
               setState(() => _items.add(entry));
-              await _save();
               Navigator.of(c).pop();
+              await _save();
             },
             child: const Text('Add'),
           ),

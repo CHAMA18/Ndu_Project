@@ -33,8 +33,6 @@ class _StakeholderManagementScreenState
 
   final _stakeholderSaveDebounce = _Debouncer();
   final _planSaveDebounce = _Debouncer();
-  final bool _loadingStakeholders = false;
-  final bool _loadingPlans = false;
   String _searchQuery = '';
 
   @override
@@ -164,8 +162,6 @@ class _StakeholderManagementScreenState
     );
   }
 
-  String? _projectId() => ProjectDataHelper.getData(context).projectId;
-
   // Manual persistence methods removed as we now use ProjectDataHelper.updateAndSave
 
   void _addStakeholder() async {
@@ -256,7 +252,6 @@ class _StakeholderManagementScreenState
       return;
     }
 
-    final selectedSolutionId = projectData.preferredSolutionId;
     final solutionData = coreStakeholders.solutionStakeholderData.firstWhere(
       (s) => s.solutionTitle == projectData.preferredSolution?.title,
       orElse: () => coreStakeholders.solutionStakeholderData.isNotEmpty
@@ -313,9 +308,13 @@ class _StakeholderManagementScreenState
         stakeholderEntries: newEntries,
       ),
     );
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text(
-            'Loaded ${newEntries.length} stakeholders from Initiation Phase.')));
+            'Loaded ${newEntries.length} stakeholders from Initiation Phase.'),
+      ),
+    );
   }
 }
 
@@ -656,6 +655,7 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _InfoCardsRow extends StatelessWidget {
   const _InfoCardsRow({required this.isMobile});
 
@@ -777,21 +777,8 @@ class _InfluenceInterestMatrix extends StatelessWidget {
     final hLowIHigh = stakeholders
         .where((s) => s.influence == 'Low' && s.interest == 'High')
         .toList();
-    final hMid = stakeholders
-        .where((s) => s.influence == 'Medium' || s.interest == 'Medium')
-        .toList();
-    // 3. Keep Informed (Low/Med Influence, High Interest)
-    final keepInformed = stakeholders
-        .where((s) =>
-            (s.influence == 'Low' || s.influence == 'Medium') &&
-            s.interest == 'High')
-        .toList();
-    // 4. Monitor (Low/Med Influence, Low/Med Interest)
-    final monitor = stakeholders
-        .where((s) =>
-            (s.influence == 'Low' || s.influence == 'Medium') &&
-            (s.interest == 'Low' || s.interest == 'Medium'))
-        .toList();
+    // NOTE: Medium/keep-informed/monitor buckets were previously computed here
+    // but unused in the UI.
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

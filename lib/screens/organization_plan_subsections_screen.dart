@@ -68,6 +68,7 @@ class _OrganizationRolesResponsibilitiesScreenState
         await ProjectDataHelper.saveAndNavigate(
           context: context,
           checkpoint: 'organization_roles_responsibilities',
+          saveInBackground: true,
           nextScreenBuilder: () =>
               const OrganizationRolesResponsibilitiesScreen(),
           dataUpdater: (d) =>
@@ -162,6 +163,7 @@ class _OrganizationRolesResponsibilitiesScreenState
                       await ProjectDataHelper.saveAndNavigate(
                         context: rootContext,
                         checkpoint: 'organization_roles_responsibilities',
+                        saveInBackground: true,
                         nextScreenBuilder: () =>
                             const OrganizationRolesResponsibilitiesScreen(),
                         dataUpdater: (d) => d.copyWith(
@@ -205,6 +207,7 @@ class _OrganizationRolesResponsibilitiesScreenState
           await ProjectDataHelper.saveAndNavigate(
             context: rootContext,
             checkpoint: 'organization_roles_responsibilities',
+            saveInBackground: true,
             nextScreenBuilder: () =>
                 const OrganizationRolesResponsibilitiesScreen(),
             dataUpdater: (d) => d.copyWith(projectRoles: updatedRoles),
@@ -252,6 +255,7 @@ class _OrganizationRolesResponsibilitiesScreenState
               await ProjectDataHelper.saveAndNavigate(
                 context: rootContext,
                 checkpoint: 'organization_roles_responsibilities',
+                saveInBackground: true,
                 nextScreenBuilder: () =>
                     const OrganizationRolesResponsibilitiesScreen(),
                 dataUpdater: (d) => d.copyWith(projectRoles: updatedRoles),
@@ -381,6 +385,7 @@ class _OrganizationStaffingPlanScreenState
                                   await ProjectDataHelper.saveAndNavigate(
                                     context: context,
                                     checkpoint: 'organization_staffing_plan',
+                                    saveInBackground: true,
                                     nextScreenBuilder: () =>
                                         nextPage.builder(context),
                                     dataUpdater: (d) => d,
@@ -636,6 +641,7 @@ class _OrganizationStaffingPlanScreenState
             await ProjectDataHelper.saveAndNavigate(
               context: rootContext,
               checkpoint: 'organization_staffing_plan',
+              saveInBackground: true,
               nextScreenBuilder: () => const OrganizationStaffingPlanScreen(),
               dataUpdater: (d) => d.copyWith(staffingRequirements: updated),
             );
@@ -777,6 +783,7 @@ class _OrganizationStaffingPlanScreenState
               await ProjectDataHelper.saveAndNavigate(
                 context: rootContext,
                 checkpoint: 'organization_staffing_plan',
+                saveInBackground: true,
                 nextScreenBuilder: () => const OrganizationStaffingPlanScreen(),
                 dataUpdater: (d) => d.copyWith(staffingRequirements: updated),
               );
@@ -911,6 +918,7 @@ class _PlanningSubsectionScreen extends StatelessWidget {
       await ProjectDataHelper.saveAndNavigate(
         context: context,
         checkpoint: config.checkpoint,
+        saveInBackground: true,
         nextScreenBuilder: () => nextPage.builder(context),
         dataUpdater: (d) => d,
       );

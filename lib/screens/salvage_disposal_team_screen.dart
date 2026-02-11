@@ -66,6 +66,7 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
     _TeamMember('Lisa Park', 'Compliance Officer', 'lisa.p@company.com', 'Active', 9, Colors.green),
   ];
 
+  // ignore: unused_field
   final List<_InventoryItem> _inventoryItems = [
     _InventoryItem('SVG-019', 'Server Rack Set', 'Electronics', 'Excellent', 'Data Center', 'Ready', '\$18,400', Colors.green),
     _InventoryItem('SVG-023', 'Operations Console', 'Hardware', 'Good', 'Control Room', 'Pending', '\$6,750', Colors.orange),
@@ -674,6 +675,7 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
     );
   }
   
+  // ignore: unused_element
   void _showAddInventoryDialog(BuildContext context) {
     final projectId = _getProjectId();
     if (projectId == null) {

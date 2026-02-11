@@ -1361,6 +1361,7 @@ Return JSON with:
     }
   }
 
+  // ignore: unused_element
   DesignDeliverablesData _parseDesignDeliverables(Map<String, dynamic> json) {
     List<String> toStringList(dynamic value) {
       if (value is List) {
@@ -1424,6 +1425,7 @@ Return JSON with:
     );
   }
 
+  // ignore: unused_element
   DesignDeliverablesData _designDeliverablesFallback(String context) {
     final project = _extractProjectName(context);
     final name = project.isNotEmpty ? project : 'Project';

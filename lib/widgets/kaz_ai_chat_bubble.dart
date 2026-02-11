@@ -9,7 +9,6 @@ class KazAiChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Positioned(
       bottom: 90,
       right: 24,

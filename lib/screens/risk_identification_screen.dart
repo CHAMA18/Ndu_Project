@@ -1302,7 +1302,8 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       int solutionIndex, int riskIndex, String solutionTitle) async {
     try {
       final solution = _solutions[solutionIndex];
-      final existingRisks = _getExistingRisksForSolution(solutionIndex);
+      final provider = ProjectDataHelper.getProvider(context);
+      final messenger = ScaffoldMessenger.of(context);
       final risks = await _openAi.generateRisksForSolutions(
         [solution],
         contextNotes: _notesController.text.trim(),
@@ -1315,21 +1316,17 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
             : (riskList.isNotEmpty ? riskList.first : '');
         controller.text = riskText;
         
-        final provider = ProjectDataHelper.getProvider(context);
         await provider.saveToFirebase(checkpoint: 'risk_field_regenerated');
         
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Risk field regenerated')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to regenerate: $e')),
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Risk field regenerated')),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to regenerate: $e')));
     }
   }
 

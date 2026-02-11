@@ -199,6 +199,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   /// Enhanced locking that checks both Basic Plan restrictions and checkpoint progress
+  // ignore: unused_element
   bool _isItemLocked(String label, String checkpointName) {
     // Check Basic Plan restrictions first
     if (_isBasicPlanLocked(label)) {
@@ -271,8 +272,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     return true;
   }
 
-  // Navigation helper that saves checkpoint before navigating
-  Future<void> _navigateWithCheckpoint(String checkpoint, Widget screen) async {
+  // Navigation helper.
+  //
+  // Goal: keep navigation responsive by not blocking route transitions on
+  // network writes. We still persist data/checkpoint in the background.
+  void _navigateWithCheckpoint(String checkpoint, Widget screen) {
     // Validate Planning Phase requirements for Planning Phase checkpoints
     final planningPhaseCheckpoints = [
       'work_breakdown_structure',
@@ -311,33 +315,33 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     final provider = ProjectDataInherited.maybeOf(context);
     final currentCheckpoint = provider?.projectData.currentCheckpoint;
 
-    try {
-      if (provider != null && provider.projectData.projectId != null) {
-        final projectId = provider.projectData.projectId!;
+    if (!mounted) return;
+    PhaseTransitionHelper.pushPhaseAware(
+      context: context,
+      builder: (_) => screen,
+      destinationCheckpoint: checkpoint,
+      sourceCheckpoint: currentCheckpoint,
+    );
 
-        // Save to Firebase via provider (includes all project data)
-        await provider.saveToFirebase(checkpoint: checkpoint);
+    // Persist in background (no awaiting on UI thread).
+    final projectId = provider?.projectData.projectId;
+    if (provider != null && projectId != null && projectId.isNotEmpty) {
+      // Update in-memory state immediately so other widgets (e.g. sidebars) can
+      // reflect progress without waiting on Firestore.
+      provider.updateField((data) => data.copyWith(currentCheckpoint: checkpoint));
 
-        // Also update checkpoint via ProjectService (ensures checkpointRoute is set)
-        await ProjectService.updateCheckpoint(
-          projectId: projectId,
-          checkpointRoute: checkpoint,
-        );
+      // Fast local persistence for "resume where you left off".
+      Future<void>(() => ProjectNavigationService.instance.saveLastPageLocal(projectId, checkpoint));
 
-        // Update ProjectNavigationService (writes to both Firestore and SharedPreferences)
-        await ProjectNavigationService.instance
-            .saveLastPage(projectId, checkpoint);
-      }
-    } catch (e) {
-      debugPrint('Checkpoint save error: $e');
-    }
-    if (mounted) {
-      PhaseTransitionHelper.pushPhaseAware(
-        context: context,
-        builder: (_) => screen,
-        destinationCheckpoint: checkpoint,
-        sourceCheckpoint: currentCheckpoint,
-      );
+      // Full remote save in the background so user data isn't lost if the app
+      // is terminated later.
+      Future<void>(() async {
+        try {
+          await provider.saveToFirebase(checkpoint: checkpoint);
+        } catch (e) {
+          debugPrint('Checkpoint save error (background): $e');
+        }
+      });
     }
   }
 
@@ -504,30 +508,44 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   Future<void> _openSummary() async {
-    try {
-      final provider = ProjectDataInherited.maybeOf(context);
-      if (provider != null && provider.projectData.projectId != null) {
-        await provider.saveToFirebase(checkpoint: 'fep_summary');
-      }
-    } catch (e) {
-      debugPrint('Checkpoint save error: $e');
-    }
     if (mounted) {
       FrontEndPlanningSummaryScreen.open(context);
+    }
+
+    // Persist checkpoint in the background to keep navigation responsive.
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (provider != null && projectId != null && projectId.isNotEmpty) {
+      provider.updateField((data) => data.copyWith(currentCheckpoint: 'fep_summary'));
+      Future<void>(() => ProjectNavigationService.instance.saveLastPageLocal(projectId, 'fep_summary'));
+      Future<void>(() async {
+        try {
+          await provider.saveToFirebase(checkpoint: 'fep_summary');
+        } catch (e) {
+          debugPrint('Checkpoint save error (background): $e');
+        }
+      });
     }
   }
 
   Future<void> _openProjectCharter() async {
-    try {
-      final provider = ProjectDataInherited.maybeOf(context);
-      if (provider != null && provider.projectData.projectId != null) {
-        await provider.saveToFirebase(checkpoint: 'project_charter');
-      }
-    } catch (e) {
-      debugPrint('Checkpoint save error: $e');
-    }
     if (mounted) {
       ProjectCharterScreen.open(context);
+    }
+
+    // Persist checkpoint in the background to keep navigation responsive.
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (provider != null && projectId != null && projectId.isNotEmpty) {
+      provider.updateField((data) => data.copyWith(currentCheckpoint: 'project_charter'));
+      Future<void>(() => ProjectNavigationService.instance.saveLastPageLocal(projectId, 'project_charter'));
+      Future<void>(() async {
+        try {
+          await provider.saveToFirebase(checkpoint: 'project_charter');
+        } catch (e) {
+          debugPrint('Checkpoint save error (background): $e');
+        }
+      });
     }
   }
 
@@ -550,15 +568,18 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         const DesignPhaseScreen(activeItemLabel: 'Design Management'));
   }
 
+  // ignore: unused_element
   void _openExecutionPlan() {
     _navigateWithCheckpoint('execution_plan', const ExecutionPlanScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanStrategy() {
     _navigateWithCheckpoint(
         'execution_plan_strategy', const ExecutionPlanSolutionsScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanDetails() {
     _navigateWithCheckpoint(
       'execution_plan_details',
@@ -570,6 +591,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     );
   }
 
+  // ignore: unused_element
   void _openExecutionEarlyWorks() {
     _navigateWithCheckpoint(
       'execution_early_works',
@@ -581,21 +603,25 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     );
   }
 
+  // ignore: unused_element
   void _openExecutionEnablingWorkPlan() {
     _navigateWithCheckpoint('execution_enabling_work_plan',
         const ExecutionEnablingWorkPlanScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionIssueManagement() {
     _navigateWithCheckpoint(
         'execution_issue_management', const ExecutionIssueManagementScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanLessonsLearned() {
     _navigateWithCheckpoint('execution_plan_lessons_learned',
         const ExecutionPlanLessonsLearnedScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanBestPractices() {
     _navigateWithCheckpoint('execution_plan_best_practices',
         const ExecutionPlanBestPracticesScreen());
@@ -616,26 +642,31 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         const ExecutionPlanAgileDeliveryPlanScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanInterfaceManagement() {
     _navigateWithCheckpoint('execution_plan_interface_management',
         const ExecutionPlanInterfaceManagementScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanCommunicationPlan() {
     _navigateWithCheckpoint('execution_plan_communication_plan',
         const ExecutionPlanCommunicationPlanScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanInterfaceManagementPlan() {
     _navigateWithCheckpoint('execution_plan_interface_management_plan',
         const ExecutionPlanInterfaceManagementPlanScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanInterfaceManagementOverview() {
     _navigateWithCheckpoint('execution_plan_interface_management_overview',
         const ExecutionPlanInterfaceManagementOverviewScreen());
   }
 
+  // ignore: unused_element
   void _openExecutionPlanStakeholderIdentification() {
     _navigateWithCheckpoint('execution_plan_stakeholder_identification',
         const ExecutionPlanStakeholderIdentificationScreen());
@@ -879,6 +910,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         'engineering_design', const EngineeringDesignScreen());
   }
 
+  // ignore: unused_element
   void _openProjectCloseOut() {
     _navigateWithCheckpoint('project_close_out', const ProjectCloseOutScreen());
   }
@@ -1002,14 +1034,6 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   Future<void> _openExecutiveSummary() async {
-    try {
-      final provider = ProjectDataInherited.maybeOf(context);
-      if (provider != null && provider.projectData.projectId != null) {
-        await provider.saveToFirebase(checkpoint: 'executive_summary');
-      }
-    } catch (e) {
-      debugPrint('Checkpoint save error: $e');
-    }
     if (mounted) {
       final provider = ProjectDataInherited.maybeOf(context);
       final projectData = provider?.projectData;
@@ -1025,6 +1049,20 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   'No solutions available. Please complete the Potential Solutions step first.')),
         );
         return;
+      }
+
+      // Persist checkpoint in the background (after we know we're actually opening).
+      final projectId = projectData?.projectId;
+      if (provider != null && projectId != null && projectId.isNotEmpty) {
+        provider.updateField((data) => data.copyWith(currentCheckpoint: 'executive_summary'));
+        Future<void>(() => ProjectNavigationService.instance.saveLastPageLocal(projectId, 'executive_summary'));
+        Future<void>(() async {
+          try {
+            await provider.saveToFirebase(checkpoint: 'executive_summary');
+          } catch (e) {
+            debugPrint('Checkpoint save error (background): $e');
+          }
+        });
       }
 
       // Convert PotentialSolution to AiSolutionItem

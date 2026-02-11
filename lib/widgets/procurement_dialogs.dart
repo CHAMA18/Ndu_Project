@@ -662,6 +662,7 @@ class _AddVendorDialogState extends State<AddVendorDialog> {
     super.dispose();
   }
 
+  // ignore: unused_element
   String _deriveInitials(String name) {
     final parts =
         name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();

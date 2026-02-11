@@ -416,6 +416,7 @@ class _FrontEndPlanningWorkspaceScreenState
                 ProjectDataHelper.saveAndNavigate(
                   context: context,
                   checkpoint: 'fep_details_complete',
+                  saveInBackground: true,
                   nextScreenBuilder: () =>
                       const FrontEndPlanningRequirementsScreen(),
                   dataUpdater: (data) => data.copyWith(

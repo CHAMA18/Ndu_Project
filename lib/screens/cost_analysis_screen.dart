@@ -291,7 +291,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   void _loadExistingData() {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       final costAnalysisData = provider.projectData.costAnalysisData;
 
       if (costAnalysisData == null) return;
@@ -1560,7 +1560,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     if (!mounted) return;
 
     // 2. Validate data completeness
-    final provider = ProjectDataInherited.of(context);
+    final provider = ProjectDataInherited.read(context);
     final projectData = provider.projectData;
 
     if (projectData.costAnalysisData == null) {
@@ -1627,7 +1627,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Future<void> _saveCostAnalysisData() async {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
 
       // Collect cost row data for single selected solution (Step 2)
       // Use first solution or first available solution

@@ -165,7 +165,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   void _loadExistingData() {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       final stakeholdersData = provider.projectData.coreStakeholdersData;
 
       if (stakeholdersData == null) return;
@@ -934,7 +934,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     if (!mounted) return;
 
     // 2. Validate data completeness
-    final provider = ProjectDataInherited.of(context);
+    final provider = ProjectDataInherited.read(context);
     final projectData = provider.projectData;
     final hasCoreStakeholders = projectData.coreStakeholdersData != null &&
         projectData.coreStakeholdersData!.solutionStakeholderData.isNotEmpty &&
@@ -1024,7 +1024,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   Future<void> _saveCoreStakeholdersData() async {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
 
       // Collect all stakeholder data from all solutions (including manually added items)
       final solutionStakeholderData = <SolutionStakeholderData>[];

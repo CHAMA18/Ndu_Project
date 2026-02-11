@@ -39,7 +39,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     _openAi = OpenAiServiceSecure();
     ApiKeyManager.initializeApiKey();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       if (mounted) {
         setState(() {
           _projectData = provider.projectData;
@@ -60,7 +60,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
   Future<void> _regenerateAllCharter() async {
     if (_projectData == null) return;
-    final provider = ProjectDataInherited.of(context);
+    final provider = ProjectDataInherited.read(context);
     provider.updateField((data) {
       return data.copyWith(
         businessCase: '',
@@ -107,7 +107,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
             );
 
             if (mounted && overview.isNotEmpty && _projectData != null) {
-              final provider = ProjectDataInherited.of(context);
+              final provider = ProjectDataInherited.read(context);
               provider.updateField((data) {
                 if (data.businessCase.trim().isEmpty) {
                   return data.copyWith(businessCase: overview);
@@ -142,7 +142,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                   .toList();
 
               if (lines.isNotEmpty) {
-                final provider = ProjectDataInherited.of(context);
+                final provider = ProjectDataInherited.read(context);
                 final newGoals = lines.map((line) {
                   final cleanLine = line.replaceAll(RegExp(r'^[-•]\s*'), '');
                   return ProjectGoal(
@@ -172,7 +172,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
         if (needsAssumptions || needsConstraints) {
           if (!mounted) return;
-          final provider = ProjectDataInherited.of(context);
+          final provider = ProjectDataInherited.read(context);
           if (needsAssumptions) {
             try {
               final assumptions = await _openAi.generateFepSectionText(
@@ -225,7 +225,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
     try {
       final contextText = ProjectDataHelper.buildFepContext(_projectData!);
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
 
       if (sectionType == 'definition') {
         final overview = await _openAi.generateFepSectionText(

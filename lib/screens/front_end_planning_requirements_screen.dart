@@ -503,6 +503,7 @@ class _FrontEndPlanningRequirementsScreenState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'fep_requirements',
+      saveInBackground: true,
       nextScreenBuilder: () => const FrontEndPlanningRisksScreen(),
       dataUpdater: (data) => data.copyWith(
         frontEndPlanning: ProjectDataHelper.updateFEPField(

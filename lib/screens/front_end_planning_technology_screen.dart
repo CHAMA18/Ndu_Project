@@ -3510,6 +3510,7 @@ class _BottomOverlays extends StatelessWidget {
                       await ProjectDataHelper.saveAndNavigate(
                         context: context,
                         checkpoint: 'technology',
+                        saveInBackground: true,
                         nextScreenBuilder: () =>
                             const InterfaceManagementScreen(),
                         dataUpdater: (d) => d,
@@ -3638,6 +3639,7 @@ class _TopBar extends StatelessWidget {
                 await ProjectDataHelper.saveAndNavigate(
                   context: context,
                   checkpoint: 'technology',
+                  saveInBackground: true,
                   nextScreenBuilder: () =>
                       const DesignPhaseScreen(activeItemLabel: 'Design'),
                   dataUpdater: (d) => d,
@@ -3652,6 +3654,7 @@ class _TopBar extends StatelessWidget {
               await ProjectDataHelper.saveAndNavigate(
                 context: context,
                 checkpoint: 'technology',
+                saveInBackground: true,
                 nextScreenBuilder: () => const InterfaceManagementScreen(),
                 dataUpdater: (d) => d,
                 destinationCheckpoint: 'interface_management',

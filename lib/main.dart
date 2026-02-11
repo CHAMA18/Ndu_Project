@@ -5,6 +5,8 @@ import 'package:ndu_project/app_strings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:ndu_project/firebase_options.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/providers/app_content_provider.dart';
 import 'package:provider/provider.dart';
@@ -115,6 +117,9 @@ void main() async {
 
   // Initialize OpenAI API key from environment (if provided)
   ApiKeyManager.initializeApiKey();
+  // Warm common local stores in background to reduce first-navigation latency.
+  unawaited(UserPreferencesService.warmUp());
+  unawaited(ProjectNavigationService.instance.warmUp());
 
   runZonedGuarded(() {
     runApp(MyApp(firebaseInitError: firebaseInitError));

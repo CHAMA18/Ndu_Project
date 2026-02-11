@@ -252,8 +252,9 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final projectData = context.watch<ProjectDataProvider>().projectData;
-    final members = projectData.teamMembers;
+    final members = context.select<ProjectDataProvider, List<TeamMember>>(
+      (provider) => provider.projectData.teamMembers,
+    );
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

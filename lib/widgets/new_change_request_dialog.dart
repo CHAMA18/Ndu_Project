@@ -168,7 +168,6 @@ class _NewChangeRequestDialogState extends State<NewChangeRequestDialog> {
   }
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

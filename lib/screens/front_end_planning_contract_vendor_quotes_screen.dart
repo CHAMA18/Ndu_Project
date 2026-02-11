@@ -468,6 +468,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
             await ProjectDataHelper.saveAndNavigate(
               context: context,
               checkpoint: 'fep_contracts',
+              saveInBackground: true,
               nextScreenBuilder: () =>
                   const FrontEndPlanningProcurementScreen(),
               dataUpdater: (data) => data,

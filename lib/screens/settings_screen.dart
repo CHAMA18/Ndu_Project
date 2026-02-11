@@ -82,7 +82,6 @@ class _SettingsScreenState extends State<SettingsScreen>
     final horizontal = isWide ? 48.0 : 20.0;
     final isMobile = AppBreakpoints.isMobile(context);
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    final canPop = Navigator.of(context).canPop();
     final fromRoute = GoRouterState.of(context).uri.queryParameters['from'];
     final openedFromDashboard = fromRoute == AppRoutes.dashboard ||
         fromRoute == AppRoutes.programDashboard ||
@@ -412,7 +411,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 onChanged: (value) async {
                                   await HintService.setDisableViewedHints(
                                       value);
-                                  if (mounted) setState(() {});
+                                  if (!mounted) return;
+                                  setState(() {});
                                 },
                               ),
                             ],
@@ -425,17 +425,17 @@ class _SettingsScreenState extends State<SettingsScreen>
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           await HintService.enableAllHints();
-                          if (mounted) {
-                            setState(() {});
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'All hints have been re-enabled. You will see hints for all pages on your next visit.'),
-                                duration: Duration(seconds: 3),
-                              ),
-                            );
-                          }
+                          if (!mounted) return;
+                          setState(() {});
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'All hints have been re-enabled. You will see hints for all pages on your next visit.'),
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.help_outline),
                         label: const Text('Enable All Hints'),
@@ -569,7 +569,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ReportHeroBanner(accent: accent, insightBadges: insightBadges),
+              _reportHeroBanner(accent: accent, insightBadges: insightBadges),
               const SizedBox(height: 28),
               Wrap(
                 spacing: 20,
@@ -578,7 +578,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     .map(
                       (metric) => SizedBox(
                         width: metricWidth,
-                        child: _ReportMetricCard(data: metric, accent: accent),
+                        child: _reportMetricCard(data: metric, accent: accent),
                       ),
                     )
                     .toList(),
@@ -588,18 +588,18 @@ class _SettingsScreenState extends State<SettingsScreen>
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _DeliveryPerformanceCard(accent: accent)),
+                    Expanded(child: _deliveryPerformanceCard(accent: accent)),
                     const SizedBox(width: 20),
                     SizedBox(
                       width: isDesktop ? 360 : 320,
-                      child: _RiskHeatCard(accent: accent),
+                      child: _riskHeatCard(accent: accent),
                     ),
                   ],
                 )
               else ...[
-                _DeliveryPerformanceCard(accent: accent),
+                _deliveryPerformanceCard(accent: accent),
                 const SizedBox(height: 20),
-                _RiskHeatCard(accent: accent),
+                _riskHeatCard(accent: accent),
               ],
               const SizedBox(height: 32),
               if (isTablet)
@@ -607,20 +607,20 @@ class _SettingsScreenState extends State<SettingsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                        child: _ActionableInsightsCard(
+                        child: _actionableInsightsCard(
                             actionItems: actionItems, accent: accent)),
                     const SizedBox(width: 20),
                     SizedBox(
                       width: isDesktop ? 360 : 320,
-                      child: _ReportDownloadsCard(accent: accent),
+                      child: _reportDownloadsCard(accent: accent),
                     ),
                   ],
                 )
               else ...[
-                _ActionableInsightsCard(
+                _actionableInsightsCard(
                     actionItems: actionItems, accent: accent),
                 const SizedBox(height: 20),
-                _ReportDownloadsCard(accent: accent),
+                _reportDownloadsCard(accent: accent),
               ],
             ],
           ),
@@ -629,7 +629,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _ReportHeroBanner(
+  Widget _reportHeroBanner(
       {required Color accent, required List<_HeroBadgeData> insightBadges}) {
     final theme = Theme.of(context);
     final summaryContent = Column(
@@ -759,7 +759,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _ReportMetricCard(
+  Widget _reportMetricCard(
       {required _MetricCardData data, required Color accent}) {
     final theme = Theme.of(context);
     return Container(
@@ -831,7 +831,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _DeliveryPerformanceCard({required Color accent}) {
+  Widget _deliveryPerformanceCard({required Color accent}) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
@@ -886,7 +886,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _RiskHeatCard({required Color accent}) {
+  Widget _riskHeatCard({required Color accent}) {
     final theme = Theme.of(context);
     const categories = ['Delivery', 'Security', 'People'];
     const likelihood = ['High', 'Medium', 'Low'];
@@ -989,7 +989,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _ActionableInsightsCard(
+  Widget _actionableInsightsCard(
       {required List<_ActionItemData> actionItems, required Color accent}) {
     final theme = Theme.of(context);
     return Container(
@@ -1030,7 +1030,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _ReportDownloadsCard({required Color accent}) {
+  Widget _reportDownloadsCard({required Color accent}) {
     final theme = Theme.of(context);
     const downloads = <_DownloadItemData>[
       _DownloadItemData(

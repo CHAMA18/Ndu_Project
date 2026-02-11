@@ -3327,7 +3327,7 @@ class _PreferredSolutionAnalysisScreenState
 
     // 2. Validate data completeness
     // Note: Provider is updated by _saveAnalysisData
-    final provider = ProjectDataInherited.of(context);
+    final provider = ProjectDataInherited.read(context);
     if (provider.projectData.preferredSolutionAnalysis == null) {
       if (mounted) {
         ProjectDataHelper.showMissingDataMessage(context,
@@ -4162,7 +4162,7 @@ class _PreferredSolutionComparisonScreen extends StatelessWidget {
   }
 
   Future<void> _handleNext(BuildContext context) async {
-    final provider = ProjectDataInherited.of(context);
+    final provider = ProjectDataInherited.read(context);
     final projectData = provider.projectData;
 
     if (projectData.preferredSolutionAnalysis == null) {

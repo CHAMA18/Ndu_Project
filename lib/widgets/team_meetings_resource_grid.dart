@@ -449,7 +449,7 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
     var selectedFrequency = _meeting.frequency;
     var selectedStatus = _meeting.status;
 
-    final result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(

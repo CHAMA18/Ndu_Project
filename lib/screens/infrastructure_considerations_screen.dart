@@ -102,7 +102,7 @@ class _InfrastructureConsiderationsScreenState
 
   void _loadExistingData() {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       final infraData = provider.projectData.infrastructureConsiderationsData;
 
       if (infraData == null) return;
@@ -936,7 +936,7 @@ class _InfrastructureConsiderationsScreenState
     if (!mounted) return;
 
     // 2. Validate data completeness
-    final provider = ProjectDataInherited.of(context);
+    final provider = ProjectDataInherited.read(context);
     final projectData = provider.projectData;
     final hasInfraData = projectData.infrastructureConsiderationsData != null &&
         projectData.infrastructureConsiderationsData!.solutionInfrastructureData
@@ -1027,7 +1027,7 @@ class _InfrastructureConsiderationsScreenState
 
   Future<void> _saveInfrastructureConsiderationsData() async {
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
 
       // Collect all infrastructure data from all solutions (including manually added items)
       final solutionInfrastructureData = <SolutionInfrastructureData>[];

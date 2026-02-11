@@ -659,8 +659,8 @@ class _ScopeTrackingImplementationScreenState
                   setState(() {
                     _items.add(newItem);
                   });
-                  await _saveItems();
                   Navigator.of(dialogContext).pop();
+                  await _saveItems();
 
                   // Auto-generate verification steps if scope item is provided
                   if (scopeItem.isNotEmpty &&

@@ -468,6 +468,7 @@ class _PlanningRequirementsScreenState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'requirements',
+      saveInBackground: true,
       nextScreenBuilder: () {
         final idx = PlanningPhaseNavigation.getPageIndex('requirements');
         return PlanningPhaseNavigation.pages[idx + 1].builder(context);

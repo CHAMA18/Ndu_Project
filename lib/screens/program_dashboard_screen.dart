@@ -1252,7 +1252,7 @@ class _ProjectRow extends StatelessWidget {
     );
 
     try {
-      final provider = ProjectDataInherited.of(context);
+      final provider = ProjectDataInherited.read(context);
       debugPrint('📥 Calling loadFromFirebase for project: $projectId');
 
       final success = await provider.loadFromFirebase(projectId);

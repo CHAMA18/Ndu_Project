@@ -470,6 +470,7 @@ class _TeamTrainingAndBuildingScreenState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'team_training',
+      saveInBackground: true,
       nextScreenBuilder: () => const TeamTrainingAndBuildingScreen(),
       dataUpdater: (d) => d.copyWith(trainingActivities: updated),
     );
@@ -1315,10 +1316,11 @@ class _TeamTrainingAndBuildingScreenState
     BuildContext context, {
     required String folder,
   }) async {
+    final messenger = ScaffoldMessenger.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      if (!mounted) return null;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!context.mounted) return null;
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Sign in is required before uploading attachments.'),
         ),
@@ -1328,8 +1330,8 @@ class _TeamTrainingAndBuildingScreenState
 
     final projectId = ProjectDataHelper.getData(context).projectId;
     if (projectId == null || projectId.isEmpty) {
-      if (!mounted) return null;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!context.mounted) return null;
+      messenger.showSnackBar(
         const SnackBar(
             content: Text('Select a project before uploading files.')),
       );
@@ -1355,13 +1357,14 @@ class _TeamTrainingAndBuildingScreenState
           'jpeg'
         ],
       );
+      if (!context.mounted) return null;
       if (result == null || result.files.isEmpty) return null;
 
       final file = result.files.first;
       final Uint8List? bytes = file.bytes;
       if (bytes == null) {
-        if (!mounted) return null;
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!context.mounted) return null;
+        messenger.showSnackBar(
           const SnackBar(content: Text('Unable to read file bytes.')),
         );
         return null;
@@ -1383,21 +1386,22 @@ class _TeamTrainingAndBuildingScreenState
         storagePath: storagePath,
       );
     } on FirebaseException catch (error) {
-      if (!mounted) return null;
+      if (!context.mounted) return null;
       _showStorageUploadError(context, error.toString());
       return null;
     } catch (error) {
-      if (!mounted) return null;
+      if (!context.mounted) return null;
       _showStorageUploadError(context, error.toString());
       return null;
     }
   }
 
   Future<void> _downloadAttachment(BuildContext context, String? url) async {
+    final messenger = ScaffoldMessenger.of(context);
     final cleanUrl = (url ?? '').trim();
     if (cleanUrl.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!context.mounted) return;
+      messenger.showSnackBar(
         const SnackBar(content: Text('No downloadable file linked.')),
       );
       return;
@@ -1405,16 +1409,17 @@ class _TeamTrainingAndBuildingScreenState
 
     final uri = Uri.tryParse(cleanUrl);
     if (uri == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!context.mounted) return;
+      messenger.showSnackBar(
         const SnackBar(content: Text('Invalid download URL.')),
       );
       return;
     }
 
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (!context.mounted) return;
+    if (!launched) {
+      messenger.showSnackBar(
         const SnackBar(content: Text('Could not open attachment URL.')),
       );
     }
@@ -1426,6 +1431,7 @@ class _TeamTrainingAndBuildingScreenState
     required String category,
     required String templateText,
   }) async {
+    final messenger = ScaffoldMessenger.of(context);
     final now = DateTime.now();
     final cleanTitle =
         title.trim().isEmpty ? 'training_template' : title.trim();
@@ -1477,13 +1483,13 @@ class _TeamTrainingAndBuildingScreenState
         await Printing.sharePdf(bytes: bytes, filename: filename);
       }
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!context.mounted) return;
+      messenger.showSnackBar(
         SnackBar(content: Text('Template PDF ready: $filename')),
       );
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!context.mounted) return;
+      messenger.showSnackBar(
         SnackBar(content: Text('Failed to create PDF: $error')),
       );
     }

@@ -730,6 +730,7 @@ class _TabContent extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _EmptySecurityState extends StatelessWidget {
   const _EmptySecurityState({required this.title, required this.message, required this.icon});
 
@@ -1500,7 +1501,8 @@ class _SettingToggleRow extends StatelessWidget {
         Switch.adaptive(
           value: value,
           onChanged: onChanged,
-          activeColor: const Color(0xFF2563EB),
+          activeThumbColor: const Color(0xFF2563EB),
+          activeTrackColor: const Color(0xFF2563EB),
         ),
       ],
     );

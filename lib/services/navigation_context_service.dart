@@ -28,8 +28,15 @@ class NavigationContextService {
   void navigateFromLogo(BuildContext context) {
     try {
       if (kDebugMode) debugPrint('Logo tap -> navigating to dashboard');
-      // Navigate to dashboard instead of landing page
-      context.go('/dashboard');
+      // Prefer the most recent dashboard context when known; fallback to the
+      // default dashboard route.
+      final rawTarget = (_lastClientDashboardRouteName?.trim().isNotEmpty ?? false)
+          ? _lastClientDashboardRouteName!.trim()
+          : (_lastAdminDashboardRouteName?.trim().isNotEmpty ?? false)
+              ? _lastAdminDashboardRouteName!.trim()
+              : '/dashboard';
+      final target = rawTarget.startsWith('/') ? rawTarget : '/$rawTarget';
+      context.go(target);
     } catch (e, st) {
       debugPrint('NavigationContextService.navigateFromLogo error: $e\n$st');
     }
