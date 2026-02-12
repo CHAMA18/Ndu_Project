@@ -80,15 +80,10 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
     final needsOverview = _projectData!.businessCase.trim().isEmpty &&
         _projectData!.solutionDescription.trim().isEmpty;
-    final needsGoals = _projectData!.projectGoals.isEmpty &&
-        _projectData!.planningGoals.isEmpty;
     final needsAssumptions = _projectData!.charterAssumptions.trim().isEmpty;
     final needsConstraints = _projectData!.charterConstraints.trim().isEmpty;
 
-    if (!needsOverview &&
-        !needsGoals &&
-        !needsAssumptions &&
-        !needsConstraints) {
+    if (!needsOverview && !needsAssumptions && !needsConstraints) {
       return;
     }
 
@@ -121,52 +116,6 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
             }
           } catch (e) {
             debugPrint('Error generating charter overview: $e');
-          }
-        }
-
-        if (needsGoals) {
-          try {
-            final goalsText = await _openAi.generateFepSectionText(
-              section: 'Project Goals and Objectives',
-              context: projectContext,
-              maxTokens: 500,
-            );
-
-            if (mounted && goalsText.isNotEmpty && _projectData != null) {
-              final lines = goalsText
-                  .split('\n')
-                  .map((l) => l.trim())
-                  .where((l) =>
-                      l.isNotEmpty && !l.startsWith('-') && !l.startsWith('•'))
-                  .take(5)
-                  .toList();
-
-              if (lines.isNotEmpty) {
-                final provider = ProjectDataInherited.read(context);
-                final newGoals = lines.map((line) {
-                  final cleanLine = line.replaceAll(RegExp(r'^[-•]\s*'), '');
-                  return ProjectGoal(
-                    name: cleanLine.length > 50
-                        ? cleanLine.substring(0, 50)
-                        : cleanLine,
-                    description: cleanLine.length > 50 ? cleanLine : '',
-                  );
-                }).toList();
-
-                provider.updateField((data) {
-                  if (data.projectGoals.isEmpty) {
-                    return data.copyWith(projectGoals: newGoals);
-                  }
-                  return data;
-                });
-
-                setState(() {
-                  _projectData = provider.projectData;
-                });
-              }
-            }
-          } catch (e) {
-            debugPrint('Error generating charter goals: $e');
           }
         }
 
