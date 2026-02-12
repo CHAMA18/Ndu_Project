@@ -394,12 +394,6 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                         data: _projectData,
                         onGenerate: () => _generateSection('risks'),
                       ),
-                      const SizedBox(height: 24),
-                      // Combined Technology & Infrastructure Row
-                      CharterTechnicalEnvironment(
-                        data: _projectData,
-                        onGenerate: () => _generateSection('tech'),
-                      ),
                     ],
                   ),
                 ),
@@ -423,6 +417,11 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+            CharterTechnicalEnvironment(
+              data: _projectData,
+              onGenerate: () => _generateSection('tech'),
             ),
             const SizedBox(height: 24),
             // NEW GOVERNANCE SECTION (Full Width)
