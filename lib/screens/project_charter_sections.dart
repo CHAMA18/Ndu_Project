@@ -39,7 +39,7 @@ class CharterExecutiveSnapshot extends StatelessWidget {
     final totalCost = _calculateTotalCost(data!);
     final duration = _calculateDuration(data!);
     final riskLevel = _calculateRiskLevel(data!);
-    final sponsor = _determineSponsor(data!);
+    final projectManager = _determineProjectManager(data!);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -64,7 +64,7 @@ class CharterExecutiveSnapshot extends StatelessWidget {
           ),
           _buildDivider(),
           Expanded(
-            child: _buildSnapshotItem('EXPECTED OPPORTUNITIES',
+            child: _buildSnapshotItem('NUMBER OF OPPORTUNITIES',
                 _countExpectedOpportunities(data!), Colors.greenAccent),
           ),
           _buildDivider(),
@@ -80,7 +80,7 @@ class CharterExecutiveSnapshot extends StatelessWidget {
           _buildDivider(),
           Expanded(
             child: _buildSnapshotItem(
-                'EXECUTIVE SPONSOR', sponsor, Colors.amberAccent),
+                'PROJECT MANAGER', projectManager, Colors.amberAccent),
           ),
         ],
       ),
@@ -178,12 +178,12 @@ class CharterExecutiveSnapshot extends StatelessWidget {
     return 'Low';
   }
 
-  String _determineSponsor(ProjectDataModel data) {
+  String _determineProjectManager(ProjectDataModel data) {
+    if (data.charterProjectManagerName.isNotEmpty) {
+      return data.charterProjectManagerName;
+    }
     if (data.charterProjectSponsorName.isNotEmpty) {
       return data.charterProjectSponsorName;
-    }
-    if (data.charterProjectManagerName.isNotEmpty) {
-      return data.charterProjectManagerName; // Fallback to Owner
     }
     return 'Not Assigned';
   }
@@ -573,6 +573,11 @@ class CharterProjectDefinition extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (data == null) return const SizedBox();
+    final projectPurposeText = data!.projectObjective.trim().isNotEmpty
+        ? data!.projectObjective
+        : data!.solutionDescription.trim().isNotEmpty
+            ? data!.solutionDescription
+            : data!.businessCase;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -600,98 +605,21 @@ class CharterProjectDefinition extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          // 1. Business Case & Project Aim
-          _buildDefinitionBlock(
-              'Business Case',
-              data!.projectObjective.isNotEmpty
-                  ? data!.projectObjective
-                  : 'No project purpose defined.',
-              'Define the business case and what this project will deliver'),
+          // 1. Project Purpose (overall aim and intended delivery)
+          _buildDefinitionBlock('Project Purpose', projectPurposeText,
+              'Summarize the overall aim of the project and what it will deliver.'),
           const Divider(height: 32),
-          // 2. Detailed Justification
-          _buildDefinitionBlock(
-              'Detailed Business Justification',
-              data!.businessCase,
-              'Outline what the project will deliver and its key objectives'),
+          // 2. Business Case (financial rationale)
+          _buildDefinitionBlock('Business Case', data!.businessCase,
+              'Provide the financial and strategic rationale (ROI/NPV context) for this project.'),
 
           const Divider(height: 32),
 
-          // 3. Project Goals (Objectives)
-          _buildGoalsSection(data!.projectGoals),
-
-          const Divider(height: 32),
-
-          // 4. Success Criteria
+          // 3. Success Criteria
           _buildSuccessCriteriaSection(
               data!.frontEndPlanning.successCriteriaItems),
         ],
       ),
-    );
-  }
-
-  Widget _buildGoalsSection(List<ProjectGoal> goals) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('PROJECT GOALS & OBJECTIVES',
-                style: kSectionTitleStyle.copyWith(fontSize: 12)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (goals.isEmpty)
-          const Text(
-            'No specific goals defined.',
-            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-          )
-        else
-          ...goals.map((goal) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 4, right: 12),
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEFF6FF), // Blue 50
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.track_changes,
-                          size: 14, color: Color(0xFF2563EB)),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            goal.name,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1F2937),
-                            ),
-                          ),
-                          if (goal.description.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                goal.description,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFF6B7280),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-      ],
     );
   }
 
@@ -906,31 +834,8 @@ class CharterFinancialOverview extends StatelessWidget {
     final costStr = NumberFormat.simpleCurrency(name: data!.costBenefitCurrency)
         .format(cost);
 
-    // Prioritize Estimate-tagged opportunities, then fallback to other sources.
-    final currency =
-        NumberFormat.simpleCurrency(name: data!.costBenefitCurrency);
-    double benefits = ProjectDataHelper.getOpportunitySavingsTotal(
-      data!,
-      estimateOnly: true,
-    );
-    String benefitsStr = 'TBD';
-    if (benefits > 0) {
-      benefitsStr = currency.format(benefits);
-    } else if (data!.costAnalysisData != null &&
-        data!.costAnalysisData!.savingsTarget.isNotEmpty) {
-      benefitsStr = data!.costAnalysisData!.savingsTarget;
-      final clean = benefitsStr.replaceAll(RegExp(r'[^0-9.]'), '');
-      if (clean.isNotEmpty) {
-        benefits = double.tryParse(clean) ?? 0.0;
-      }
-    } else {
-      final allOpportunityBenefits =
-          ProjectDataHelper.getOpportunitySavingsTotal(data!);
-      if (allOpportunityBenefits > 0) {
-        benefits = allOpportunityBenefits;
-        benefitsStr = currency.format(allOpportunityBenefits);
-      }
-    }
+    final opportunitiesCount =
+        ProjectDataHelper.getExpectedOpportunitiesCount(data!);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -941,7 +846,7 @@ class CharterFinancialOverview extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('FINANCIAL JUSTIFICATION', style: kSectionTitleStyle),
+              const Text('FINANCIAL OVERVIEW', style: kSectionTitleStyle),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -971,8 +876,8 @@ class CharterFinancialOverview extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 24.0),
-                  child: _buildBigMetric(
-                      'Expected Benefit', benefitsStr, Colors.green.shade700),
+                  child: _buildBigMetric('Number of Opportunities',
+                      opportunitiesCount.toString(), Colors.green.shade700),
                 ),
               ),
             ],
@@ -982,7 +887,7 @@ class CharterFinancialOverview extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Cost Breakdown Chart (Embedded)
-          const Text('Estimated Cost of Business Case',
+          const Text('Estimated Cost Breakdown',
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -1017,8 +922,8 @@ class CharterFinancialOverview extends StatelessWidget {
   }
 
   Widget _buildEmbeddedCostChart(ProjectDataModel data) {
-    final items = data.costEstimateItems;
-    if (items.isEmpty) {
+    final segments = _buildCostBreakdownSegments(data);
+    if (segments.isEmpty) {
       return const Center(
           child: Padding(
         padding: EdgeInsets.all(16.0),
@@ -1027,74 +932,145 @@ class CharterFinancialOverview extends StatelessWidget {
       ));
     }
 
-    final total = items.fold(0.0, (sum, item) => sum + item.amount);
-    final sorted = List<CostEstimateItem>.from(items)
-      ..sort((a, b) => b.amount.compareTo(a.amount));
+    final total =
+        segments.fold<double>(0.0, (sum, segment) => sum + segment.amount);
+    final currency =
+        NumberFormat.compactSimpleCurrency(name: data.costBenefitCurrency);
 
     return Column(
-      children: sorted.take(5).map((item) {
-        final pct = total > 0 ? item.amount / total : 0.0;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
           child: Row(
             children: [
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.title,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w500),
-                        overflow: TextOverflow.ellipsis),
-                  ],
+              for (final segment in segments)
+                Expanded(
+                  flex: (segment.amount <= 0
+                          ? 1
+                          : (segment.amount / total * 100).round())
+                      .clamp(1, 100),
+                  child: Tooltip(
+                    message:
+                        '${segment.label}: ${currency.format(segment.amount)}',
+                    child: Container(height: 14, color: segment.color),
+                  ),
                 ),
-              ),
-              Expanded(
-                flex: 4,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: pct,
-                              minHeight: 8,
-                              backgroundColor: Colors.grey.shade100,
-                              color: _getColor(sorted.indexOf(item)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 40,
-                          child: Text('${(pct * 100).toInt()}%',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey.shade600)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  NumberFormat.compactSimpleCurrency(
-                          name: data.costBenefitCurrency)
-                      .format(item.amount),
-                  textAlign: TextAlign.end,
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
             ],
           ),
-        );
-      }).toList(),
+        ),
+        const SizedBox(height: 14),
+        ...segments.map((segment) {
+          final pct = total > 0 ? (segment.amount / total) * 100 : 0.0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: segment.color,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    segment.label,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(
+                  width: 56,
+                  child: Text(
+                    '${pct.toStringAsFixed(1)}%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 110,
+                  child: Text(
+                    currency.format(segment.amount),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
+  }
+
+  List<_CostBreakdownSegment> _buildCostBreakdownSegments(
+      ProjectDataModel data) {
+    final segments = <_CostBreakdownSegment>[];
+
+    final estimateItems = data.costEstimateItems
+        .where((item) => item.amount > 0)
+        .toList()
+      ..sort((a, b) => b.amount.compareTo(a.amount));
+    if (estimateItems.isNotEmpty) {
+      for (var i = 0; i < estimateItems.length && i < 6; i++) {
+        final item = estimateItems[i];
+        segments.add(
+          _CostBreakdownSegment(
+            label: item.title.trim().isNotEmpty
+                ? item.title.trim()
+                : 'Estimate Item ${i + 1}',
+            amount: item.amount,
+            color: _getColor(i),
+          ),
+        );
+      }
+      return segments;
+    }
+
+    final categoryTotals = <String, double>{
+      'Allowances': data.frontEndPlanning.allowanceItems
+          .fold<double>(0.0, (sum, item) => sum + item.amount),
+      'Contracting': data.contractors
+          .fold<double>(0.0, (sum, item) => sum + item.estimatedCost),
+      'Procurement': data.vendors
+          .fold<double>(0.0, (sum, item) => sum + item.estimatedPrice),
+    };
+
+    var colorIndex = 0;
+    categoryTotals.forEach((label, amount) {
+      if (amount <= 0) return;
+      segments.add(_CostBreakdownSegment(
+        label: label,
+        amount: amount,
+        color: _getColor(colorIndex++),
+      ));
+    });
+
+    if (segments.isNotEmpty) return segments;
+
+    final costAnalysisTotal = data.costAnalysisData?.solutionCosts.fold<double>(
+          0.0,
+          (sum, solution) =>
+              sum +
+              solution.costRows.fold<double>(0.0,
+                  (rowSum, row) => rowSum + (double.tryParse(row.cost) ?? 0.0)),
+        ) ??
+        0.0;
+    if (costAnalysisTotal > 0) {
+      segments.add(_CostBreakdownSegment(
+        label: 'Initial Cost Estimate',
+        amount: costAnalysisTotal,
+        color: _getColor(0),
+      ));
+    }
+
+    return segments;
   }
 
   Color _getColor(int index) {
@@ -1107,6 +1083,18 @@ class CharterFinancialOverview extends StatelessWidget {
     ];
     return table[index % table.length];
   }
+}
+
+class _CostBreakdownSegment {
+  final String label;
+  final double amount;
+  final Color color;
+
+  const _CostBreakdownSegment({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
 }
 
 // --- 6. Risks (Table View + Summary) ---
