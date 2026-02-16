@@ -1073,6 +1073,103 @@ Rules:
     }
   }
 
+  // Generate structured execution plan fields for plan input cards.
+  Future<Map<String, String>> generateExecutionPlanSectionFields({
+    required String section,
+    required String context,
+    required Map<String, String> fields,
+    int maxTokens = 900,
+    double temperature = 0.4,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty || fields.isEmpty) return {};
+    if (!OpenAiConfig.isConfigured) return {};
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
+    };
+
+    final fieldLines = fields.entries
+        .map((entry) => '- ${entry.key}: ${entry.value}'.trim())
+        .join('\n');
+
+    final prompt = '''
+You are a senior project delivery planner. Fill in the execution plan inputs for "$section".
+Return ONLY a valid JSON object with keys exactly matching the field keys below.
+Each value should be 1-3 concise sentences (max 40 words) using concrete, actionable details.
+Avoid bullet lists, headings, or repeating the label.
+
+Field keys and guidance:
+$fieldLines
+
+Project Context:
+$trimmedContext
+''';
+
+    final body = jsonEncode({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a senior project delivery planner. Return only a JSON object.'
+        },
+        {'role': 'user', 'content': prompt},
+      ],
+    });
+
+    String normalize(dynamic value) {
+      if (value == null) return '';
+      if (value is String) return value;
+      if (value is List) {
+        return value.map((e) => e.toString()).join(' ');
+      }
+      if (value is Map) {
+        return value.values.map((e) => e.toString()).join(' ');
+      }
+      return value.toString();
+    }
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 16));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      final parsed = jsonDecode(content) as Map<String, dynamic>;
+
+      final rawFields = parsed['fields'] is Map
+          ? (parsed['fields'] as Map).cast<String, dynamic>()
+          : parsed;
+
+      final results = <String, String>{};
+      for (final key in fields.keys) {
+        final value = rawFields[key];
+        final text = _stripAsterisks(normalize(value)).trim();
+        if (text.isNotEmpty) {
+          results[key] = text;
+        }
+      }
+
+      return results;
+    } catch (e) {
+      debugPrint('Error generating execution plan fields: $e');
+      return {};
+    }
+  }
+
   List<PlanningDashboardItem> _planningItemsFallback(
       String section, String context) {
     // Basic heuristics for fallback
