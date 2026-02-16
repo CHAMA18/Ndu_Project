@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -65,6 +68,15 @@ class DesignPlanningScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
+                        const PlanningAiNotesCard(
+                          title: 'Design Planning Notes',
+                          sectionLabel: 'Design Planning',
+                          noteKey: 'planning_design_notes',
+                          checkpoint: 'design',
+                          description:
+                              'Capture design assumptions, constraints, and early decisions before execution.',
+                        ),
+                        const SizedBox(height: 24),
                         _buildInfoBanner(),
                         const SizedBox(height: 24),
                         LayoutBuilder(
@@ -76,7 +88,8 @@ class DesignPlanningScreen extends StatelessWidget {
                                 children: [
                                   _buildProjectContextCard(data),
                                   const SizedBox(height: 16),
-                                  _buildFocusAreasCard(),
+                                  const _DesignPlanAutoCard(
+                                      key: ValueKey('design-plan-card')),
                                 ],
                               );
                             }
@@ -85,19 +98,13 @@ class DesignPlanningScreen extends StatelessWidget {
                               children: [
                                 Expanded(child: _buildProjectContextCard(data)),
                                 const SizedBox(width: 16),
-                                Expanded(child: _buildFocusAreasCard()),
+                                const Expanded(
+                                  child: _DesignPlanAutoCard(
+                                      key: ValueKey('design-plan-card')),
+                                ),
                               ],
                             );
                           },
-                        ),
-                        const SizedBox(height: 24),
-                        const PlanningAiNotesCard(
-                          title: 'Design Planning Notes',
-                          sectionLabel: 'Design Planning',
-                          noteKey: 'planning_design_notes',
-                          checkpoint: 'design',
-                          description:
-                              'Capture design assumptions, constraints, and early decisions before execution.',
                         ),
                       ],
                     ),
@@ -122,7 +129,7 @@ class DesignPlanningScreen extends StatelessWidget {
         border: Border.all(color: const Color(0xFFFDE68A)),
       ),
       child: const Text(
-        'Align on design intent, constraints, and focus areas so execution can move fast without rework.',
+        'Align on design intent, constraints, and the design plan so execution can move fast without rework.',
         style: TextStyle(
             fontSize: 14, fontWeight: FontWeight.w700, color: _kPrimaryText),
       ),
@@ -234,30 +241,58 @@ class DesignPlanningScreen extends StatelessWidget {
       ],
     );
   }
+}
 
-  Widget _buildFocusAreasCard() {
-    const focusAreas = [
-      _FocusArea(
-        title: 'Architecture',
-        description: 'Define core components, data flows, and integration points.',
-        icon: Icons.account_tree_outlined,
-      ),
-      _FocusArea(
-        title: 'Experience',
-        description: 'Align UX goals, accessibility needs, and interaction rules.',
-        icon: Icons.palette_outlined,
-      ),
-      _FocusArea(
-        title: 'Data & Security',
-        description: 'Identify data ownership, privacy constraints, and controls.',
-        icon: Icons.shield_outlined,
-      ),
-      _FocusArea(
-        title: 'Delivery Strategy',
-        description: 'Sequence design handoffs, reviews, and validation cycles.',
-        icon: Icons.timeline_outlined,
-      ),
-    ];
+class _DesignPlanAutoCard extends StatefulWidget {
+  const _DesignPlanAutoCard({super.key});
+
+  @override
+  State<_DesignPlanAutoCard> createState() => _DesignPlanAutoCardState();
+}
+
+class _DesignPlanAutoCardState extends State<_DesignPlanAutoCard> {
+  static const String _noteKey = 'planning_design_plan';
+  String _currentText = '';
+  Timer? _saveDebounce;
+  DateTime? _lastSavedAt;
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _handleChanged(String value) {
+    _currentText = value;
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 700), () async {
+      final trimmed = value.trim();
+      final success = await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'design_planning',
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            _noteKey: trimmed,
+          },
+        ),
+        showSnackbar: false,
+      );
+      if (mounted && success) {
+        setState(() => _lastSavedAt = DateTime.now());
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_currentText.isEmpty) {
+      final saved =
+          ProjectDataHelper.getData(context).planningNotes[_noteKey] ?? '';
+      if (saved.trim().isNotEmpty) {
+        _currentText = saved;
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -277,78 +312,36 @@ class DesignPlanningScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Design Focus Areas',
+            'Design Plan',
             style: TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w800, color: _kPrimaryText),
           ),
-          const SizedBox(height: 12),
-          ...focusAreas.map((area) => _FocusAreaTile(area: area)),
-        ],
-      ),
-    );
-  }
-}
-
-class _FocusArea {
-  final String title;
-  final String description;
-  final IconData icon;
-
-  const _FocusArea({
-    required this.title,
-    required this.description,
-    required this.icon,
-  });
-}
-
-class _FocusAreaTile extends StatelessWidget {
-  const _FocusAreaTile({required this.area});
-
-  final _FocusArea area;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kCardBorder),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF4CC),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(area.icon, size: 18, color: const Color(0xFFF59E0B)),
+          const SizedBox(height: 6),
+          const Text(
+            'Auto-populated from project context. Edit to reflect your real design approach.',
+            style: TextStyle(fontSize: 12, color: _kSecondaryText),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  area.title,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: _kPrimaryText),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  area.description,
-                  style:
-                      const TextStyle(fontSize: 12, color: _kSecondaryText),
-                ),
-              ],
-            ),
+          const SizedBox(height: 16),
+          AiSuggestingTextField(
+            fieldLabel: 'Design Plan',
+            hintText:
+                'Outline the design plan: key activities, deliverables, reviews, and handoffs.',
+            sectionLabel: 'Design Planning',
+            showLabel: false,
+            autoGenerate: true,
+            autoGenerateSection: 'Design Plan',
+            initialText:
+                ProjectDataHelper.getData(context).planningNotes[_noteKey],
+            onChanged: _handleChanged,
           ),
+          if (_lastSavedAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Saved ${TimeOfDay.fromDateTime(_lastSavedAt!).format(context)}',
+                style: const TextStyle(fontSize: 11, color: _kSecondaryText),
+              ),
+            ),
         ],
       ),
     );
