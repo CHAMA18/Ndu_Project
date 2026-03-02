@@ -17,6 +17,7 @@ import 'package:ndu_project/screens/front_end_planning_risks_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_opportunities_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_contract_vendor_quotes_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
+import 'package:ndu_project/screens/planning_procurement_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_security.dart';
 import 'package:ndu_project/screens/front_end_planning_allowance.dart';
 import 'package:ndu_project/screens/front_end_planning_milestone.dart';
@@ -558,6 +559,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   void _openProcurement() {
     _navigateWithCheckpoint(
         'fep_procurement', const FrontEndPlanningProcurementScreen());
+  }
+
+  void _openPlanningProcurement() {
+    _navigateWithCheckpoint('procurement', const PlanningProcurementScreen());
   }
 
   void _openSSHER() {
@@ -1693,7 +1698,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           ),
           _buildSubSubMenuItem('Procurement',
               onTap: _openProcurement,
-              isActive: widget.activeItemLabel == 'Procurement'),
+              isActive: widget.activeItemLabel == 'FEP Procurement'),
           _buildSubSubMenuItem(
             'Security',
             onTap: lockSecurity ? null : _openSecurity,
@@ -1823,8 +1828,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             onTap: _openContract,
             isActive: widget.activeItemLabel == 'Contract'),
         _buildSubMenuItem('Procurement',
-            onTap: _openProcurement,
-            isActive: widget.activeItemLabel == 'Procurement'),
+            onTap: _openPlanningProcurement,
+            isActive: widget.activeItemLabel == 'Planning Procurement'),
         _buildSubMenuItem('Schedule',
             onTap: _openSchedule,
             isActive: widget.activeItemLabel == 'Schedule'),

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
@@ -35,8 +34,6 @@ class DesignPlanningScreen extends StatelessWidget {
       isMobile ? 16 : 32,
       120,
     );
-    final data = ProjectDataHelper.getData(context);
-
     return Scaffold(
       backgroundColor: _kSurfaceBackground,
       body: SafeArea(
@@ -81,29 +78,8 @@ class DesignPlanningScreen extends StatelessWidget {
                         const SizedBox(height: 24),
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final useColumn =
-                                isMobile || constraints.maxWidth < 980;
-                            if (useColumn) {
-                              return Column(
-                                children: [
-                                  _buildProjectContextCard(data),
-                                  const SizedBox(height: 16),
-                                  const _DesignPlanAutoCard(
-                                      key: ValueKey('design-plan-card')),
-                                ],
-                              );
-                            }
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: _buildProjectContextCard(data)),
-                                const SizedBox(width: 16),
-                                const Expanded(
-                                  child: _DesignPlanAutoCard(
-                                      key: ValueKey('design-plan-card')),
-                                ),
-                              ],
-                            );
+                            return const _DesignPlanAutoCard(
+                                key: ValueKey('design-plan-card'));
                           },
                         ),
                       ],
@@ -133,112 +109,6 @@ class DesignPlanningScreen extends StatelessWidget {
         style: TextStyle(
             fontSize: 14, fontWeight: FontWeight.w700, color: _kPrimaryText),
       ),
-    );
-  }
-
-  Widget _buildProjectContextCard(ProjectDataModel data) {
-    final goals = data.projectGoals
-        .where((g) => g.name.trim().isNotEmpty || g.description.trim().isNotEmpty)
-        .toList();
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kCardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Project Context',
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w800, color: _kPrimaryText),
-          ),
-          const SizedBox(height: 12),
-          _buildContextField('Project Name', data.projectName),
-          const SizedBox(height: 12),
-          _buildContextField('Objective', data.projectObjective),
-          const SizedBox(height: 16),
-          const Text(
-            'Key Goals',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: _kPrimaryText),
-          ),
-          const SizedBox(height: 8),
-          if (goals.isEmpty)
-            const Text(
-              'No project goals provided yet.',
-              style: TextStyle(fontSize: 12, color: _kSecondaryText),
-            )
-          else
-            Column(
-              children: goals.map((goal) {
-                return Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _kCardBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        goal.name.isNotEmpty ? goal.name : 'Goal',
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _kPrimaryText),
-                      ),
-                      if (goal.description.trim().isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          goal.description,
-                          style: const TextStyle(
-                              fontSize: 12, color: _kSecondaryText),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContextField(String label, String value) {
-    final display = value.trim().isEmpty ? 'Not provided' : value.trim();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: _kSecondaryText),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          display,
-          style: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w600, color: _kPrimaryText),
-        ),
-      ],
     );
   }
 }

@@ -6426,6 +6426,7 @@ Return JSON in this format:
     required String dimension,
     String dimensionDescription = '',
     List<ProjectGoal>? goals,
+    String overallFramework = '',
     String contextNotes = '',
   }) async {
     if (!OpenAiConfig.isConfigured) return [];
@@ -6454,6 +6455,7 @@ Return JSON in this format:
             dimension: dimension,
             dimensionDescription: dimensionDescription,
             goals: goals,
+            overallFramework: overallFramework,
             contextNotes: contextNotes,
           )
         },
@@ -6501,6 +6503,7 @@ Return JSON in this format:
     required String dimension,
     String dimensionDescription = '',
     List<ProjectGoal>? goals,
+    String overallFramework = '',
     required String contextNotes,
   }) {
     String stripPrefix(String name) {
@@ -6508,17 +6511,23 @@ Return JSON in this format:
     }
 
     final goalsText = goals != null && goals.isNotEmpty
-        ? "\nProject Goals (IMPORTANT: Use these as Level 1 items):\n${goals.map((g) => "- ${stripPrefix(g.name)}: ${g.description}").join("\n")}"
+        ? "\nProject Goals (IMPORTANT: Use these as Level 1 items):\n${goals.map((g) {final framework = (g.framework ?? '').trim(); final fw = framework.isNotEmpty ? ' | Framework: $framework' : ''; return "- ${stripPrefix(g.name)}: ${g.description}$fw";}).join("\n")}"
         : "";
 
     final dimensionContext = dimensionDescription.isNotEmpty
         ? "\nDimension Guidance: $dimensionDescription"
         : "";
 
+    final frameworkGuide = overallFramework.isEmpty
+        ? ''
+        : (overallFramework == 'Hybrid'
+            ? '\nFramework Guidance: This is a HYBRID project. Each Level 1 item MUST include a "framework" value of either "Agile" or "Waterfall". If a Project Goal lists a framework, match it. Otherwise infer the best fit (Agile for iterative/software work, Waterfall for linear/physical work) and keep it consistent across that item and its children.'
+            : '\nFramework Guidance: This is a ${overallFramework.toUpperCase()} project. Every WBS item MUST include "framework": "$overallFramework".');
+
     return '''
 Generate a Work Breakdown Structure (WBS) for:
 Project: $projectName
-Objective: $projectObjective$goalsText
+Objective: $projectObjective$goalsText$frameworkGuide
 Segmentation Dimension: $dimension$dimensionContext
 
 CRITICAL Requirements:
@@ -6534,6 +6543,7 @@ CRITICAL Requirements:
    - Level 1: "S1: Goal Title", "S2: Goal Title" in order
    - Level 2: "S1.1: Deliverable", "S1.2: Deliverable"
    - Level 3: "S1.1.1: Sub-deliverable"
+8. Include "framework" in each item (Waterfall or Agile only).
 
 Return strict JSON only in this format:
 {
@@ -6541,6 +6551,7 @@ Return strict JSON only in this format:
     {
       "title": "Goal 1 Name Here",
       "description": "Goal 1 description",
+      "framework": "Waterfall",
       "children": [
         {
           "title": "Milestone 1.1",

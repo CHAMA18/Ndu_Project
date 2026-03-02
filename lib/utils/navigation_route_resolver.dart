@@ -13,6 +13,7 @@ import 'package:ndu_project/screens/front_end_planning_risks_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_opportunities_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_contract_vendor_quotes_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
+import 'package:ndu_project/screens/planning_procurement_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_security.dart';
 import 'package:ndu_project/screens/front_end_planning_allowance.dart';
 import 'package:ndu_project/screens/front_end_planning_milestone.dart';
@@ -278,6 +279,8 @@ class NavigationRouteResolver {
         return const ScopeTrackingPlanScreen();
       case 'contracts':
         return const FrontEndPlanningContractsScreen();
+      case 'procurement':
+        return const PlanningProcurementScreen();
       case 'project_plan':
         return const ProjectPlanScreen();
       case 'project_plan_level1_schedule':

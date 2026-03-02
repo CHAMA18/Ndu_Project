@@ -105,6 +105,7 @@ class _WorkBreakdownStructureBodyState
   }
 
   String? _selectedCriteriaA;
+  String _overallFramework = '';
   bool _isAiLoading = false;
   List<WorkItem> _wbsItems = [];
   final List<String> _goalTitles = List.filled(5, '');
@@ -121,6 +122,7 @@ class _WorkBreakdownStructureBodyState
       if (!mounted) return;
       final projectData = ProjectDataHelper.getProvider(context).projectData;
       _selectedCriteriaA = projectData.wbsCriteriaA;
+      _overallFramework = projectData.overallFramework ?? '';
       _syncGoalContext(projectData);
 
       _wbsItems = projectData.wbsTree;
@@ -129,6 +131,7 @@ class _WorkBreakdownStructureBodyState
         _migrateFromGoalsToTree(projectData.goalWorkItems);
       }
       _syncGoalFrameworks(projectData);
+      _applyOverallFrameworkRules(projectData);
 
       setState(() {});
     });
@@ -182,7 +185,7 @@ class _WorkBreakdownStructureBodyState
         TextEditingController(text: existingNode?.description);
     final formKey = GlobalKey<FormState>();
     var selectedStatus = existingNode?.status ?? 'not_started';
-    var selectedFramework = existingNode?.framework ?? '';
+    var selectedFramework = _sanitizeFramework(existingNode?.framework ?? '');
     WorkItem? result;
 
     await showDialog<void>(
@@ -250,7 +253,7 @@ class _WorkBreakdownStructureBodyState
                             }
                           },
                         ),
-                        if (parentId.isEmpty) ...[
+                        if (parentId.isEmpty && _isHybridOverall) ...[
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
                             initialValue:
@@ -262,8 +265,6 @@ class _WorkBreakdownStructureBodyState
                                   value: 'Waterfall', child: Text('Waterfall')),
                               DropdownMenuItem(
                                   value: 'Agile', child: Text('Agile')),
-                              DropdownMenuItem(
-                                  value: 'Hybrid', child: Text('Hybrid')),
                             ],
                             onChanged: (value) {
                               setStateDialog(() => selectedFramework = value ?? '');
@@ -291,7 +292,13 @@ class _WorkBreakdownStructureBodyState
                   existingNode.description = descriptionController.text.trim();
                   existingNode.status = selectedStatus;
                   if (existingNode.parentId.isEmpty) {
-                    existingNode.framework = selectedFramework;
+                    existingNode.framework = _resolveTopLevelFramework(
+                      selectedFramework,
+                    );
+                    if (existingNode.framework.isNotEmpty) {
+                      _applyFrameworkToSubtree(
+                          existingNode, existingNode.framework);
+                    }
                   }
                   result = existingNode;
                 } else {
@@ -300,8 +307,13 @@ class _WorkBreakdownStructureBodyState
                     title: titleController.text.trim(),
                     description: descriptionController.text.trim(),
                     status: selectedStatus,
-                    framework: parentId.isEmpty ? selectedFramework : '',
+                    framework: parentId.isEmpty
+                        ? _resolveTopLevelFramework(selectedFramework)
+                        : '',
                   );
+                  if (result != null && result!.framework.isNotEmpty) {
+                    _applyFrameworkToSubtree(result!, result!.framework);
+                  }
                 }
                 Navigator.of(dialogContext).pop();
               },
@@ -375,18 +387,25 @@ class _WorkBreakdownStructureBodyState
     });
 
     try {
+      final goalsForAi = _prepareGoalsForGeneration(projectData);
       final contextSnapshot = _buildContextSnapshot(projectData);
       final generatedItems = await OpenAiServiceSecure().generateWbsStructure(
         projectName: projectData.projectName,
         projectObjective: projectData.projectObjective,
         dimension: dimension,
         dimensionDescription: _getDimensionDescription(dimension),
-        goals: projectData.projectGoals,
+        goals: goalsForAi,
+        overallFramework: _overallFramework,
       );
 
       if (generatedItems.isNotEmpty) {
         setState(() {
           _trimWbsDepth(generatedItems, _maxWbsDepth);
+          _applyFrameworksToGeneratedItems(
+            generatedItems,
+            goalsForAi,
+            _overallFramework,
+          );
           _wbsItems = generatedItems;
           _contextSnapshot = contextSnapshot;
           _contextCapturedAt = DateTime.now();
@@ -480,6 +499,94 @@ class _WorkBreakdownStructureBodyState
     }
   }
 
+  bool get _isHybridOverall => _overallFramework == 'Hybrid';
+
+  String _sanitizeFramework(String value) {
+    if (_isHybridOverall) {
+      return (value == 'Waterfall' || value == 'Agile') ? value : '';
+    }
+    return (_overallFramework == 'Waterfall' || _overallFramework == 'Agile')
+        ? _overallFramework
+        : '';
+  }
+
+  String _resolveTopLevelFramework(String selectedFramework) {
+    if (_isHybridOverall) {
+      return (selectedFramework == 'Waterfall' || selectedFramework == 'Agile')
+          ? selectedFramework
+          : '';
+    }
+    return (_overallFramework == 'Waterfall' || _overallFramework == 'Agile')
+        ? _overallFramework
+        : '';
+  }
+
+  void _applyFrameworkToSubtree(WorkItem item, String framework) {
+    item.framework = framework;
+    for (final child in item.children) {
+      _applyFrameworkToSubtree(child, framework);
+    }
+  }
+
+  void _applyOverallFrameworkRules(ProjectDataModel data) {
+    final overall = _overallFramework;
+    if (overall != 'Waterfall' && overall != 'Agile') {
+      // Hybrid or unset: normalize any invalid framework values.
+      var normalized = false;
+      for (final item in _wbsItems) {
+        final cleaned = _sanitizeFramework(item.framework);
+        if (item.framework != cleaned) {
+          item.framework = cleaned;
+          if (cleaned.isNotEmpty) {
+            _applyFrameworkToSubtree(item, cleaned);
+          }
+          normalized = true;
+        }
+      }
+      if (normalized) {
+        ProjectDataHelper.getProvider(context)
+            .updateWBSData(wbsTree: _wbsItems);
+      }
+      return;
+    }
+
+    var updatedGoals = false;
+    final goals = List<ProjectGoal>.from(data.projectGoals);
+    for (int i = 0; i < goals.length; i++) {
+      final goal = goals[i];
+      if (goal.framework != overall) {
+        goals[i] = ProjectGoal(
+          name: goal.name,
+          description: goal.description,
+          framework: overall,
+        );
+        updatedGoals = true;
+      }
+    }
+    if (updatedGoals) {
+      ProjectDataHelper.getProvider(context)
+          .updateField((data) => data.copyWith(projectGoals: goals));
+    }
+
+    if (_wbsItems.isNotEmpty) {
+      for (final item in _wbsItems) {
+        _applyFrameworkToSubtree(item, overall);
+      }
+      ProjectDataHelper.getProvider(context)
+          .updateWBSData(wbsTree: _wbsItems);
+    }
+  }
+
+  Future<void> _updateCriteriaSelection(String? value) async {
+    setState(() => _selectedCriteriaA = value);
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'work_breakdown_structure',
+      dataUpdater: (data) => data.copyWith(wbsCriteriaA: value),
+      showSnackbar: false,
+    );
+  }
+
   Widget _buildCriteriaDropdown(
       {required String hint,
       required String? value,
@@ -563,7 +670,7 @@ class _WorkBreakdownStructureBodyState
         _buildCriteriaDropdown(
           hint: 'Select',
           value: _selectedCriteriaA,
-          onChanged: (value) => setState(() => _selectedCriteriaA = value),
+          onChanged: _updateCriteriaSelection,
         ),
         if (_isAiLoading)
           const SizedBox(
@@ -928,6 +1035,25 @@ class _WorkBreakdownStructureBodyState
   }
 
   Widget _buildFrameworkDropdown(WorkItem item, int goalIndex) {
+    if (!_isHybridOverall) {
+      final framework = _sanitizeFramework(item.framework);
+      if (framework.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _kCardBorder),
+        ),
+        child: Text(
+          'Framework: $framework',
+          style: const TextStyle(fontSize: 12, color: _kSecondaryText),
+        ),
+      );
+    }
+
     return DropdownButtonFormField<String>(
       initialValue: item.framework.isEmpty ? null : item.framework,
       isDense: true,
@@ -953,11 +1079,15 @@ class _WorkBreakdownStructureBodyState
       items: const [
         DropdownMenuItem(value: 'Waterfall', child: Text('Waterfall')),
         DropdownMenuItem(value: 'Agile', child: Text('Agile')),
-        DropdownMenuItem(value: 'Hybrid', child: Text('Hybrid')),
       ],
       onChanged: (value) {
         final framework = value ?? '';
-        setState(() => item.framework = framework);
+        setState(() {
+          item.framework = framework;
+          if (framework.isNotEmpty) {
+            _applyFrameworkToSubtree(item, framework);
+          }
+        });
         _updateGoalFramework(goalIndex, framework);
       },
     );
@@ -974,6 +1104,13 @@ class _WorkBreakdownStructureBodyState
       framework: framework,
     );
     provider.updateField((data) => data.copyWith(projectGoals: goals));
+    if (goalIndex >= 0 && goalIndex < _wbsItems.length) {
+      final item = _wbsItems[goalIndex];
+      if (framework.isNotEmpty) {
+        _applyFrameworkToSubtree(item, framework);
+      }
+      provider.updateWBSData(wbsTree: _wbsItems);
+    }
   }
 
   Widget _buildNotesCard() {
@@ -1033,6 +1170,72 @@ class _WorkBreakdownStructureBodyState
               })
           .toList(),
     };
+  }
+
+  List<ProjectGoal> _prepareGoalsForGeneration(ProjectDataModel data) {
+    final overall = _overallFramework;
+    final goals = List<ProjectGoal>.from(data.projectGoals);
+    var updated = false;
+
+    if (overall == 'Waterfall' || overall == 'Agile') {
+      for (int i = 0; i < goals.length; i++) {
+        if (goals[i].framework != overall) {
+          goals[i] = ProjectGoal(
+            name: goals[i].name,
+            description: goals[i].description,
+            framework: overall,
+          );
+          updated = true;
+        }
+      }
+    } else if (overall == 'Hybrid') {
+      for (int i = 0; i < goals.length; i++) {
+        final framework = goals[i].framework ?? '';
+        if (framework == 'Hybrid') {
+          goals[i] = ProjectGoal(
+            name: goals[i].name,
+            description: goals[i].description,
+            framework: '',
+          );
+          updated = true;
+        }
+      }
+    }
+
+    if (updated) {
+      ProjectDataHelper.getProvider(context)
+          .updateField((data) => data.copyWith(projectGoals: goals));
+    }
+    return goals;
+  }
+
+  void _applyFrameworksToGeneratedItems(
+    List<WorkItem> items,
+    List<ProjectGoal> goals,
+    String overall,
+  ) {
+    if (overall == 'Waterfall' || overall == 'Agile') {
+      for (final item in items) {
+        _applyFrameworkToSubtree(item, overall);
+      }
+      return;
+    }
+
+    if (overall == 'Hybrid') {
+      for (int i = 0; i < items.length; i++) {
+        final item = items[i];
+        final itemFramework = _sanitizeFramework(item.framework);
+        final goalFramework =
+            i < goals.length ? (goals[i].framework ?? '') : '';
+        final resolved =
+            itemFramework.isNotEmpty ? itemFramework : _sanitizeFramework(goalFramework);
+        if (resolved.isNotEmpty) {
+          _applyFrameworkToSubtree(item, resolved);
+        } else {
+          item.framework = '';
+        }
+      }
+    }
   }
 
   String _formatCapturedAt(DateTime? capturedAt) {

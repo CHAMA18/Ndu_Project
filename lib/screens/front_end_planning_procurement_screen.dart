@@ -10,6 +10,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/screens/front_end_planning_security.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
@@ -20,11 +21,21 @@ import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/services/vendor_service.dart';
 import 'package:ndu_project/widgets/procurement_dialogs.dart';
 import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
+import 'package:ndu_project/utils/planning_phase_navigation.dart';
+
+enum ProcurementScreenMode { fep, planning }
 
 /// Front End Planning â€“ Procurement screen
 /// Recreates the provided procurement workspace mock with strategies and vendor table.
 class FrontEndPlanningProcurementScreen extends StatefulWidget {
-  const FrontEndPlanningProcurementScreen({super.key});
+  const FrontEndPlanningProcurementScreen({
+    super.key,
+    this.mode = ProcurementScreenMode.fep,
+    this.activeItemLabel,
+  });
+
+  final ProcurementScreenMode mode;
+  final String? activeItemLabel;
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
@@ -42,6 +53,9 @@ class _FrontEndPlanningProcurementScreenState
     extends State<FrontEndPlanningProcurementScreen> {
   static const int _initialStreamLimit = 60;
   static const int _streamLimitStep = 40;
+  static const String _procurementPlanNoteKey = 'planning_procurement_plan';
+  static const String _procurementSeededKey =
+      'planning_procurement_seeded_from_initiation';
 
   final TextEditingController _notes = TextEditingController();
 
@@ -93,6 +107,7 @@ class _FrontEndPlanningProcurementScreenState
 
   late final OpenAiServiceSecure _openAi;
   bool _isGeneratingData = false;
+  bool _isSeedingFromInitiation = false;
   String? _streamError;
   String? _activeProjectId;
 
@@ -120,6 +135,9 @@ class _FrontEndPlanningProcurementScreenState
 
       if (projectId.isNotEmpty) {
         _subscribeToStreams(projectId);
+      }
+      if (_isPlanningMode && projectId.isNotEmpty) {
+        await _seedFromInitiationIfNeeded(projectId, data);
       }
     });
   }
@@ -714,6 +732,160 @@ class _FrontEndPlanningProcurementScreenState
     );
   }
 
+  bool get _isPlanningMode => widget.mode == ProcurementScreenMode.planning;
+  String get _checkpointId => _isPlanningMode ? 'procurement' : 'fep_procurement';
+
+  Future<void> _seedFromInitiationIfNeeded(
+      String projectId, ProjectDataModel data) async {
+    if (_isSeedingFromInitiation) return;
+    final seededFlag =
+        (data.planningNotes[_procurementSeededKey] ?? '').toString();
+    if (seededFlag == 'true') return;
+
+    final hasItems = await ProcurementService.hasAnyItems(projectId).timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => true,
+    );
+    final hasVendors = await VendorService.streamVendors(projectId, limit: 1)
+        .first
+        .timeout(const Duration(seconds: 6), onTimeout: () => const []);
+    if (hasItems || hasVendors.isNotEmpty) return;
+
+    final contractors = data.contractors
+        .where((c) => c.name.trim().isNotEmpty || c.service.trim().isNotEmpty)
+        .toList();
+    final vendors = data.vendors.where((v) => v.name.trim().isNotEmpty).toList();
+    final allowances = data.frontEndPlanning.allowanceItems
+        .where((a) => a.name.trim().isNotEmpty)
+        .toList();
+    final costItems =
+        data.costEstimateItems.where((c) => c.title.trim().isNotEmpty).toList();
+
+    if (contractors.isEmpty &&
+        vendors.isEmpty &&
+        allowances.isEmpty &&
+        costItems.isEmpty) {
+      return;
+    }
+
+    _isSeedingFromInitiation = true;
+    try {
+      final now = DateTime.now();
+      final eta = now.add(const Duration(days: 60));
+
+      for (final vendor in vendors) {
+        await VendorService.createVendor(
+          projectId: projectId,
+          name: vendor.name.trim(),
+          category: vendor.equipmentOrService.trim().isNotEmpty
+              ? vendor.equipmentOrService.trim()
+              : 'General',
+          sla: '0%',
+          rating: 'C',
+          status: vendor.status.trim().isNotEmpty ? vendor.status.trim() : 'Onboard',
+          nextReview: '',
+          onTimeDelivery: 0.0,
+          incidentResponse: 0.0,
+          qualityScore: 0.0,
+          costAdherence: 0.0,
+          notes: vendor.notes.trim().isNotEmpty
+              ? '${vendor.notes.trim()} (Imported from initiation vendors)'
+              : 'Imported from initiation vendors',
+        );
+      }
+
+      final items = <ProcurementItemModel>[];
+
+      for (final contractor in contractors) {
+        final name = contractor.name.trim().isNotEmpty
+            ? contractor.name.trim()
+            : 'Contracted Services';
+        final service = contractor.service.trim();
+        items.add(ProcurementItemModel(
+          id: '',
+          projectId: projectId,
+          name: name,
+          description: service.isNotEmpty
+              ? service
+              : 'Imported contractor scope',
+          category: 'Services',
+          status: ProcurementItemStatus.planning,
+          priority: ProcurementPriority.medium,
+          budget: contractor.estimatedCost,
+          estimatedDelivery: eta,
+          createdAt: now,
+          updatedAt: now,
+          notes: contractor.notes.trim().isNotEmpty
+              ? '${contractor.notes.trim()} (Imported from initiation contractors)'
+              : 'Imported from initiation contractors',
+        ));
+      }
+
+      for (final allowance in allowances) {
+        items.add(ProcurementItemModel(
+          id: '',
+          projectId: projectId,
+          name: allowance.name.trim(),
+          description: allowance.notes.trim().isNotEmpty
+              ? allowance.notes.trim()
+              : 'Imported allowance item',
+          category: allowance.type.trim().isNotEmpty
+              ? allowance.type.trim()
+              : 'Allowance',
+          status: ProcurementItemStatus.planning,
+          priority: ProcurementPriority.low,
+          budget: allowance.amount,
+          estimatedDelivery: eta,
+          createdAt: now,
+          updatedAt: now,
+          notes: 'Imported from initiation allowance items',
+        ));
+      }
+
+      for (final cost in costItems) {
+        items.add(ProcurementItemModel(
+          id: '',
+          projectId: projectId,
+          name: cost.title.trim(),
+          description:
+              cost.notes.trim().isNotEmpty ? cost.notes.trim() : 'Imported cost item',
+          category: cost.costType.trim().isNotEmpty ? cost.costType.trim() : 'Cost',
+          status: ProcurementItemStatus.planning,
+          priority: cost.amount >= 100000
+              ? ProcurementPriority.high
+              : ProcurementPriority.medium,
+          budget: cost.amount,
+          estimatedDelivery: eta,
+          createdAt: now,
+          updatedAt: now,
+          notes: 'Imported from initiation cost estimates',
+        ));
+      }
+
+      for (final item in items) {
+        await ProcurementService.createItem(item);
+      }
+
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: _checkpointId,
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            _procurementSeededKey: 'true',
+          },
+        ),
+        showSnackbar: false,
+      );
+    } catch (e) {
+      debugPrint('Failed to seed procurement from initiation: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isSeedingFromInitiation = false);
+      }
+    }
+  }
+
   Future<void> _generateProcurementDataIfNeeded(
       {bool showIfAlreadySeeded = false}) async {
     final data = ProjectDataHelper.getData(context);
@@ -792,7 +964,7 @@ class _FrontEndPlanningProcurementScreenState
     final messenger = ScaffoldMessenger.of(context);
     try {
       // Ensure all items are saved
-      await provider.saveToFirebase(checkpoint: 'fep_procurement');
+      await provider.saveToFirebase(checkpoint: _checkpointId);
     } catch (e) {
       debugPrint('Error saving before navigation: $e');
       if (mounted) {
@@ -808,7 +980,24 @@ class _FrontEndPlanningProcurementScreenState
 
     if (!mounted) return;
 
-    // Check if destination is locked
+    if (_isPlanningMode) {
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: _checkpointId,
+        dataUpdater: (data) => data.copyWith(
+          frontEndPlanning: ProjectDataHelper.updateFEPField(
+            current: data.frontEndPlanning,
+            procurement: _notes.text.trim(),
+          ),
+        ),
+        showSnackbar: false,
+      );
+      if (!mounted) return;
+      PlanningPhaseNavigation.navigateToNext(context, 'procurement');
+      return;
+    }
+
+    // Check if destination is locked (FEP flow)
     if (ProjectDataHelper.isDestinationLocked(context, 'fep_security')) {
       ProjectDataHelper.showLockedDestinationMessage(context, 'Security');
       return;
@@ -816,7 +1005,7 @@ class _FrontEndPlanningProcurementScreenState
 
     await ProjectDataHelper.saveAndNavigate(
       context: context,
-      checkpoint: 'fep_procurement',
+      checkpoint: _checkpointId,
       saveInBackground: true,
       destinationCheckpoint: 'fep_security',
       destinationName: 'Security',
@@ -1252,6 +1441,7 @@ class _FrontEndPlanningProcurementScreenState
 
   @override
   Widget build(BuildContext context) {
+    final projectData = ProjectDataHelper.getData(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -1261,7 +1451,12 @@ class _FrontEndPlanningProcurementScreenState
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
               child:
-                  const InitiationLikeSidebar(activeItemLabel: 'Procurement'),
+                  InitiationLikeSidebar(
+                    activeItemLabel: widget.activeItemLabel ??
+                        (_isPlanningMode
+                            ? 'Planning Procurement'
+                            : 'FEP Procurement'),
+                  ),
             ),
             Expanded(
               child: Stack(
@@ -1287,11 +1482,11 @@ class _FrontEndPlanningProcurementScreenState
                                 const SizedBox(height: 12),
                                 _buildStreamErrorBanner(),
                                 const SizedBox(height: 24),
-                                const PlanningAiNotesCard(
+                                PlanningAiNotesCard(
                                   title: 'Notes',
                                   sectionLabel: 'Procurement',
                                   noteKey: 'planning_procurement_notes',
-                                  checkpoint: 'fep_procurement',
+                                  checkpoint: _checkpointId,
                                   description:
                                       'Capture procurement priorities, vendors, and approval constraints.',
                                 ),
@@ -1300,6 +1495,14 @@ class _FrontEndPlanningProcurementScreenState
                                   controller: _notes,
                                   onChanged: _handleNotesChanged,
                                 ),
+                                if (_isPlanningMode) ...[
+                                  const SizedBox(height: 20),
+                                  _ProcurementPlanCard(
+                                    initialText: projectData
+                                        .planningNotes[_procurementPlanNoteKey],
+                                    checkpointId: _checkpointId,
+                                  ),
+                                ],
                                 const SizedBox(height: 32),
                                 _ProcurementTabBar(
                                   selectedTab: _selectedTab,
@@ -1460,6 +1663,107 @@ class _NotesCard extends StatelessWidget {
           hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
         ),
         style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+      ),
+    );
+  }
+}
+
+class _ProcurementPlanCard extends StatelessWidget {
+  const _ProcurementPlanCard({
+    required this.initialText,
+    required this.checkpointId,
+  });
+
+  final String? initialText;
+  final String checkpointId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Procurement Plan',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827)),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Draft the procurement plan based on initiation inputs and project context.',
+            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 14),
+          AiSuggestingTextField(
+            fieldLabel: 'Procurement Plan',
+            hintText:
+                'Outline sourcing approach, key packages, vendor strategy, and critical timelines.',
+            sectionLabel: 'Procurement Plan',
+            showLabel: false,
+            autoGenerate: true,
+            autoGenerateSection: 'Procurement Plan',
+            initialText: initialText,
+            onChanged: (value) async {
+              final trimmed = value.trim();
+              final provider = ProjectDataHelper.getProvider(context);
+              provider.updateField(
+                (data) => data.copyWith(
+                  planningNotes: {
+                    ...data.planningNotes,
+                    _FrontEndPlanningProcurementScreenState
+                        ._procurementPlanNoteKey: trimmed,
+                  },
+                ),
+              );
+              await ProjectDataHelper.updateAndSave(
+                context: context,
+                checkpoint: checkpointId,
+                dataUpdater: (data) => data.copyWith(
+                  planningNotes: {
+                    ...data.planningNotes,
+                    _FrontEndPlanningProcurementScreenState
+                        ._procurementPlanNoteKey: trimmed,
+                  },
+                ),
+                showSnackbar: false,
+              );
+            },
+            onAutoGenerated: (value) async {
+              final trimmed = value.trim();
+              final provider = ProjectDataHelper.getProvider(context);
+              provider.updateField(
+                (data) => data.copyWith(
+                  planningNotes: {
+                    ...data.planningNotes,
+                    _FrontEndPlanningProcurementScreenState
+                        ._procurementPlanNoteKey: trimmed,
+                  },
+                ),
+              );
+              await ProjectDataHelper.updateAndSave(
+                context: context,
+                checkpoint: checkpointId,
+                dataUpdater: (data) => data.copyWith(
+                  planningNotes: {
+                    ...data.planningNotes,
+                    _FrontEndPlanningProcurementScreenState
+                        ._procurementPlanNoteKey: trimmed,
+                  },
+                ),
+                showSnackbar: false,
+              );
+            },
+          ),
+        ],
       ),
     );
   }
