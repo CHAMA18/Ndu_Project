@@ -9,7 +9,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
+import 'package:ndu_project/screens/planning_procurement_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/contract_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
@@ -26,6 +26,7 @@ const String _contractPlanScopeKey = 'planning_contract_scope';
 const String _contractPlanApprovalsKey = 'planning_contract_approvals';
 const String _contractPlanRisksKey = 'planning_contract_risks';
 const String _contractPlanTimelineKey = 'planning_contract_timeline';
+const String _contractsSeededKey = 'contracts_seeded_from_initiation';
 const Color _kFabYellow = Color(0xFFFBBF24);
 const Color _kFabOnYellow = Color(0xFF111827);
 
@@ -107,6 +108,7 @@ class _FrontEndPlanningContractsScreenState
     extends State<FrontEndPlanningContractsScreen> {
   final TextEditingController _notesController = TextEditingController();
   int _selectedTabIndex = 0;
+  bool _isSeedingContracts = false;
 
   void _openCreateContract() {
     Navigator.of(context).push(
@@ -116,7 +118,8 @@ class _FrontEndPlanningContractsScreenState
 
   void _openEditContract(ContractModel contract) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CreateContractScreen(contract: contract)),
+      MaterialPageRoute(
+          builder: (_) => CreateContractScreen(contract: contract)),
     );
   }
 
@@ -129,6 +132,7 @@ class _FrontEndPlanningContractsScreenState
       if (saved.trim().isNotEmpty) {
         _notesController.text = saved;
       }
+      _seedContractsFromInitiationIfNeeded();
     });
   }
 
@@ -141,9 +145,86 @@ class _FrontEndPlanningContractsScreenState
   void _navigateToProcurement() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-          builder: (_) => const FrontEndPlanningProcurementScreen()),
+      MaterialPageRoute(builder: (_) => const PlanningProcurementScreen()),
     );
+  }
+
+  Future<void> _seedContractsFromInitiationIfNeeded() async {
+    if (_isSeedingContracts) return;
+    final data = ProjectDataHelper.getData(context);
+    final projectId = data.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+
+    final seededFlag =
+        (data.planningNotes[_contractsSeededKey] ?? '').toString();
+    if (seededFlag == 'true') return;
+
+    final contractors = data.contractors
+        .where((c) => c.name.trim().isNotEmpty || c.service.trim().isNotEmpty)
+        .toList();
+    if (contractors.isEmpty) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _isSeedingContracts = true;
+    try {
+      final existing =
+          await ContractService.streamContracts(projectId, limit: 1).first;
+      if (existing.isNotEmpty) {
+        _isSeedingContracts = false;
+        return;
+      }
+
+      final now = DateTime.now();
+      final defaultEnd = now.add(const Duration(days: 30));
+      for (final contractor in contractors) {
+        final name = contractor.name.trim().isNotEmpty
+            ? contractor.name.trim()
+            : 'Contract';
+        final service = contractor.service.trim();
+        final notesParts = <String>[];
+        if (contractor.notes.trim().isNotEmpty) {
+          notesParts.add(contractor.notes.trim());
+        }
+        notesParts.add('Imported from initiation contractor list.');
+        await ContractService.createContract(
+          projectId: projectId,
+          name: name,
+          description: service.isNotEmpty ? service : 'Imported scope',
+          contractType: 'Not Sure',
+          paymentType: 'TBD',
+          status: contractor.status.trim().isNotEmpty
+              ? contractor.status.trim()
+              : 'Planned',
+          estimatedValue: contractor.estimatedCost,
+          startDate: now,
+          endDate: defaultEnd,
+          scope: service,
+          discipline: service.isNotEmpty ? service : 'General',
+          notes: notesParts.join(' '),
+          createdById: user.uid,
+          createdByEmail: user.email ?? '',
+          createdByName: user.displayName ?? '',
+        );
+      }
+
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'contracts',
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            _contractsSeededKey: 'true',
+          },
+        ),
+        showSnackbar: false,
+      );
+    } catch (e) {
+      debugPrint('Failed to seed contracts from initiation: $e');
+    } finally {
+      _isSeedingContracts = false;
+    }
   }
 
   @override
@@ -281,15 +362,79 @@ class _FrontEndPlanningContractsScreenState
                               ),
                               const SizedBox(height: 24),
                               if (isNarrow) ...[
-                                const _PlanningInputsSection(),
+                                const _CollapsibleAiTextCard(
+                                  title: 'Vendor & Market Strategy',
+                                  subtitle:
+                                      'Define sourcing approach, shortlist criteria, and negotiation posture.',
+                                  noteKey: _contractPlanMarketKey,
+                                  sectionLabel: 'Vendor & Market Strategy',
+                                  hintText:
+                                      'Example: RFP to 3 qualified vendors, weight on delivery record, target 10% cost leverage.',
+                                ),
                                 const SizedBox(height: 20),
-                                const _ApprovalRiskSection(),
+                                const _CollapsibleAiTextCard(
+                                  title: 'Commercial Structure',
+                                  subtitle:
+                                      'Outline contract type, payment model, and incentives.',
+                                  noteKey: _contractPlanCommercialKey,
+                                  sectionLabel: 'Commercial Structure',
+                                  hintText:
+                                      'Example: Fixed-price with milestone payments, performance holdbacks, change order rules.',
+                                ),
                                 const SizedBox(height: 20),
-                                const _TimelinePlanSection(),
+                                const _CollapsibleAiTextCard(
+                                  title: 'Scope & Deliverables',
+                                  subtitle:
+                                      'Capture scope boundaries, assumptions, and exclusions.',
+                                  noteKey: _contractPlanScopeKey,
+                                  sectionLabel: 'Scope & Deliverables',
+                                  hintText:
+                                      'Example: Includes implementation and training; excludes ongoing support after 12 months.',
+                                ),
                                 const SizedBox(height: 20),
-                                _ContractsPreviewSection(
-                                  projectId: projectData.projectId,
-                                  onEdit: _openEditContract,
+                                const _CollapsibleAiTextCard(
+                                  title: 'Approval Readiness',
+                                  subtitle:
+                                      'List required approvals, owners, and readiness gaps.',
+                                  noteKey: _contractPlanApprovalsKey,
+                                  sectionLabel: 'Approval Readiness',
+                                  hintText:
+                                      'Example: Legal review (owner: J. Smith), Finance sign-off, CIO approval by May 10.',
+                                ),
+                                const SizedBox(height: 20),
+                                const _CollapsibleAiTextCard(
+                                  title: 'Early Risk Signals',
+                                  subtitle:
+                                      'Flag negotiation risks and mitigation actions.',
+                                  noteKey: _contractPlanRisksKey,
+                                  sectionLabel: 'Early Risk Signals',
+                                  hintText:
+                                      'Example: Single-source dependency; mitigate with alternative vendor option.',
+                                ),
+                                const SizedBox(height: 20),
+                                const _CollapsibleAiTextCard(
+                                  title: 'Contract Timeline Plan',
+                                  subtitle:
+                                      'Define key dates from RFP to award and mobilization.',
+                                  noteKey: _contractPlanTimelineKey,
+                                  sectionLabel: 'Contract Timeline Plan',
+                                  hintText:
+                                      'Example: RFP release 4/15, evaluations 5/01-5/20, award 6/05, start 7/01.',
+                                ),
+                                const SizedBox(height: 20),
+                                _CollapsibleSectionCard(
+                                  title: 'Contracts Preview',
+                                  subtitle:
+                                      'Pre-define contracts that will feed execution tracking.',
+                                  child: _ContractsPreviewSection(
+                                    projectId: projectData.projectId,
+                                    onEdit: _openEditContract,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                const _CollapsibleSectionCard(
+                                  title: 'Confirm Contracting Timeline',
+                                  child: _TimelineSection(showHeader: false),
                                 ),
                                 const SizedBox(height: 20),
                               ] else ...[
@@ -298,24 +443,102 @@ class _FrontEndPlanningContractsScreenState
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        children: [
-                                          const _PlanningInputsSection(),
-                                          const SizedBox(height: 20),
-                                          _ContractsPreviewSection(
-                                            projectId: projectData.projectId,
-                                            onEdit: _openEditContract,
+                                        children: const [
+                                          _CollapsibleAiTextCard(
+                                            title: 'Vendor & Market Strategy',
+                                            subtitle:
+                                                'Define sourcing approach, shortlist criteria, and negotiation posture.',
+                                            noteKey: _contractPlanMarketKey,
+                                            sectionLabel:
+                                                'Vendor & Market Strategy',
+                                            hintText:
+                                                'Example: RFP to 3 qualified vendors, weight on delivery record, target 10% cost leverage.',
+                                          ),
+                                          SizedBox(height: 20),
+                                          _CollapsibleAiTextCard(
+                                            title: 'Commercial Structure',
+                                            subtitle:
+                                                'Outline contract type, payment model, and incentives.',
+                                            noteKey: _contractPlanCommercialKey,
+                                            sectionLabel:
+                                                'Commercial Structure',
+                                            hintText:
+                                                'Example: Fixed-price with milestone payments, performance holdbacks, change order rules.',
+                                          ),
+                                          SizedBox(height: 20),
+                                          _CollapsibleAiTextCard(
+                                            title: 'Scope & Deliverables',
+                                            subtitle:
+                                                'Capture scope boundaries, assumptions, and exclusions.',
+                                            noteKey: _contractPlanScopeKey,
+                                            sectionLabel:
+                                                'Scope & Deliverables',
+                                            hintText:
+                                                'Example: Includes implementation and training; excludes ongoing support after 12 months.',
                                           ),
                                         ],
                                       ),
                                     ),
                                     const SizedBox(width: 20),
-                                    const Expanded(
+                                    Expanded(
                                       child: Column(
-                                        children: [
-                                          _ApprovalRiskSection(),
+                                        children: const [
+                                          _CollapsibleAiTextCard(
+                                            title: 'Approval Readiness',
+                                            subtitle:
+                                                'List required approvals, owners, and readiness gaps.',
+                                            noteKey: _contractPlanApprovalsKey,
+                                            sectionLabel: 'Approval Readiness',
+                                            hintText:
+                                                'Example: Legal review (owner: J. Smith), Finance sign-off, CIO approval by May 10.',
+                                          ),
                                           SizedBox(height: 20),
-                                          _TimelinePlanSection(),
+                                          _CollapsibleAiTextCard(
+                                            title: 'Early Risk Signals',
+                                            subtitle:
+                                                'Flag negotiation risks and mitigation actions.',
+                                            noteKey: _contractPlanRisksKey,
+                                            sectionLabel: 'Early Risk Signals',
+                                            hintText:
+                                                'Example: Single-source dependency; mitigate with alternative vendor option.',
+                                          ),
+                                          SizedBox(height: 20),
+                                          _CollapsibleAiTextCard(
+                                            title: 'Contract Timeline Plan',
+                                            subtitle:
+                                                'Define key dates from RFP to award and mobilization.',
+                                            noteKey: _contractPlanTimelineKey,
+                                            sectionLabel:
+                                                'Contract Timeline Plan',
+                                            hintText:
+                                                'Example: RFP release 4/15, evaluations 5/01-5/20, award 6/05, start 7/01.',
+                                          ),
                                         ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _CollapsibleSectionCard(
+                                        title: 'Contracts Preview',
+                                        subtitle:
+                                            'Pre-define contracts that will feed execution tracking.',
+                                        child: _ContractsPreviewSection(
+                                          projectId: projectData.projectId,
+                                          onEdit: _openEditContract,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    const Expanded(
+                                      child: _CollapsibleSectionCard(
+                                        title: 'Confirm Contracting Timeline',
+                                        child:
+                                            _TimelineSection(showHeader: false),
                                       ),
                                     ),
                                   ],
@@ -403,8 +626,9 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
     _scopeController.text = contract.scope;
     _disciplineController.text = contract.discipline;
     _notesController.text = contract.notes;
-    _contractType =
-        contract.contractType.isNotEmpty ? contract.contractType : _contractType;
+    _contractType = contract.contractType.isNotEmpty
+        ? contract.contractType
+        : _contractType;
     _paymentType =
         contract.paymentType.isNotEmpty ? contract.paymentType : _paymentType;
     _status = contract.status.isNotEmpty ? contract.status : _status;
@@ -529,8 +753,9 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
         );
       }
 
-      messenger.showSnackBar(
-          SnackBar(content: Text(_isEdit ? 'Contract updated.' : 'Contract saved successfully.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text(
+              _isEdit ? 'Contract updated.' : 'Contract saved successfully.')));
 
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -2388,91 +2613,265 @@ class _PlanningSectionCard extends StatelessWidget {
   }
 }
 
-class _PlanningInputsSection extends StatelessWidget {
-  const _PlanningInputsSection();
+class _CollapsibleSectionCard extends StatefulWidget {
+  const _CollapsibleSectionCard({
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.onAiRegenerate,
+    this.isAiLoading = false,
+    this.initiallyExpanded = false,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final VoidCallback? onAiRegenerate;
+  final bool isAiLoading;
+  final bool initiallyExpanded;
+
+  @override
+  State<_CollapsibleSectionCard> createState() =>
+      _CollapsibleSectionCardState();
+}
+
+class _CollapsibleSectionCardState extends State<_CollapsibleSectionCard> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: const [
-        _PlanningSectionCard(
-          title: 'Vendor & Market Strategy',
-          subtitle:
-              'Define sourcing approach, shortlist criteria, and negotiation posture.',
-          child: _PlanningTextArea(
-            noteKey: _contractPlanMarketKey,
-            hintText:
-                'Example: RFP to 3 qualified vendors, weight on delivery record, target 10% cost leverage.',
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 12, offset: Offset(0, 6)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.title,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF111827))),
+                    if ((widget.subtitle ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(widget.subtitle!,
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF6B7280))),
+                    ],
+                  ],
+                ),
+              ),
+              if (widget.onAiRegenerate != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: TextButton.icon(
+                    onPressed:
+                        widget.isAiLoading ? null : widget.onAiRegenerate,
+                    icon: widget.isAiLoading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome, size: 16),
+                    label: const Text('Regenerate',
+                        style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF2563EB),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                    ),
+                  ),
+                ),
+              IconButton(
+                onPressed: () => setState(() => _expanded = !_expanded),
+                icon: Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  color: const Color(0xFF6B7280),
+                ),
+                tooltip: _expanded ? 'Collapse' : 'Expand',
+              ),
+            ],
           ),
-        ),
-        SizedBox(height: 20),
-        _PlanningSectionCard(
-          title: 'Commercial Structure',
-          subtitle: 'Outline contract type, payment model, and incentives.',
-          child: _PlanningTextArea(
-            noteKey: _contractPlanCommercialKey,
-            hintText:
-                'Example: Fixed-price with milestone payments, performance holdbacks, change order rules.',
-          ),
-        ),
-        SizedBox(height: 20),
-        _PlanningSectionCard(
-          title: 'Scope & Deliverables',
-          subtitle: 'Capture scope boundaries, assumptions, and exclusions.',
-          child: _PlanningTextArea(
-            noteKey: _contractPlanScopeKey,
-            hintText:
-                'Example: Includes implementation and training; excludes ongoing support after 12 months.',
-          ),
-        ),
-      ],
+          if (_expanded) ...[
+            const SizedBox(height: 16),
+            widget.child,
+          ],
+        ],
+      ),
     );
   }
 }
 
-class _ApprovalRiskSection extends StatelessWidget {
-  const _ApprovalRiskSection();
+class _CollapsibleAiTextCard extends StatefulWidget {
+  const _CollapsibleAiTextCard({
+    required this.title,
+    required this.noteKey,
+    required this.sectionLabel,
+    required this.hintText,
+    this.subtitle,
+    this.minLines = 4,
+    this.maxLines = 8,
+    this.initiallyExpanded = false,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String noteKey;
+  final String sectionLabel;
+  final String hintText;
+  final int minLines;
+  final int maxLines;
+  final bool initiallyExpanded;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: const [
-        _PlanningSectionCard(
-          title: 'Approval Readiness',
-          subtitle: 'List required approvals, owners, and readiness gaps.',
-          child: _PlanningTextArea(
-            noteKey: _contractPlanApprovalsKey,
-            hintText:
-                'Example: Legal review (owner: J. Smith), Finance sign-off, CIO approval by May 10.',
-          ),
-        ),
-        SizedBox(height: 20),
-        _PlanningSectionCard(
-          title: 'Early Risk Signals',
-          subtitle: 'Flag negotiation risks and mitigation actions.',
-          child: _PlanningTextArea(
-            noteKey: _contractPlanRisksKey,
-            hintText:
-                'Example: Single-source dependency; mitigate with alternative vendor option.',
-          ),
-        ),
-      ],
-    );
-  }
+  State<_CollapsibleAiTextCard> createState() => _CollapsibleAiTextCardState();
 }
 
-class _TimelinePlanSection extends StatelessWidget {
-  const _TimelinePlanSection();
+class _CollapsibleAiTextCardState extends State<_CollapsibleAiTextCard> {
+  final _saveDebounce = _Debouncer();
+  late TextEditingController _controller;
+  bool _didInit = false;
+  bool _isRegenerating = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didInit) return;
+    final data = ProjectDataHelper.getData(context);
+    final saved = data.planningNotes[widget.noteKey] ?? '';
+    _controller = TextEditingController(text: saved);
+    _didInit = true;
+  }
+
+  @override
+  void dispose() {
+    _saveDebounce.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleChanged(String value) {
+    final trimmed = value.trim();
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.updateField(
+      (data) => data.copyWith(
+        planningNotes: {
+          ...data.planningNotes,
+          widget.noteKey: trimmed,
+        },
+      ),
+    );
+    _saveDebounce.run(() async {
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'contracts',
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            widget.noteKey: trimmed,
+          },
+        ),
+        showSnackbar: false,
+      );
+    });
+  }
+
+  Future<void> _handleRegenerate() async {
+    if (_isRegenerating) return;
+    final data = ProjectDataHelper.getData(context);
+    final contextText = ProjectDataHelper.buildFepContext(data,
+        sectionLabel: widget.sectionLabel);
+    if (contextText.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Add project context to use AI regenerate.')),
+      );
+      return;
+    }
+
+    setState(() => _isRegenerating = true);
+    try {
+      final ai = OpenAiServiceSecure();
+      final regenerated = await ai.generateFepSectionText(
+        section: widget.sectionLabel,
+        context: contextText,
+      );
+      if (!mounted) return;
+      if (regenerated.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('AI returned empty content.')),
+        );
+        return;
+      }
+      _controller.text = regenerated.trim();
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+      _handleChanged(_controller.text);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to regenerate: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isRegenerating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const _PlanningSectionCard(
-      title: 'Contract Timeline Plan',
-      subtitle: 'Define key dates from RFP to award and mobilization.',
-      child: _PlanningTextArea(
-        noteKey: _contractPlanTimelineKey,
-        hintText:
-            'Example: RFP release 4/15, evaluations 5/01-5/20, award 6/05, start 7/01.',
+    return _CollapsibleSectionCard(
+      title: widget.title,
+      subtitle: widget.subtitle,
+      onAiRegenerate: _handleRegenerate,
+      isAiLoading: _isRegenerating,
+      initiallyExpanded: widget.initiallyExpanded,
+      child: TextField(
+        controller: _controller,
+        minLines: widget.minLines,
+        maxLines: widget.maxLines,
+        onChanged: _handleChanged,
+        decoration: InputDecoration(
+          hintText: widget.hintText,
+          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+          filled: true,
+          fillColor: const Color(0xFFF8FAFC),
+          contentPadding: const EdgeInsets.all(14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+          ),
+        ),
+        style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
       ),
     );
   }
@@ -2489,45 +2888,41 @@ class _ContractsPreviewSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _PlanningSectionCard(
-      title: 'Contracts Preview',
-      subtitle: 'Pre-define contracts that will feed execution tracking.',
-      child: projectId == null || projectId!.isEmpty
-          ? const Text('Open a project to add contracts.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)))
-          : StreamBuilder<List<ContractModel>>(
-              stream: ContractService.streamContracts(projectId!),
-              builder: (context, snapshot) {
-                final contracts = snapshot.data ?? const <ContractModel>[];
-                if (contracts.isEmpty) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('No planned contracts yet.',
-                          style: TextStyle(
-                              fontSize: 13, color: Color(0xFF6B7280))),
-                      SizedBox(height: 10),
-                      Text(
-                          'Use “Create Contract” to define vendors, value, and dates.',
-                          style: TextStyle(
-                              fontSize: 12, color: Color(0xFF94A3B8))),
-                    ],
-                  );
-                }
+    return projectId == null || projectId!.isEmpty
+        ? const Text('Open a project to add contracts.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)))
+        : StreamBuilder<List<ContractModel>>(
+            stream: ContractService.streamContracts(projectId!),
+            builder: (context, snapshot) {
+              final contracts = snapshot.data ?? const <ContractModel>[];
+              if (contracts.isEmpty) {
                 return Column(
-                  children: contracts
-                      .take(5)
-                      .map(
-                        (contract) => _ContractPreviewRow(
-                          contract: contract,
-                          onTap: () => onEdit(contract),
-                        ),
-                      )
-                      .toList(),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('No planned contracts yet.',
+                        style:
+                            TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+                    SizedBox(height: 10),
+                    Text(
+                        'Use “Create Contract” to define vendors, value, and dates.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                  ],
                 );
-              },
-            ),
-    );
+              }
+              return Column(
+                children: contracts
+                    .take(5)
+                    .map(
+                      (contract) => _ContractPreviewRow(
+                        contract: contract,
+                        onTap: () => onEdit(contract),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          );
   }
 }
 
@@ -2620,10 +3015,6 @@ class _ContractsDataSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: const [
-            _TimelineSection(),
-            SizedBox(height: 40),
-            _ContractDashboardSection(),
-            SizedBox(height: 32),
             _ContractingNoteBanner(),
           ],
         );
@@ -2654,102 +3045,6 @@ class _AdditionalNotesSection extends StatelessWidget {
         const SizedBox(height: 10),
         _NotesField(controller: controller, onChanged: onChanged),
       ],
-    );
-  }
-}
-
-class _PlanningTextArea extends StatefulWidget {
-  const _PlanningTextArea({
-    required this.noteKey,
-    required this.hintText,
-    this.minLines = 4,
-    this.maxLines = 7,
-  });
-
-  final String noteKey;
-  final String hintText;
-  final int minLines;
-  final int maxLines;
-
-  @override
-  State<_PlanningTextArea> createState() => _PlanningTextAreaState();
-}
-
-class _PlanningTextAreaState extends State<_PlanningTextArea> {
-  final _saveDebounce = _Debouncer();
-  late TextEditingController _controller;
-  bool _didInit = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_didInit) return;
-    final data = ProjectDataHelper.getData(context);
-    final saved = data.planningNotes[widget.noteKey] ?? '';
-    _controller = TextEditingController(text: saved);
-    _didInit = true;
-  }
-
-  @override
-  void dispose() {
-    _saveDebounce.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleChanged(String value) {
-    final trimmed = value.trim();
-    final provider = ProjectDataHelper.getProvider(context);
-    provider.updateField(
-      (data) => data.copyWith(
-        planningNotes: {
-          ...data.planningNotes,
-          widget.noteKey: trimmed,
-        },
-      ),
-    );
-    _saveDebounce.run(() async {
-      await ProjectDataHelper.updateAndSave(
-        context: context,
-        checkpoint: 'contracts',
-        dataUpdater: (data) => data.copyWith(
-          planningNotes: {
-            ...data.planningNotes,
-            widget.noteKey: trimmed,
-          },
-        ),
-        showSnackbar: false,
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      minLines: widget.minLines,
-      maxLines: widget.maxLines,
-      onChanged: _handleChanged,
-      decoration: InputDecoration(
-        hintText: widget.hintText,
-        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.all(14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-        ),
-      ),
-      style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
     );
   }
 }
@@ -2886,7 +3181,9 @@ class _EmptyPanelMessage extends StatelessWidget {
 }
 
 class _TimelineSection extends StatefulWidget {
-  const _TimelineSection();
+  const _TimelineSection({this.showHeader = true});
+
+  final bool showHeader;
 
   @override
   State<_TimelineSection> createState() => _TimelineSectionState();
@@ -3023,14 +3320,16 @@ class _TimelineSectionState extends State<_TimelineSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Confirm Contracting Timeline',
-          style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF111827)),
-        ),
-        const SizedBox(height: 16),
+        if (widget.showHeader) ...[
+          const Text(
+            'Confirm Contracting Timeline',
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
+          ),
+          const SizedBox(height: 16),
+        ],
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -3070,237 +3369,6 @@ class _TimelineSectionState extends State<_TimelineSection> {
       ],
     );
   }
-}
-
-class _ContractDashboardSection extends StatelessWidget {
-  const _ContractDashboardSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = ProjectDataInherited.maybeOf(context);
-    final projectId = provider?.projectData.projectId;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Contract Dashboard',
-          style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF111827)),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Review successfully created contracts, their status, and key milestones at a glance.',
-          style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-        ),
-        const SizedBox(height: 20),
-        if (projectId == null || projectId.isEmpty) ...[
-          const _ContractMetricsRow(metrics: [
-            _ContractMetricData(
-                label: 'Total Contracts',
-                value: '0',
-                detail: 'Create a project first',
-                icon: Icons.layers_outlined,
-                accentColor: Color(0xFF2563EB)),
-            _ContractMetricData(
-                label: 'Active',
-                value: '0',
-                detail: '—',
-                icon: Icons.sync_alt_rounded,
-                accentColor: Color(0xFF0EA5E9)),
-            _ContractMetricData(
-                label: 'Completed',
-                value: '0',
-                detail: '—',
-                icon: Icons.verified_outlined,
-                accentColor: Color(0xFF10B981)),
-          ]),
-          const SizedBox(height: 12),
-          const Text(
-              'No project selected. Open or create a project to see contracts.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-        ] else ...[
-          StreamBuilder<List<ContractModel>>(
-            // Build the stream defensively so synchronous errors don’t crash the tree
-            stream: (() {
-              try {
-                return ContractService.streamContracts(projectId);
-              } catch (e, st) {
-                debugPrint('⚠️ Contracts stream init failed: $e\n$st');
-                // Return an empty stream to keep UI responsive
-                return const Stream<List<ContractModel>>.empty();
-              }
-            })(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                debugPrint('❌ Contracts stream error: ${snapshot.error}');
-                const fallbackMetrics = [
-                  _ContractMetricData(
-                      label: 'Total Contracts',
-                      value: '0',
-                      detail: 'Stream error',
-                      icon: Icons.layers_outlined,
-                      accentColor: Color(0xFF2563EB)),
-                  _ContractMetricData(
-                      label: 'Active',
-                      value: '0',
-                      detail: '—',
-                      icon: Icons.sync_alt_rounded,
-                      accentColor: Color(0xFF0EA5E9)),
-                  _ContractMetricData(
-                      label: 'Completed',
-                      value: '0',
-                      detail: '—',
-                      icon: Icons.verified_outlined,
-                      accentColor: Color(0xFF10B981)),
-                ];
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    _ContractMetricsRow(metrics: fallbackMetrics),
-                    SizedBox(height: 12),
-                    Text(
-                        'Unable to load contracts right now. Please try again later.',
-                        style:
-                            TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-                  ],
-                );
-              }
-
-              final contracts = snapshot.data ?? const <ContractModel>[];
-              final total = contracts.length;
-              final active = contracts
-                  .where((c) => (c.status.toLowerCase().contains('active') ||
-                      c.status.toLowerCase().contains('in progress')))
-                  .length;
-              final completed = contracts
-                  .where((c) => c.status.toLowerCase().contains('completed'))
-                  .length;
-
-              final metrics = [
-                _ContractMetricData(
-                    label: 'Total Contracts',
-                    value: '$total',
-                    detail: '—',
-                    icon: Icons.layers_outlined,
-                    accentColor: const Color(0xFF2563EB)),
-                _ContractMetricData(
-                    label: 'Active',
-                    value: '$active',
-                    detail: '—',
-                    icon: Icons.sync_alt_rounded,
-                    accentColor: const Color(0xFF0EA5E9)),
-                _ContractMetricData(
-                    label: 'Completed',
-                    value: '$completed',
-                    detail: '—',
-                    icon: Icons.verified_outlined,
-                    accentColor: const Color(0xFF10B981)),
-              ];
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ContractMetricsRow(metrics: metrics),
-                  const SizedBox(height: 26),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isStacked = constraints.maxWidth < 1040;
-                      final double cardWidth = isStacked
-                          ? constraints.maxWidth
-                          : (constraints.maxWidth - 20) / 2;
-
-                      return Wrap(
-                        spacing: 20,
-                        runSpacing: 20,
-                        children: contracts
-                            .map(
-                              (c) => SizedBox(
-                                width: cardWidth,
-                                child: _ContractRecordCard(
-                                  record: _ContractRecord(
-                                    name: c.name,
-                                    code: c.discipline.isNotEmpty
-                                        ? c.discipline
-                                        : '—',
-                                    owner: c.createdByName,
-                                    value:
-                                        '\$${c.estimatedValue.toStringAsFixed(0)}',
-                                    status: c.status,
-                                    statusColor: c.status
-                                            .toLowerCase()
-                                            .contains('completed')
-                                        ? const Color(0xFF1E3A8A)
-                                        : const Color(0xFF047857),
-                                    effectiveDate: _formatMMMdY(c.startDate),
-                                    renewalDate: _formatMMMdY(c.endDate),
-                                    lastUpdated:
-                                        'Updated ${_relativeTime(c.updatedAt)}',
-                                    highlights: [
-                                      c.contractType.isNotEmpty
-                                          ? 'Type: ${c.contractType}'
-                                          : '—',
-                                      c.paymentType.isNotEmpty
-                                          ? 'Payment: ${c.paymentType}'
-                                          : '—',
-                                      c.scope.isNotEmpty
-                                          ? 'Scope: ${c.scope}'
-                                          : '—',
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-String _formatMMMdY(DateTime date) {
-  // Simple US-style date like Jan 08, 2025
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
-  ];
-  final m = months[date.month - 1];
-  final day = date.day.toString().padLeft(2, '0');
-  return '$m $day, ${date.year}';
-}
-
-String _relativeTime(DateTime time) {
-  final now = DateTime.now();
-  final diff = now.difference(time);
-  if (diff.inSeconds < 60) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours} h ago';
-  if (diff.inDays < 7) return '${diff.inDays} d ago';
-  final weeks = (diff.inDays / 7).floor();
-  if (weeks < 5) return '$weeks wk ago';
-  final months = (diff.inDays / 30).floor();
-  if (months < 12) return '$months mo ago';
-  final years = (diff.inDays / 365).floor();
-  return '$years yr ago';
 }
 
 class _ContractingNoteBanner extends StatelessWidget {
