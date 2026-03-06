@@ -12,9 +12,14 @@ class AdminEditToggle extends StatefulWidget {
   const AdminEditToggle({super.key});
 
   static bool isAdmin() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-    return UserService.isAdminEmail(user.email ?? '');
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+      return UserService.isAdminEmail(user.email ?? '');
+    } catch (_) {
+      // If Firebase is unavailable (for example in widget tests), hide the toggle.
+      return false;
+    }
   }
 
   @override
@@ -30,7 +35,8 @@ class _AdminEditToggleState extends State<AdminEditToggle> {
     if (!AdminEditToggle.isAdmin()) return const SizedBox.shrink();
 
     // Use Selector to only rebuild when specific values change
-    return Selector<AppContentProvider, ({bool isEditMode, Offset position, bool showButton})>(
+    return Selector<AppContentProvider,
+        ({bool isEditMode, Offset position, bool showButton})>(
       selector: (_, provider) => (
         isEditMode: provider.isEditMode,
         position: provider.editButtonPosition,
@@ -64,16 +70,21 @@ class _AdminEditToggleState extends State<AdminEditToggle> {
             onPanEnd: (_) {
               // Save final position to provider
               if (_dragPosition != null) {
-                context.read<AppContentProvider>().updateEditButtonPosition(_dragPosition!);
+                context
+                    .read<AppContentProvider>()
+                    .updateEditButtonPosition(_dragPosition!);
                 setState(() => _dragPosition = null);
               }
             },
             child: FloatingActionButton.extended(
-              onPressed: () => context.read<AppContentProvider>().toggleEditMode(),
+              onPressed: () =>
+                  context.read<AppContentProvider>().toggleEditMode(),
               backgroundColor: data.isEditMode ? Colors.red : Colors.blue,
               icon: Icon(data.isEditMode ? Icons.close : Icons.edit),
               label: Text(data.isEditMode ? 'Exit Edit Mode' : 'Edit Content'),
-              tooltip: data.isEditMode ? 'Exit edit mode' : 'Enable edit mode to modify content',
+              tooltip: data.isEditMode
+                  ? 'Exit edit mode'
+                  : 'Enable edit mode to modify content',
             ),
           ),
         );

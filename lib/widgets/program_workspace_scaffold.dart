@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/program_workspace_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 /// Responsive scaffold for ProgramWorkspaceSidebar-based screens.
 /// - Desktop/Tablet: persistent sidebar
@@ -28,17 +29,7 @@ class ProgramWorkspaceScaffold extends StatelessWidget {
       return Scaffold(
         backgroundColor: bgColor,
         appBar: showSidebar
-            ? AppBar(
-                backgroundColor: bgColor,
-                elevation: 0,
-                leading: Builder(
-                  builder: (context) => IconButton(
-                    icon: const Icon(Icons.menu, color: Color(0xFF374151)),
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                    tooltip: 'Open menu',
-                  ),
-                ),
-              )
+            ? UnifiedScaffoldAppBar(backgroundColor: bgColor)
             : null,
         drawer: showSidebar
             ? Drawer(

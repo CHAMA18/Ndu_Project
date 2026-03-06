@@ -1164,13 +1164,15 @@ class _InfrastructureConsiderationsScreenState
                 border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
             child: const Row(children: [
               Expanded(
-                  child: Text('Potential Solution',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: Text('Potential Solution',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
               Expanded(
-                  child: Text('Major Infrastructure',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: Text('Major Infrastructure',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
             ]),
           ),
           const SizedBox(height: 8),
@@ -1386,11 +1388,12 @@ class _InfrastructureConsiderationsScreenState
           : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                 child: Align(
-                  alignment: Alignment.topLeft,
+                  alignment: Alignment.topCenter,
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _numberBadge(index + 1),
@@ -1400,6 +1403,7 @@ class _InfrastructureConsiderationsScreenState
                                   s.title.isEmpty
                                       ? 'Potential Solution ${index + 1}'
                                       : s.title,
+                                  textAlign: TextAlign.center,
                                   style: const TextStyle(
                                       fontSize: 13,
                                       color: Colors.black87,
@@ -1410,6 +1414,7 @@ class _InfrastructureConsiderationsScreenState
                         if (s.description.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(s.description,
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                   fontSize: 12, color: Colors.grey),
                               maxLines: 5,
@@ -1452,11 +1457,13 @@ class _InfrastructureConsiderationsScreenState
         index < _solutions.length ? _solutions[index].title : '';
     final fieldKey = 'infra_${solutionTitle}_$index';
     final canUndo = provider.canUndoField(fieldKey);
+    final canRedo = provider.canRedoField(fieldKey);
 
     return HoverableFieldControls(
       isAiGenerated: true,
       isLoading: false,
       canUndo: canUndo,
+      canRedo: canRedo,
       onRegenerate: () async {
         // Add current value to history
         provider.addFieldToHistory(fieldKey, controller.text,
@@ -1469,6 +1476,13 @@ class _InfrastructureConsiderationsScreenState
         if (previousValue != null) {
           controller.text = previousValue;
           await provider.saveToFirebase(checkpoint: 'infra_undo');
+        }
+      },
+      onRedo: () async {
+        final nextValue = provider.projectData.redoField(fieldKey);
+        if (nextValue != null) {
+          controller.text = nextValue;
+          await provider.saveToFirebase(checkpoint: 'infra_redo');
         }
       },
       child: Column(
@@ -1489,6 +1503,11 @@ class _InfrastructureConsiderationsScreenState
               controller: controller,
               minLines: 2,
               maxLines: null,
+              textAlign: TextAlign.center,
+              onChanged: (value) {
+                provider.addFieldToHistory(fieldKey, value,
+                    isAiGenerated: true);
+              },
               decoration: InputDecoration(
                 border: InputBorder.none,
                 isDense: true,

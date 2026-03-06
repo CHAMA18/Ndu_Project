@@ -7,6 +7,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:intl/intl.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 /// Custom Stakeholder Alignment Table with inline editing, CRUD actions, and AI capabilities
 class StakeholderAlignmentTableWidget extends StatelessWidget {
@@ -43,107 +44,121 @@ class StakeholderAlignmentTableWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
-              ),
-              child: DataTable(
-                headingRowColor:
-                    WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                columnSpacing: 24,
-                horizontalMargin: 20,
-                headingRowHeight: 56,
-                dataRowMinHeight: 52,
-                dataRowMaxHeight: 120,
-                columns: const [
-                  DataColumn(
-                    label: Text('Stakeholder Name/Role',
+          child: ResponsiveDataTableWrapper(
+            minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
+            maxHeight: 560,
+            child: DataTable(
+              headingRowColor:
+                  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columnSpacing: 24,
+              horizontalMargin: 20,
+              headingRowHeight: 56,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 120,
+              columns: const [
+                DataColumn(
+                  label: Center(
+                    child: Text('Stakeholder Name/Role',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Alignment Status',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Alignment Status',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Key Interest/Value',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Key Interest/Value',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Feedback Summary',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Feedback Summary',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Last Engagement',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Last Engagement',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Actions',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Actions',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                ],
-                rows: items.map((item) {
-                  return DataRow(
-                    cells: [
-                      DataCell(_StakeholderAlignmentRowWidget(
-                        item: item,
-                        column: _StakeholderAlignmentColumn.stakeholderName,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_StakeholderAlignmentRowWidget(
-                        item: item,
-                        column: _StakeholderAlignmentColumn.alignmentStatus,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_StakeholderAlignmentRowWidget(
-                        item: item,
-                        column: _StakeholderAlignmentColumn.keyInterest,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_StakeholderAlignmentRowWidget(
-                        item: item,
-                        column: _StakeholderAlignmentColumn.feedbackSummary,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_StakeholderAlignmentRowWidget(
-                        item: item,
-                        column: _StakeholderAlignmentColumn.lastEngagementDate,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_StakeholderAlignmentRowWidget(
-                        item: item,
-                        column: _StakeholderAlignmentColumn.actions,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                    ],
-                  );
-                }).toList(),
-              ),
+                ),
+              ],
+              rows: items.map((item) {
+                return DataRow(
+                  cells: [
+                    DataCell(_StakeholderAlignmentRowWidget(
+                      item: item,
+                      column: _StakeholderAlignmentColumn.stakeholderName,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_StakeholderAlignmentRowWidget(
+                      item: item,
+                      column: _StakeholderAlignmentColumn.alignmentStatus,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_StakeholderAlignmentRowWidget(
+                      item: item,
+                      column: _StakeholderAlignmentColumn.keyInterest,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_StakeholderAlignmentRowWidget(
+                      item: item,
+                      column: _StakeholderAlignmentColumn.feedbackSummary,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_StakeholderAlignmentRowWidget(
+                      item: item,
+                      column: _StakeholderAlignmentColumn.lastEngagementDate,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_StakeholderAlignmentRowWidget(
+                      item: item,
+                      column: _StakeholderAlignmentColumn.actions,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         );

@@ -366,6 +366,12 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       selection: TextSelection.collapsed(offset: replacement.length),
     );
 
+    if (isNotes) {
+      _onNotesChanged(replacement);
+    } else {
+      _onBusinessChanged(replacement);
+    }
+
     setState(() {
       if (isNotes) {
         _notesSuggestions = [];
@@ -390,6 +396,12 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       text: combined,
       selection: TextSelection.collapsed(offset: combined.length),
     );
+
+    if (isNotes) {
+      _onNotesChanged(combined);
+    } else {
+      _onBusinessChanged(combined);
+    }
 
     setState(() {
       if (isNotes) {
@@ -426,6 +438,11 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       text: previous,
       selection: TextSelection.collapsed(offset: previous.length),
     );
+    if (isNotes) {
+      _onNotesChanged(previous);
+    } else {
+      _onBusinessChanged(previous);
+    }
     setState(() {});
   }
 
@@ -2107,7 +2124,10 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             child: _buildSuggestionPanel(
-              show: _businessFocusNode.hasFocus,
+              show: _businessFocusNode.hasFocus ||
+                  _businessSuggestLoading ||
+                  _businessSuggestions.isNotEmpty ||
+                  (_businessSuggestionError?.trim().isNotEmpty ?? false),
               loading: _businessSuggestLoading,
               suggestions: _businessSuggestions,
               error: _businessSuggestionError,

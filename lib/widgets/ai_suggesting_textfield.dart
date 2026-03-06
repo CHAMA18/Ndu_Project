@@ -40,7 +40,9 @@ class AiSuggestingTextField extends StatefulWidget {
     this.initialText,
     this.onRegenerate,
     this.onUndo,
+    this.onRedo,
     this.canUndo = false,
+    this.canRedo = false,
   });
 
   final String fieldLabel;
@@ -57,7 +59,9 @@ class AiSuggestingTextField extends StatefulWidget {
   final String? initialText;
   final VoidCallback? onRegenerate;
   final VoidCallback? onUndo;
+  final VoidCallback? onRedo;
   final bool canUndo;
+  final bool canRedo;
 
   @override
   State<AiSuggestingTextField> createState() => _AiSuggestingTextFieldState();
@@ -393,6 +397,20 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                     icon: const Icon(Icons.undo, size: 18),
                                     color: const Color(0xFF6B7280),
                                     onPressed: widget.onUndo,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
+                                  ),
+                                if (_isHovering &&
+                                    widget.onRedo != null &&
+                                    widget.canRedo)
+                                  IconButton(
+                                    tooltip: 'Redo last change',
+                                    icon: const Icon(Icons.redo, size: 18),
+                                    color: const Color(0xFF6B7280),
+                                    onPressed: widget.onRedo,
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(
                                       minWidth: 32,

@@ -11,8 +11,12 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_phase_service.dart';
 import 'package:ndu_project/models/agile_task.dart';
 import 'package:ndu_project/utils/form_validation_engine.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/agile_iteration_table_widget.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
+import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 
 class AgileDevelopmentIterationsScreen extends StatefulWidget {
   const AgileDevelopmentIterationsScreen({super.key});
@@ -35,6 +39,7 @@ class _AgileDevelopmentIterationsScreenState
   List<AgileTask> _tasks = [];
   List<String> _availableRoles = [];
   bool _isLoading = false;
+  bool _isRegeneratingAll = false;
 
   String? get _projectId {
     try {
@@ -209,6 +214,13 @@ class _AgileDevelopmentIterationsScreenState
       spacing: 10,
       runSpacing: 10,
       children: [
+        Tooltip(
+          message: 'Regenerate all task descriptions',
+          child: PageRegenerateAllButton(
+            isLoading: _isRegeneratingAll,
+            onRegenerateAll: _regenerateAllTaskDescriptions,
+          ),
+        ),
         OutlinedButton.icon(
           onPressed: () => _showAddTaskDialog(context),
           icon: const Icon(Icons.add, size: 18, color: Color(0xFF64748B)),
@@ -242,6 +254,51 @@ class _AgileDevelopmentIterationsScreenState
         ),
       ],
     );
+  }
+
+  Future<void> _regenerateAllTaskDescriptions() async {
+    if (_isRegeneratingAll || _tasks.isEmpty) return;
+    final projectId = _projectId;
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (projectId == null || provider == null) return;
+
+    final confirmed = await showRegenerateAllConfirmation(context);
+    if (!confirmed) return;
+
+    setState(() => _isRegeneratingAll = true);
+    try {
+      final designComponents = await ExecutionPhaseService.loadDesignComponents(
+        projectId: projectId,
+      );
+      final componentNames =
+          designComponents.map((c) => c.componentName).toList();
+      final contextText = ProjectDataHelper.buildExecutivePlanContext(
+        provider.projectData,
+        sectionLabel: 'Agile Development Iterations',
+      );
+      final ai = OpenAiServiceSecure();
+      final updated = <AgileTask>[];
+      for (final task in _tasks) {
+        try {
+          final breakdown = await ai.breakDownUserStory(
+            context: contextText,
+            userStory: task.userStory,
+            designComponents: componentNames,
+          );
+          updated.add(task.copyWith(taskDescription: breakdown));
+        } catch (_) {
+          updated.add(task);
+        }
+      }
+      if (!mounted) return;
+      setState(() => _tasks = updated);
+      await ExecutionPhaseService.saveAgileTasks(
+        projectId: projectId,
+        tasks: updated,
+      );
+    } finally {
+      if (mounted) setState(() => _isRegeneratingAll = false);
+    }
   }
 
   Widget _buildFilterChips(BuildContext context) {
@@ -534,6 +591,8 @@ class _AgileDevelopmentIterationsScreenState
                     onChanged: (value) => selectedStatus = value ?? 'To-Do',
                   ),
                   const SizedBox(height: 12),
+                  TextFormattingToolbar(controller: taskDescriptionController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: taskDescriptionController,
                     decoration:
@@ -541,6 +600,9 @@ class _AgileDevelopmentIterationsScreenState
                     maxLines: 3,
                   ),
                   const SizedBox(height: 12),
+                  TextFormattingToolbar(
+                      controller: acceptanceCriteriaController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: acceptanceCriteriaController,
                     decoration: const InputDecoration(
@@ -548,6 +610,8 @@ class _AgileDevelopmentIterationsScreenState
                     maxLines: 4,
                   ),
                   const SizedBox(height: 12),
+                  TextFormattingToolbar(controller: iterationNotesController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: iterationNotesController,
                     decoration: const InputDecoration(

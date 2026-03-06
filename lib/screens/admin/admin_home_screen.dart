@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/screens/admin/admin_users_screen.dart';
 import 'package:ndu_project/screens/admin_content_screen.dart';
@@ -12,6 +11,7 @@ import 'package:ndu_project/widgets/app_logo.dart';
 
 import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
 import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -33,20 +33,10 @@ class AdminHomeScreen extends StatelessWidget {
             const Text('Admin Dashboard', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black)),
           ],
         ),
-        actions: [
+        actions: const [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                FirebaseAuthService.displayNameOrEmail(fallback: 'Admin'),
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: () => _handleSignOut(context),
-            icon: const Icon(Icons.logout, color: Colors.black87),
-            tooltip: 'Sign Out',
+            padding: EdgeInsets.only(right: 12),
+            child: UnifiedProfileMenu(compact: true),
           ),
         ],
       ),
@@ -347,27 +337,6 @@ class AdminHomeScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _handleSignOut(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107)),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      await FirebaseAuthService.signOut();
-    }
-  }
 }
 
 class _StatCard extends StatelessWidget {

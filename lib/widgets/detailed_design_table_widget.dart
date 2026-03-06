@@ -6,6 +6,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 /// Custom Detailed Design Table with inline editing, CRUD actions, and AI capabilities
 class DetailedDesignTableWidget extends StatelessWidget {
@@ -41,119 +42,133 @@ class DetailedDesignTableWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
-              ),
-              child: DataTable(
-                headingRowColor:
-                    WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                columnSpacing: 24,
-                horizontalMargin: 20,
-                headingRowHeight: 56,
-                dataRowMinHeight: 52,
-                dataRowMaxHeight: 120,
-                columns: const [
-                  DataColumn(
-                    label: Text('Component Name',
+          child: ResponsiveDataTableWrapper(
+            minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
+            maxHeight: 560,
+            child: DataTable(
+              headingRowColor:
+                  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columnSpacing: 24,
+              horizontalMargin: 20,
+              headingRowHeight: 56,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 120,
+              columns: const [
+                DataColumn(
+                  label: Center(
+                    child: Text('Component Name',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Category',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Category',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Specification Details',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Specification Details',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Integration Point',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Integration Point',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Status',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Status',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Actions',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Actions',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                ],
-                rows: components.map((component) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        _DesignComponentRowWidget(
-                          component: component,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'name',
-                        ),
+                ),
+              ],
+              rows: components.map((component) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      _DesignComponentRowWidget(
+                        component: component,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'name',
                       ),
-                      DataCell(
-                        _DesignComponentRowWidget(
-                          component: component,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'category',
-                        ),
+                    ),
+                    DataCell(
+                      _DesignComponentRowWidget(
+                        component: component,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'category',
                       ),
-                      DataCell(
-                        _DesignComponentRowWidget(
-                          component: component,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'specification',
-                        ),
+                    ),
+                    DataCell(
+                      _DesignComponentRowWidget(
+                        component: component,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'specification',
                       ),
-                      DataCell(
-                        _DesignComponentRowWidget(
-                          component: component,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'integration',
-                        ),
+                    ),
+                    DataCell(
+                      _DesignComponentRowWidget(
+                        component: component,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'integration',
                       ),
-                      DataCell(
-                        _DesignComponentRowWidget(
-                          component: component,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'status',
-                        ),
+                    ),
+                    DataCell(
+                      _DesignComponentRowWidget(
+                        component: component,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'status',
                       ),
-                      DataCell(
-                        _DesignComponentRowWidget(
-                          component: component,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'actions',
-                        ),
+                    ),
+                    DataCell(
+                      _DesignComponentRowWidget(
+                        component: component,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'actions',
                       ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         );
@@ -413,13 +428,15 @@ class _DesignComponentRowWidgetState extends State<_DesignComponentRowWidget> {
   Widget build(BuildContext context) {
     switch (widget.column) {
       case 'name':
-        return InlineEditableText(
-          value: _component.componentName,
-          isListField: false,
-          onChanged: (v) =>
-              _updateComponent(_createUpdatedComponent(componentName: v)),
-          style: const TextStyle(fontSize: 11, color: Color(0xFF111827)),
-          textAlign: TextAlign.left,
+        return Center(
+          child: InlineEditableText(
+            value: _component.componentName,
+            isListField: false,
+            onChanged: (v) =>
+                _updateComponent(_createUpdatedComponent(componentName: v)),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF111827)),
+            textAlign: TextAlign.center,
+          ),
         );
       case 'category':
         return Center(
@@ -455,7 +472,7 @@ class _DesignComponentRowWidgetState extends State<_DesignComponentRowWidget> {
             onChanged: (v) => _updateComponent(
                 _createUpdatedComponent(specificationDetails: v)),
             style: const TextStyle(fontSize: 11, color: Color(0xFF111827)),
-            textAlign: TextAlign.left,
+            textAlign: TextAlign.center,
           ),
         );
       case 'integration':
@@ -467,7 +484,7 @@ class _DesignComponentRowWidgetState extends State<_DesignComponentRowWidget> {
             onChanged: (v) =>
                 _updateComponent(_createUpdatedComponent(integrationPoint: v)),
             style: const TextStyle(fontSize: 11, color: Color(0xFF111827)),
-            textAlign: TextAlign.left,
+            textAlign: TextAlign.center,
           ),
         );
       case 'status':

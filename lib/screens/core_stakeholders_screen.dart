@@ -31,6 +31,7 @@ import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 class CoreStakeholdersScreen extends StatefulWidget {
   final String notes;
@@ -745,9 +746,17 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
           ),
         ],
         if (_isGenerating) const LinearProgressIndicator(minHeight: 2),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        TextFormattingToolbar(
+          controller: _notesController,
+          onBeforeUndo: () {
+            _saveCoreStakeholdersData();
+          },
+        ),
+        const SizedBox(height: 8),
         Container(
           width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 120),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
               color: Colors.white,
@@ -755,13 +764,14 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
               border: Border.all(color: Colors.grey.withValues(alpha: 0.3))),
           child: TextField(
             controller: _notesController,
+            keyboardType: TextInputType.multiline,
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             decoration: InputDecoration(
                 hintText: 'Input your notes here...',
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.zero),
-            minLines: 1,
+            minLines: 4,
             maxLines: null,
           ),
         ),
@@ -1201,11 +1211,13 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     final fieldKey =
         'stakeholder_${isInternal ? 'internal' : 'external'}_${solutionTitle}_$index';
     final canUndo = provider.canUndoField(fieldKey);
+    final canRedo = provider.canRedoField(fieldKey);
 
     return HoverableFieldControls(
       isAiGenerated: true,
       isLoading: false,
       canUndo: canUndo,
+      canRedo: canRedo,
       onRegenerate: () async {
         // Add current value to history
         provider.addFieldToHistory(fieldKey, controller.text,
@@ -1220,6 +1232,13 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
           await provider.saveToFirebase(checkpoint: 'stakeholder_undo');
         }
       },
+      onRedo: () async {
+        final nextValue = provider.projectData.redoField(fieldKey);
+        if (nextValue != null) {
+          controller.text = nextValue;
+          await provider.saveToFirebase(checkpoint: 'stakeholder_redo');
+        }
+      },
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1230,6 +1249,9 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
           controller: controller,
           minLines: 2,
           maxLines: null,
+          onChanged: (value) {
+            provider.addFieldToHistory(fieldKey, value, isAiGenerated: true);
+          },
           decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),

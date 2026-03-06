@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 import '../models/program_model.dart';
 import '../services/project_service.dart';
@@ -26,6 +27,12 @@ class MobileDashboardScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF111827),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 10),
+            child: UnifiedProfileMenu(compact: true),
+          ),
+        ],
       ),
       backgroundColor: const Color(0xFFF8F9FB),
       body: StreamBuilder<List<ProjectRecord>>(

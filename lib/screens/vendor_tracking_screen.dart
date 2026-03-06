@@ -10,6 +10,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/vendors_table_widget.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class VendorTrackingScreen extends StatefulWidget {
@@ -849,6 +850,8 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                     decoration: const InputDecoration(
                         labelText: 'Cost Adherence (0.0-1.0) *')),
                 const SizedBox(height: 12),
+                TextFormattingToolbar(controller: notesController),
+                const SizedBox(height: 6),
                 TextField(
                     controller: notesController,
                     decoration: const InputDecoration(

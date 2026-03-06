@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/models/meeting_row.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'dart:async';
 
 /// Specialized Resource Grid widget for Team Meetings page
@@ -583,6 +584,8 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   // Meeting Objective
+                  TextFormattingToolbar(controller: objectiveController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: objectiveController,
                     decoration: const InputDecoration(
@@ -594,6 +597,8 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   // Action Items
+                  TextFormattingToolbar(controller: actionItemsController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: actionItemsController,
                     decoration: const InputDecoration(
@@ -606,6 +611,8 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   // Notes
+                  TextFormattingToolbar(controller: notesController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: notesController,
                     decoration: const InputDecoration(

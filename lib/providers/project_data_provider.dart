@@ -506,9 +506,27 @@ class ProjectDataProvider extends ChangeNotifier {
     return false;
   }
 
+  /// Redo a reverted change to a field
+  Future<bool> redoField(String fieldName, {String? checkpoint}) async {
+    final redoneValue = _projectData.redoField(fieldName);
+    if (redoneValue != null) {
+      notifyListeners();
+      if (checkpoint != null) {
+        await saveToFirebase(checkpoint: checkpoint);
+      }
+      return true;
+    }
+    return false;
+  }
+
   /// Check if a field can be undone
   bool canUndoField(String fieldName) {
     return _projectData.canUndoField(fieldName);
+  }
+
+  /// Check if a field can be redone
+  bool canRedoField(String fieldName) {
+    return _projectData.canRedoField(fieldName);
   }
 
   /// Add a new potential solution

@@ -11,6 +11,7 @@ import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/planning_dashboard_card.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:provider/provider.dart';
@@ -177,10 +178,11 @@ class _FrontEndPlanningSummaryScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _roundedField(
+                      _formattedNotesEditor(
                           controller: _notes,
                           hint: 'Input your notes here...',
-                          minLines: 3),
+                          minLines: 3,
+                          maxLines: 5),
                       const SizedBox(height: 24),
                       const _SectionTitle(),
                       const SizedBox(height: 18),
@@ -282,42 +284,12 @@ class _FrontEndPlanningSummaryScreenState
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F4F8),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'NOTES',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF9CA3AF),
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                          TextField(
-                            controller: _notes,
-                            minLines: 3,
-                            maxLines: 5,
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              hintText: 'Input your notes here...',
-                              hintStyle: TextStyle(color: Color(0xFFB6BDC8)),
-                            ),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF374151),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _formattedNotesEditor(
+                      controller: _notes,
+                      hint: 'Input your notes here...',
+                      minLines: 3,
+                      maxLines: 5,
+                      showLabel: true,
                     ),
                     const SizedBox(height: 16),
                     Container(
@@ -1622,10 +1594,12 @@ class _BottomOverlay extends StatelessWidget {
   }
 }
 
-Widget _roundedField(
+Widget _formattedNotesEditor(
     {required TextEditingController controller,
     required String hint,
-    int minLines = 1}) {
+    int minLines = 1,
+    int? maxLines,
+    bool showLabel = false}) {
   return Container(
     width: double.infinity,
     decoration: BoxDecoration(
@@ -1634,17 +1608,37 @@ Widget _roundedField(
       border: Border.all(color: const Color(0xFFE4E7EC)),
     ),
     padding: const EdgeInsets.all(14),
-    child: TextField(
-      controller: controller,
-      minLines: minLines,
-      maxLines: null,
-      decoration: InputDecoration(
-        isDense: true,
-        border: InputBorder.none,
-        hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-      ),
-      style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showLabel)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'NOTES',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF9CA3AF),
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+        TextFormattingToolbar(controller: controller),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          minLines: minLines,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            hintText: hint,
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+          ),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
+        ),
+      ],
     ),
   );
 }

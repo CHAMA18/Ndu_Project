@@ -954,9 +954,19 @@ class ProjectDataModel {
     return fieldHistories[fieldName]?.undo();
   }
 
+  /// Redo a reverted change to a field
+  String? redoField(String fieldName) {
+    return fieldHistories[fieldName]?.redo();
+  }
+
   /// Check if a field can be undone
   bool canUndoField(String fieldName) {
-    return (fieldHistories[fieldName]?.history.length ?? 0) > 1;
+    return fieldHistories[fieldName]?.canUndo ?? false;
+  }
+
+  /// Check if a field can be redone
+  bool canRedoField(String fieldName) {
+    return fieldHistories[fieldName]?.canRedo ?? false;
   }
 
   /// Add a new potential solution
@@ -3392,49 +3402,96 @@ class FieldHistory {
   final String fieldName;
   final List<String> history;
   final bool isAiGenerated;
+  int currentIndex;
 
   FieldHistory({
     required this.fieldName,
     List<String>? history,
     this.isAiGenerated = false,
-  }) : history = history ?? [];
+    int? currentIndex,
+  })  : history = history ?? [],
+        currentIndex = currentIndex ?? ((history?.length ?? 0) - 1);
 
   /// Add a value to history
   void addToHistory(String value) {
+    if (history.isNotEmpty &&
+        currentIndex >= 0 &&
+        currentIndex < history.length &&
+        history[currentIndex] == value) {
+      return;
+    }
+
+    if (currentIndex < history.length - 1) {
+      history.removeRange(currentIndex + 1, history.length);
+    }
+
     history.add(value);
+    currentIndex = history.length - 1;
+
     // Limit history to last 50 entries to prevent memory issues
     if (history.length > 50) {
       history.removeAt(0);
+      currentIndex = history.length - 1;
     }
   }
 
   /// Undo the last change (remove last entry and return previous)
   String? undo() {
-    if (history.length > 1) {
-      history.removeLast();
-      return history.last;
+    if (canUndo) {
+      currentIndex -= 1;
+      return history[currentIndex];
+    }
+    return null;
+  }
+
+  /// Redo the next change and return it
+  String? redo() {
+    if (canRedo) {
+      currentIndex += 1;
+      return history[currentIndex];
     }
     return null;
   }
 
   /// Check if undo is possible
-  bool get canUndo => history.length > 1;
+  bool get canUndo => currentIndex > 0 && history.isNotEmpty;
+
+  /// Check if redo is possible
+  bool get canRedo =>
+      history.isNotEmpty &&
+      currentIndex >= 0 &&
+      currentIndex < history.length - 1;
 
   /// Get current value (last in history)
-  String? get currentValue => history.isNotEmpty ? history.last : null;
+  String? get currentValue {
+    if (history.isEmpty || currentIndex < 0 || currentIndex >= history.length) {
+      return null;
+    }
+    return history[currentIndex];
+  }
 
   Map<String, dynamic> toJson() => {
         'fieldName': fieldName,
         'history': history,
         'isAiGenerated': isAiGenerated,
+        'currentIndex': currentIndex,
       };
 
   factory FieldHistory.fromJson(Map<String, dynamic> json) {
+    final parsedHistory =
+        (json['history'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final parsedIndex = json['currentIndex'] is int
+        ? json['currentIndex'] as int
+        : parsedHistory.length - 1;
+    final clampedIndex = parsedHistory.isEmpty
+        ? -1
+        : parsedIndex.clamp(0, parsedHistory.length - 1);
+
     return FieldHistory(
       fieldName: json['fieldName']?.toString() ?? '',
-      history:
-          (json['history'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      history: parsedHistory,
       isAiGenerated: json['isAiGenerated'] == true,
+      currentIndex: clampedIndex,
     );
   }
 }

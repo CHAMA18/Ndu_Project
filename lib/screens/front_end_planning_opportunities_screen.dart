@@ -14,6 +14,7 @@ import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/staff_team_screen.dart';
@@ -539,6 +540,7 @@ Opportunity generation constraints:
                                   final actions = Wrap(
                                     spacing: 12,
                                     runSpacing: 8,
+                                    alignment: WrapAlignment.end,
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
@@ -554,28 +556,26 @@ Opportunity generation constraints:
                                         isLoading: _isGeneratingOpportunities,
                                         tooltip: 'Regenerate all opportunities',
                                       ),
-                                      SizedBox(
-                                        height: 40,
-                                        child: OutlinedButton.icon(
-                                          onPressed: () =>
-                                              _showAddOpportunityDialog(),
-                                          icon: const Icon(Icons.add, size: 18),
-                                          label: const Text(
-                                            'Add Opportunity',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600),
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor:
-                                                const Color(0xFF111827),
-                                            side: const BorderSide(
-                                                color: Color(0xFFD1D5DB)),
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 14, vertical: 10),
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(8)),
-                                          ),
+                                      OutlinedButton.icon(
+                                        onPressed: () =>
+                                            _showAddOpportunityDialog(),
+                                        icon: const Icon(Icons.add, size: 18),
+                                        label: const Text(
+                                          '+ Add Opportunity',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor:
+                                              const Color(0xFF111827),
+                                          side: const BorderSide(
+                                              color: Color(0xFFD1D5DB)),
+                                          minimumSize: const Size(0, 40),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 10),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8)),
                                         ),
                                       ),
                                     ],
@@ -1014,12 +1014,13 @@ Opportunity generation constraints:
                       onPressed: () => _showAddOpportunityDialog(),
                       icon: const Icon(Icons.add, size: 17),
                       label: const Text(
-                        'Add Opportunity',
+                        '+ Add Opportunity',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFD1D5DB)),
                         foregroundColor: const Color(0xFF374151),
+                        minimumSize: const Size(0, 40),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -2179,17 +2180,24 @@ Widget _roundedField(
       border: Border.all(color: const Color(0xFFE4E7EC)),
     ),
     padding: const EdgeInsets.all(14),
-    child: TextField(
-      controller: controller,
-      minLines: minLines,
-      maxLines: null,
-      decoration: InputDecoration(
-        isDense: true,
-        border: InputBorder.none,
-        hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-      ),
-      style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormattingToolbar(controller: controller),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          minLines: minLines,
+          maxLines: null,
+          decoration: InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            hintText: hint,
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+          ),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
+        ),
+      ],
     ),
   );
 }

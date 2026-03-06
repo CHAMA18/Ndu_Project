@@ -5,17 +5,17 @@ extension ProcurementItemStatusUI on ProcurementItemStatus {
   String get label {
     switch (this) {
       case ProcurementItemStatus.planning:
-        return 'planning';
+        return 'Planning';
       case ProcurementItemStatus.rfqReview:
-        return 'rfq review';
+        return 'RFQ Review';
       case ProcurementItemStatus.vendorSelection:
-        return 'vendor selection';
+        return 'Vendor Selection';
       case ProcurementItemStatus.ordered:
-        return 'ordered';
+        return 'Ordered';
       case ProcurementItemStatus.delivered:
-        return 'delivered';
+        return 'Delivered';
       case ProcurementItemStatus.cancelled:
-        return 'cancelled';
+        return 'Cancelled';
     }
   }
 
@@ -72,7 +72,16 @@ extension ProcurementItemStatusUI on ProcurementItemStatus {
 
 extension ProcurementPriorityUI on ProcurementPriority {
   String get label {
-    return name;
+    switch (this) {
+      case ProcurementPriority.low:
+        return 'Low';
+      case ProcurementPriority.medium:
+        return 'Medium';
+      case ProcurementPriority.high:
+        return 'High';
+      case ProcurementPriority.critical:
+        return 'Critical';
+    }
   }
 
   Color get backgroundColor {
@@ -119,17 +128,17 @@ extension RfqStatusUI on RfqStatus {
   String get label {
     switch (this) {
       case RfqStatus.draft:
-        return 'draft';
+        return 'Draft';
       case RfqStatus.review:
-        return 'review';
+        return 'Review';
       case RfqStatus.inMarket:
-        return 'in market';
+        return 'In Market';
       case RfqStatus.evaluation:
-        return 'evaluation';
+        return 'Evaluation';
       case RfqStatus.awarded:
-        return 'awarded';
+        return 'Awarded';
       case RfqStatus.closed:
-        return 'closed';
+        return 'Closed';
     }
   }
 
@@ -189,17 +198,17 @@ extension PurchaseOrderStatusUI on PurchaseOrderStatus {
   String get label {
     switch (this) {
       case PurchaseOrderStatus.awaitingApproval:
-        return 'awaiting approval';
+        return 'Awaiting Approval';
       case PurchaseOrderStatus.issued:
-        return 'issued';
+        return 'Issued';
       case PurchaseOrderStatus.inTransit:
-        return 'in transit';
+        return 'In Transit';
       case PurchaseOrderStatus.received:
-        return 'received';
+        return 'Received';
       case PurchaseOrderStatus.draft:
-        return 'draft';
+        return 'Draft';
       case PurchaseOrderStatus.cancelled:
-        return 'cancelled';
+        return 'Cancelled';
     }
   }
 

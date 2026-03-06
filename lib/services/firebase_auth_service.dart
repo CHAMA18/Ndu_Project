@@ -30,7 +30,8 @@ class FirebaseAuthService {
       rememberMe ? Persistence.LOCAL : Persistence.SESSION,
     );
     await setRememberMe(rememberMe);
-    final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+    final cred = await _auth.signInWithEmailAndPassword(
+        email: email, password: password);
     return cred;
   }
 
@@ -51,12 +52,16 @@ class FirebaseAuthService {
 
   /// Display name helper with graceful fallback
   static String displayNameOrEmail({String fallback = 'User'}) {
-    final u = _auth.currentUser;
-    if (u == null) return fallback;
-    final dn = u.displayName?.trim();
-    if (dn != null && dn.isNotEmpty) return dn;
-    final em = u.email?.trim();
-    if (em != null && em.isNotEmpty) return em;
-    return fallback;
+    try {
+      final u = _auth.currentUser;
+      if (u == null) return fallback;
+      final dn = u.displayName?.trim();
+      if (dn != null && dn.isNotEmpty) return dn;
+      final em = u.email?.trim();
+      if (em != null && em.isNotEmpty) return em;
+      return fallback;
+    } catch (_) {
+      return fallback;
+    }
   }
 }

@@ -7,14 +7,18 @@ class FieldRegenerateUndoButtons extends StatelessWidget {
     super.key,
     required this.onRegenerate,
     required this.onUndo,
+    required this.onRedo,
     required this.canUndo,
+    required this.canRedo,
     this.isLoading = false,
     this.size = 20,
   });
 
   final VoidCallback onRegenerate;
   final VoidCallback onUndo;
+  final VoidCallback onRedo;
   final bool canUndo;
+  final bool canRedo;
   final bool isLoading;
   final double size;
 
@@ -55,6 +59,19 @@ class FieldRegenerateUndoButtons extends StatelessWidget {
           splashRadius: 20,
           hoverColor: primary.withValues(alpha: 0.08),
         ),
+        IconButton(
+          icon: Icon(
+            Icons.redo,
+            size: size,
+            color: canRedo ? Colors.grey.shade600 : Colors.grey.shade300,
+          ),
+          tooltip: 'Redo last change',
+          onPressed: canRedo ? onRedo : null,
+          padding: const EdgeInsets.all(8),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          splashRadius: 20,
+          hoverColor: primary.withValues(alpha: 0.08),
+        ),
       ],
     );
   }
@@ -67,7 +84,9 @@ class HoverableFieldControls extends StatefulWidget {
     required this.child,
     required this.onRegenerate,
     required this.onUndo,
+    required this.onRedo,
     required this.canUndo,
+    required this.canRedo,
     this.isAiGenerated = false,
     this.isLoading = false,
   });
@@ -75,7 +94,9 @@ class HoverableFieldControls extends StatefulWidget {
   final Widget child;
   final VoidCallback onRegenerate;
   final VoidCallback onUndo;
+  final VoidCallback onRedo;
   final bool canUndo;
+  final bool canRedo;
   final bool isAiGenerated;
   final bool isLoading;
 
@@ -121,7 +142,9 @@ class _HoverableFieldControlsState extends State<HoverableFieldControls> {
                   child: FieldRegenerateUndoButtons(
                     onRegenerate: widget.onRegenerate,
                     onUndo: widget.onUndo,
+                    onRedo: widget.onRedo,
                     canUndo: widget.canUndo,
+                    canRedo: widget.canRedo,
                     isLoading: widget.isLoading,
                     size: 18,
                   ),

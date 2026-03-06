@@ -3010,8 +3010,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   _BenefitLineItemEntry _createBenefitEntry({String? categoryKey}) {
     final entry = _BenefitLineItemEntry(
       id: 'benefit-${DateTime.now().microsecondsSinceEpoch}',
-      categoryKey:
-          _normalizeBenefitCategoryKey(categoryKey ?? _projectValueFields.first.key),
+      categoryKey: _normalizeBenefitCategoryKey(
+          categoryKey ?? _projectValueFields.first.key),
     );
     entry.bind(_onBenefitEntryEdited);
     return entry;
@@ -3026,7 +3026,31 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     _markDirty();
   }
 
-  void _removeBenefitLineItem(_BenefitLineItemEntry entry) {
+  Future<void> _removeBenefitLineItem(_BenefitLineItemEntry entry) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Project Value'),
+            content: const Text(
+              'Are you sure you want to delete this project value? This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
     setState(() {
       _benefitLineItems.remove(entry);
       _savingsSuggestions = [];
@@ -4979,97 +5003,126 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 ? minTableWidth
                 : constraints.maxWidth;
 
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: tableWidth,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: Colors.grey.withValues(alpha: 0.35))),
-                      child: Row(children: [
-                        SizedBox(
-                          width: 300,
-                          child: const Text('Item',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w600)),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 150,
-                          child: const Align(
+            return Scrollbar(
+              thumbVisibility: constraints.maxWidth < minTableWidth,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: tableWidth,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: Colors.grey.withValues(alpha: 0.35))),
+                        child: Row(children: [
+                          SizedBox(
+                            width: 300,
+                            child: const Align(
                               alignment: Alignment.center,
-                              child: Text('Estimated cost',
+                              child: Text('Item',
                                   style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w600))),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 300,
-                          child: const Text('Comments',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w600)),
-                        ),
-                        const SizedBox(width: 8),
-                        const SizedBox(width: 36),
-                      ]),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: Colors.grey.withValues(alpha: 0.25))),
-                      child: Column(children: [
-                        for (final r in rows) _initialItemCostRow(r),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          decoration: BoxDecoration(
-                              border: Border(
-                                  top: BorderSide(
-                                      color:
-                                          Colors.grey.withValues(alpha: 0.2)))),
-                          child: Row(children: [
-                            SizedBox(
-                              width: 300,
-                              child: const Text('Total',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700)),
+                                      fontWeight: FontWeight.w600)),
                             ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 150,
-                              child: Align(
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 150,
+                            child: const Align(
                                 alignment: Alignment.center,
-                                child: Text(
-                                  _formatCurrencyValue(
-                                      _solutionTotalCost(solutionIndex)),
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700),
+                                child: Text('Estimated cost',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600))),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 300,
+                            child: const Align(
+                              alignment: Alignment.center,
+                              child: Text('Comments',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const SizedBox(width: 36),
+                        ]),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: Colors.grey.withValues(alpha: 0.25))),
+                        child: Column(
+                          children: [
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 360),
+                              child: Scrollbar(
+                                thumbVisibility: rows.length > 4,
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    children: [
+                                      for (final r in rows)
+                                        _initialItemCostRow(r),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            SizedBox(width: 300, child: const SizedBox()),
-                            const SizedBox(width: 8),
-                            const SizedBox(width: 36),
-                          ]),
-                        )
-                      ]),
-                    ),
-                  ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                  border: Border(
+                                      top: BorderSide(
+                                          color: Colors.grey
+                                              .withValues(alpha: 0.2)))),
+                              child: Row(children: [
+                                SizedBox(
+                                  width: 300,
+                                  child: const Align(
+                                    alignment: Alignment.center,
+                                    child: Text('Total',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700)),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                SizedBox(
+                                  width: 150,
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      _formatCurrencyValue(
+                                          _solutionTotalCost(solutionIndex)),
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                SizedBox(width: 300, child: const SizedBox()),
+                                const SizedBox(width: 8),
+                                const SizedBox(width: 36),
+                              ]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -5912,7 +5965,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 OutlinedButton.icon(
                   onPressed: (!hasSolutions || isLoading)
                       ? null
-                      : () => _generateCostBreakdownForSolution(index),
+                      : () => _handleRefreshSolutionSnapshot(index),
                   icon: isLoading
                       ? const SizedBox(
                           width: 16,
@@ -5923,9 +5976,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: _rowsPerSolution.isEmpty
-                      ? null
-                      : () => _showBreakdownFor(index),
+                  onPressed: () => _handleOpenBreakdownForSnapshot(index),
                   child: const Text('Open breakdown'),
                 ),
               ],
@@ -5936,7 +5987,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               child: OutlinedButton.icon(
                 onPressed: (!hasSolutions || isLoading)
                     ? null
-                    : () => _generateCostBreakdownForSolution(index),
+                    : () => _handleRefreshSolutionSnapshot(index),
                 icon: isLoading
                     ? const SizedBox(
                         width: 16,
@@ -5948,15 +5999,29 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             ),
             const SizedBox(width: 8),
             TextButton(
-              onPressed: _rowsPerSolution.isEmpty
-                  ? null
-                  : () => _showBreakdownFor(index),
+              onPressed: () => _handleOpenBreakdownForSnapshot(index),
               child: const Text('Open breakdown'),
             ),
           ]);
         }),
       ]),
     );
+  }
+
+  Future<void> _handleRefreshSolutionSnapshot(int index) async {
+    await _generateCostBreakdownForSolution(index);
+    if (!mounted) return;
+    await _saveCostAnalysisData();
+  }
+
+  void _handleOpenBreakdownForSnapshot(int index) {
+    if (_rowsPerSolution.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No breakdown data is available yet.')),
+      );
+      return;
+    }
+    _showBreakdownFor(index);
   }
 
   void _showBreakdownFor(int index) {

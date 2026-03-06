@@ -7,6 +7,36 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/vendor_service.dart';
 
+class ProcurementAssignableMemberOption {
+  const ProcurementAssignableMemberOption({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.source,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+  final String source;
+
+  String get displayLabel {
+    if (name.trim().isNotEmpty) return name.trim();
+    if (email.trim().isNotEmpty) return email.trim();
+    return 'Unnamed Member';
+  }
+
+  String get subtitle {
+    final parts = <String>[];
+    if (email.trim().isNotEmpty) parts.add(email.trim());
+    if (role.trim().isNotEmpty) parts.add(role.trim());
+    parts.add(source.trim().isEmpty ? 'Members' : source.trim());
+    return parts.join(' - ');
+  }
+}
+
 class ProcurementDialogShell extends StatelessWidget {
   const ProcurementDialogShell({
     super.key,
@@ -245,6 +275,7 @@ class AddItemDialog extends StatefulWidget {
     super.key,
     required this.contextChips,
     required this.categoryOptions,
+    this.responsibleOptions = const <ProcurementAssignableMemberOption>[],
     this.initialItem,
     this.showAiGenerateButton = false,
     this.itemDomainLabel = 'Procurement',
@@ -252,6 +283,7 @@ class AddItemDialog extends StatefulWidget {
 
   final List<Widget> contextChips;
   final List<String> categoryOptions;
+  final List<ProcurementAssignableMemberOption> responsibleOptions;
   final ProcurementItemModel? initialItem;
   final bool showAiGenerateButton;
   final String itemDomainLabel;
@@ -270,6 +302,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
   ProcurementItemStatus _status = ProcurementItemStatus.planning;
   ProcurementPriority _priority = ProcurementPriority.medium;
   DateTime? _deliveryDate;
+  String _responsibleMember = '';
   bool _showDateError = false;
   bool _isGenerating = false;
 
@@ -314,6 +347,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
     _status = existing?.status ?? ProcurementItemStatus.planning;
     _priority = existing?.priority ?? ProcurementPriority.medium;
     _deliveryDate = existing?.estimatedDelivery;
+    _responsibleMember =
+        _resolveResponsibleSelection(existing?.responsibleMember ?? '');
     _openAi = OpenAiServiceSecure();
     ApiKeyManager.initializeApiKey();
 
@@ -334,6 +369,80 @@ class _AddItemDialogState extends State<AddItemDialog> {
   int _parseCurrency(String value) {
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
     return int.tryParse(cleaned) ?? 0;
+  }
+
+  double _textSimilarity(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return 0;
+    final tokensA = a
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    final tokensB = b
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    if (tokensA.isEmpty || tokensB.isEmpty) return 0;
+    final union = tokensA.union(tokensB).length.toDouble();
+    if (union == 0) return 0;
+    final overlap = tokensA.intersection(tokensB).length.toDouble();
+    return overlap / union;
+  }
+
+  ProcurementAssignableMemberOption? _matchResponsibleByRole(String roleHint) {
+    final role = roleHint.trim().toLowerCase();
+    if (role.isEmpty) return null;
+    for (final option in widget.responsibleOptions) {
+      final memberRole = option.role.trim().toLowerCase();
+      if (memberRole.isEmpty) continue;
+      if (memberRole == role ||
+          memberRole.contains(role) ||
+          role.contains(memberRole)) {
+        return option;
+      }
+    }
+    return null;
+  }
+
+  String _resolveResponsibleSelection(String rawValue, {String roleHint = ''}) {
+    final value = rawValue.trim();
+    if (value.isEmpty) {
+      return _matchResponsibleByRole(roleHint)?.displayLabel ?? '';
+    }
+
+    final normalized = value.toLowerCase();
+    ProcurementAssignableMemberOption? exactMatch;
+    ProcurementAssignableMemberOption? fuzzyMatch;
+    var bestScore = 0.0;
+
+    for (final option in widget.responsibleOptions) {
+      final label = option.displayLabel.toLowerCase();
+      final email = option.email.toLowerCase();
+      if (label == normalized || email == normalized) {
+        exactMatch = option;
+        break;
+      }
+
+      if (label.contains(normalized) ||
+          normalized.contains(label) ||
+          (email.isNotEmpty &&
+              (email.contains(normalized) || normalized.contains(email)))) {
+        fuzzyMatch = option;
+        bestScore = 1.0;
+        continue;
+      }
+
+      final score = _textSimilarity(normalized, label);
+      if (score > bestScore) {
+        bestScore = score;
+        fuzzyMatch = option;
+      }
+    }
+
+    if (exactMatch != null) return exactMatch.displayLabel;
+    if (fuzzyMatch != null && bestScore >= 0.5) return fuzzyMatch.displayLabel;
+    final roleMatch = _matchResponsibleByRole(roleHint);
+    if (roleMatch != null) return roleMatch.displayLabel;
+    return value;
   }
 
   String _formatDisplayDate(DateTime date) =>
@@ -365,6 +474,19 @@ class _AddItemDialogState extends State<AddItemDialog> {
       if (mounted) {
         final deliveryDays = result['estimatedDeliveryDays'] as int? ?? 90;
         final deliveryDate = DateTime.now().add(Duration(days: deliveryDays));
+        final aiResponsible = (result['responsible'] ??
+                result['responsibleMember'] ??
+                result['owner'] ??
+                result['person'] ??
+                '')
+            .toString()
+            .trim();
+        final aiRole = (result['role'] ??
+                result['ownerRole'] ??
+                result['responsibleRole'] ??
+                '')
+            .toString()
+            .trim();
 
         ProcurementPriority priority;
         final priorityStr = result['priority'] as String? ?? 'medium';
@@ -389,6 +511,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
           _budgetCtrl.text = (result['budget'] as int? ?? 50000).toString();
           _priority = priority;
           _deliveryDate = deliveryDate;
+          _responsibleMember =
+              _resolveResponsibleSelection(aiResponsible, roleHint: aiRole);
           _showDateError = false;
           _isGenerating = false;
         });
@@ -481,7 +605,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
           events: existing?.events ?? [],
           notes: existing?.notes ?? '',
           projectPhase: existing?.projectPhase ?? 'Planning',
-          responsibleMember: existing?.responsibleMember ?? '',
+          responsibleMember: _responsibleMember.trim(),
           comments: existing?.comments ?? '',
           createdAt: existing?.createdAt ?? DateTime.now(),
           updatedAt: DateTime.now(),
@@ -602,6 +726,71 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 setState(() => _priority = value);
               },
             ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: widget.responsibleOptions.isEmpty
+                  ? null
+                  : () async {
+                      final selected =
+                          await showDialog<ProcurementAssignableMemberOption>(
+                        context: context,
+                        builder: (dialogContext) =>
+                            _ResponsibleMemberPickerDialog(
+                          options: widget.responsibleOptions,
+                          initialQuery: _responsibleMember,
+                        ),
+                      );
+                      if (selected == null) return;
+                      setState(() {
+                        _responsibleMember = selected.displayLabel;
+                      });
+                    },
+              borderRadius: BorderRadius.circular(12),
+              child: InputDecorator(
+                decoration: _dialogDecoration(
+                  label: 'Responsible',
+                  hint: widget.responsibleOptions.isEmpty
+                      ? 'No members available'
+                      : 'Select project or company member',
+                  prefixIcon: const Icon(Icons.person_search_outlined),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _responsibleMember.trim().isEmpty
+                            ? (widget.responsibleOptions.isEmpty
+                                ? 'No members available'
+                                : 'Choose member')
+                            : _responsibleMember.trim(),
+                        style: TextStyle(
+                          color: _responsibleMember.trim().isEmpty
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_responsibleMember.trim().isNotEmpty &&
+                        widget.responsibleOptions.isNotEmpty)
+                      IconButton(
+                        tooltip: 'Clear responsible',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          setState(() => _responsibleMember = '');
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                      ),
+                    const Icon(
+                      Icons.search_rounded,
+                      size: 18,
+                      color: Color(0xFF64748B),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 18),
             const DialogSectionTitle(
               title: 'Budget and timing',
@@ -667,6 +856,149 @@ class _AddItemDialogState extends State<AddItemDialog> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ResponsibleMemberPickerDialog extends StatefulWidget {
+  const _ResponsibleMemberPickerDialog({
+    required this.options,
+    required this.initialQuery,
+  });
+
+  final List<ProcurementAssignableMemberOption> options;
+  final String initialQuery;
+
+  @override
+  State<_ResponsibleMemberPickerDialog> createState() =>
+      _ResponsibleMemberPickerDialogState();
+}
+
+class _ResponsibleMemberPickerDialogState
+    extends State<_ResponsibleMemberPickerDialog> {
+  late final TextEditingController _searchController =
+      TextEditingController(text: widget.initialQuery);
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<ProcurementAssignableMemberOption> _filteredOptions() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return widget.options;
+    return widget.options.where((option) {
+      final name = option.name.toLowerCase();
+      final email = option.email.toLowerCase();
+      final role = option.role.toLowerCase();
+      final source = option.source.toLowerCase();
+      return name.contains(query) ||
+          email.contains(query) ||
+          role.contains(query) ||
+          source.contains(query);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _filteredOptions();
+    final grouped = <String, List<ProcurementAssignableMemberOption>>{};
+    for (final option in filtered) {
+      grouped
+          .putIfAbsent(
+              option.source, () => <ProcurementAssignableMemberOption>[])
+          .add(option);
+    }
+
+    final dialogWidth = MediaQuery.sizeOf(context).width > 620
+        ? 520.0
+        : MediaQuery.sizeOf(context).width * 0.86;
+
+    return AlertDialog(
+      title: const Text('Select Responsible Member'),
+      content: SizedBox(
+        width: dialogWidth,
+        height: 420,
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Search project team or company members...',
+                prefixIcon: Icon(Icons.search_rounded),
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No members available',
+                        style: TextStyle(color: Color(0xFF94A3B8)),
+                      ),
+                    )
+                  : ListView(
+                      children: grouped.entries.map((entry) {
+                        final source = entry.key;
+                        final members = entry.value;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
+                              child: Text(
+                                source,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                            ...members.map(
+                              (member) => ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: const Color(0xFFDBEAFE),
+                                  child: Text(
+                                    member.displayLabel[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1D4ED8),
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  member.displayLabel,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                subtitle: Text(
+                                  member.subtitle,
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                onTap: () => Navigator.pop(context, member),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
     );
   }
 }
@@ -2092,10 +2424,12 @@ class AddContractDialog extends StatefulWidget {
     super.key,
     required this.contextChips,
     required this.categoryOptions, // Just for context, mainly service types
+    this.initialContract,
   });
 
   final List<Widget> contextChips;
   final List<String> categoryOptions;
+  final ContractModel? initialContract;
 
   @override
   State<AddContractDialog> createState() => _AddContractDialogState();
@@ -2112,15 +2446,25 @@ class _AddContractDialogState extends State<AddContractDialog> {
   ContractStatus _status = ContractStatus.draft;
   DateTime? _startDate;
   DateTime? _endDate;
+  bool get _isEditing => widget.initialContract != null;
 
   @override
   void initState() {
     super.initState();
-    _titleCtrl = TextEditingController();
-    _contractorCtrl = TextEditingController();
-    _descCtrl = TextEditingController();
-    _costCtrl = TextEditingController();
-    _ownerCtrl = TextEditingController();
+    final existing = widget.initialContract;
+    _titleCtrl = TextEditingController(text: existing?.title ?? '');
+    _contractorCtrl =
+        TextEditingController(text: existing?.contractorName ?? '');
+    _descCtrl = TextEditingController(text: existing?.description ?? '');
+    _costCtrl = TextEditingController(
+      text: existing == null || existing.estimatedCost <= 0
+          ? ''
+          : existing.estimatedCost.toStringAsFixed(0),
+    );
+    _ownerCtrl = TextEditingController(text: existing?.owner ?? '');
+    _status = existing?.status ?? ContractStatus.draft;
+    _startDate = existing?.startDate;
+    _endDate = existing?.endDate;
   }
 
   @override
@@ -2172,11 +2516,13 @@ class _AddContractDialogState extends State<AddContractDialog> {
   @override
   Widget build(BuildContext context) {
     return ProcurementDialogShell(
-      title: 'Add Contract',
-      subtitle: 'Define contract terms, owner, and duration.',
+      title: _isEditing ? 'Edit Contract' : 'Add Contract',
+      subtitle: _isEditing
+          ? 'Update contract terms, owner, and duration.'
+          : 'Define contract terms, owner, and duration.',
       icon: Icons.gavel_outlined,
       contextChips: widget.contextChips,
-      primaryLabel: 'Add Contract',
+      primaryLabel: _isEditing ? 'Save Changes' : 'Add Contract',
       secondaryLabel: 'Cancel',
       onSecondary: () => Navigator.of(context).pop(),
       onPrimary: () {
@@ -2184,8 +2530,9 @@ class _AddContractDialogState extends State<AddContractDialog> {
         if (!valid) return;
 
         final cost = _parseCurrency(_costCtrl.text);
-        final projectId =
-            ProjectDataHelper.getData(context).projectId ?? 'project-1';
+        final projectId = widget.initialContract?.projectId ??
+            ProjectDataHelper.getData(context).projectId ??
+            'project-1';
 
         // duration string calculation
         String durationStr = '';
@@ -2199,7 +2546,8 @@ class _AddContractDialogState extends State<AddContractDialog> {
         }
 
         final contract = ContractModel(
-          id: 'CNT-${DateTime.now().millisecondsSinceEpoch % 10000}',
+          id: widget.initialContract?.id ??
+              'CNT-${DateTime.now().millisecondsSinceEpoch % 10000}',
           projectId: projectId,
           title: _titleCtrl.text.trim(),
           description: _descCtrl.text.trim(),
@@ -2212,7 +2560,7 @@ class _AddContractDialogState extends State<AddContractDialog> {
           owner: _ownerCtrl.text.trim().isEmpty
               ? 'Unassigned'
               : _ownerCtrl.text.trim(),
-          createdAt: DateTime.now(),
+          createdAt: widget.initialContract?.createdAt ?? DateTime.now(),
         );
         Navigator.of(context).pop(contract);
       },
@@ -2353,12 +2701,18 @@ class _AddContractDialogState extends State<AddContractDialog> {
             DropdownButtonFormField<ContractStatus>(
               initialValue: _status,
               decoration: _dialogDecoration(label: 'Status'),
-              items: ContractStatus.values
-                  .map((option) => DropdownMenuItem(
-                      value: option,
-                      child:
-                          Text(option.name.replaceAll('_', ' ').toUpperCase())))
-                  .toList(),
+              items: ContractStatus.values.map((option) {
+                final words = option.name
+                    .split('_')
+                    .where((word) => word.trim().isNotEmpty)
+                    .map((word) =>
+                        '${word[0].toUpperCase()}${word.substring(1)}')
+                    .toList();
+                return DropdownMenuItem(
+                  value: option,
+                  child: Text(words.join(' ')),
+                );
+              }).toList(),
               onChanged: (value) {
                 if (value == null) return;
                 setState(() => _status = value);
