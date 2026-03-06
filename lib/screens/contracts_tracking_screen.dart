@@ -15,6 +15,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 class ContractsTrackingScreen extends StatefulWidget {
   const ContractsTrackingScreen({super.key});
@@ -1255,6 +1256,8 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                TextFormattingToolbar(controller: notesController),
+                const SizedBox(height: 6),
                 TextField(
                   controller: notesController,
                   decoration: const InputDecoration(

@@ -3,6 +3,7 @@ import 'package:ndu_project/services/project_service.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 class AdminProjectsScreen extends StatelessWidget {
   const AdminProjectsScreen({super.key});
@@ -27,6 +28,12 @@ class AdminProjectsScreen extends StatelessWidget {
             const Text('Project Overview', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black)),
           ],
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: UnifiedProfileMenu(compact: true),
+          ),
+        ],
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: ProjectService.watchAllProjects(),

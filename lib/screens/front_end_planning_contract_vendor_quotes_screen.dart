@@ -129,6 +129,8 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       _ContractingManagementTab.scopeManagement;
   String? _lastProjectId;
   String? _autoGenerationRequestedProjectId;
+  bool _showAutoGenerationSpinner = false;
+  String? _autoGenerationError;
   List<_ContractingWorkflowStep> _globalWorkflowSteps =
       List<_ContractingWorkflowStep>.from(_defaultWorkflowTemplate);
   List<_ContractingWorkflowStep> _workflowDraftSteps =
@@ -188,14 +190,55 @@ class _FrontEndPlanningContractVendorQuotesScreenState
 
     final hasContracts = checks[0];
     final hasItems = checks[1];
-    if (hasContracts && hasItems) return;
+    if (hasContracts) return;
 
-    await _performGeneration(
+    final existingItems = hasItems
+        ? await ProcurementService.streamItems(
+            projectId,
+            limit: 500,
+          ).first.timeout(
+              const Duration(seconds: 8),
+              onTimeout: () => const <ProcurementItemModel>[],
+            )
+        : const <ProcurementItemModel>[];
+    if (!mounted) return;
+    final needsScopeDetailCompletion =
+        _hasIncompleteScopeDetails(existingItems);
+    final data = ProjectDataHelper.getData(context);
+    final needsProcurementNotes =
+        data.frontEndPlanning.procurement.trim().isEmpty;
+
+    if (mounted) {
+      setState(() {
+        _showAutoGenerationSpinner = true;
+        _autoGenerationError = null;
+      });
+    }
+
+    final generated = await _performGeneration(
       projectId,
       silent: true,
       seedContracts: !hasContracts,
       seedItems: !hasItems,
+      enrichExistingItems: hasItems && needsScopeDetailCompletion,
+      seedProcurementNotes: needsProcurementNotes,
     );
+
+    if (!mounted) return;
+    if (!generated) {
+      setState(() {
+        _autoGenerationError =
+            'Unable to auto-generate contracting records. You can retry with "Generate with AI".';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Automatic contracting generation failed. Please retry manually.',
+          ),
+        ),
+      );
+    }
+    setState(() => _showAutoGenerationSpinner = false);
   }
 
   void _bindProcurementStreams(String projectId) {
@@ -1894,6 +1937,77 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     }
   }
 
+  Future<void> _openEditContractDialog(ContractModel contract) async {
+    final projectId = _activeProjectIdOrNull();
+    if (projectId == null) return;
+
+    final categoryOptions = const [
+      'Construction',
+      'Services',
+      'Consulting',
+      'Other',
+    ];
+    final result = await showDialog<ContractModel>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (ctx) => AddContractDialog(
+        contextChips: _buildDialogContextChips(),
+        categoryOptions: categoryOptions,
+        initialContract: contract,
+      ),
+    );
+
+    if (result == null) return;
+    await ProcurementService.updateContract(
+      projectId,
+      contract.id,
+      {
+        'title': result.title,
+        'description': result.description,
+        'contractorName': result.contractorName,
+        'estimatedCost': result.estimatedCost,
+        'duration': result.duration,
+        'status': result.status.name,
+        'owner': result.owner,
+        'startDate': result.startDate == null
+            ? null
+            : Timestamp.fromDate(result.startDate!),
+        'endDate':
+            result.endDate == null ? null : Timestamp.fromDate(result.endDate!),
+      },
+    );
+  }
+
+  Future<void> _deleteContract(ContractModel contract) async {
+    final projectId = _activeProjectIdOrNull();
+    if (projectId == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete contract?'),
+        content: const Text('Are you sure you want to delete this contract?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await ProcurementService.deleteContract(projectId, contract.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Contract deleted.')),
+    );
+  }
+
   Future<void> _openAddContractorDialog({
     List<VendorModel> existingContractors = const <VendorModel>[],
   }) async {
@@ -2464,12 +2578,18 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       );
       return;
     }
-    await _performGeneration(
+    final generated = await _performGeneration(
       projectId,
       silent: false,
       seedContracts: true,
       seedItems: true,
     );
+    if (!mounted) return;
+    setState(() {
+      _autoGenerationError = generated
+          ? null
+          : 'AI generation did not return new contracts. Adjust context and try again.';
+    });
   }
 
   String _normalizeSignature(String value) =>
@@ -2635,14 +2755,82 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     return ProcurementItemStatus.planning;
   }
 
-  Future<void> _performGeneration(
+  bool _hasIncompleteScopeDetails(List<ProcurementItemModel> items) {
+    if (items.isEmpty) return true;
+    return items.any(
+      (item) =>
+          item.budget <= 0 ||
+          item.estimatedDelivery == null ||
+          (item.vendorId ?? '').trim().isEmpty,
+    );
+  }
+
+  String _generatedDurationText(Map<String, dynamic> item) {
+    final duration = _normalizeField(item['estimated_duration']).isNotEmpty
+        ? _normalizeField(item['estimated_duration'])
+        : _normalizeField(item['comments']);
+    return duration.isEmpty ? '6 weeks' : duration;
+  }
+
+  String _generatedPotentialContractors(Map<String, dynamic> item) {
+    final contractors =
+        _normalizeField(item['potential_contractors']).isNotEmpty
+            ? _normalizeField(item['potential_contractors'])
+            : _normalizeField(item['potential_vendors']);
+    return contractors;
+  }
+
+  String _normalizedBiddingValue(Map<String, dynamic> item) {
+    final biddingRequired = _normalizeField(item['bidding_required']).isNotEmpty
+        ? _normalizeField(item['bidding_required'])
+        : _normalizeField(item['responsible_member']);
+    return _biddingOptions.contains(biddingRequired)
+        ? biddingRequired
+        : _biddingOptions.last;
+  }
+
+  DateTime _deliveryDateFromDurationText(String durationText) {
+    final normalized = durationText.toLowerCase();
+    final numberMatch = RegExp(r'(\d+)').firstMatch(normalized);
+    final number = int.tryParse(numberMatch?.group(1) ?? '') ?? 6;
+
+    int days;
+    if (normalized.contains('day')) {
+      days = number;
+    } else if (normalized.contains('month')) {
+      days = number * 30;
+    } else {
+      days = number * 7;
+    }
+    if (days < 7) days = 7;
+    return DateTime.now().add(Duration(days: days));
+  }
+
+  List<String> _contractorNamesFromText(String raw) {
+    return raw
+        .replaceAll('\n', ',')
+        .replaceAll(';', ',')
+        .split(',')
+        .map((entry) => entry.trim())
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<bool> _performGeneration(
     String projectId, {
     required bool silent,
     required bool seedContracts,
     required bool seedItems,
+    bool enrichExistingItems = false,
+    bool seedProcurementNotes = false,
   }) async {
-    if (!seedContracts && !seedItems) return;
-    if (_generating) return;
+    if (!seedContracts &&
+        !seedItems &&
+        !enrichExistingItems &&
+        !seedProcurementNotes) {
+      return false;
+    }
+    if (_generating) return false;
 
     setState(() => _generating = true);
     try {
@@ -2670,7 +2858,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           )
           .timeout(const Duration(seconds: 45));
 
-      if (!mounted) return;
+      if (!mounted) return false;
 
       bool shouldImport = silent;
       if (!silent) {
@@ -2696,6 +2884,89 @@ class _FrontEndPlanningContractVendorQuotesScreenState
               const Duration(seconds: 8),
               onTimeout: () => const <ProcurementItemModel>[],
             );
+        final existingVendors = await VendorService.streamVendors(
+          projectId,
+          limit: 320,
+        ).first.timeout(
+              const Duration(seconds: 8),
+              onTimeout: () => const <VendorModel>[],
+            );
+        final mutableVendors = <VendorModel>[...existingVendors];
+
+        Future<String?> resolveOrCreateVendorId(String preferredName) async {
+          final normalizedPreferred = preferredName.trim().toLowerCase();
+          if (mutableVendors.isNotEmpty) {
+            if (normalizedPreferred.isNotEmpty) {
+              for (final vendor in mutableVendors) {
+                final vendorName = vendor.name.trim().toLowerCase();
+                if (vendorName == normalizedPreferred ||
+                    vendorName.contains(normalizedPreferred) ||
+                    normalizedPreferred.contains(vendorName)) {
+                  return vendor.id;
+                }
+              }
+            }
+            return mutableVendors.first.id;
+          }
+          if (preferredName.trim().isEmpty) return null;
+
+          try {
+            await VendorService.createVendor(
+              projectId: projectId,
+              name: preferredName.trim(),
+              category: 'Services',
+              criticality: 'Medium',
+              rating: 'B',
+              status: 'Pending',
+              sla: '95%',
+              slaPerformance: 0.9,
+              leadTime: '30 Days',
+              requiredDeliverables: 'Initial scope submission',
+              nextReview: '',
+              onTimeDelivery: 0.0,
+              incidentResponse: 0.0,
+              qualityScore: 0.0,
+              costAdherence: 0.0,
+              createdById: 'system',
+              createdByEmail: 'system@nduproject.com',
+              createdByName: 'System AI',
+            );
+            final refreshed = await VendorService.streamVendors(
+              projectId,
+              limit: 320,
+            ).first.timeout(
+                  const Duration(seconds: 8),
+                  onTimeout: () => const <VendorModel>[],
+                );
+            mutableVendors
+              ..clear()
+              ..addAll(refreshed);
+            if (mutableVendors.isEmpty) return null;
+            for (final vendor in mutableVendors) {
+              if (vendor.name.trim().toLowerCase() ==
+                  preferredName.trim().toLowerCase()) {
+                return vendor.id;
+              }
+            }
+            return mutableVendors.first.id;
+          } catch (e) {
+            debugPrint('Unable to auto-create vendor for contracting: $e');
+            return null;
+          }
+        }
+
+        final rawScopeItems =
+            generated['contract_scope_items'] ?? generated['procurement_items'];
+        final generatedScopeItems = <Map<String, dynamic>>[];
+        if (rawScopeItems is List) {
+          for (final item in rawScopeItems.take(_maxAiImportRows)) {
+            if (item is Map<String, dynamic>) {
+              generatedScopeItems.add(item);
+            } else if (item is Map) {
+              generatedScopeItems.add(Map<String, dynamic>.from(item));
+            }
+          }
+        }
 
         final existingContractKeys = existingContracts
             .map((contract) =>
@@ -2708,6 +2979,8 @@ class _FrontEndPlanningContractVendorQuotesScreenState
 
         var importedContracts = 0;
         var importedItems = 0;
+        var enrichedItems = 0;
+        var seededProcurementNotes = false;
 
         if (seedContracts &&
             generated.containsKey('contracts') &&
@@ -2748,76 +3021,175 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           }
         }
 
-        final rawScopeItems =
-            generated['contract_scope_items'] ?? generated['procurement_items'];
-        if (seedItems && rawScopeItems is List) {
-          final List<dynamic> items =
-              rawScopeItems.take(_maxAiImportRows).toList();
-          for (final item in items) {
-            if (item is Map<String, dynamic>) {
-              final name = _normalizeField(item['name']);
-              if (name.isEmpty) continue;
-              final normalizedType =
-                  _normalizeField(item['contract_type']).isNotEmpty
-                      ? _normalizeField(item['contract_type'])
-                      : _normalizeField(item['category']);
-              final category = _contractTypeOptions.contains(normalizedType)
-                  ? normalizedType
-                  : _contractTypeOptions.last;
-              final signature =
-                  '${_normalizeSignature(name)}|${_normalizeSignature(category)}';
-              if (existingItemKeys.contains(signature)) continue;
+        if (seedItems && generatedScopeItems.isNotEmpty) {
+          for (final item in generatedScopeItems) {
+            final name = _normalizeField(item['name']);
+            if (name.isEmpty) continue;
+            final normalizedType =
+                _normalizeField(item['contract_type']).isNotEmpty
+                    ? _normalizeField(item['contract_type'])
+                    : _normalizeField(item['category']);
+            final category = _contractTypeOptions.contains(normalizedType)
+                ? normalizedType
+                : _contractTypeOptions.last;
+            final signature =
+                '${_normalizeSignature(name)}|${_normalizeSignature(category)}';
+            if (existingItemKeys.contains(signature)) continue;
 
-              final biddingRequired =
-                  _normalizeField(item['bidding_required']).isNotEmpty
-                      ? _normalizeField(item['bidding_required'])
-                      : _normalizeField(item['responsible_member']);
-              final normalizedBidding =
-                  _biddingOptions.contains(biddingRequired)
-                      ? biddingRequired
-                      : _biddingOptions.last;
-              final newItem = ProcurementItemModel(
-                id: '',
-                projectId: projectId,
-                name: name,
-                description: _normalizeField(item['description']).isEmpty
-                    ? category
-                    : _normalizeField(item['description']),
-                category: category,
-                budget: _safeDouble(item['estimated_value'] ?? item['budget']),
-                notes: _normalizeField(item['potential_contractors']).isEmpty
-                    ? _normalizeField(item['potential_vendors'])
-                    : _normalizeField(item['potential_contractors']),
-                status: _parseScopeStatus(item['status']),
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-                projectPhase: _normalizeStartStage(
-                  _normalizeField(item['contracting_start_stage']).isNotEmpty
-                      ? item['contracting_start_stage']
-                      : item['project_phase'],
-                ),
-                responsibleMember: normalizedBidding,
-                comments: _normalizeField(item['estimated_duration']).isNotEmpty
-                    ? _normalizeField(item['estimated_duration'])
-                    : _normalizeField(item['comments']),
-              );
-              await ProcurementService.createItem(newItem);
-              importedItems += 1;
-              existingItemKeys.add(signature);
-            }
+            final durationText = _generatedDurationText(item);
+            final contractorsText = _generatedPotentialContractors(item);
+            final contractorCandidates =
+                _contractorNamesFromText(contractorsText);
+            final preferredVendorName = contractorCandidates.isNotEmpty
+                ? contractorCandidates.first
+                : '';
+            final vendorId = await resolveOrCreateVendorId(preferredVendorName);
+
+            final newItem = ProcurementItemModel(
+              id: '',
+              projectId: projectId,
+              name: name,
+              description: _normalizeField(item['description']).isEmpty
+                  ? category
+                  : _normalizeField(item['description']),
+              category: category,
+              budget: _safeDouble(
+                item['estimated_value'] ?? item['budget'],
+                fallback: 50000,
+              ),
+              estimatedDelivery: _deliveryDateFromDurationText(durationText),
+              vendorId: vendorId,
+              notes: contractorsText,
+              status: _parseScopeStatus(item['status']),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              projectPhase: _normalizeStartStage(
+                _normalizeField(item['contracting_start_stage']).isNotEmpty
+                    ? item['contracting_start_stage']
+                    : item['project_phase'],
+              ),
+              responsibleMember: _normalizedBiddingValue(item),
+              comments: durationText,
+            );
+            await ProcurementService.createItem(newItem);
+            importedItems += 1;
+            existingItemKeys.add(signature);
           }
+        }
+
+        if (enrichExistingItems &&
+            existingItems.isNotEmpty &&
+            generatedScopeItems.isNotEmpty) {
+          for (var index = 0; index < existingItems.length; index++) {
+            final currentItem = existingItems[index];
+            final currentSignature =
+                '${_normalizeSignature(currentItem.name)}|${_normalizeSignature(currentItem.category)}';
+
+            Map<String, dynamic>? source;
+            for (final candidate in generatedScopeItems) {
+              final candidateName = _normalizeField(candidate['name']);
+              final candidateType =
+                  _normalizeField(candidate['contract_type']).isNotEmpty
+                      ? _normalizeField(candidate['contract_type'])
+                      : _normalizeField(candidate['category']);
+              final candidateCategory =
+                  _contractTypeOptions.contains(candidateType)
+                      ? candidateType
+                      : _contractTypeOptions.last;
+              final candidateSignature =
+                  '${_normalizeSignature(candidateName)}|${_normalizeSignature(candidateCategory)}';
+              if (candidateSignature == currentSignature) {
+                source = candidate;
+                break;
+              }
+            }
+            source ??= generatedScopeItems[index % generatedScopeItems.length];
+
+            final updates = <String, dynamic>{};
+            if (currentItem.budget <= 0) {
+              updates['budget'] = _safeDouble(
+                source['estimated_value'] ?? source['budget'],
+                fallback: 50000,
+              );
+            }
+            if (currentItem.estimatedDelivery == null) {
+              updates['estimatedDelivery'] = _deliveryDateFromDurationText(
+                _generatedDurationText(source),
+              );
+            }
+            if ((currentItem.vendorId ?? '').trim().isEmpty) {
+              final contractorsText = _generatedPotentialContractors(source);
+              final contractorNames = _contractorNamesFromText(contractorsText);
+              final preferredVendor = contractorNames.isNotEmpty
+                  ? contractorNames.first
+                  : currentItem.name.trim();
+              final vendorId = await resolveOrCreateVendorId(preferredVendor);
+              if ((vendorId ?? '').trim().isNotEmpty) {
+                updates['vendorId'] = vendorId;
+              }
+              if (currentItem.notes.trim().isEmpty &&
+                  contractorsText.trim().isNotEmpty) {
+                updates['notes'] = contractorsText.trim();
+              }
+            }
+            if (currentItem.comments.trim().isEmpty) {
+              updates['comments'] = _generatedDurationText(source);
+            }
+            if (currentItem.responsibleMember.trim().isEmpty) {
+              updates['responsibleMember'] = _normalizedBiddingValue(source);
+            }
+            if (currentItem.projectPhase.trim().isEmpty) {
+              updates['projectPhase'] = _normalizeStartStage(
+                _normalizeField(source['contracting_start_stage']).isNotEmpty
+                    ? source['contracting_start_stage']
+                    : source['project_phase'],
+              );
+            }
+            if (updates.isEmpty) continue;
+            await ProcurementService.updateItem(
+                projectId, currentItem.id, updates);
+            enrichedItems += 1;
+          }
+        }
+
+        if (seedProcurementNotes &&
+            projectData.frontEndPlanning.procurement.trim().isEmpty) {
+          final aiSummary = _normalizeField(generated['summary']);
+          final fallbackNotes = generatedScopeItems.isEmpty
+              ? 'Auto-generated contracting details have been prepared. Review scope, vendor readiness, and delivery windows before continuing.'
+              : 'Auto-generated contracting details prepared for ${generatedScopeItems.length} scope items. Review vendor assignments and delivery commitments before continuing.';
+          final nextProcurementNotes =
+              aiSummary.isNotEmpty ? aiSummary : fallbackNotes;
+          if (!mounted) return false;
+          final provider = ProjectDataHelper.getProvider(context);
+          provider.updateField(
+            (data) => data.copyWith(
+              frontEndPlanning: ProjectDataHelper.updateFEPField(
+                current: data.frontEndPlanning,
+                procurement: nextProcurementNotes,
+              ),
+            ),
+          );
+          await provider.saveToFirebase(
+              checkpoint: 'fep_contract_vendor_quotes');
+          seededProcurementNotes = true;
         }
 
         if (mounted && !silent) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Contracting AI added $importedContracts contracts and $importedItems scope items.',
+                'Contracting AI added $importedContracts contracts, $importedItems scope items, and updated $enrichedItems existing scope records.',
               ),
             ),
           );
         }
+        return importedContracts > 0 ||
+            importedItems > 0 ||
+            enrichedItems > 0 ||
+            seededProcurementNotes;
       }
+      return false;
     } catch (e) {
       debugPrint('Error regenerating contracts: $e');
       if (mounted && !silent) {
@@ -2825,6 +3197,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           SnackBar(content: Text('Error generating items: $e')),
         );
       }
+      return false;
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -3344,28 +3717,50 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                                 const SizedBox(height: 16),
                                 Align(
                                   alignment: Alignment.centerRight,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _openApprovedContractorList,
-                                    icon: const Icon(
-                                      Icons.fact_check_outlined,
-                                      size: 16,
-                                    ),
-                                    label: const Text(
-                                      'Approved Contractor List',
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: const Color(0xFF1E3A8A),
-                                      side: const BorderSide(
-                                          color: Color(0xFFBFDBFE)),
-                                      backgroundColor: const Color(0xFFEFF6FF),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 10,
+                                  child: Wrap(
+                                    spacing: 12,
+                                    runSpacing: 8,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: _openApprovedContractorList,
+                                        icon: const Icon(
+                                          Icons.fact_check_outlined,
+                                          size: 16,
+                                        ),
+                                        label: const Text(
+                                          'Approved Contractor List',
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor:
+                                              const Color(0xFF1E3A8A),
+                                          side: const BorderSide(
+                                              color: Color(0xFFBFDBFE)),
+                                          backgroundColor:
+                                              const Color(0xFFEFF6FF),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                        ),
                                       ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                      PageRegenerateAllButton(
+                                        onRegenerateAll: () async {
+                                          final confirmed =
+                                              await showRegenerateAllConfirmation(
+                                                  context);
+                                          if (confirmed && mounted) {
+                                            await _regenerateAllContracts();
+                                          }
+                                        },
+                                        isLoading: _generating,
+                                        tooltip:
+                                            'Generate contracts and contractors',
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 32),
@@ -3386,16 +3781,91 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                                       return _buildErrorState(
                                           context, snapshot.error!);
                                     }
+                                    if (_showAutoGenerationSpinner &&
+                                        !(snapshot.hasData &&
+                                            snapshot.data!.isNotEmpty)) {
+                                      return Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 40,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: const Color(0xFFE5E7EB)),
+                                        ),
+                                        child: const Column(
+                                          children: [
+                                            CircularProgressIndicator(),
+                                            SizedBox(height: 12),
+                                            Text(
+                                              'Generating initial contracts and contracting details...',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
                                     if (!snapshot.hasData) {
                                       return const Center(
                                           child: CircularProgressIndicator());
                                     }
                                     final contracts = snapshot.data!;
+                                    if (_autoGenerationError != null &&
+                                        contracts.isEmpty) {
+                                      return Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 24,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: const Color(0xFFE5E7EB)),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              _autoGenerationError!,
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                color: Color(0xFFB91C1C),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            OutlinedButton.icon(
+                                              onPressed: _generating
+                                                  ? null
+                                                  : _regenerateAllContracts,
+                                              icon: const Icon(
+                                                  Icons.auto_awesome_rounded,
+                                                  size: 16),
+                                              label: const Text(
+                                                  'Generate with AI'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
                                     return Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
-                                        ContractsTable(contracts: contracts),
+                                        ContractsTable(
+                                          contracts: contracts,
+                                          onEdit: _openEditContractDialog,
+                                          onDelete: _deleteContract,
+                                        ),
                                         if (contracts.length >=
                                             _contractQueryLimit)
                                           Align(
@@ -3569,33 +4039,6 @@ class _FrontEndPlanningContractVendorQuotesScreenState
 
                                 // Actions Footer
                                 const SizedBox(height: 40),
-                                Center(
-                                  child: Column(
-                                    children: [
-                                      PageRegenerateAllButton(
-                                        onRegenerateAll: () async {
-                                          final confirmed =
-                                              await showRegenerateAllConfirmation(
-                                                  context);
-                                          if (confirmed && mounted) {
-                                            await _regenerateAllContracts();
-                                          }
-                                        },
-                                        isLoading: _generating,
-                                        tooltip:
-                                            'Generate contracts and contractors',
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Missing contracting scope records auto-generate on load, and you can regenerate manually anytime.',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF6B7280),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
                                 const SizedBox(height: 120), // Bottom padding
                               ],
                             ),
@@ -4685,124 +5128,177 @@ class _ContractingScopeTable extends StatelessWidget {
       builder: (context, constraints) {
         final minWidth =
             constraints.maxWidth > 1500 ? constraints.maxWidth : 1500.0;
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: minWidth),
-            child: DataTable(
-              columnSpacing: 16,
-              horizontalMargin: 12,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              border: TableBorder.all(
-                color: const Color(0xFFE5E7EB),
-                width: 0.7,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              columns: const [
-                DataColumn(
-                    label: Text('No',
+        return Scrollbar(
+          thumbVisibility: true,
+          scrollbarOrientation: ScrollbarOrientation.bottom,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: minWidth),
+              child: DataTable(
+                columnSpacing: 16,
+                horizontalMargin: 12,
+                headingRowColor:
+                    WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                border: TableBorder.all(
+                  color: const Color(0xFFE5E7EB),
+                  width: 0.7,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                columns: const [
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'No',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(
-                    label: Text('Contract Scope',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(
-                    label: Text('Description',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(
-                    label: Text('Potential Contractors',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(
-                    label: Text('Contract Type',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(
-                    label: Text('Estimated Duration',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(
-                    label: Text('Estimated Value',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(
-                    label: Text('Bidding Required',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12))),
-                DataColumn(label: Text('')),
-              ],
-              rows: items.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                final actionItems = <PopupMenuEntry<String>>[];
-                if (onEdit != null) {
-                  actionItems.add(
-                    const PopupMenuItem<String>(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit_outlined, size: 16),
-                          SizedBox(width: 8),
-                          Text('Edit scope'),
-                        ],
+                            fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
-                  );
-                }
-                if (onDelete != null) {
-                  actionItems.add(
-                    const PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline,
-                              size: 16, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
-                        ],
+                  ),
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'Contract Scope',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
-                  );
-                }
+                  ),
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'Description',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'Potential Contractors',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'Contract Type',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'Estimated Duration',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'Estimated Value',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Center(
+                      child: Text(
+                        'Bidding Required',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  DataColumn(label: Center(child: Text(''))),
+                ],
+                rows: items.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  final actionItems = <PopupMenuEntry<String>>[];
+                  if (onEdit != null) {
+                    actionItems.add(
+                      const PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 16),
+                            SizedBox(width: 8),
+                            Text('Edit scope'),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  if (onDelete != null) {
+                    actionItems.add(
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline,
+                                size: 16, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
 
-                return DataRow(
-                  cells: [
-                    DataCell(Text('${index + 1}')),
-                    DataCell(_cellText(item.name, width: 170, bold: true)),
-                    DataCell(_cellText(item.description, width: 220)),
-                    DataCell(_cellText(item.notes, width: 190)),
-                    DataCell(_cellText(item.category, width: 120)),
-                    DataCell(_cellText(item.comments, width: 150)),
-                    DataCell(
-                        _cellText(_formatCurrency(item.budget), width: 130)),
-                    DataCell(_cellText(
-                      item.responsibleMember.trim().isEmpty
-                          ? 'Not Sure'
-                          : item.responsibleMember.trim(),
-                      width: 130,
-                    )),
-                    DataCell(
-                      hasActions
-                          ? PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_horiz,
-                                  color: Colors.grey),
-                              itemBuilder: (_) => actionItems,
-                              onSelected: (value) {
-                                if (value == 'edit' && onEdit != null) {
-                                  onEdit!(item);
-                                } else if (value == 'delete' &&
-                                    onDelete != null) {
-                                  onDelete!(item);
-                                }
-                              },
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                );
-              }).toList(),
+                  return DataRow(
+                    cells: [
+                      DataCell(Text('${index + 1}')),
+                      DataCell(_cellText(item.name, width: 170, bold: true)),
+                      DataCell(_cellText(item.description, width: 220)),
+                      DataCell(_cellText(item.notes, width: 190)),
+                      DataCell(_cellText(item.category, width: 120)),
+                      DataCell(_cellText(item.comments, width: 150)),
+                      DataCell(
+                          _cellText(_formatCurrency(item.budget), width: 130)),
+                      DataCell(_cellText(
+                        item.responsibleMember.trim().isEmpty
+                            ? 'Not Sure'
+                            : item.responsibleMember.trim(),
+                        width: 130,
+                      )),
+                      DataCell(
+                        hasActions
+                            ? PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_horiz,
+                                    color: Colors.grey),
+                                itemBuilder: (_) => actionItems,
+                                onSelected: (value) {
+                                  if (value == 'edit' && onEdit != null) {
+                                    onEdit!(item);
+                                  } else if (value == 'delete' &&
+                                      onDelete != null) {
+                                    onDelete!(item);
+                                  }
+                                },
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
           ),
         );

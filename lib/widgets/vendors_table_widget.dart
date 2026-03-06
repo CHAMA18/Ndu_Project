@@ -5,6 +5,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 /// Custom Vendors Table with inline editing, CRUD actions, and AI capabilities
 class VendorsTableWidget extends StatelessWidget {
@@ -40,119 +41,133 @@ class VendorsTableWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
-              ),
-              child: DataTable(
-                headingRowColor:
-                    WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                columnSpacing: 24,
-                horizontalMargin: 20,
-                headingRowHeight: 56,
-                dataRowMinHeight: 52,
-                dataRowMaxHeight: 80,
-                columns: const [
-                  DataColumn(
-                    label: Text('Vendor Name',
+          child: ResponsiveDataTableWrapper(
+            minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
+            maxHeight: 520,
+            child: DataTable(
+              headingRowColor:
+                  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columnSpacing: 24,
+              horizontalMargin: 20,
+              headingRowHeight: 56,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 80,
+              columns: const [
+                DataColumn(
+                  label: Center(
+                    child: Text('Vendor Name',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Category',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Category',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Criticality',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Criticality',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('SLA Performance',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('SLA Performance',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Lead Time',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Lead Time',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Actions',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Actions',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                ],
-                rows: vendors.map((vendor) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        _VendorRowWidget(
-                          vendor: vendor,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'name',
-                        ),
+                ),
+              ],
+              rows: vendors.map((vendor) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      _VendorRowWidget(
+                        vendor: vendor,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'name',
                       ),
-                      DataCell(
-                        _VendorRowWidget(
-                          vendor: vendor,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'category',
-                        ),
+                    ),
+                    DataCell(
+                      _VendorRowWidget(
+                        vendor: vendor,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'category',
                       ),
-                      DataCell(
-                        _VendorRowWidget(
-                          vendor: vendor,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'criticality',
-                        ),
+                    ),
+                    DataCell(
+                      _VendorRowWidget(
+                        vendor: vendor,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'criticality',
                       ),
-                      DataCell(
-                        _VendorRowWidget(
-                          vendor: vendor,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'sla',
-                        ),
+                    ),
+                    DataCell(
+                      _VendorRowWidget(
+                        vendor: vendor,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'sla',
                       ),
-                      DataCell(
-                        _VendorRowWidget(
-                          vendor: vendor,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'leadTime',
-                        ),
+                    ),
+                    DataCell(
+                      _VendorRowWidget(
+                        vendor: vendor,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'leadTime',
                       ),
-                      DataCell(
-                        _VendorRowWidget(
-                          vendor: vendor,
-                          onUpdated: onUpdated,
-                          onDeleted: onDeleted,
-                          column: 'actions',
-                        ),
+                    ),
+                    DataCell(
+                      _VendorRowWidget(
+                        vendor: vendor,
+                        onUpdated: onUpdated,
+                        onDeleted: onDeleted,
+                        column: 'actions',
                       ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         );
@@ -445,7 +460,7 @@ class _VendorRowWidgetState extends State<_VendorRowWidget> {
           isListField: false,
           onChanged: (v) => _updateVendor(_createUpdatedVendor(name: v)),
           style: const TextStyle(fontSize: 11, color: Color(0xFF111827)),
-          textAlign: TextAlign.left,
+          textAlign: TextAlign.center,
         );
       case 'category':
         return Center(

@@ -1235,33 +1235,37 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                 border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
             child: const Row(children: [
               Expanded(
-                  child: EditableContentText(
-                      contentKey: 'risk_table_header_solution',
-                      fallback: 'Potential Solution',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: EditableContentText(
+                          contentKey: 'risk_table_header_solution',
+                          fallback: 'Potential Solution',
+                          category: 'business_case',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
               Expanded(
-                  child: EditableContentText(
-                      contentKey: 'risk_table_header_risk1',
-                      fallback: 'Risk 1',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: EditableContentText(
+                          contentKey: 'risk_table_header_risk1',
+                          fallback: 'Risk 1',
+                          category: 'business_case',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
               Expanded(
-                  child: EditableContentText(
-                      contentKey: 'risk_table_header_risk2',
-                      fallback: 'Risk 2',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: EditableContentText(
+                          contentKey: 'risk_table_header_risk2',
+                          fallback: 'Risk 2',
+                          category: 'business_case',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
               Expanded(
-                  child: EditableContentText(
-                      contentKey: 'risk_table_header_risk3',
-                      fallback: 'Risk 3',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: EditableContentText(
+                          contentKey: 'risk_table_header_risk3',
+                          fallback: 'Risk 3',
+                          category: 'business_case',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
             ]),
           ),
           const SizedBox(height: 8),
@@ -1375,11 +1379,12 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               // Solution title cell
               Expanded(
                 child: Align(
-                  alignment: Alignment.topLeft,
+                  alignment: Alignment.topCenter,
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _numberBadge(index + 1),
@@ -1389,6 +1394,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                                       solution.title.isEmpty
                                           ? 'Potential Solution'
                                           : solution.title,
+                                      textAlign: TextAlign.center,
                                       style: const TextStyle(
                                           fontSize: 13,
                                           color: Colors.black87,
@@ -1397,6 +1403,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                         if (solution.description.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(solution.description,
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                   fontSize: 12, color: Colors.grey),
                               maxLines: 5,
@@ -1445,11 +1452,13 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     final provider = ProjectDataHelper.getProvider(context);
     final fieldKey = 'risk_${solutionTitle}_$riskIndex';
     final canUndo = provider.canUndoField(fieldKey);
+    final canRedo = provider.canRedoField(fieldKey);
 
     return HoverableFieldControls(
       isAiGenerated: true,
       isLoading: false,
       canUndo: canUndo,
+      canRedo: canRedo,
       onRegenerate: () async {
         // Add current value to history
         provider.addFieldToHistory(fieldKey, controller.text,
@@ -1461,9 +1470,16 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       onUndo: () async {
         final data = provider.projectData;
         final previousValue = data.undoField(fieldKey);
-        if (previousValue != null && previousValue.isNotEmpty) {
+        if (previousValue != null) {
           controller.text = previousValue;
           await provider.saveToFirebase(checkpoint: 'risk_undo');
+        }
+      },
+      onRedo: () async {
+        final nextValue = provider.projectData.redoField(fieldKey);
+        if (nextValue != null) {
+          controller.text = nextValue;
+          await provider.saveToFirebase(checkpoint: 'risk_redo');
         }
       },
       child: Container(
@@ -1481,6 +1497,11 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                 controller: controller,
                 minLines: 2,
                 maxLines: null,
+                textAlign: TextAlign.center,
+                onChanged: (value) {
+                  provider.addFieldToHistory(fieldKey, value,
+                      isAiGenerated: true);
+                },
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   isDense: true,
@@ -1672,6 +1693,11 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: InkWell(
                         onTap: () {
+                          final provider =
+                              ProjectDataHelper.getProvider(context);
+                          final fieldKey = 'risk_${solutionTitle}_$riskIndex';
+                          provider.addFieldToHistory(fieldKey, controller.text,
+                              isAiGenerated: true);
                           controller.text =
                               TextSanitizer.sanitizeAiText(suggestion);
                           _onDataChanged();

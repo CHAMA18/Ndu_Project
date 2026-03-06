@@ -4,6 +4,7 @@ import 'package:ndu_project/models/coupon_model.dart';
 import 'package:ndu_project/services/coupon_service.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 class AdminCouponsScreen extends StatefulWidget {
   const AdminCouponsScreen({super.key});
@@ -35,6 +36,10 @@ class _AdminCouponsScreenState extends State<AdminCouponsScreen> {
           ],
         ),
         actions: [
+          const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: UnifiedProfileMenu(compact: true),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: ElevatedButton.icon(

@@ -77,6 +77,7 @@ class _HeaderCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
+      textAlign: TextAlign.center,
       style: const TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w700,
@@ -107,10 +108,11 @@ class _ProcurementRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   item.name,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -122,6 +124,7 @@ class _ProcurementRow extends StatelessWidget {
                     child: Text(
                       item.description,
                       maxLines: 1,
+                      textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 12, color: Color(0xFF64748B)),
@@ -134,6 +137,7 @@ class _ProcurementRow extends StatelessWidget {
             flex: 2,
             child: Text(
               item.category,
+              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
             ),
           ),
@@ -162,6 +166,7 @@ class _ProcurementRow extends StatelessWidget {
             flex: 2,
             child: Text(
               currencyFormat.format(item.budget),
+              textAlign: TextAlign.center,
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -172,6 +177,7 @@ class _ProcurementRow extends StatelessWidget {
             flex: 2,
             child: Text(
               dateFormat.format(item.updatedAt),
+              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
             ),
           ),

@@ -21,6 +21,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/models/procurement/procurement_models.dart';
 import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/services/vendor_service.dart';
+import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/procurement_dialogs.dart';
 import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
@@ -92,6 +93,7 @@ class _FrontEndPlanningProcurementScreenState
   final GlobalKey _notesFieldKey = GlobalKey();
   final GlobalKey _itemsSectionKey = GlobalKey();
   final GlobalKey _vendorSectionKey = GlobalKey();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Map<String, String> _validationErrors = const {};
   final Set<_ProcurementTab> _tabsWithErrors = <_ProcurementTab>{};
   bool _showPendingSecurityPrompt = false;
@@ -117,6 +119,8 @@ class _FrontEndPlanningProcurementScreenState
   List<ProcurementStrategyModel> _strategies = [];
 
   List<VendorModel> _vendors = [];
+  List<ProcurementAssignableMemberOption> _assignableMembers =
+      const <ProcurementAssignableMemberOption>[];
   final Set<String> _selectedVendorIds = {};
 
   final List<_VendorHealthMetric> _vendorHealthMetrics = [];
@@ -493,8 +497,7 @@ class _FrontEndPlanningProcurementScreenState
   Future<_ProcurementWorkflowStep?> _showWorkflowStepDialog({
     _ProcurementWorkflowStep? initialStep,
   }) async {
-    final nameController =
-        TextEditingController(text: initialStep?.name ?? '');
+    final nameController = TextEditingController(text: initialStep?.name ?? '');
     final durationController = TextEditingController(
       text: (initialStep?.duration ?? 1).toString(),
     );
@@ -524,7 +527,8 @@ class _FrontEndPlanningProcurementScreenState
                       child: TextField(
                         controller: durationController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Duration'),
+                        decoration:
+                            const InputDecoration(labelText: 'Duration'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -723,6 +727,7 @@ class _FrontEndPlanningProcurementScreenState
       final projectId = data.projectId ?? '';
 
       if (projectId.isNotEmpty) {
+        unawaited(_loadAssignableMembers(data));
         _subscribeToStreams(projectId);
         _loadProcurementWorkflowData(projectId);
         _triggerAutoGenerationForProject(projectId);
@@ -736,12 +741,160 @@ class _FrontEndPlanningProcurementScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final projectId = ProjectDataHelper.getData(context).projectId ?? '';
+    final data = ProjectDataHelper.getData(context);
+    final projectId = data.projectId ?? '';
     if (projectId.isNotEmpty && projectId != _activeProjectId) {
+      unawaited(_loadAssignableMembers(data));
       _subscribeToStreams(projectId);
       _loadProcurementWorkflowData(projectId);
       _triggerAutoGenerationForProject(projectId);
     }
+  }
+
+  Future<void> _loadAssignableMembers(ProjectDataModel data) async {
+    final merged = <ProcurementAssignableMemberOption>[];
+    final seen = <String>{};
+
+    void addMember({
+      required String id,
+      required String name,
+      required String email,
+      required String role,
+      required String source,
+    }) {
+      final normalizedEmail = email.trim().toLowerCase();
+      final normalizedName = name.trim().toLowerCase();
+      final normalizedId = id.trim().toLowerCase();
+      final key = normalizedEmail.isNotEmpty
+          ? 'email:$normalizedEmail'
+          : (normalizedId.isNotEmpty
+              ? 'id:$normalizedId'
+              : 'name:$normalizedName');
+      if (key.trim().isEmpty || seen.contains(key)) return;
+      seen.add(key);
+      merged.add(
+        ProcurementAssignableMemberOption(
+          id: id.trim(),
+          name: name.trim(),
+          email: email.trim(),
+          role: role.trim(),
+          source: source,
+        ),
+      );
+    }
+
+    for (final member in data.teamMembers) {
+      if (member.name.trim().isEmpty && member.email.trim().isEmpty) continue;
+      addMember(
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        role: member.role,
+        source: 'Project Team',
+      );
+    }
+
+    try {
+      final users = await UserService.searchUsers('');
+      for (final user in users) {
+        if (user.displayName.trim().isEmpty && user.email.trim().isEmpty) {
+          continue;
+        }
+        addMember(
+          id: user.uid,
+          name: user.displayName,
+          email: user.email,
+          role: user.isAdmin ? 'Admin' : 'Member',
+          source: 'Company Members',
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed loading company members for procurement: $e');
+    }
+
+    merged.sort((a, b) {
+      final sourceWeight =
+          a.source == b.source ? 0 : (a.source == 'Project Team' ? -1 : 1);
+      if (sourceWeight != 0) return sourceWeight;
+      return a.displayLabel
+          .toLowerCase()
+          .compareTo(b.displayLabel.toLowerCase());
+    });
+
+    if (!mounted) return;
+    setState(() => _assignableMembers = merged);
+  }
+
+  double _textSimilarity(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return 0;
+    final tokensA = a
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    final tokensB = b
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    if (tokensA.isEmpty || tokensB.isEmpty) return 0;
+    final union = tokensA.union(tokensB).length.toDouble();
+    if (union == 0) return 0;
+    final overlap = tokensA.intersection(tokensB).length.toDouble();
+    return overlap / union;
+  }
+
+  ProcurementAssignableMemberOption? _matchAssignableMemberByRole(
+      String rawRole) {
+    final role = rawRole.trim().toLowerCase();
+    if (role.isEmpty) return null;
+    for (final member in _assignableMembers) {
+      final memberRole = member.role.trim().toLowerCase();
+      if (memberRole.isEmpty) continue;
+      if (memberRole == role ||
+          memberRole.contains(role) ||
+          role.contains(memberRole)) {
+        return member;
+      }
+    }
+    return null;
+  }
+
+  String _resolveResponsibleSelection(String rawValue, {String roleHint = ''}) {
+    final value = rawValue.trim();
+    if (value.isEmpty) {
+      return _matchAssignableMemberByRole(roleHint)?.displayLabel ?? '';
+    }
+
+    final normalized = value.toLowerCase();
+    ProcurementAssignableMemberOption? exactMatch;
+    ProcurementAssignableMemberOption? fuzzyMatch;
+    var bestScore = 0.0;
+    for (final member in _assignableMembers) {
+      final label = member.displayLabel.toLowerCase();
+      final email = member.email.toLowerCase();
+      if (label == normalized || email == normalized) {
+        exactMatch = member;
+        break;
+      }
+      if (label.contains(normalized) ||
+          normalized.contains(label) ||
+          (email.isNotEmpty &&
+              (email.contains(normalized) || normalized.contains(email)))) {
+        fuzzyMatch = member;
+        bestScore = 1.0;
+        continue;
+      }
+      final score = _textSimilarity(normalized, label);
+      if (score > bestScore) {
+        bestScore = score;
+        fuzzyMatch = member;
+      }
+    }
+
+    if (exactMatch != null) return exactMatch.displayLabel;
+    if (fuzzyMatch != null && bestScore >= 0.5) return fuzzyMatch.displayLabel;
+    final roleMatch = _matchAssignableMemberByRole(roleHint);
+    if (roleMatch != null) return roleMatch.displayLabel;
+    return value;
   }
 
   void _cancelSubscriptions() {
@@ -1260,6 +1413,24 @@ class _FrontEndPlanningProcurementScreenState
     final now = DateTime.now();
     final categories = _seedCategoriesFor(data);
 
+    String roleHintForCategory(String category) {
+      final normalized = category.trim().toLowerCase();
+      if (normalized.contains('it') || normalized.contains('network')) {
+        return 'IT Lead';
+      }
+      if (normalized.contains('construction') ||
+          normalized.contains('material') ||
+          normalized.contains('equipment')) {
+        return 'Engineering';
+      }
+      if (normalized.contains('security')) return 'Security';
+      if (normalized.contains('logistics')) return 'Operations';
+      if (normalized.contains('service') || normalized.contains('consult')) {
+        return 'Project Manager';
+      }
+      return 'Procurement';
+    }
+
     try {
       // Try AI generation first
       final resultList = <ProcurementItemModel>[];
@@ -1313,6 +1484,24 @@ class _FrontEndPlanningProcurementScreenState
               status = ProcurementItemStatus.delivered;
           }
 
+          final aiResponsible = (result['responsible'] ??
+                  result['responsibleMember'] ??
+                  result['owner'] ??
+                  result['person'] ??
+                  '')
+              .toString()
+              .trim();
+          final aiRole = (result['role'] ??
+                  result['responsibleRole'] ??
+                  result['ownerRole'] ??
+                  roleHintForCategory(category))
+              .toString()
+              .trim();
+          final resolvedResponsible = _resolveResponsibleSelection(
+            aiResponsible,
+            roleHint: aiRole,
+          );
+
           final progress = [0.0, 0.25, 0.5, 0.75, 1.0][i % 5];
 
           // Create events based on status for tracking
@@ -1348,6 +1537,7 @@ class _FrontEndPlanningProcurementScreenState
                 .toDouble(),
             estimatedDelivery: deliveryDate,
             progress: progress,
+            responsibleMember: resolvedResponsible,
             createdAt: now,
             updatedAt: now,
             events: events,
@@ -1370,6 +1560,10 @@ class _FrontEndPlanningProcurementScreenState
               Duration(days: _defaultLeadTimeDaysForCategory(categories[i])),
             ),
             progress: 0.0,
+            responsibleMember: _resolveResponsibleSelection(
+              '',
+              roleHint: roleHintForCategory(categories[i]),
+            ),
             createdAt: now,
             updatedAt: now,
           ));
@@ -1392,6 +1586,7 @@ class _FrontEndPlanningProcurementScreenState
         id: '',
         projectId: projectId,
         title: 'IT Infrastructure Procurement',
+        category: 'IT Infrastructure',
         status: StrategyStatus.active,
         itemCount: 1,
         description:
@@ -1402,6 +1597,7 @@ class _FrontEndPlanningProcurementScreenState
         id: '',
         projectId: projectId,
         title: 'Construction & Facilities',
+        category: 'Construction Services',
         status: StrategyStatus.active,
         itemCount: 1,
         description:
@@ -1412,6 +1608,7 @@ class _FrontEndPlanningProcurementScreenState
         id: '',
         projectId: projectId,
         title: 'Office & Workspace',
+        category: 'Office & Workspace',
         status: StrategyStatus.draft,
         itemCount: 1,
         description:
@@ -1638,6 +1835,80 @@ class _FrontEndPlanningProcurementScreenState
     _clearResolvedValidationErrors();
   }
 
+  Future<void> _openInviteVendorDialog() async {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+
+    final sent = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Invite Vendor'),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Vendor or Contact Name (Optional)',
+                  hintText: 'e.g. Acme Supplies',
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  hintText: 'name@company.com',
+                ),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.send,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final email = emailController.text.trim();
+              final isEmailValid = RegExp(
+                r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+              ).hasMatch(email);
+              if (!isEmailValid) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content:
+                        Text('Enter a valid email address to send invite.'),
+                  ),
+                );
+                return;
+              }
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Send Invite'),
+          ),
+        ],
+      ),
+    );
+
+    nameController.dispose();
+    emailController.dispose();
+    if (sent != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Invitation sent successfully.'),
+        backgroundColor: Color(0xFF16A34A),
+      ),
+    );
+  }
+
   Future<void> _openEditVendorDialog(VendorModel vendor) async {
     final categoryOptions = const [
       'IT Equipment',
@@ -1772,7 +2043,8 @@ class _FrontEndPlanningProcurementScreenState
   }
 
   bool get _isPlanningMode => widget.mode == ProcurementScreenMode.planning;
-  String get _checkpointId => _isPlanningMode ? 'procurement' : 'fep_procurement';
+  String get _checkpointId =>
+      _isPlanningMode ? 'procurement' : 'fep_procurement';
 
   Future<void> _seedFromInitiationIfNeeded(
       String projectId, ProjectDataModel data) async {
@@ -1793,7 +2065,8 @@ class _FrontEndPlanningProcurementScreenState
     final contractors = data.contractors
         .where((c) => c.name.trim().isNotEmpty || c.service.trim().isNotEmpty)
         .toList();
-    final vendors = data.vendors.where((v) => v.name.trim().isNotEmpty).toList();
+    final vendors =
+        data.vendors.where((v) => v.name.trim().isNotEmpty).toList();
     final allowances = data.frontEndPlanning.allowanceItems
         .where((a) => a.name.trim().isNotEmpty)
         .toList();
@@ -1821,7 +2094,9 @@ class _FrontEndPlanningProcurementScreenState
               : 'General',
           sla: '0%',
           rating: 'C',
-          status: vendor.status.trim().isNotEmpty ? vendor.status.trim() : 'Onboard',
+          status: vendor.status.trim().isNotEmpty
+              ? vendor.status.trim()
+              : 'Onboard',
           nextReview: '',
           onTimeDelivery: 0.0,
           incidentResponse: 0.0,
@@ -1844,9 +2119,8 @@ class _FrontEndPlanningProcurementScreenState
           id: '',
           projectId: projectId,
           name: name,
-          description: service.isNotEmpty
-              ? service
-              : 'Imported contractor scope',
+          description:
+              service.isNotEmpty ? service : 'Imported contractor scope',
           category: 'Services',
           status: ProcurementItemStatus.planning,
           priority: ProcurementPriority.medium,
@@ -1886,9 +2160,11 @@ class _FrontEndPlanningProcurementScreenState
           id: '',
           projectId: projectId,
           name: cost.title.trim(),
-          description:
-              cost.notes.trim().isNotEmpty ? cost.notes.trim() : 'Imported cost item',
-          category: cost.costType.trim().isNotEmpty ? cost.costType.trim() : 'Cost',
+          description: cost.notes.trim().isNotEmpty
+              ? cost.notes.trim()
+              : 'Imported cost item',
+          category:
+              cost.costType.trim().isNotEmpty ? cost.costType.trim() : 'Cost',
           status: ProcurementItemStatus.planning,
           priority: cost.amount >= 100000
               ? ProcurementPriority.high
@@ -1905,6 +2181,7 @@ class _FrontEndPlanningProcurementScreenState
         await ProcurementService.createItem(item);
       }
 
+      if (!mounted) return;
       await ProjectDataHelper.updateAndSave(
         context: context,
         checkpoint: _checkpointId,
@@ -1996,6 +2273,10 @@ class _FrontEndPlanningProcurementScreenState
         );
       }
       return;
+    }
+
+    if (needsItems && _assignableMembers.isEmpty) {
+      await _loadAssignableMembers(data);
     }
 
     await _seedProcurementDataIfNeeded(
@@ -2505,6 +2786,7 @@ class _FrontEndPlanningProcurementScreenState
             onboardingTasks: _vendorOnboardingTasks,
             riskItems: _vendorRiskItems,
             onAddVendor: _openAddVendorDialog,
+            onInviteVendor: _openInviteVendorDialog,
             onApprovedChanged: (value) => setState(() => _approvedOnly = value),
             onPreferredChanged: (value) =>
                 setState(() => _preferredOnly = value),
@@ -2816,7 +3098,13 @@ class _FrontEndPlanningProcurementScreenState
           onStartProcessForScope: _startProcessForScope,
         ),
         const SizedBox(height: 16),
-        const SizedBox(height: 8),
+        _ProcurementStrategiesSection(
+          strategies: _strategies,
+          onAddStrategy: _openAddStrategyDialog,
+          onEditStrategy: _openEditStrategyDialog,
+          onDeleteStrategy: _deleteStrategy,
+        ),
+        const SizedBox(height: 20),
         _StrategiesSection(
           items: _items,
           currencyFormat: _currencyFormat,
@@ -2862,6 +3150,219 @@ class _FrontEndPlanningProcurementScreenState
     return chips;
   }
 
+  String _strategyStatusLabel(StrategyStatus status) {
+    switch (status) {
+      case StrategyStatus.draft:
+        return 'Draft';
+      case StrategyStatus.active:
+        return 'Active';
+      case StrategyStatus.complete:
+        return 'Complete';
+    }
+  }
+
+  Future<ProcurementStrategyModel?> _showStrategyDialog({
+    ProcurementStrategyModel? existing,
+  }) async {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final categoryController =
+        TextEditingController(text: existing?.category ?? '');
+    final itemCountController = TextEditingController(
+      text: (existing?.itemCount ?? 0).toString(),
+    );
+    var selectedStatus = existing?.status ?? StrategyStatus.draft;
+
+    final result = await showDialog<ProcurementStrategyModel>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            existing == null ? 'Add Procurement Strategy' : 'Edit Strategy',
+          ),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Strategy Name',
+                    hintText: 'e.g. IT Infrastructure',
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    hintText: 'e.g. Office & Workspace',
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<StrategyStatus>(
+                  initialValue: selectedStatus,
+                  decoration: const InputDecoration(labelText: 'Status'),
+                  items: StrategyStatus.values
+                      .map(
+                        (status) => DropdownMenuItem<StrategyStatus>(
+                          value: status,
+                          child: Text(_strategyStatusLabel(status)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setDialogState(() => selectedStatus = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: itemCountController,
+                  decoration: const InputDecoration(
+                    labelText: 'Number of Items (Optional)',
+                    hintText: '0',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final projectId = _resolveProjectId();
+                final strategyName = titleController.text.trim();
+                final category = categoryController.text.trim();
+                final itemCount =
+                    int.tryParse(itemCountController.text.trim()) ?? 0;
+                if (projectId.isEmpty ||
+                    strategyName.isEmpty ||
+                    category.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Strategy name and category are required.'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.of(dialogContext).pop(
+                  ProcurementStrategyModel(
+                    id: existing?.id ?? '',
+                    projectId: projectId,
+                    title: strategyName,
+                    category: category,
+                    status: selectedStatus,
+                    itemCount: itemCount < 0 ? 0 : itemCount,
+                    description: existing?.description ??
+                        'Strategy for $category procurement activities.',
+                    createdAt: existing?.createdAt ?? DateTime.now(),
+                  ),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    titleController.dispose();
+    categoryController.dispose();
+    itemCountController.dispose();
+    return result;
+  }
+
+  Future<void> _openAddStrategyDialog() async {
+    final strategy = await _showStrategyDialog();
+    if (strategy == null) return;
+    try {
+      await ProcurementService.createStrategy(strategy);
+      _refreshSubscriptionsForActiveProject();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Strategy added.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to add strategy: $e')),
+      );
+    }
+  }
+
+  Future<void> _openEditStrategyDialog(
+      ProcurementStrategyModel strategy) async {
+    final updated = await _showStrategyDialog(existing: strategy);
+    if (updated == null) return;
+    try {
+      await ProcurementService.updateStrategy(updated.projectId, strategy.id, {
+        'title': updated.title,
+        'category': updated.category,
+        'description': updated.description,
+        'status': updated.status.name,
+        'itemCount': updated.itemCount,
+      });
+      _refreshSubscriptionsForActiveProject();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Strategy updated.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update strategy: $e')),
+      );
+    }
+  }
+
+  Future<void> _deleteStrategy(ProcurementStrategyModel strategy) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Delete strategy?'),
+            content: Text(
+              'Are you sure you want to delete "${strategy.title}"?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFDC2626),
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+
+    try {
+      await ProcurementService.deleteStrategy(strategy.projectId, strategy.id);
+      _refreshSubscriptionsForActiveProject();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Strategy deleted.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to delete strategy: $e')),
+      );
+    }
+  }
+
   Future<void> _openAddItemDialog() async {
     final categoryOptions = const [
       'Materials',
@@ -2883,6 +3384,7 @@ class _FrontEndPlanningProcurementScreenState
         return AddItemDialog(
           contextChips: _buildDialogContextChips(),
           categoryOptions: categoryOptions,
+          responsibleOptions: _assignableMembers,
           showAiGenerateButton: false,
           itemDomainLabel: 'Procurement',
         );
@@ -2941,6 +3443,7 @@ class _FrontEndPlanningProcurementScreenState
         return AddItemDialog(
           contextChips: _buildDialogContextChips(),
           categoryOptions: categoryOptions,
+          responsibleOptions: _assignableMembers,
           initialItem: item,
           showAiGenerateButton: false,
           itemDomainLabel: 'Procurement',
@@ -3872,128 +4375,138 @@ class _FrontEndPlanningProcurementScreenState
   @override
   Widget build(BuildContext context) {
     final projectData = ProjectDataHelper.getData(context);
-    return Scaffold(
-      backgroundColor: Colors.white,
-      bottomNavigationBar: _buildPendingSecurityPromptBar(),
-      body: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final isMobile = AppBreakpoints.isMobile(context);
+    final content = Stack(
+      children: [
+        const AdminEditToggle(),
+        Column(
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child:
-                  InitiationLikeSidebar(
-                    activeItemLabel: widget.activeItemLabel ??
-                        (_isPlanningMode
-                            ? 'Planning Procurement'
-                            : 'FEP Procurement'),
-                  ),
+            FrontEndPlanningHeader(
+              scaffoldKey: isMobile ? _scaffoldKey : null,
             ),
             Expanded(
-              child: Stack(
-                children: [
-                  const AdminEditToggle(),
-                  Column(
+              child: Container(
+                color: const Color(0xFFF5F6FA),
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const FrontEndPlanningHeader(),
-                      Expanded(
-                        child: Container(
-                          color: const Color(0xFFF5F6FA),
-                          child: SingleChildScrollView(
+                      _ProcurementTopBar(
+                        onBack: () => Navigator.of(context).maybePop(),
+                        onForward: _goToNextSection,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildStreamErrorBanner(),
+                      const SizedBox(height: 24),
+                      PlanningAiNotesCard(
+                        title: 'Notes',
+                        sectionLabel: 'Procurement',
+                        noteKey: _procurementNotesKey,
+                        checkpoint: _checkpointId,
+                        fieldKey: _notesFieldKey,
+                        errorText: _validationErrors['procurement_notes'],
+                        onChanged: _handleNotesChanged,
+                        fallbackText: ProjectDataHelper.getData(context)
+                            .frontEndPlanning
+                            .procurement,
+                        description:
+                            'Capture procurement priorities, vendors, and approval constraints.',
+                      ),
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed: _openApprovedVendorList,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1E3A8A),
+                            side: const BorderSide(color: Color(0xFFBFDBFE)),
+                            backgroundColor: const Color(0xFFEFF6FF),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 32),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _ProcurementTopBar(
-                                  onBack: () =>
-                                      Navigator.of(context).maybePop(),
-                                  onForward: _goToNextSection,
-                                ),
-                                const SizedBox(height: 12),
-                                _buildStreamErrorBanner(),
-                                const SizedBox(height: 24),
-                                PlanningAiNotesCard(
-                                  title: 'Notes',
-                                  sectionLabel: 'Procurement',
-                                  noteKey: _procurementNotesKey,
-                                  checkpoint: _checkpointId,
-                                  fieldKey: _notesFieldKey,
-                                  errorText:
-                                      _validationErrors['procurement_notes'],
-                                  onChanged: _handleNotesChanged,
-                                  fallbackText:
-                                      ProjectDataHelper.getData(context)
-                                          .frontEndPlanning
-                                          .procurement,
-                                  description:
-                                      'Capture procurement priorities, vendors, and approval constraints.',
-                                ),
-                                const SizedBox(height: 16),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _openApprovedVendorList,
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: const Color(0xFF1E3A8A),
-                                      side: const BorderSide(
-                                          color: Color(0xFFBFDBFE)),
-                                      backgroundColor: const Color(0xFFEFF6FF),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12)),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.verified_user_outlined,
-                                      size: 18,
-                                    ),
-                                    label: const Text(
-                                        'Approved Vendor List (Always Available)'),
-                                  ),
-                                ),
-                                if (_isPlanningMode) ...[
-                                  const SizedBox(height: 20),
-                                  _ProcurementPlanCard(
-                                    initialText: projectData
-                                        .planningNotes[_procurementPlanNoteKey],
-                                    checkpointId: _checkpointId,
-                                  ),
-                                ],
-                                const SizedBox(height: 32),
-                                _ProcurementTabBar(
-                                  selectedTab: _selectedTab,
-                                  onSelected: _handleTabSelected,
-                                  tabsWithErrors: _tabsWithErrors,
-                                  disabledTabs: _tabsWithRestrictedAccess,
-                                ),
-                                const SizedBox(height: 24),
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 250),
-                                  child: _buildTabContent(),
-                                ),
-                                const SizedBox(height: 12),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: _buildStreamWindowControls(),
-                                ),
-                                const SizedBox(height: 24),
-                                _buildNextSectionButton(),
-                                const SizedBox(height: 40),
-                              ],
-                            ),
+                                horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
+                          icon: const Icon(
+                            Icons.verified_user_outlined,
+                            size: 18,
+                          ),
+                          label: const Text(
+                              'Approved Vendor List (Always Available)'),
                         ),
                       ),
+                      if (_isPlanningMode) ...[
+                        const SizedBox(height: 20),
+                        _ProcurementPlanCard(
+                          initialText: projectData
+                              .planningNotes[_procurementPlanNoteKey],
+                          checkpointId: _checkpointId,
+                        ),
+                      ],
+                      const SizedBox(height: 32),
+                      _ProcurementTabBar(
+                        selectedTab: _selectedTab,
+                        onSelected: _handleTabSelected,
+                        tabsWithErrors: _tabsWithErrors,
+                        disabledTabs: _tabsWithRestrictedAccess,
+                      ),
+                      const SizedBox(height: 24),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: _buildTabContent(),
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildStreamWindowControls(),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildNextSectionButton(),
+                      const SizedBox(height: 40),
                     ],
                   ),
-                  const KazAiChatBubble(),
-                ],
+                ),
               ),
             ),
           ],
         ),
+        const KazAiChatBubble(),
+      ],
+    );
+
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: Colors.white,
+      drawer: isMobile
+          ? Drawer(
+              child: InitiationLikeSidebar(
+                activeItemLabel: widget.activeItemLabel ??
+                    (_isPlanningMode
+                        ? 'Planning Procurement'
+                        : 'FEP Procurement'),
+              ),
+            )
+          : null,
+      bottomNavigationBar: _buildPendingSecurityPromptBar(),
+      body: SafeArea(
+        child: isMobile
+            ? content
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DraggableSidebar(
+                    openWidth: AppBreakpoints.sidebarWidth(context),
+                    child: InitiationLikeSidebar(
+                      activeItemLabel: widget.activeItemLabel ??
+                          (_isPlanningMode
+                              ? 'Planning Procurement'
+                              : 'FEP Procurement'),
+                    ),
+                  ),
+                  Expanded(child: content),
+                ],
+              ),
       ),
     );
   }
@@ -4176,38 +4689,6 @@ class _UserBadge extends StatelessWidget {
   }
 }
 
-class _NotesCard extends StatelessWidget {
-  const _NotesCard({required this.controller, required this.onChanged});
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: TextField(
-        controller: controller,
-        minLines: 5,
-        maxLines: 8,
-        onChanged: onChanged,
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          hintText: 'Input your notes here...',
-          hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
-        ),
-        style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
-      ),
-    );
-  }
-}
-
 class _ProcurementPlanCard extends StatelessWidget {
   const _ProcurementPlanCard({
     required this.initialText,
@@ -4308,6 +4789,7 @@ class _ProcurementPlanCard extends StatelessWidget {
     );
   }
 }
+
 class _ProcurementTabBar extends StatelessWidget {
   const _ProcurementTabBar(
       {required this.selectedTab,
@@ -5808,6 +6290,201 @@ class _TimelineEntry extends StatelessWidget {
   }
 }
 
+class _ProcurementStrategiesSection extends StatelessWidget {
+  const _ProcurementStrategiesSection({
+    required this.strategies,
+    required this.onAddStrategy,
+    required this.onEditStrategy,
+    required this.onDeleteStrategy,
+  });
+
+  final List<ProcurementStrategyModel> strategies;
+  final VoidCallback onAddStrategy;
+  final ValueChanged<ProcurementStrategyModel> onEditStrategy;
+  final ValueChanged<ProcurementStrategyModel> onDeleteStrategy;
+
+  String _statusLabel(StrategyStatus status) {
+    switch (status) {
+      case StrategyStatus.draft:
+        return 'Draft';
+      case StrategyStatus.active:
+        return 'Active';
+      case StrategyStatus.complete:
+        return 'Complete';
+    }
+  }
+
+  Color _statusBackground(StrategyStatus status) {
+    switch (status) {
+      case StrategyStatus.draft:
+        return const Color(0xFFF1F5F9);
+      case StrategyStatus.active:
+        return const Color(0xFFEFF6FF);
+      case StrategyStatus.complete:
+        return const Color(0xFFE8FFF4);
+    }
+  }
+
+  Color _statusForeground(StrategyStatus status) {
+    switch (status) {
+      case StrategyStatus.draft:
+        return const Color(0xFF64748B);
+      case StrategyStatus.active:
+        return const Color(0xFF2563EB);
+      case StrategyStatus.complete:
+        return const Color(0xFF047857);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Procurement Strategies',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: onAddStrategy,
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('+ Add Strategy'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0F172A),
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Define and maintain procurement strategy rows manually or refine AI-seeded entries.',
+          style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 14),
+        if (strategies.isEmpty)
+          _EmptyStateCard(
+            icon: Icons.view_list_outlined,
+            title: 'No procurement strategies yet',
+            message:
+                'Click "+ Add Strategy" to create your first procurement strategy.',
+            actionLabel: 'Add Strategy',
+            onAction: onAddStrategy,
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Scrollbar(
+              thumbVisibility: true,
+              scrollbarOrientation: ScrollbarOrientation.bottom,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 920),
+                  child: Table(
+                    border: const TableBorder(
+                      horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
+                      verticalInside: BorderSide(color: Color(0xFFE5E7EB)),
+                    ),
+                    columnWidths: const {
+                      0: FixedColumnWidth(260),
+                      1: FixedColumnWidth(230),
+                      2: FixedColumnWidth(170),
+                      3: FixedColumnWidth(140),
+                      4: FixedColumnWidth(120),
+                    },
+                    children: [
+                      const TableRow(
+                        decoration: BoxDecoration(color: Color(0xFFF8FAFC)),
+                        children: [
+                          _ScopeHeaderCell('Strategy Name'),
+                          _ScopeHeaderCell('Category'),
+                          _ScopeHeaderCell('Status'),
+                          _ScopeHeaderCell('Items'),
+                          _ScopeHeaderCell('Actions'),
+                        ],
+                      ),
+                      ...strategies.map((strategy) {
+                        return TableRow(
+                          children: [
+                            _ScopeValueCell(strategy.title.trim().isEmpty
+                                ? '-'
+                                : strategy.title.trim()),
+                            _ScopeValueCell(strategy.category.trim().isEmpty
+                                ? '-'
+                                : strategy.category.trim()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 12),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: _statusBackground(strategy.status),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    _statusLabel(strategy.status),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: _statusForeground(strategy.status),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _ScopeValueCell('${strategy.itemCount}'),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 6),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 18),
+                                    tooltip: 'Edit Strategy',
+                                    onPressed: () => onEditStrategy(strategy),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        size: 18,
+                                        color: Color(0xFFDC2626)),
+                                    tooltip: 'Delete Strategy',
+                                    onPressed: () => onDeleteStrategy(strategy),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _StrategiesSection extends StatelessWidget {
   const _StrategiesSection({
     required this.items,
@@ -5922,60 +6599,64 @@ class _StrategiesSection extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 1160),
-                child: Table(
-                  border: const TableBorder(
-                    horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
-                    verticalInside: BorderSide(color: Color(0xFFE5E7EB)),
-                  ),
-                  columnWidths: const {
-                    0: FixedColumnWidth(50),
-                    1: FixedColumnWidth(230),
-                    2: FixedColumnWidth(290),
-                    3: FixedColumnWidth(200),
-                    4: FixedColumnWidth(140),
-                    5: FixedColumnWidth(150),
-                    6: FixedColumnWidth(150),
-                    7: FixedColumnWidth(140),
-                  },
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    const TableRow(
-                      decoration: BoxDecoration(color: Color(0xFFF8FAFC)),
-                      children: [
-                        _ScopeHeaderCell('No'),
-                        _ScopeHeaderCell('Procurement Item'),
-                        _ScopeHeaderCell('Description'),
-                        _ScopeHeaderCell('Potential Vendors'),
-                        _ScopeHeaderCell('Contract Type'),
-                        _ScopeHeaderCell('Estimated Duration'),
-                        _ScopeHeaderCell('Estimated Value'),
-                        _ScopeHeaderCell('Bidding Required'),
-                      ],
+            child: Scrollbar(
+              thumbVisibility: true,
+              scrollbarOrientation: ScrollbarOrientation.bottom,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 1160),
+                  child: Table(
+                    border: const TableBorder(
+                      horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
+                      verticalInside: BorderSide(color: Color(0xFFE5E7EB)),
                     ),
-                    ...List<TableRow>.generate(items.length, (index) {
-                      final item = items[index];
-                      return TableRow(
+                    columnWidths: const {
+                      0: FixedColumnWidth(50),
+                      1: FixedColumnWidth(230),
+                      2: FixedColumnWidth(290),
+                      3: FixedColumnWidth(200),
+                      4: FixedColumnWidth(140),
+                      5: FixedColumnWidth(150),
+                      6: FixedColumnWidth(150),
+                      7: FixedColumnWidth(140),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      const TableRow(
+                        decoration: BoxDecoration(color: Color(0xFFF8FAFC)),
                         children: [
-                          _ScopeValueCell('${index + 1}'),
-                          _ScopeValueCell(item.name.trim().isEmpty
-                              ? 'Untitled scope'
-                              : item.name.trim()),
-                          _ScopeValueCell(item.description.trim().isEmpty
-                              ? '-'
-                              : item.description.trim()),
-                          _ScopeValueCell(_potentialVendors(item)),
-                          _ScopeValueCell(_contractTypeLabel(item)),
-                          _ScopeValueCell(_durationLabel(item)),
-                          _ScopeValueCell(currencyFormat.format(item.budget)),
-                          _ScopeValueCell(_biddingRequired(item)),
+                          _ScopeHeaderCell('No'),
+                          _ScopeHeaderCell('Procurement Item'),
+                          _ScopeHeaderCell('Description'),
+                          _ScopeHeaderCell('Potential Vendors'),
+                          _ScopeHeaderCell('Contract Type'),
+                          _ScopeHeaderCell('Estimated Duration'),
+                          _ScopeHeaderCell('Estimated Value'),
+                          _ScopeHeaderCell('Bidding Required'),
                         ],
-                      );
-                    }),
-                  ],
+                      ),
+                      ...List<TableRow>.generate(items.length, (index) {
+                        final item = items[index];
+                        return TableRow(
+                          children: [
+                            _ScopeValueCell('${index + 1}'),
+                            _ScopeValueCell(item.name.trim().isEmpty
+                                ? 'Untitled scope'
+                                : item.name.trim()),
+                            _ScopeValueCell(item.description.trim().isEmpty
+                                ? '-'
+                                : item.description.trim()),
+                            _ScopeValueCell(_potentialVendors(item)),
+                            _ScopeValueCell(_contractTypeLabel(item)),
+                            _ScopeValueCell(_durationLabel(item)),
+                            _ScopeValueCell(currencyFormat.format(item.budget)),
+                            _ScopeValueCell(_biddingRequired(item)),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -6367,54 +7048,58 @@ class _VendorDataTable extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: DataTable(
-                columnSpacing: 18,
-                horizontalMargin: 24,
-                headingTextStyle: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF475569)),
-                dataTextStyle:
-                    const TextStyle(fontSize: 14, color: Color(0xFF111827)),
-                columns: const [
-                  DataColumn(label: SizedBox(width: 24)),
-                  DataColumn(label: Text('Vendor Name')),
-                  DataColumn(label: Text('Category')),
-                  DataColumn(label: Text('Rating')),
-                  DataColumn(label: Text('Approved')),
-                  DataColumn(label: Text('Preferred')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: vendors
-                    .map(
-                      (vendor) => DataRow(
-                        cells: [
-                          DataCell(
-                            Checkbox(
-                              value: selectedVendorIds.contains(vendor.id),
-                              onChanged: (value) =>
-                                  onToggleSelected(vendor.id, value ?? false),
+          child: Scrollbar(
+            thumbVisibility: true,
+            scrollbarOrientation: ScrollbarOrientation.bottom,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  columnSpacing: 18,
+                  horizontalMargin: 24,
+                  headingTextStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF475569)),
+                  dataTextStyle:
+                      const TextStyle(fontSize: 14, color: Color(0xFF111827)),
+                  columns: const [
+                    DataColumn(label: Center(child: SizedBox(width: 24))),
+                    DataColumn(label: Center(child: Text('Vendor Name'))),
+                    DataColumn(label: Center(child: Text('Category'))),
+                    DataColumn(label: Center(child: Text('Rating'))),
+                    DataColumn(label: Center(child: Text('Approved'))),
+                    DataColumn(label: Center(child: Text('Preferred'))),
+                    DataColumn(label: Center(child: Text('Actions'))),
+                  ],
+                  rows: vendors
+                      .map(
+                        (vendor) => DataRow(
+                          cells: [
+                            DataCell(
+                              Checkbox(
+                                value: selectedVendorIds.contains(vendor.id),
+                                onChanged: (value) =>
+                                    onToggleSelected(vendor.id, value ?? false),
+                              ),
                             ),
-                          ),
-                          DataCell(_VendorNameCell(vendor: vendor)),
-                          DataCell(Text(vendor.category)),
-                          DataCell(_RatingStars(rating: vendor.ratingScore)),
-                          DataCell(
-                              _YesNoBadge(value: vendor.status == 'Active')),
-                          DataCell(_YesNoBadge(value: false, showStar: true)),
-                          DataCell(_VendorActionsMenu(
-                            vendor: vendor,
-                            onEdit: () => onEditVendor(vendor),
-                            onDelete: () => onDeleteVendor(vendor.id),
-                          )),
-                        ],
-                      ),
-                    )
-                    .toList(),
+                            DataCell(_VendorNameCell(vendor: vendor)),
+                            DataCell(Text(vendor.category)),
+                            DataCell(_RatingStars(rating: vendor.ratingScore)),
+                            DataCell(
+                                _YesNoBadge(value: vendor.status == 'Active')),
+                            DataCell(_YesNoBadge(value: false, showStar: true)),
+                            DataCell(_VendorActionsMenu(
+                              vendor: vendor,
+                              onEdit: () => onEditVendor(vendor),
+                              onDelete: () => onDeleteVendor(vendor.id),
+                            )),
+                          ],
+                        ),
+                      )
+                      .toList(),
+                ),
               ),
             ),
           ),
@@ -6681,6 +7366,7 @@ class _VendorManagementView extends StatelessWidget {
     required this.onboardingTasks,
     required this.riskItems,
     required this.onAddVendor,
+    required this.onInviteVendor,
     required this.onApprovedChanged,
     required this.onPreferredChanged,
     required this.onCategoryChanged,
@@ -6703,6 +7389,7 @@ class _VendorManagementView extends StatelessWidget {
   final List<_VendorOnboardingTask> onboardingTasks;
   final List<_VendorRiskItem> riskItems;
   final VoidCallback onAddVendor;
+  final VoidCallback onInviteVendor;
   final ValueChanged<bool> onApprovedChanged;
   final ValueChanged<bool> onPreferredChanged;
   final ValueChanged<String> onCategoryChanged;
@@ -6720,7 +7407,8 @@ class _VendorManagementView extends StatelessWidget {
         allVendors.where((vendor) => vendor.isPreferred).length;
     final avgRating = totalVendors == 0
         ? 0
-        : allVendors.fold<int>(0, (total, vendor) => total + vendor.ratingScore) /
+        : allVendors.fold<int>(
+                0, (total, vendor) => total + vendor.ratingScore) /
             totalVendors;
     final preferredRate =
         totalVendors == 0 ? 0 : (preferredCount / totalVendors * 100).round();
@@ -6773,7 +7461,7 @@ class _VendorManagementView extends StatelessWidget {
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(
-                  onPressed: onAddVendor,
+                  onPressed: onInviteVendor,
                   icon: const Icon(Icons.send_outlined, size: 18),
                   label: const Text('Invite Vendor'),
                   style: OutlinedButton.styleFrom(
@@ -7463,8 +8151,9 @@ class _ProcurementWorkflowPlannerCard extends StatelessWidget {
               ChoiceChip(
                 label: const Text('Apply to All Scopes'),
                 selected: !customizeWorkflowByScope,
-                onSelected:
-                    workflowSaving ? null : (_) => onCustomizeByScopeChanged(false),
+                onSelected: workflowSaving
+                    ? null
+                    : (_) => onCustomizeByScopeChanged(false),
               ),
               ChoiceChip(
                 label: const Text('Customize by Scope'),
@@ -7579,14 +8268,12 @@ class _ProcurementWorkflowPlannerCard extends StatelessWidget {
                     index: i,
                     onEdit: () => onEditWorkflowStep(workflowSteps[i]),
                     onDelete: () => onDeleteWorkflowStep(workflowSteps[i].id),
-                    onMoveUp:
-                        i == 0 ? null : () => onMoveWorkflowStep(i, -1),
+                    onMoveUp: i == 0 ? null : () => onMoveWorkflowStep(i, -1),
                     onMoveDown: i == workflowSteps.length - 1
                         ? null
                         : () => onMoveWorkflowStep(i, 1),
                   ),
-                  if (i != workflowSteps.length - 1)
-                    const SizedBox(height: 8),
+                  if (i != workflowSteps.length - 1) const SizedBox(height: 8),
                 ],
               ],
             ),
@@ -7652,9 +8339,7 @@ class _ProcurementWorkflowStepRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unitLabel = step.duration == 1
-        ? step.unit
-        : '${step.unit}s';
+    final unitLabel = step.duration == 1 ? step.unit : '${step.unit}s';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -8384,28 +9069,33 @@ class _PurchaseOrderTable extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                    child: _PurchaseOrderHeaderRow(),
-                  ),
-                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                  for (var i = 0; i < orders.length; i++) ...[
-                    _PurchaseOrderRow(
-                      order: orders[i],
-                      currencyFormat: currencyFormat,
-                      onEdit: () => onEditPo(orders[i]),
-                      onDelete: () => onDeletePo(orders[i]),
+          child: Scrollbar(
+            thumbVisibility: true,
+            scrollbarOrientation: ScrollbarOrientation.bottom,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: Column(
+                  children: [
+                    const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                      child: _PurchaseOrderHeaderRow(),
                     ),
-                    if (i != orders.length - 1)
-                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    for (var i = 0; i < orders.length; i++) ...[
+                      _PurchaseOrderRow(
+                        order: orders[i],
+                        currencyFormat: currencyFormat,
+                        onEdit: () => onEditPo(orders[i]),
+                        onDelete: () => onDeletePo(orders[i]),
+                      ),
+                      if (i != orders.length - 1)
+                        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -8914,7 +9604,8 @@ class _ItemTrackingView extends StatelessWidget {
         alerts.where((alert) => alert.severity == _AlertSeverity.high).length;
     final onTimeRate = carriers.isEmpty
         ? 0
-        : (carriers.fold<int>(0, (total, carrier) => total + carrier.onTimeRate) /
+        : (carriers.fold<int>(
+                    0, (total, carrier) => total + carrier.onTimeRate) /
                 carriers.length)
             .round();
 
@@ -10318,11 +11009,11 @@ extension _VendorTaskStatusExtension on _VendorTaskStatus {
   String get label {
     switch (this) {
       case _VendorTaskStatus.pending:
-        return 'pending';
+        return 'Pending';
       case _VendorTaskStatus.inReview:
-        return 'in review';
+        return 'In Review';
       case _VendorTaskStatus.complete:
-        return 'complete';
+        return 'Complete';
     }
   }
 
@@ -10380,11 +11071,11 @@ extension _RiskSeverityExtension on _RiskSeverity {
   String get label {
     switch (this) {
       case _RiskSeverity.low:
-        return 'low';
+        return 'Low';
       case _RiskSeverity.medium:
-        return 'medium';
+        return 'Medium';
       case _RiskSeverity.high:
-        return 'high';
+        return 'High';
     }
   }
 
@@ -10449,11 +11140,11 @@ extension _AlertSeverityExtension on _AlertSeverity {
   String get label {
     switch (this) {
       case _AlertSeverity.low:
-        return 'low';
+        return 'Low';
       case _AlertSeverity.medium:
-        return 'medium';
+        return 'Medium';
       case _AlertSeverity.high:
-        return 'high';
+        return 'High';
     }
   }
 
@@ -10549,4 +11240,3 @@ class _ComplianceMetric {
   final String label;
   final double value;
 }
-

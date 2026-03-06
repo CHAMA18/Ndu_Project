@@ -14,7 +14,7 @@ enum ProcurementItemStatus {
 enum ProcurementPriority { low, medium, high, critical }
 
 /// Status of a strategy
-enum StrategyStatus { draft, active, archived }
+enum StrategyStatus { draft, active, complete }
 
 /// Status of an RFQ
 enum RfqStatus {
@@ -357,6 +357,7 @@ class ProcurementStrategyModel {
   final String id;
   final String projectId;
   final String title;
+  final String category;
   final String description;
   final StrategyStatus status;
   final int itemCount; // Cached count or manual entry
@@ -366,6 +367,7 @@ class ProcurementStrategyModel {
     required this.id,
     required this.projectId,
     required this.title,
+    this.category = '',
     required this.description,
     this.status = StrategyStatus.draft,
     this.itemCount = 0,
@@ -375,6 +377,7 @@ class ProcurementStrategyModel {
   Map<String, dynamic> toMap() => {
         'projectId': projectId,
         'title': title,
+        'category': category,
         'description': description,
         'status': status.name,
         'itemCount': itemCount,
@@ -384,13 +387,17 @@ class ProcurementStrategyModel {
   static ProcurementStrategyModel fromDoc(
       DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
+    final rawStatus =
+        (data['status'] ?? 'draft').toString().trim().toLowerCase();
+    final normalizedStatus = rawStatus == 'archived' ? 'complete' : rawStatus;
     return ProcurementStrategyModel(
       id: doc.id,
       projectId: data['projectId'] ?? '',
       title: data['title'] ?? '',
+      category: data['category'] ?? '',
       description: data['description'] ?? '',
       status: StrategyStatus.values.firstWhere(
-          (e) => e.name == (data['status'] ?? 'draft'),
+          (e) => e.name == normalizedStatus,
           orElse: () => StrategyStatus.draft),
       itemCount: (data['itemCount'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),

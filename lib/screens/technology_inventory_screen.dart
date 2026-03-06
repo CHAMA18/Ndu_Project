@@ -5,6 +5,7 @@ import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/widgets/ai_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 class TechnologyInventoryScreen extends StatefulWidget {
   const TechnologyInventoryScreen({super.key});
@@ -22,6 +23,7 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
   bool _loading = true;
   bool _seeding = false;
   List<Map<String, dynamic>>? _undoBeforeAi;
+  List<Map<String, dynamic>>? _redoAfterUndo;
 
   @override
   void initState() {
@@ -55,6 +57,7 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
     if (_seeding) return;
     setState(() => _seeding = true);
     _undoBeforeAi = _items.map((e) => Map<String, dynamic>.from(e)).toList();
+    _redoAfterUndo = null;
     final ai = OpenAiServiceSecure();
     final ctx = '${provider.projectData.projectName}\n${provider.projectData.solutionTitle}\n${provider.projectData.projectObjective}';
     try {
@@ -93,11 +96,27 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
   Future<void> _undoSeed() async {
     final prev = _undoBeforeAi;
     if (prev == null) return;
+    final current = _items.map((e) => Map<String, dynamic>.from(e)).toList();
     setState(() {
       _items
         ..clear()
         ..addAll(prev.map((e) => Map<String, dynamic>.from(e)));
       _undoBeforeAi = null;
+      _redoAfterUndo = current;
+    });
+    await _save();
+  }
+
+  Future<void> _redoSeed() async {
+    final redo = _redoAfterUndo;
+    if (redo == null) return;
+    final current = _items.map((e) => Map<String, dynamic>.from(e)).toList();
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(redo.map((e) => Map<String, dynamic>.from(e)));
+      _undoBeforeAi = current;
+      _redoAfterUndo = null;
     });
     await _save();
   }
@@ -146,9 +165,13 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
                     AiRegenerateUndoButtons(
                       isLoading: _seeding,
                       canUndo: _undoBeforeAi != null,
+                      canRedo: _redoAfterUndo != null,
                       onRegenerate: _seedFromAi,
                       onUndo: () {
                         _undoSeed();
+                      },
+                      onRedo: () {
+                        _redoSeed();
                       },
                     ),
                     const SizedBox(width: 8),
@@ -160,18 +183,29 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
                   child: Card(
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: SingleChildScrollView(
+                      child: ResponsiveDataTableWrapper(
+                        maxHeight: 420,
                         child: DataTable(
                           columns: const [
-                            DataColumn(label: Text('Name')),
-                            DataColumn(label: Text('Category')),
-                            DataColumn(label: Text('Notes')),
+                            DataColumn(
+                                label: Center(
+                                    child: Text('Name',
+                                        textAlign: TextAlign.center))),
+                            DataColumn(
+                                label: Center(
+                                    child: Text('Category',
+                                        textAlign: TextAlign.center))),
+                            DataColumn(
+                                label: Center(
+                                    child: Text('Notes',
+                                        textAlign: TextAlign.center))),
                           ],
                           rows: _items.map((it) {
                             return DataRow(cells: [
-                              DataCell(Text(it['name'] ?? '')),
-                              DataCell(Text(it['category'] ?? '')),
-                              DataCell(Text(it['notes'] ?? '')),
+                              DataCell(Center(child: Text(it['name'] ?? ''))),
+                              DataCell(
+                                  Center(child: Text(it['category'] ?? ''))),
+                              DataCell(Center(child: Text(it['notes'] ?? ''))),
                             ]);
                           }).toList(),
                         ),

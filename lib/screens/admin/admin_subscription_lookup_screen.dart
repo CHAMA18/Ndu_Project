@@ -6,6 +6,7 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/services/subscription_service.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 class AdminSubscriptionLookupScreen extends StatefulWidget {
   const AdminSubscriptionLookupScreen({super.key});
@@ -49,6 +50,12 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
             const Text('Subscription Lookup', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black)),
           ],
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: UnifiedProfileMenu(compact: true),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

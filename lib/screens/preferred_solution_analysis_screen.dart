@@ -34,6 +34,7 @@ import 'package:ndu_project/widgets/select_project_kaz_button.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/solution_detail_section.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 class PreferredSolutionAnalysisScreen extends StatefulWidget {
   final String notes;
@@ -1758,6 +1759,7 @@ class _PreferredSolutionAnalysisScreenState
   Widget _buildNotesField() {
     return Container(
       width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 150),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
           color: Colors.white,
@@ -1766,6 +1768,11 @@ class _PreferredSolutionAnalysisScreenState
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Working notes',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        TextFormattingToolbar(
+          controller: _notesController,
+          onBeforeUndo: _saveAnalysisData,
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _notesController,
@@ -1776,7 +1783,7 @@ class _PreferredSolutionAnalysisScreenState
               border: InputBorder.none,
               isDense: true,
               contentPadding: EdgeInsets.zero),
-          minLines: 1,
+          minLines: 6,
           maxLines: null,
         ),
       ]),

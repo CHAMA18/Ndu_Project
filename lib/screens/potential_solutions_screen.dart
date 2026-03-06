@@ -27,6 +27,8 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 
 class PotentialSolutionsScreen extends StatefulWidget {
   const PotentialSolutionsScreen({super.key});
@@ -37,6 +39,8 @@ class PotentialSolutionsScreen extends StatefulWidget {
 }
 
 class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
+  static const String _notesFieldKey = 'potential_solutions_notes';
+
   // ignore: unused_field
   static const List<_SidebarItem> _sidebarItems = [
     _SidebarItem(icon: Icons.home, title: 'Home', enabled: true),
@@ -109,6 +113,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
           }
           _isLoadingSolutions = false;
         });
+        _seedFieldHistories();
       } else {
         _showHintDialogOnce();
         _generateInitialSolutions();
@@ -130,11 +135,151 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     );
   }
 
+  void _seedSolutionFieldHistory(SolutionRow solution) {
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.addFieldToHistory(
+      'solution_${solution.id}_title',
+      solution.titleController.text,
+      isAiGenerated: true,
+    );
+    provider.addFieldToHistory(
+      'solution_${solution.id}_description',
+      solution.descriptionController.text,
+      isAiGenerated: true,
+    );
+  }
+
+  void _seedFieldHistories() {
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.addFieldToHistory(
+      _notesFieldKey,
+      _notesController.text,
+      isAiGenerated: true,
+    );
+    for (final solution in _solutions) {
+      _seedSolutionFieldHistory(solution);
+    }
+  }
+
+  void _syncDraftToProvider() {
+    final provider = ProjectDataHelper.getProvider(context);
+    final solutions = _solutions
+        .map((s) => PotentialSolution(
+              id: s.id,
+              number: s.number,
+              title: s.titleController.text.trim(),
+              description: s.descriptionController.text.trim(),
+            ))
+        .toList();
+
+    provider.updateInitiationData(
+      notes: _notesController.text.trim(),
+      potentialSolutions: solutions,
+    );
+  }
+
+  void _recordNotesEdit(String value) {
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.addFieldToHistory(_notesFieldKey, value, isAiGenerated: true);
+    _syncDraftToProvider();
+  }
+
+  void _recordSolutionFieldEdit(
+      SolutionRow solution, String fieldName, String value) {
+    final provider = ProjectDataHelper.getProvider(context);
+    final fieldKey = 'solution_${solution.id}_$fieldName';
+    provider.addFieldToHistory(fieldKey, value, isAiGenerated: true);
+    _syncDraftToProvider();
+  }
+
+  Future<void> _undoNotesField() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    if (!provider.canUndoField(_notesFieldKey)) return;
+    final previous = provider.projectData.undoField(_notesFieldKey);
+    if (previous == null) return;
+    _notesController.value = TextEditingValue(
+      text: previous,
+      selection: TextSelection.collapsed(offset: previous.length),
+    );
+    _syncDraftToProvider();
+    await provider.saveToFirebase(checkpoint: 'potential_solutions_notes_undo');
+  }
+
+  Future<void> _redoNotesField() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    if (!provider.canRedoField(_notesFieldKey)) return;
+    final next = provider.projectData.redoField(_notesFieldKey);
+    if (next == null) return;
+    _notesController.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+    _syncDraftToProvider();
+    await provider.saveToFirebase(checkpoint: 'potential_solutions_notes_redo');
+  }
+
+  Future<void> _regenerateNotesField() async {
+    if (_incomingBusinessCase.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Business case is required to regenerate notes'),
+        ),
+      );
+      return;
+    }
+
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.addFieldToHistory(
+      _notesFieldKey,
+      _notesController.text,
+      isAiGenerated: true,
+    );
+
+    try {
+      final generated = await _openAiService.generateCompletion(
+        '''
+Create concise working notes for the "Potential Solutions" section.
+Use the business case and current notes context below.
+
+Business case:
+${_incomingBusinessCase.trim()}
+
+Current notes:
+${_notesController.text.trim().isEmpty ? 'None' : _notesController.text.trim()}
+''',
+        maxTokens: 320,
+        temperature: 0.5,
+      );
+
+      if (!mounted) return;
+      final nextValue = generated.trim();
+      if (nextValue.isEmpty) return;
+      _notesController.value = TextEditingValue(
+        text: nextValue,
+        selection: TextSelection.collapsed(offset: nextValue.length),
+      );
+      _recordNotesEdit(nextValue);
+      await provider.saveToFirebase(
+          checkpoint: 'potential_solutions_notes_regenerated');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notes regenerated successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to regenerate notes: $e')),
+      );
+    }
+  }
+
   Future<void> _generateInitialSolutions() async {
     if (_incomingBusinessCase.trim().isEmpty) {
       setState(() {
         _isLoadingSolutions = false;
       });
+      _seedFieldHistories();
+      _syncDraftToProvider();
       return;
     }
 
@@ -170,6 +315,8 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
       _loadingError = null;
       _isLoadingSolutions = false;
     });
+    _seedFieldHistories();
+    _syncDraftToProvider();
   }
 
   void _applyFallback(String errorMessage) {
@@ -194,6 +341,8 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
       }
       _isLoadingSolutions = false;
     });
+    _seedFieldHistories();
+    _syncDraftToProvider();
   }
 
   @override
@@ -1099,6 +1248,9 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     final pagePadding = AppBreakpoints.pagePadding(context);
     final sectionGap = AppBreakpoints.sectionGap(context);
     final fieldGap = AppBreakpoints.fieldGap(context);
+    final provider = ProjectDataHelper.getProvider(context);
+    final canUndoNotes = provider.canUndoField(_notesFieldKey);
+    final canRedoNotes = provider.canRedoField(_notesFieldKey);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1130,23 +1282,44 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: ExpandingTextField(
-                    controller: _notesController,
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
+                TextFormattingToolbar(
+                  controller: _notesController,
+                  onBeforeUndo: () {
+                    _saveSolutions();
+                  },
+                ),
+                const SizedBox(height: 8),
+                HoverableFieldControls(
+                  isAiGenerated: true,
+                  isLoading: false,
+                  canUndo: canUndoNotes,
+                  canRedo: canRedoNotes,
+                  onUndo: _undoNotesField,
+                  onRedo: _redoNotesField,
+                  onRegenerate: _regenerateNotesField,
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 120),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
-                    minLines: 1,
+                    child: TextField(
+                      controller: _notesController,
+                      keyboardType: TextInputType.multiline,
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Input your notes here...',
+                      ),
+                      minLines: 5,
+                      maxLines: null,
+                      onChanged: _recordNotesEdit,
+                    ),
                   ),
                 ),
                 SizedBox(height: sectionGap),
@@ -1663,16 +1836,18 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   Future<void> _addManualSolution() async {
     if (_solutions.length >= 3) return;
 
+    late final SolutionRow created;
     setState(() {
-      _solutions.add(
-        SolutionRow(
-          number: _solutions.length + 1,
-          titleController: TextEditingController(),
-          descriptionController: TextEditingController(),
-          isAiGenerated: false,
-        ),
+      created = SolutionRow(
+        number: _solutions.length + 1,
+        titleController: TextEditingController(),
+        descriptionController: TextEditingController(),
+        isAiGenerated: false,
       );
+      _solutions.add(created);
     });
+    _seedSolutionFieldHistory(created);
+    _syncDraftToProvider();
 
     // Auto-focus on first field of new solution
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1734,16 +1909,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
 
   Future<void> _saveSolutions() async {
     final provider = ProjectDataHelper.getProvider(context);
-    final solutions = _solutions
-        .map((s) => PotentialSolution(
-              id: s.id,
-              number: s.number,
-              title: s.titleController.text.trim(),
-              description: s.descriptionController.text.trim(),
-            ))
-        .toList();
-
-    provider.updateInitiationData(potentialSolutions: solutions);
+    _syncDraftToProvider();
     await provider.saveToFirebase(checkpoint: 'potential_solutions');
   }
 
@@ -1814,6 +1980,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
         }
         _isLoadingSolutions = false;
       });
+      _seedFieldHistories();
 
       await _saveSolutions();
 
@@ -1838,16 +2005,13 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      String newValue;
-      if (fieldName == 'title') {
-        final result = await _openAiService
-            .generateSolutionsFromBusinessCase(_incomingBusinessCase);
-        newValue = result.isNotEmpty ? result.first.title : '';
-      } else {
-        final result = await _openAiService
-            .generateSolutionsFromBusinessCase(_incomingBusinessCase);
-        newValue = result.isNotEmpty ? result.first.description : '';
-      }
+      final generated = await _openAiService
+          .generateSolutionsFromBusinessCase(_incomingBusinessCase);
+      final rowIndex = _solutions.indexOf(solution);
+      if (generated.isEmpty || rowIndex < 0) return;
+      final source =
+          rowIndex < generated.length ? generated[rowIndex] : generated.first;
+      final newValue = fieldName == 'title' ? source.title : source.description;
 
       // Add to history
       final fieldKey = 'solution_${solution.id}_$fieldName';
@@ -1865,6 +2029,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
         solution.descriptionController.text = newValue;
       }
 
+      _syncDraftToProvider();
       await _saveSolutions();
 
       if (!mounted) return;
@@ -1891,11 +2056,37 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
         } else {
           solution.descriptionController.text = previousValue;
         }
+        _syncDraftToProvider();
         await _saveSolutions();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Undo successful')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _redoSolutionField(
+      SolutionRow solution, String fieldName) async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final fieldKey = 'solution_${solution.id}_$fieldName';
+
+    if (provider.canRedoField(fieldKey)) {
+      final nextValue = provider.projectData.redoField(fieldKey);
+      if (nextValue != null) {
+        if (fieldName == 'title') {
+          solution.titleController.text = nextValue;
+        } else {
+          solution.descriptionController.text = nextValue;
+        }
+        _syncDraftToProvider();
+        await _saveSolutions();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Redo successful')),
           );
         }
       }
@@ -1912,102 +2103,46 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     final provider = ProjectDataHelper.getProvider(context);
     final fieldKey = 'solution_${solution.id}_$fieldName';
     final canUndo = provider.canUndoField(fieldKey);
-    final isAiGenerated = solution.isAiGenerated;
+    final canRedo = provider.canRedoField(fieldKey);
 
-    return StatefulBuilder(
-      builder: (context, setStateLocal) {
-        bool isHovering = false;
-        final isMobile = MediaQuery.of(context).size.width < 600;
-        final showControls = isMobile || isHovering;
-
-        void setHovering(bool value) {
-          if (isHovering != value) {
-            setStateLocal(() => isHovering = value);
-          }
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Floating action row above the field
-            if (isAiGenerated)
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 150),
-                opacity: showControls ? 1.0 : 0.0,
-                child: Container(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.refresh,
-                            size: 18, color: Color(0xFF2563EB)),
-                        tooltip: 'Regenerate this field',
-                        onPressed: () =>
-                            _regenerateSolutionField(solution, fieldName),
-                        padding: const EdgeInsets.all(6),
-                        constraints:
-                            const BoxConstraints(minWidth: 36, minHeight: 36),
-                        splashRadius: 18,
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.undo,
-                            size: 18,
-                            color: canUndo
-                                ? const Color(0xFF6B7280)
-                                : Colors.grey.shade300),
-                        tooltip: 'Undo last change',
-                        onPressed: canUndo
-                            ? () => _undoSolutionField(solution, fieldName)
-                            : null,
-                        padding: const EdgeInsets.all(6),
-                        constraints:
-                            const BoxConstraints(minWidth: 36, minHeight: 36),
-                        splashRadius: 18,
-                      ),
-                    ],
-                  ),
-                ),
+    return HoverableFieldControls(
+      isAiGenerated: true,
+      isLoading: false,
+      canUndo: canUndo,
+      canRedo: canRedo,
+      onRegenerate: () => _regenerateSolutionField(solution, fieldName),
+      onUndo: () => _undoSolutionField(solution, fieldName),
+      onRedo: () => _redoSolutionField(solution, fieldName),
+      child: isMobile
+          ? TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: hintText,
+                border: const OutlineInputBorder(),
+                isDense: true,
               ),
-            // Text field
-            MouseRegion(
-              onEnter: (_) => setHovering(true),
-              onExit: (_) => setHovering(false),
-              child: isMobile
-                  ? TextField(
-                      controller: controller,
-                      decoration: InputDecoration(
-                        hintText: hintText,
-                        border: const OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      style: const TextStyle(fontSize: 14),
-                      minLines: fieldName == 'description' ? 2 : 1,
-                      maxLines: fieldName == 'description' ? 5 : 1,
-                    )
-                  : ExpandingTextField(
-                      controller: controller,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: fieldName == 'description'
-                            ? Colors.grey
-                            : Colors.black87,
-                      ),
-                      decoration: InputDecoration(
-                        border: isMobile
-                            ? const OutlineInputBorder()
-                            : InputBorder.none,
-                        isDense: true,
-                        contentPadding: isMobile ? null : EdgeInsets.zero,
-                        hintText: hintText,
-                      ),
-                      minLines: 1,
-                    ),
+              style: const TextStyle(fontSize: 14),
+              minLines: fieldName == 'description' ? 2 : 1,
+              maxLines: fieldName == 'description' ? 5 : 1,
+              onChanged: (value) =>
+                  _recordSolutionFieldEdit(solution, fieldName, value),
+            )
+          : ExpandingTextField(
+              controller: controller,
+              style: TextStyle(
+                fontSize: 14,
+                color:
+                    fieldName == 'description' ? Colors.grey : Colors.black87,
+              ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ).copyWith(hintText: hintText),
+              minLines: 1,
+              onChanged: (value) =>
+                  _recordSolutionFieldEdit(solution, fieldName, value),
             ),
-          ],
-        );
-      },
     );
   }
 }

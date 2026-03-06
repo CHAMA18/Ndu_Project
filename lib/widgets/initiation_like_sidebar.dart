@@ -222,7 +222,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   @override
   void dispose() {
-    _sharedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _sharedScrollOffset = _scrollController.offset;
+    }
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();

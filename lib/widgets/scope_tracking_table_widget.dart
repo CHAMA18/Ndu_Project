@@ -7,6 +7,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 /// Custom Scope Tracking Table with inline editing, CRUD actions, and AI capabilities
 class ScopeTrackingTableWidget extends StatelessWidget {
@@ -44,128 +45,144 @@ class ScopeTrackingTableWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth:
-                    constraints.maxWidth > 0 ? constraints.maxWidth : 1000,
-              ),
-              child: DataTable(
-                headingRowColor:
-                    WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                columnSpacing: 20,
-                horizontalMargin: 16,
-                headingRowHeight: 56,
-                dataRowMinHeight: 52,
-                dataRowMaxHeight: 120,
-                columns: const [
-                  DataColumn(
-                    label: Text('Scope Item/Deliverable',
+          child: ResponsiveDataTableWrapper(
+            minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 1000,
+            maxHeight: 560,
+            child: DataTable(
+              headingRowColor:
+                  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columnSpacing: 20,
+              horizontalMargin: 16,
+              headingRowHeight: 56,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 120,
+              columns: const [
+                DataColumn(
+                  label: Center(
+                    child: Text('Scope Item/Deliverable',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Status',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Status',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Owner',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Owner',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Verification',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Verification',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Verification Steps',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Verification Steps',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Tracking Notes',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Tracking Notes',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                  DataColumn(
-                    label: Text('Actions',
+                ),
+                DataColumn(
+                  label: Center(
+                    child: Text('Actions',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF374151))),
                   ),
-                ],
-                rows: items.map((item) {
-                  return DataRow(
-                    cells: [
-                      DataCell(_ScopeTrackingRowWidget(
-                        item: item,
-                        column: _ScopeTrackingColumn.scopeItem,
-                        availableRoles: availableRoles,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_ScopeTrackingRowWidget(
-                        item: item,
-                        column: _ScopeTrackingColumn.implementationStatus,
-                        availableRoles: availableRoles,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_ScopeTrackingRowWidget(
-                        item: item,
-                        column: _ScopeTrackingColumn.owner,
-                        availableRoles: availableRoles,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_ScopeTrackingRowWidget(
-                        item: item,
-                        column: _ScopeTrackingColumn.verificationMethod,
-                        availableRoles: availableRoles,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_ScopeTrackingRowWidget(
-                        item: item,
-                        column: _ScopeTrackingColumn.verificationSteps,
-                        availableRoles: availableRoles,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_ScopeTrackingRowWidget(
-                        item: item,
-                        column: _ScopeTrackingColumn.trackingNotes,
-                        availableRoles: availableRoles,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                      DataCell(_ScopeTrackingRowWidget(
-                        item: item,
-                        column: _ScopeTrackingColumn.actions,
-                        availableRoles: availableRoles,
-                        onUpdated: onUpdated,
-                        onDeleted: onDeleted,
-                      )),
-                    ],
-                  );
-                }).toList(),
-              ),
+                ),
+              ],
+              rows: items.map((item) {
+                return DataRow(
+                  cells: [
+                    DataCell(_ScopeTrackingRowWidget(
+                      item: item,
+                      column: _ScopeTrackingColumn.scopeItem,
+                      availableRoles: availableRoles,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_ScopeTrackingRowWidget(
+                      item: item,
+                      column: _ScopeTrackingColumn.implementationStatus,
+                      availableRoles: availableRoles,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_ScopeTrackingRowWidget(
+                      item: item,
+                      column: _ScopeTrackingColumn.owner,
+                      availableRoles: availableRoles,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_ScopeTrackingRowWidget(
+                      item: item,
+                      column: _ScopeTrackingColumn.verificationMethod,
+                      availableRoles: availableRoles,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_ScopeTrackingRowWidget(
+                      item: item,
+                      column: _ScopeTrackingColumn.verificationSteps,
+                      availableRoles: availableRoles,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_ScopeTrackingRowWidget(
+                      item: item,
+                      column: _ScopeTrackingColumn.trackingNotes,
+                      availableRoles: availableRoles,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                    DataCell(_ScopeTrackingRowWidget(
+                      item: item,
+                      column: _ScopeTrackingColumn.actions,
+                      availableRoles: availableRoles,
+                      onUpdated: onUpdated,
+                      onDeleted: onDeleted,
+                    )),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         );

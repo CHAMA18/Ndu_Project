@@ -36,11 +36,13 @@ class AiRegenerationHelper {
   }) {
     final provider = ProjectDataHelper.getProvider(context);
     final canUndo = provider.canUndoField(fieldKey);
+    final canRedo = provider.canRedoField(fieldKey);
 
     return HoverableFieldControls(
       isAiGenerated: isAiGenerated,
       isLoading: isLoading,
       canUndo: canUndo,
+      canRedo: canRedo,
       onRegenerate: () {
         // Add current value to history before regenerating
         provider.addFieldToHistory(fieldKey, controller.text, isAiGenerated: true);
@@ -52,6 +54,14 @@ class AiRegenerationHelper {
         if (previousValue != null && previousValue.isNotEmpty) {
           controller.text = previousValue;
           await provider.saveToFirebase(checkpoint: 'field_undo');
+        }
+      },
+      onRedo: () async {
+        final data = provider.projectData;
+        final nextValue = data.redoField(fieldKey);
+        if (nextValue != null) {
+          controller.text = nextValue;
+          await provider.saveToFirebase(checkpoint: 'field_redo');
         }
       },
       child: child,

@@ -22,6 +22,7 @@ class _ExternalIntegrationsScreenState
   bool _loading = true;
   bool _seeding = false;
   List<Map<String, dynamic>>? _undoBeforeAi;
+  List<Map<String, dynamic>>? _redoAfterUndo;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _ExternalIntegrationsScreenState
     if (_seeding) return;
     setState(() => _seeding = true);
     _undoBeforeAi = _items.map((e) => Map<String, dynamic>.from(e)).toList();
+    _redoAfterUndo = null;
     final ai = OpenAiServiceSecure();
     final ctx =
         '${provider.projectData.projectName} - ${provider.projectData.solutionTitle}';
@@ -82,11 +84,27 @@ class _ExternalIntegrationsScreenState
   Future<void> _undoSeed() async {
     final prev = _undoBeforeAi;
     if (prev == null) return;
+    final current = _items.map((e) => Map<String, dynamic>.from(e)).toList();
     setState(() {
       _items
         ..clear()
         ..addAll(prev.map((e) => Map<String, dynamic>.from(e)));
       _undoBeforeAi = null;
+      _redoAfterUndo = current;
+    });
+    await _save();
+  }
+
+  Future<void> _redoSeed() async {
+    final redo = _redoAfterUndo;
+    if (redo == null) return;
+    final current = _items.map((e) => Map<String, dynamic>.from(e)).toList();
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(redo.map((e) => Map<String, dynamic>.from(e)));
+      _undoBeforeAi = current;
+      _redoAfterUndo = null;
     });
     await _save();
   }
@@ -138,9 +156,13 @@ class _ExternalIntegrationsScreenState
                         AiRegenerateUndoButtons(
                           isLoading: _seeding,
                           canUndo: _undoBeforeAi != null,
+                          canRedo: _redoAfterUndo != null,
                           onRegenerate: _seed,
                           onUndo: () {
                             _undoSeed();
+                          },
+                          onRedo: () {
+                            _redoSeed();
                           },
                         ),
                         const SizedBox(width: 8),

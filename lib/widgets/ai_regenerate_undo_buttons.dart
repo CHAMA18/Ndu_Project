@@ -5,14 +5,18 @@ class AiRegenerateUndoButtons extends StatelessWidget {
     super.key,
     required this.onRegenerate,
     required this.onUndo,
+    required this.onRedo,
     required this.isLoading,
     required this.canUndo,
+    required this.canRedo,
   });
 
   final VoidCallback onRegenerate;
   final VoidCallback onUndo;
+  final VoidCallback onRedo;
   final bool isLoading;
   final bool canUndo;
+  final bool canRedo;
 
   @override
   Widget build(BuildContext context) {
@@ -35,8 +39,12 @@ class AiRegenerateUndoButtons extends StatelessWidget {
           onPressed: canUndo ? onUndo : null,
           icon: const Icon(Icons.undo, size: 18, color: Color(0xFF6B7280)),
         ),
+        IconButton(
+          tooltip: 'Redo last AI regenerate',
+          onPressed: canRedo ? onRedo : null,
+          icon: const Icon(Icons.redo, size: 18, color: Color(0xFF6B7280)),
+        ),
       ],
     );
   }
 }
-

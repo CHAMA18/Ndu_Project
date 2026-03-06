@@ -1270,13 +1270,15 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                 border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
             child: const Row(children: [
               Expanded(
-                  child: Text('Solution',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: Text('Solution',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
               Expanded(
-                  child: Text('Core Technology',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
+                  child: Center(
+                      child: Text('Core Technology',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)))),
             ]),
           ),
           const SizedBox(height: 8),
@@ -1359,11 +1361,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
           : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                 child: Align(
-                  alignment: Alignment.topLeft,
+                  alignment: Alignment.topCenter,
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _numberBadge(index + 1),
@@ -1371,6 +1374,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                               Expanded(
                                 child: Text(
                                   _potentialSolutionLabel(index),
+                                  textAlign: TextAlign.center,
                                   style: const TextStyle(
                                       fontSize: 13,
                                       color: Colors.black87,
@@ -1381,6 +1385,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                         if (s.description.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(s.description,
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                   fontSize: 12, color: Colors.grey),
                               maxLines: 5,
@@ -1420,11 +1425,13 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         idx >= 0 && idx < _solutions.length ? _solutions[idx].title : '';
     final fieldKey = 'it_tech_${solutionTitle}_$idx';
     final canUndo = provider.canUndoField(fieldKey);
+    final canRedo = provider.canRedoField(fieldKey);
 
     return HoverableFieldControls(
       isAiGenerated: true,
       isLoading: false,
       canUndo: canUndo,
+      canRedo: canRedo,
       onRegenerate: () async {
         // Add current value to history
         provider.addFieldToHistory(fieldKey, controller.text,
@@ -1437,6 +1444,13 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         if (previousValue != null) {
           controller.text = previousValue;
           await provider.saveToFirebase(checkpoint: 'it_tech_undo');
+        }
+      },
+      onRedo: () async {
+        final nextValue = provider.projectData.redoField(fieldKey);
+        if (nextValue != null) {
+          controller.text = nextValue;
+          await provider.saveToFirebase(checkpoint: 'it_tech_redo');
         }
       },
       child: Column(
@@ -1457,6 +1471,11 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
               controller: controller,
               minLines: 2,
               maxLines: null,
+              textAlign: TextAlign.center,
+              onChanged: (value) {
+                provider.addFieldToHistory(fieldKey, value,
+                    isAiGenerated: true);
+              },
               decoration: InputDecoration(
                 border: InputBorder.none,
                 isDense: true,

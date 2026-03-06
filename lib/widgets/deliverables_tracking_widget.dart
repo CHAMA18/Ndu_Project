@@ -8,6 +8,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/widgets/progress_charts.dart';
 import 'package:ndu_project/widgets/progress_quick_actions.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:intl/intl.dart';
 
 /// Deliverables Tracking sub-page with Timeline view and full CRUD
@@ -439,6 +440,8 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  TextFormattingToolbar(controller: descriptionController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: descriptionController,
                     decoration: const InputDecoration(
@@ -521,6 +524,8 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     maxLines: 3,
                   ),
                   const SizedBox(height: 12),
+                  TextFormattingToolbar(controller: notesController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: notesController,
                     decoration: const InputDecoration(

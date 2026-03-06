@@ -18,6 +18,7 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 /// Front End Planning - Project Requirements page
 /// Implements the layout from the provided screenshot exactly:
@@ -45,12 +46,20 @@ class _FrontEndPlanningRequirementsScreenState
     extends State<FrontEndPlanningRequirementsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _notesController = TextEditingController();
+  final ScrollController _requirementsHorizontalController = ScrollController();
+  final ScrollController _requirementsVerticalController = ScrollController();
   bool _isGeneratingRequirements = false;
   bool _isRegeneratingRow = false;
   int? _regeneratingRowIndex;
   Timer? _autoSaveTimer;
   DateTime? _lastAutoSaveSnackAt;
   bool _stakeholderAlignmentConfirmed = false;
+  bool _didInitialGenerationCheck = false;
+  bool _showInitialGenerationSpinner = false;
+  String? _initialGenerationError;
+  bool _showHorizontalScrollHint = false;
+  bool _showVerticalScrollHint = false;
+  List<_AssignableMember> _memberOptions = const <_AssignableMember>[];
 
   static const Set<String> _authorizedRequirementSubmitRoles = {
     'owner',
@@ -66,20 +75,173 @@ class _FrontEndPlanningRequirementsScreenState
     super.initState();
     // Ensure OpenAI key/env is loaded for per-row regenerate.
     ApiKeyManager.initializeApiKey();
+    _requirementsHorizontalController.addListener(_updateScrollHints);
+    _requirementsVerticalController.addListener(_updateScrollHints);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_rows.isEmpty) {
-        _rows.add(_createRow(1));
-      }
+      if (!mounted) return;
       final projectData = ProjectDataHelper.getData(context);
       _notesController.text = projectData.frontEndPlanning.requirementsNotes;
       _notesController.addListener(_handleNotesChanged);
       _loadSavedRequirements(projectData);
+      unawaited(_initializeMemberContext(projectData));
       if (mounted) setState(() {});
     });
   }
 
   _RequirementRow _createRow(int number) {
     return _RequirementRow(number: number, onChanged: _scheduleAutoSave);
+  }
+
+  Future<void> _initializeMemberContext(ProjectDataModel data) async {
+    await _loadAssignableMembers(data);
+    await _runInitialAutoGenerationIfNeeded(data);
+  }
+
+  Future<void> _loadAssignableMembers(ProjectDataModel data) async {
+    final merged = <_AssignableMember>[];
+    final seen = <String>{};
+
+    void addMember({
+      required String id,
+      required String name,
+      required String email,
+      required String role,
+      required String source,
+    }) {
+      final normalizedEmail = email.trim().toLowerCase();
+      final normalizedName = name.trim().toLowerCase();
+      final key = normalizedEmail.isNotEmpty
+          ? 'email:$normalizedEmail'
+          : (id.trim().isNotEmpty
+              ? 'id:${id.trim().toLowerCase()}'
+              : 'name:$normalizedName');
+      if (key.trim().isEmpty || seen.contains(key)) return;
+      seen.add(key);
+      merged.add(
+        _AssignableMember(
+          id: id.trim(),
+          name: name.trim(),
+          email: email.trim(),
+          role: role.trim(),
+          source: source,
+        ),
+      );
+    }
+
+    for (final member in data.teamMembers) {
+      if (member.name.trim().isEmpty && member.email.trim().isEmpty) continue;
+      addMember(
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        role: member.role,
+        source: 'Project Team',
+      );
+    }
+
+    try {
+      final users = await UserService.searchUsers('');
+      for (final user in users) {
+        if (user.displayName.trim().isEmpty && user.email.trim().isEmpty) {
+          continue;
+        }
+        addMember(
+          id: user.uid,
+          name: user.displayName,
+          email: user.email,
+          role: user.isAdmin ? 'Admin' : 'Member',
+          source: 'Company Members',
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed loading company members for requirements: $e');
+    }
+
+    merged.sort((a, b) {
+      final sourceWeight =
+          a.source == b.source ? 0 : (a.source == 'Project Team' ? -1 : 1);
+      if (sourceWeight != 0) return sourceWeight;
+      return a.displayLabel
+          .toLowerCase()
+          .compareTo(b.displayLabel.toLowerCase());
+    });
+
+    if (!mounted) return;
+    setState(() => _memberOptions = merged);
+  }
+
+  bool _hasAnySavedRequirements(ProjectDataModel data) {
+    if (data.frontEndPlanning.requirementItems.isNotEmpty) return true;
+    if (data.frontEndPlanning.requirements.trim().isNotEmpty) return true;
+    return _rows.any((row) => row.descriptionController.text.trim().isNotEmpty);
+  }
+
+  Future<void> _runInitialAutoGenerationIfNeeded(ProjectDataModel data) async {
+    if (_didInitialGenerationCheck) return;
+    _didInitialGenerationCheck = true;
+
+    if (_hasAnySavedRequirements(data)) {
+      if (_rows.isEmpty) {
+        setState(() => _rows.add(_createRow(1)));
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _showInitialGenerationSpinner = true;
+        _initialGenerationError = null;
+      });
+    }
+
+    final generated = await _generateRequirementsFromContext(
+      showSeedNotice: false,
+    );
+    if (!mounted) return;
+
+    if (generated) {
+      setState(() {
+        _showInitialGenerationSpinner = false;
+        _initialGenerationError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _showInitialGenerationSpinner = false;
+      _initialGenerationError =
+          'Could not auto-generate requirements. You can retry manually.';
+      if (_rows.isEmpty) {
+        _rows.add(_createRow(1));
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Requirements generation failed. Please use "Generate with AI" to retry.',
+        ),
+      ),
+    );
+  }
+
+  void _updateScrollHints() {
+    final showHorizontal = _requirementsHorizontalController.hasClients &&
+        _requirementsHorizontalController.position.maxScrollExtent > 0 &&
+        _requirementsHorizontalController.offset <
+            _requirementsHorizontalController.position.maxScrollExtent;
+    final showVertical = _requirementsVerticalController.hasClients &&
+        _requirementsVerticalController.position.maxScrollExtent > 0 &&
+        _requirementsVerticalController.offset <
+            _requirementsVerticalController.position.maxScrollExtent;
+    if (showHorizontal == _showHorizontalScrollHint &&
+        showVertical == _showVerticalScrollHint) {
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _showHorizontalScrollHint = showHorizontal;
+      _showVerticalScrollHint = showVertical;
+    });
   }
 
   void _loadSavedRequirements(ProjectDataModel data) {
@@ -93,9 +255,11 @@ class _FrontEndPlanningRequirementsScreenState
           row.setDescriptionFromCode(item.description);
           row.commentsController.text = item.comments;
           row.selectedType = item.requirementType;
-          row.selectedDiscipline = item.discipline;
+          row.selectedDiscipline =
+              _normalizeDisciplineSelection(item.discipline);
           row.roleController.text = item.role;
-          row.personController.text = item.person;
+          row.personController.text =
+              _resolvePersonSelection(item.person, roleHint: item.role);
           row.selectedPhase = _normalizePhaseSelection(item.phase);
           row.sourceController.text = item.requirementSource;
           return row;
@@ -122,16 +286,41 @@ class _FrontEndPlanningRequirementsScreenState
     }
   }
 
-  Future<void> _generateRequirementsFromContext() async {
-    setState(() => _isGeneratingRequirements = true);
+  Future<bool> _generateRequirementsFromContext({
+    bool showSeedNotice = true,
+  }) async {
+    if (_isGeneratingRequirements) return false;
+    setState(() {
+      _isGeneratingRequirements = true;
+      _initialGenerationError = null;
+    });
     try {
       final data = ProjectDataHelper.getData(context);
       final provider = ProjectDataHelper.getProvider(context);
-      final ctx = ProjectDataHelper.buildFepContext(data,
-          sectionLabel: 'Project Requirements');
+      final ctx = StringBuffer()
+        ..writeln(
+          ProjectDataHelper.buildFepContext(
+            data,
+            sectionLabel: 'Project Requirements',
+          ),
+        )
+        ..writeln()
+        ..writeln('Discipline assignment instructions:')
+        ..writeln(
+          '- Return a specific discipline for each requirement from this list whenever possible:',
+        )
+        ..writeln(_RequirementRow.disciplineOptions.join(', '))
+        ..writeln(
+          '- Never return placeholder text like "Discipline".',
+        )
+        ..writeln(
+          '- If no discipline fits, return "Other".',
+        );
       final ai = OpenAiServiceSecure();
-      final reqs = await ai.generateRequirementsFromBusinessCase(ctx);
-      if (!mounted) return;
+      final reqs = await ai.generateRequirementsFromBusinessCase(
+        ctx.toString(),
+      );
+      if (!mounted) return false;
       if (reqs.isNotEmpty) {
         // Track field history before replacing
         for (final row in _rows) {
@@ -155,9 +344,14 @@ class _FrontEndPlanningRequirementsScreenState
               r.selectedType = (e.value['requirementType'] ?? 'Functional')
                   .toString()
                   .trim();
-              r.selectedDiscipline = (e.value['discipline'] ?? '').toString();
-              r.roleController.text = (e.value['role'] ?? '').toString();
-              r.personController.text = (e.value['person'] ?? '').toString();
+              final aiDiscipline = (e.value['discipline'] ?? '').toString();
+              final aiRole = (e.value['role'] ?? '').toString();
+              final aiPerson = (e.value['person'] ?? '').toString();
+              r.selectedDiscipline =
+                  _normalizeDisciplineSelection(aiDiscipline);
+              r.roleController.text = aiRole;
+              r.personController.text =
+                  _resolvePersonSelection(aiPerson, roleHint: aiRole);
               r.selectedPhase =
                   _normalizePhaseSelection((e.value['phase'] ?? '').toString());
               r.sourceController.text =
@@ -177,7 +371,7 @@ class _FrontEndPlanningRequirementsScreenState
           _isGeneratingRequirements = false;
         });
         _commitAutoSave(showSnack: false);
-        if (mounted) {
+        if (mounted && showSeedNotice) {
           await showDialog<void>(
             context: context,
             builder: (context) => AlertDialog(
@@ -194,7 +388,7 @@ class _FrontEndPlanningRequirementsScreenState
             ),
           );
         }
-        return;
+        return true;
       }
     } catch (e) {
       debugPrint('AI requirements suggestion failed: $e');
@@ -202,6 +396,7 @@ class _FrontEndPlanningRequirementsScreenState
     if (mounted) {
       setState(() => _isGeneratingRequirements = false);
     }
+    return false;
   }
 
   Future<void> _regenerateRequirementRow(int index) async {
@@ -214,10 +409,24 @@ class _FrontEndPlanningRequirementsScreenState
 
     try {
       final data = ProjectDataHelper.getData(context);
-      final ctx = ProjectDataHelper.buildFepContext(data,
-          sectionLabel: 'Project Requirements');
+      final ctx = StringBuffer()
+        ..writeln(
+          ProjectDataHelper.buildFepContext(
+            data,
+            sectionLabel: 'Project Requirements',
+          ),
+        )
+        ..writeln()
+        ..writeln(
+          'Discipline options: ${_RequirementRow.disciplineOptions.join(', ')}',
+        )
+        ..writeln(
+          'Return a specific discipline option and avoid placeholder values.',
+        );
       final ai = OpenAiServiceSecure();
-      final reqs = await ai.generateRequirementsFromBusinessCase(ctx);
+      final reqs = await ai.generateRequirementsFromBusinessCase(
+        ctx.toString(),
+      );
       if (!mounted) return;
 
       final pickedIndex = reqs.isNotEmpty ? (index % reqs.length) : null;
@@ -256,9 +465,14 @@ class _FrontEndPlanningRequirementsScreenState
       final nextSource = (picked?['requirementSource'] ?? '').toString().trim();
 
       if (nextType.isNotEmpty) row.selectedType = nextType;
-      if (nextDiscipline.isNotEmpty) row.selectedDiscipline = nextDiscipline;
+      if (nextDiscipline.isNotEmpty) {
+        row.selectedDiscipline = _normalizeDisciplineSelection(nextDiscipline);
+      }
       if (nextRole.isNotEmpty) row.roleController.text = nextRole;
-      if (nextPerson.isNotEmpty) row.personController.text = nextPerson;
+      if (nextPerson.isNotEmpty) {
+        row.personController.text =
+            _resolvePersonSelection(nextPerson, roleHint: nextRole);
+      }
       row.selectedPhase = _normalizePhaseSelection(
         nextPhase.isEmpty ? row.selectedPhase : nextPhase,
       );
@@ -331,6 +545,10 @@ class _FrontEndPlanningRequirementsScreenState
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
+    _requirementsHorizontalController.removeListener(_updateScrollHints);
+    _requirementsVerticalController.removeListener(_updateScrollHints);
+    _requirementsHorizontalController.dispose();
+    _requirementsVerticalController.dispose();
     _notesController.removeListener(_handleNotesChanged);
     _notesController.dispose();
     for (final r in _rows) {
@@ -367,89 +585,93 @@ class _FrontEndPlanningRequirementsScreenState
                     children: [
                       const FrontEndPlanningHeader(),
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 32, vertical: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _roundedField(
-                                controller: _notesController,
-                                hint: 'Input your notes here...',
-                                minLines: 3,
-                              ),
-                              const SizedBox(height: 20),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Column(
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _roundedField(
+                                      controller: _notesController,
+                                      hint: 'Input your notes here...',
+                                      minLines: 3,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Row(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const EditableContentText(
-                                          contentKey: 'fep_requirements_title',
-                                          fallback: 'Project Requirements',
-                                          category: 'front_end_planning',
-                                          style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF111827)),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const EditableContentText(
+                                                contentKey:
+                                                    'fep_requirements_title',
+                                                fallback:
+                                                    'Project Requirements',
+                                                category: 'front_end_planning',
+                                                style: TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Color(0xFF111827)),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              const EditableContentText(
+                                                contentKey:
+                                                    'fep_requirements_subtitle',
+                                                fallback:
+                                                    'Identify actual needs, conditions, or capabilities that this project must meet to be considered successful',
+                                                category: 'front_end_planning',
+                                                style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Color(0xFF6B7280),
+                                                    height: 1.2),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                        const SizedBox(height: 6),
-                                        const EditableContentText(
-                                          contentKey:
-                                              'fep_requirements_subtitle',
-                                          fallback:
-                                              'Identify actual needs, conditions, or capabilities that this project must meet to be considered successful',
-                                          category: 'front_end_planning',
-                                          style: TextStyle(
-                                              fontSize: 13,
-                                              color: Color(0xFF6B7280),
-                                              height: 1.2),
+                                        // Page-level regenerate button
+                                        PageRegenerateAllButton(
+                                          onRegenerateAll: () async {
+                                            final confirmed =
+                                                await showRegenerateAllConfirmation(
+                                                    context);
+                                            if (confirmed && mounted) {
+                                              await _generateRequirementsFromContext();
+                                            }
+                                          },
+                                          isLoading: _isGeneratingRequirements,
+                                          tooltip:
+                                              'Regenerate all requirements',
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  // Page-level regenerate button
-                                  PageRegenerateAllButton(
-                                    onRegenerateAll: () async {
-                                      final confirmed =
-                                          await showRegenerateAllConfirmation(
-                                              context);
-                                      if (confirmed && mounted) {
-                                        await _generateRequirementsFromContext();
-                                      }
-                                    },
-                                    isLoading: _isGeneratingRequirements,
-                                    tooltip: 'Regenerate all requirements',
-                                  ),
-                                ],
+                                    const SizedBox(height: 14),
+                                    _buildRequirementsTable(context),
+                                    const SizedBox(height: 16),
+                                    _buildActionButtons(),
+                                    const SizedBox(height: 24),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 14),
-                              _buildRequirementsTable(context),
-                              const SizedBox(height: 16),
-                              _buildActionButtons(),
-                              const SizedBox(height: 140),
-                            ],
-                          ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(32, 0, 96, 24),
+                              child: _buildDesktopFooter(context),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  _BottomOverlays(
-                    onSubmit: _handleSubmit,
-                    canSubmit: _stakeholderAlignmentConfirmed,
-                    alignmentConfirmed: _stakeholderAlignmentConfirmed,
-                    onAlignmentChanged: (value) {
-                      setState(() {
-                        _stakeholderAlignmentConfirmed = value;
-                      });
-                    },
-                  ),
                   const Positioned(
                     right: 24,
-                    bottom: 90,
+                    bottom: 112,
                     child: KazAiChatBubble(positioned: false),
                   ),
                 ],
@@ -461,10 +683,156 @@ class _FrontEndPlanningRequirementsScreenState
     );
   }
 
+  Widget _buildDesktopFooter(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OutlinedButton(
+            onPressed: () => Navigator.maybePop(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF374151),
+              side: const BorderSide(color: Color(0xFFD1D5DB)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: _stakeholderAlignmentConfirmed,
+                  onChanged: (value) {
+                    setState(() {
+                      _stakeholderAlignmentConfirmed = value ?? false;
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Check this box to confirm that all relevant stakeholders and subject matter experts are aligned with the documented requirements.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: _stakeholderAlignmentConfirmed ? _handleSubmit : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              disabledBackgroundColor: const Color(0xFFE5E7EB),
+              disabledForegroundColor: const Color(0xFF9CA3AF),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Submit',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRequirementsTable(BuildContext context) {
     final headerStyle = const TextStyle(
         fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563));
     final border = const BorderSide(color: Color(0xFFE5E7EB));
+    final hasAnyRowData = _rows.any((row) {
+      return row.descriptionController.text.trim().isNotEmpty ||
+          row.commentsController.text.trim().isNotEmpty ||
+          row.roleController.text.trim().isNotEmpty ||
+          row.personController.text.trim().isNotEmpty ||
+          row.sourceController.text.trim().isNotEmpty ||
+          (row.selectedDiscipline ?? '').trim().isNotEmpty ||
+          (row.selectedType ?? '').trim().isNotEmpty;
+    });
+
+    if (_showInitialGenerationSpinner && !hasAnyRowData) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: const Column(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 14),
+            Text(
+              'Generating project requirements with AI...',
+              style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if ((_initialGenerationError ?? '').isNotEmpty && !hasAnyRowData) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              _initialGenerationError!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFB91C1C),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _isGeneratingRequirements
+                  ? null
+                  : () async {
+                      final generated =
+                          await _generateRequirementsFromContext();
+                      if (!mounted) return;
+                      setState(() {
+                        _initialGenerationError =
+                            generated ? null : _initialGenerationError;
+                      });
+                    },
+              icon: const Icon(Icons.auto_awesome_outlined, size: 16),
+              label: const Text('Generate with AI'),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -476,70 +844,138 @@ class _FrontEndPlanningRequirementsScreenState
         builder: (context, constraints) {
           final minTableWidth =
               constraints.maxWidth > 2360 ? constraints.maxWidth : 2360.0;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateScrollHints();
+          });
 
-          return Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: minTableWidth),
-                child: Table(
-                  columnWidths: const {
-                    0: FixedColumnWidth(64),
-                    1: FlexColumnWidth(3.4),
-                    2: FixedColumnWidth(190),
-                    3: FixedColumnWidth(180),
-                    4: FixedColumnWidth(190),
-                    5: FixedColumnWidth(190),
-                    6: FixedColumnWidth(150),
-                    7: FixedColumnWidth(260),
-                    8: FlexColumnWidth(2.6),
-                    9: FixedColumnWidth(56),
-                  },
-                  border: TableBorder(
-                    horizontalInside: border,
-                    verticalInside: border,
-                    top: border,
-                    bottom: border,
-                    left: border,
-                    right: border,
-                  ),
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    TableRow(
-                      decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
-                      children: [
-                        _th('No', headerStyle),
-                        _th('Requirement', headerStyle),
-                        _th('Requirement type', headerStyle),
-                        _th('Discipline', headerStyle),
-                        _th('Role', headerStyle),
-                        _th('Person', headerStyle),
-                        _th('Phase', headerStyle),
-                        _th('Requirement source', headerStyle),
-                        _th('Comments and Requirement Source Links',
-                            headerStyle),
-                        _th('', headerStyle), // Empty header for delete column
-                      ],
+          return Stack(
+            children: [
+              SizedBox(
+                height: 460,
+                child: Scrollbar(
+                  controller: _requirementsHorizontalController,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _requirementsHorizontalController,
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: minTableWidth),
+                      child: Scrollbar(
+                        controller: _requirementsVerticalController,
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
+                          controller: _requirementsVerticalController,
+                          child: Table(
+                            columnWidths: const {
+                              0: FixedColumnWidth(64),
+                              1: FlexColumnWidth(3.4),
+                              2: FixedColumnWidth(190),
+                              3: FixedColumnWidth(180),
+                              4: FixedColumnWidth(190),
+                              5: FixedColumnWidth(190),
+                              6: FixedColumnWidth(150),
+                              7: FixedColumnWidth(260),
+                              8: FlexColumnWidth(2.6),
+                              9: FixedColumnWidth(56),
+                            },
+                            border: TableBorder(
+                              horizontalInside: border,
+                              verticalInside: border,
+                              top: border,
+                              bottom: border,
+                              left: border,
+                              right: border,
+                            ),
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            children: [
+                              TableRow(
+                                decoration: const BoxDecoration(
+                                    color: Color(0xFFF9FAFB)),
+                                children: [
+                                  _th('No', headerStyle),
+                                  _th('Requirement', headerStyle),
+                                  _th('Requirement type', headerStyle),
+                                  _th('Discipline', headerStyle),
+                                  _th('Role', headerStyle),
+                                  _th('Person', headerStyle),
+                                  _th('Phase', headerStyle),
+                                  _th('Requirement source', headerStyle),
+                                  _th('Comments and Requirement Source Links',
+                                      headerStyle),
+                                  _th('', headerStyle),
+                                ],
+                              ),
+                              ..._rows.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final row = entry.value;
+                                final isRowLoading = _isRegeneratingRow &&
+                                    _regeneratingRowIndex == index;
+                                return row.buildRow(
+                                  context,
+                                  index,
+                                  _deleteRow,
+                                  personOptions: _memberOptions,
+                                  isRegenerating: isRowLoading,
+                                  onRegenerate: () =>
+                                      _regenerateRequirementRow(index),
+                                  onUndo: () async =>
+                                      await _undoRequirementRow(index),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    ..._rows.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final row = entry.value;
-                      final isRowLoading =
-                          _isRegeneratingRow && _regeneratingRowIndex == index;
-                      return row.buildRow(
-                        context,
-                        index,
-                        _deleteRow,
-                        isRegenerating: isRowLoading,
-                        onRegenerate: () => _regenerateRequirementRow(index),
-                        onUndo: () async => await _undoRequirementRow(index),
-                      );
-                    }),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              if (_showHorizontalScrollHint)
+                Positioned(
+                  top: 1,
+                  right: 1,
+                  bottom: _showVerticalScrollHint ? 22 : 1,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 30,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.0),
+                            Colors.white.withValues(alpha: 0.92),
+                            Colors.white,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_showVerticalScrollHint)
+                Positioned(
+                  left: 1,
+                  right: 1,
+                  bottom: 1,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 22,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.0),
+                            Colors.white.withValues(alpha: 0.88),
+                            Colors.white,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           );
         },
       ),
@@ -652,6 +1088,8 @@ class _FrontEndPlanningRequirementsScreenState
                             ),
                           ),
                           const SizedBox(height: 4),
+                          TextFormattingToolbar(controller: _notesController),
+                          const SizedBox(height: 8),
                           TextField(
                             controller: _notesController,
                             minLines: 2,
@@ -694,13 +1132,63 @@ class _FrontEndPlanningRequirementsScreenState
                       ],
                     ),
                     const SizedBox(height: 10),
-                    ..._rows.asMap().entries.map(
-                          (entry) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _buildMobileRequirementCard(
-                                context, entry.key, entry.value),
+                    if (_showInitialGenerationSpinner &&
+                        _rows.every((row) =>
+                            row.descriptionController.text.trim().isEmpty))
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 28),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 10),
+                              Text(
+                                'Generating requirements...',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      )
+                    else if ((_initialGenerationError ?? '').isNotEmpty &&
+                        _rows.every((row) =>
+                            row.descriptionController.text.trim().isEmpty))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Column(
+                          children: [
+                            Text(
+                              _initialGenerationError!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: Color(0xFFB91C1C),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: _isGeneratingRequirements
+                                  ? null
+                                  : () => _generateRequirementsFromContext(),
+                              icon: const Icon(Icons.auto_awesome_rounded,
+                                  size: 16),
+                              label: const Text('Generate with AI'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else ...[
+                      ..._rows.asMap().entries.map(
+                            (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _buildMobileRequirementCard(
+                                  context, entry.key, entry.value),
+                            ),
+                          ),
+                    ],
                     OutlinedButton.icon(
                       onPressed: () {
                         setState(() => _rows.add(_createRow(_rows.length + 1)));
@@ -1071,12 +1559,14 @@ class _FrontEndPlanningRequirementsScreenState
                     ),
                   ),
                   const SizedBox(height: 10),
-                  TextField(
-                    controller: personController,
-                    decoration: const InputDecoration(
-                      labelText: 'Person',
-                      border: OutlineInputBorder(),
-                    ),
+                  _PersonDropdownField(
+                    value: personController.text,
+                    options: _memberOptions,
+                    hint: 'Person',
+                    dense: false,
+                    onChanged: (value) {
+                      personController.text = value;
+                    },
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -1118,10 +1608,17 @@ class _FrontEndPlanningRequirementsScreenState
                               row.commentsController.text =
                                   commentsController.text;
                               row.roleController.text = roleController.text;
-                              row.personController.text = personController.text;
+                              row.personController.text =
+                                  _resolvePersonSelection(
+                                personController.text,
+                                roleHint: roleController.text,
+                              );
                               row.sourceController.text = sourceController.text;
                               row.selectedType = selectedType;
-                              row.selectedDiscipline = selectedDiscipline;
+                              row.selectedDiscipline =
+                                  _normalizeDisciplineSelection(
+                                selectedDiscipline,
+                              );
                               row.selectedPhase = selectedPhase;
                             });
                             _scheduleAutoSave(showSnack: false);
@@ -1185,6 +1682,7 @@ class _FrontEndPlanningRequirementsScreenState
               setState(() {
                 _rows.add(_createRow(_rows.length + 1));
               });
+              _scheduleAutoSave(showSnack: false);
             },
             style: OutlinedButton.styleFrom(
               backgroundColor: const Color(0xFFF2F4F7),
@@ -1393,6 +1891,124 @@ class _FrontEndPlanningRequirementsScreenState
     return 'Planning';
   }
 
+  String? _normalizeDisciplineSelection(String? rawValue) {
+    final value = (rawValue ?? '').trim();
+    if (value.isEmpty) return null;
+
+    for (final option in _RequirementRow.disciplineOptions) {
+      if (option.toLowerCase() == value.toLowerCase()) {
+        return option;
+      }
+    }
+
+    final normalized = value.toLowerCase();
+    if (normalized == 'discipline') return 'Other';
+    if (normalized.contains('arch')) return 'Architecture';
+    if (normalized.contains('civil')) return 'Civil';
+    if (normalized.contains('elect')) return 'Electrical';
+    if (normalized.contains('mech')) return 'Mechanical';
+    if (normalized == 'it' || normalized.contains('information technology')) {
+      return 'IT';
+    }
+    if (normalized.contains('operat')) return 'Operations';
+    if (normalized.contains('safe')) return 'Safety';
+    if (normalized.contains('secur')) return 'Security';
+    if (normalized.contains('procure')) return 'Procurement';
+    if (normalized.contains('commerc')) return 'Commercial';
+    if (normalized.contains('qualit')) return 'Quality';
+    if (normalized.contains('regulat') || normalized.contains('compliance')) {
+      return 'Regulatory';
+    }
+    if (normalized.contains('program') ||
+        normalized.contains('project management')) {
+      return 'Program Management';
+    }
+
+    var best = 'Other';
+    var bestScore = 0.0;
+    for (final option in _RequirementRow.disciplineOptions) {
+      final score = _textSimilarity(normalized, option.toLowerCase());
+      if (score > bestScore) {
+        bestScore = score;
+        best = option;
+      }
+    }
+    return bestScore >= 0.45 ? best : 'Other';
+  }
+
+  String _resolvePersonSelection(String rawValue, {String roleHint = ''}) {
+    final value = rawValue.trim();
+    if (value.isEmpty) {
+      return _matchMemberByRole(roleHint)?.displayLabel ?? '';
+    }
+
+    _AssignableMember? exactMatch;
+    _AssignableMember? fuzzyMatch;
+    var fuzzyScore = 0.0;
+    final normalizedValue = value.toLowerCase();
+    for (final member in _memberOptions) {
+      final memberLabel = member.displayLabel.toLowerCase();
+      final memberEmail = member.email.toLowerCase();
+      if (memberLabel == normalizedValue || memberEmail == normalizedValue) {
+        exactMatch = member;
+        break;
+      }
+      if (memberLabel.contains(normalizedValue) ||
+          normalizedValue.contains(memberLabel) ||
+          (memberEmail.isNotEmpty &&
+              (memberEmail.contains(normalizedValue) ||
+                  normalizedValue.contains(memberEmail)))) {
+        fuzzyMatch = member;
+        fuzzyScore = 1.0;
+        continue;
+      }
+      final score = _textSimilarity(normalizedValue, memberLabel);
+      if (score > fuzzyScore) {
+        fuzzyScore = score;
+        fuzzyMatch = member;
+      }
+    }
+
+    if (exactMatch != null) return exactMatch.displayLabel;
+    if (fuzzyMatch != null && fuzzyScore >= 0.5) return fuzzyMatch.displayLabel;
+
+    final roleMatch = _matchMemberByRole(roleHint);
+    if (roleMatch != null) return roleMatch.displayLabel;
+    return value;
+  }
+
+  _AssignableMember? _matchMemberByRole(String rawRole) {
+    final role = rawRole.trim().toLowerCase();
+    if (role.isEmpty) return null;
+    for (final member in _memberOptions) {
+      final memberRole = member.role.trim().toLowerCase();
+      if (memberRole.isEmpty) continue;
+      if (memberRole == role ||
+          memberRole.contains(role) ||
+          role.contains(memberRole)) {
+        return member;
+      }
+    }
+    return null;
+  }
+
+  double _textSimilarity(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return 0;
+    final tokensA = a
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    final tokensB = b
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    if (tokensA.isEmpty || tokensB.isEmpty) return 0;
+    final intersection = tokensA.intersection(tokensB).length.toDouble();
+    final union = tokensA.union(tokensB).length.toDouble();
+    if (union == 0) return 0;
+    return intersection / union;
+  }
+
   Future<String> _resolveCurrentUserRoleForRequirementsSubmit() async {
     var resolvedRole = 'Member';
 
@@ -1551,6 +2167,40 @@ class _FrontEndPlanningRequirementsScreenState
   }
 }
 
+class _AssignableMember {
+  const _AssignableMember({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.source,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+  final String source;
+
+  String get displayLabel {
+    if (name.trim().isNotEmpty) return name.trim();
+    if (email.trim().isNotEmpty) return email.trim();
+    return 'Unknown member';
+  }
+
+  String get subtitle {
+    final segments = <String>[];
+    if (email.trim().isNotEmpty) {
+      segments.add(email.trim());
+    }
+    if (role.trim().isNotEmpty) {
+      segments.add(role.trim());
+    }
+    segments.add(source);
+    return segments.join(' · ');
+  }
+}
+
 class _RequirementRow {
   static const List<String> disciplineOptions = [
     'Architecture',
@@ -1658,6 +2308,7 @@ class _RequirementRow {
     BuildContext context,
     int index,
     void Function(int) onDelete, {
+    required List<_AssignableMember> personOptions,
     required bool isRegenerating,
     required VoidCallback onRegenerate,
     required Future<void> Function() onUndo,
@@ -1773,17 +2424,14 @@ class _RequirementRow {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextField(
-            controller: personController,
-            maxLines: 1,
-            onChanged: (_) => onChanged?.call(),
-            decoration: const InputDecoration(
-              hintText: 'Person',
-              hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
-              border: InputBorder.none,
-              isDense: true,
-            ),
-            style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
+          child: _PersonDropdownField(
+            value: personController.text,
+            options: personOptions,
+            hint: 'Person',
+            onChanged: (value) {
+              personController.text = value;
+              onChanged?.call();
+            },
           ),
         ),
         Padding(
@@ -2025,141 +2673,216 @@ class _PhaseDropdownState extends State<_PhaseDropdown> {
   }
 }
 
-class _BottomOverlays extends StatelessWidget {
-  const _BottomOverlays({
-    required this.onSubmit,
-    required this.canSubmit,
-    required this.alignmentConfirmed,
-    required this.onAlignmentChanged,
+class _PersonDropdownField extends StatelessWidget {
+  const _PersonDropdownField({
+    required this.value,
+    required this.options,
+    required this.hint,
+    required this.onChanged,
+    this.dense = true,
   });
-  final VoidCallback onSubmit;
-  final bool canSubmit;
-  final bool alignmentConfirmed;
-  final ValueChanged<bool> onAlignmentChanged;
+
+  final String value;
+  final List<_AssignableMember> options;
+  final String hint;
+  final ValueChanged<String> onChanged;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: false,
-        child: Stack(
+    final hasValue = value.trim().isNotEmpty;
+    final noMembers = options.isEmpty;
+
+    return InkWell(
+      onTap: noMembers
+          ? null
+          : () async {
+              final selected = await showDialog<_AssignableMember>(
+                context: context,
+                builder: (dialogContext) => _MemberPickerDialog(
+                  options: options,
+                  initialQuery: value,
+                ),
+              );
+              if (selected != null) {
+                onChanged(selected.displayLabel);
+              }
+            },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: dense ? 40 : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: dense ? 0 : 10,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Row(
           children: [
-            Positioned(
-              left: 24,
-              bottom: 24,
-              child: _circleButton(
-                  icon: Icons.arrow_back_ios_new_rounded,
-                  onTap: () => Navigator.maybePop(context)),
-            ),
-            Positioned(
-              right: 24,
-              bottom: 24,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    width: 640,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: alignmentConfirmed,
-                          onChanged: (value) =>
-                              onAlignmentChanged(value ?? false),
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Check this box to confirm that all relevant stakeholders and subject matter experts are aligned with the documented requirements.',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: Color(0xFF374151),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _aiHint(),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: canSubmit ? onSubmit : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFD700),
-                          foregroundColor: Colors.black,
-                          disabledBackgroundColor: const Color(0xFFE5E7EB),
-                          disabledForegroundColor: const Color(0xFF9CA3AF),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 28, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22)),
-                          elevation: 0,
-                        ),
-                        child: const Text('Submit',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                  ),
-                ],
+            Expanded(
+              child: Text(
+                noMembers
+                    ? 'No members available'
+                    : (hasValue ? value.trim() : hint),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: noMembers
+                      ? const Color(0xFF9CA3AF)
+                      : (hasValue
+                          ? const Color(0xFF111827)
+                          : const Color(0xFF9CA3AF)),
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
+            ),
+            Icon(
+              Icons.search_rounded,
+              size: 18,
+              color:
+                  noMembers ? const Color(0xFFCBD5E1) : const Color(0xFF6B7280),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _aiHint() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F1FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD7E5FF)),
-      ),
-      child: Row(
-        children: const [
-          Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
-          SizedBox(width: 8),
-          Text(
-            'AI',
-            style: TextStyle(
-                fontWeight: FontWeight.w800, color: Color(0xFF2563EB)),
-          ),
-          SizedBox(width: 10),
-          Text(
-            'Map each requirement to discipline/owner/phase and include source links.',
-            style: TextStyle(color: Color(0xFF1F2937)),
-          ),
-        ],
-      ),
-    );
+class _MemberPickerDialog extends StatefulWidget {
+  const _MemberPickerDialog({
+    required this.options,
+    required this.initialQuery,
+  });
+
+  final List<_AssignableMember> options;
+  final String initialQuery;
+
+  @override
+  State<_MemberPickerDialog> createState() => _MemberPickerDialogState();
+}
+
+class _MemberPickerDialogState extends State<_MemberPickerDialog> {
+  late final TextEditingController _searchController =
+      TextEditingController(text: widget.initialQuery);
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  Widget _circleButton({required IconData icon, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+  List<_AssignableMember> _filteredMembers() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return widget.options;
+    return widget.options.where((member) {
+      final name = member.name.toLowerCase();
+      final email = member.email.toLowerCase();
+      final role = member.role.toLowerCase();
+      final source = member.source.toLowerCase();
+      return name.contains(query) ||
+          email.contains(query) ||
+          role.contains(query) ||
+          source.contains(query);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _filteredMembers();
+    final grouped = <String, List<_AssignableMember>>{};
+    for (final member in filtered) {
+      grouped
+          .putIfAbsent(member.source, () => <_AssignableMember>[])
+          .add(member);
+    }
+
+    return AlertDialog(
+      title: const Text('Select Person'),
+      content: SizedBox(
+        width: 520,
+        height: 420,
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Search project team or company members...',
+                prefixIcon: Icon(Icons.search_rounded),
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No members available',
+                        style: TextStyle(color: Color(0xFF9CA3AF)),
+                      ),
+                    )
+                  : ListView(
+                      children: grouped.entries.map((entry) {
+                        final source = entry.key;
+                        final members = entry.value;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
+                              child: Text(
+                                source,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                            ...members.map(
+                              (member) => ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: const Color(0xFFDBEAFE),
+                                  child: Text(
+                                    member.displayLabel[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1D4ED8),
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  member.displayLabel,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                subtitle: Text(
+                                  member.subtitle,
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                onTap: () => Navigator.pop(context, member),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+            ),
+          ],
         ),
-        child: Icon(icon, size: 18, color: const Color(0xFF6B7280)),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
     );
   }
 }
@@ -2176,17 +2899,24 @@ Widget _roundedField(
       border: Border.all(color: const Color(0xFFE4E7EC)),
     ),
     padding: const EdgeInsets.all(14),
-    child: TextField(
-      controller: controller,
-      minLines: minLines,
-      maxLines: null,
-      decoration: InputDecoration(
-        isDense: true,
-        border: InputBorder.none,
-        hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-      ),
-      style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormattingToolbar(controller: controller),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          minLines: minLines,
+          maxLines: null,
+          decoration: InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            hintText: hint,
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+          ),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
+        ),
+      ],
     ),
   );
 }

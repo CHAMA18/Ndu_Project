@@ -7,6 +7,7 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
@@ -500,6 +501,8 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                     maxLines: 5,
                   ),
                   const SizedBox(height: 12),
+                  TextFormattingToolbar(controller: notesController),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: notesController,
                     decoration: const InputDecoration(
@@ -647,7 +650,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                       },
                       style: const TextStyle(
                           fontSize: 11, color: Color(0xFF111827)),
-                      textAlign: TextAlign.left,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                   Expanded(

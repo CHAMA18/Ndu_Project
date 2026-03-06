@@ -4926,6 +4926,11 @@ Each requirement should be:
 - Tagged to one implementation phase (Initiation, Planning, Design, Execution, Launch, or ALL)
 - Include a short requirement source note or source link
 
+Discipline rules:
+- Use a specific discipline value, not a placeholder.
+- Prefer one of: Architecture, Civil, Electrical, Mechanical, IT, Operations, Safety, Security, Procurement, Commercial, Quality, Regulatory, Program Management, Other.
+- NEVER return the literal value "Discipline".
+
 Return ONLY valid JSON in this exact structure:
 {
   "requirements": [
