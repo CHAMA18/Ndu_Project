@@ -1236,8 +1236,15 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       });
     } catch (e) {
       if (!mounted) return;
+      final denied = e is FirebaseException && e.code == 'permission-denied';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to load scope management state: $e')),
+        SnackBar(
+          content: Text(
+            denied
+                ? 'Unable to load scope management state due to Firestore permissions. Deploy updated rules for contracting scope collections.'
+                : 'Unable to load scope management state: $e',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -1309,8 +1316,15 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       }, SetOptions(merge: true));
     } catch (e) {
       if (!mounted) return;
+      final denied = e is FirebaseException && e.code == 'permission-denied';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update authorized role: $e')),
+        SnackBar(
+          content: Text(
+            denied
+                ? 'Authorized role updated locally, but Firestore permissions blocked sync. Deploy updated rules to persist this change.'
+                : 'Unable to update authorized role: $e',
+          ),
+        ),
       );
     }
   }
@@ -1371,16 +1385,15 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     if (!confirmed) return;
 
     if (_scopeManagementSaving) return;
+    final startedAt = DateTime.now();
+    final startedState = state.copyWith(
+      started: true,
+      startedAt: startedAt,
+      startedByEmail: _currentUserEmail(),
+      startedByRole: actingRole,
+    );
     setState(() => _scopeManagementSaving = true);
     try {
-      final startedAt = DateTime.now();
-      final startedState = state.copyWith(
-        started: true,
-        startedAt: startedAt,
-        startedByEmail: _currentUserEmail(),
-        startedByRole: actingRole,
-      );
-
       await _scopeManagementCollection(projectId).doc(item.id).set({
         ...startedState.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -1398,6 +1411,43 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       );
     } catch (e) {
       if (!mounted) return;
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        final continueLocal = await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('Firestore Permission Required'),
+                content: const Text(
+                  'This project cannot write to Contract Scope Management in Firestore yet. Continue locally for now and sync later?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: const Text('Continue Locally'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+        if (!mounted || !continueLocal) return;
+        setState(() {
+          _scopeManagementByScopeId = {
+            ..._scopeManagementByScopeId,
+            item.id: startedState,
+          };
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Scope process started locally for this session. Deploy updated Firestore rules to persist.',
+            ),
+          ),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unable to start scope process: $e')),
       );
@@ -5147,80 +5197,88 @@ class _ContractingScopeTable extends StatelessWidget {
                 ),
                 columns: const [
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'No',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'Contract Scope',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'Description',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'Potential Contractors',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'Contract Type',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'Estimated Duration',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'Estimated Value',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
                   DataColumn(
-                    label: Center(
+                    label: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'Bidding Required',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 12),
                       ),

@@ -1259,17 +1259,18 @@ class _FrontEndPlanningRisksScreenState
     }
   }
 
-  Future<void> _saveAndContinue() async {
-    final validation = _validateRiskSection();
-    if (!validation.isValid) {
-      _applyRiskValidationState(validation);
-      FormValidationEngine.showValidationSnackBar(context, validation);
-      await _focusFirstRiskIssue(validation);
-      return;
-    }
-
-    if (_riskTableHasError) {
-      setState(_clearRiskTableValidationState);
+  Future<void> _saveAndNavigateToOpportunities({
+    bool skippedValidation = false,
+  }) async {
+    if (skippedValidation && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Continuing to Opportunities. You can complete remaining risk details later.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
 
     final risksText = _buildRiskSummaryFromRows();
@@ -1287,6 +1288,59 @@ class _FrontEndPlanningRisksScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _saveAndContinue() async {
+    final validation = _validateRiskSection();
+    if (!validation.isValid) {
+      _applyRiskValidationState(validation);
+
+      final action = await FormValidationEngine.showMissingRequirementsDialog(
+        context,
+        validation,
+        title: 'Risk Requirements Missing',
+        intro:
+            'Project Opportunities is blocked until the following risk fields are completed.',
+        manualActionLabel: 'Add Risk Details',
+        showAutoFillAction: true,
+        autoFillActionLabel: 'Auto-fill with AI',
+      );
+      if (!mounted || action == null) return;
+
+      if (action == MissingRequirementsAction.skip) {
+        if (_riskTableHasError) {
+          setState(_clearRiskTableValidationState);
+        }
+        await _saveAndNavigateToOpportunities(skippedValidation: true);
+        return;
+      }
+
+      if (action == MissingRequirementsAction.autoFill) {
+        await _generateRequirementsFromBusinessCase();
+        if (!mounted) return;
+        final postAutoValidation = _validateRiskSection();
+        if (!postAutoValidation.isValid) {
+          _applyRiskValidationState(postAutoValidation);
+          FormValidationEngine.showValidationSnackBar(
+            context,
+            postAutoValidation,
+            intro: 'Some risk fields still need your input:',
+          );
+          await _focusFirstRiskIssue(postAutoValidation);
+          return;
+        }
+      } else {
+        FormValidationEngine.showValidationSnackBar(context, validation);
+        await _focusFirstRiskIssue(validation);
+        return;
+      }
+    }
+
+    if (_riskTableHasError) {
+      setState(_clearRiskTableValidationState);
+    }
+
+    await _saveAndNavigateToOpportunities();
   }
 
   @override

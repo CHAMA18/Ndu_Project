@@ -651,11 +651,26 @@ class _AgileDevelopmentIterationsScreenState
                     setDialogState(() {
                       validationErrors = validation.errorByFieldId;
                     });
-                    FormValidationEngine.showValidationSnackBar(
+                    final action = await FormValidationEngine
+                        .showMissingRequirementsDialog(
                       this.context,
                       validation,
+                      title: 'Task Details Missing',
+                      intro:
+                          'Please complete the required task fields before adding this task.',
+                      manualActionLabel: 'Add Missing Info',
+                      skipActionLabel: 'Close',
                     );
-                    await FormValidationEngine.scrollToFirstIssue(validation);
+                    if (!mounted || !dialogContext.mounted || action == null) {
+                      return;
+                    }
+                    if (action == MissingRequirementsAction.manual) {
+                      FormValidationEngine.showValidationSnackBar(
+                        this.context,
+                        validation,
+                      );
+                      await FormValidationEngine.scrollToFirstIssue(validation);
+                    }
                     return;
                   }
 

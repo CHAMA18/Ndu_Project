@@ -95,10 +95,23 @@ service cloud.firestore {
       match /purchase_orders/{poId} {
         allow read, write: if isAuthenticated();
       }
+
+      // Procurement workflow configuration
+      match /procurement_workflows/{docId} {
+        allow read, write: if isAuthenticated();
+      }
       
       // Contracting dashboard subcollection
       match /contracting/{docId} {
         allow read, write: if isProjectMember();
+      }
+
+      // Contracting workflow + scope commencement state
+      match /contracting_workflows/{docId} {
+        allow read, write: if isAuthenticated();
+      }
+      match /contracting_scope_management/{docId} {
+        allow read, write: if isAuthenticated();
       }
 
       // Cost estimate subcollection

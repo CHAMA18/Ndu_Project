@@ -9,6 +9,12 @@ enum ValidationFieldType {
   custom,
 }
 
+enum MissingRequirementsAction {
+  manual,
+  autoFill,
+  skip,
+}
+
 class ValidationFieldRule {
   const ValidationFieldRule({
     required this.id,
@@ -136,8 +142,8 @@ class FormValidationEngine {
     final visibleLabels = uniqueLabels.take(maxItems).toList(growable: false);
     final overflow = uniqueLabels.length - visibleLabels.length;
     final bullets = <String>[
-      for (final label in visibleLabels) '• $label',
-      if (overflow > 0) '• +$overflow more',
+      for (final label in visibleLabels) '- $label',
+      if (overflow > 0) '- +$overflow more',
     ].join('\n');
 
     return '$header\n$bullets';
@@ -170,6 +176,115 @@ class FormValidationEngine {
           duration: duration,
         ),
       );
+  }
+
+  static Future<MissingRequirementsAction?> showMissingRequirementsDialog(
+    BuildContext context,
+    FormValidationResult result, {
+    String title = 'Missing Required Information',
+    String intro =
+        'Please complete the following required fields before continuing.',
+    String manualActionLabel = 'Add Missing Info',
+    String autoFillActionLabel = 'Auto-fill with AI',
+    String skipActionLabel = 'Skip for now',
+    bool showAutoFillAction = false,
+    int maxItems = 6,
+    int dialogWidth = 560,
+  }) {
+    final summaries = <String>[];
+    final seen = <String>{};
+    for (final issue in result.issues) {
+      final section = (issue.section ?? '').trim();
+      final summary =
+          section.isEmpty ? issue.label : '${issue.label} ($section)';
+      if (seen.add(summary)) {
+        summaries.add(summary);
+      }
+    }
+    final visible = summaries.take(maxItems).toList(growable: false);
+    final hiddenCount = summaries.length - visible.length;
+
+    return showDialog<MissingRequirementsAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFB45309)),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: dialogWidth.toDouble(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                intro,
+                style: const TextStyle(fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              for (final item in visible)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '- $item',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                ),
+              if (hiddenCount > 0)
+                Text(
+                  '- +$hiddenCount more',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              const Text(
+                'Choose one option:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF6B7280),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(MissingRequirementsAction.skip),
+            child: Text(skipActionLabel),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(MissingRequirementsAction.manual),
+            child: Text(manualActionLabel),
+          ),
+          if (showAutoFillAction)
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(dialogContext)
+                  .pop(MissingRequirementsAction.autoFill),
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              label: Text(autoFillActionLabel),
+            ),
+        ],
+      ),
+    );
   }
 
   static Future<void> scrollToFirstIssue(
