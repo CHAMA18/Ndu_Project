@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/form_validation_engine.dart';
@@ -27,6 +28,12 @@ import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 enum ProcurementScreenMode { fep, planning }
+
+enum _MissingProcurementAction {
+  manual,
+  autoFill,
+  skip,
+}
 
 /// Front End Planning â€“ Procurement screen
 /// Recreates the provided procurement workspace mock with strategies and vendor table.
@@ -162,6 +169,7 @@ class _FrontEndPlanningProcurementScreenState
   String? _streamError;
   String? _activeProjectId;
   String? _autoGenerationRequestedProjectId;
+  String? _scheduledProjectBootstrapId;
 
   int _itemsLimit = _initialStreamLimit;
   int _strategiesLimit = _initialStreamLimit;
@@ -174,6 +182,8 @@ class _FrontEndPlanningProcurementScreenState
   StreamSubscription<List<VendorModel>>? _vendorsSub;
   StreamSubscription<List<RfqModel>>? _rfqsSub;
   StreamSubscription<List<PurchaseOrderModel>>? _purchaseOrdersSub;
+  bool _isAutoAssigningVendors = false;
+  bool _isEnsuringPurchaseOrders = false;
 
   bool get _canCommenceContractingActivities => AdminEditToggle.isAdmin();
 
@@ -259,9 +269,7 @@ class _FrontEndPlanningProcurementScreenState
 
   Future<void> _loadProcurementWorkflowData(String projectId) async {
     if (projectId.trim().isEmpty) return;
-    if (mounted) {
-      setState(() => _workflowLoading = true);
-    }
+    _setStateWhenSafe(() => _workflowLoading = true);
 
     try {
       final snapshot = await _workflowCollection(projectId).get();
@@ -291,7 +299,7 @@ class _FrontEndPlanningProcurementScreenState
       }
 
       if (!mounted) return;
-      setState(() {
+      _setStateWhenSafe(() {
         _globalWorkflowSteps = _cloneWorkflowSteps(global);
         _scopeWorkflowOverrides = overrides;
         if (_customizeWorkflowByScope) {
@@ -309,9 +317,7 @@ class _FrontEndPlanningProcurementScreenState
         SnackBar(content: Text('Unable to load procurement workflow: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _workflowLoading = false);
-      }
+      _setStateWhenSafe(() => _workflowLoading = false);
     }
   }
 
@@ -320,9 +326,7 @@ class _FrontEndPlanningProcurementScreenState
   }) async {
     final projectId = _resolveProjectId();
     if (projectId.isEmpty) return;
-    if (mounted) {
-      setState(() => _workflowSaving = true);
-    }
+    _setStateWhenSafe(() => _workflowSaving = true);
 
     try {
       final collection = _workflowCollection(projectId);
@@ -373,9 +377,7 @@ class _FrontEndPlanningProcurementScreenState
         SnackBar(content: Text('Unable to save procurement workflow: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _workflowSaving = false);
-      }
+      _setStateWhenSafe(() => _workflowSaving = false);
     }
   }
 
@@ -717,38 +719,51 @@ class _FrontEndPlanningProcurementScreenState
     return restricted;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _openAi = OpenAiServiceSecure();
-    ApiKeyManager.initializeApiKey();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final data = ProjectDataHelper.getData(context);
-      final projectId = data.projectId ?? '';
+  void _scheduleProjectBootstrap() {
+    final data = ProjectDataHelper.getData(context);
+    final projectId = (data.projectId ?? '').trim();
+    if (projectId.isEmpty) return;
+    if (_activeProjectId == projectId) return;
+    if (_scheduledProjectBootstrapId == projectId) return;
 
-      if (projectId.isNotEmpty) {
-        unawaited(_loadAssignableMembers(data));
-        _subscribeToStreams(projectId);
-        _loadProcurementWorkflowData(projectId);
-        _triggerAutoGenerationForProject(projectId);
+    _scheduledProjectBootstrapId = projectId;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final scheduledProjectId = _scheduledProjectBootstrapId;
+      _scheduledProjectBootstrapId = null;
+      if (!mounted || scheduledProjectId == null) return;
+
+      final latestData = ProjectDataHelper.getData(context);
+      final latestProjectId = (latestData.projectId ?? '').trim();
+      if (latestProjectId != scheduledProjectId) {
+        if (latestProjectId.isNotEmpty && _activeProjectId != latestProjectId) {
+          _scheduleProjectBootstrap();
+        }
+        return;
       }
-      if (_isPlanningMode && projectId.isNotEmpty) {
-        await _seedFromInitiationIfNeeded(projectId, data);
+
+      unawaited(_loadAssignableMembers(latestData));
+      _subscribeToStreams(scheduledProjectId);
+      unawaited(_loadProcurementWorkflowData(scheduledProjectId));
+      _triggerAutoGenerationForProject(scheduledProjectId);
+
+      if (_isPlanningMode) {
+        await _seedFromInitiationIfNeeded(scheduledProjectId, latestData);
       }
     });
   }
 
   @override
+  void initState() {
+    super.initState();
+    _openAi = OpenAiServiceSecure();
+    ApiKeyManager.initializeApiKey();
+    _scheduleProjectBootstrap();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final data = ProjectDataHelper.getData(context);
-    final projectId = data.projectId ?? '';
-    if (projectId.isNotEmpty && projectId != _activeProjectId) {
-      unawaited(_loadAssignableMembers(data));
-      _subscribeToStreams(projectId);
-      _loadProcurementWorkflowData(projectId);
-      _triggerAutoGenerationForProject(projectId);
-    }
+    _scheduleProjectBootstrap();
   }
 
   Future<void> _loadAssignableMembers(ProjectDataModel data) async {
@@ -905,6 +920,29 @@ class _FrontEndPlanningProcurementScreenState
     _purchaseOrdersSub?.cancel();
   }
 
+  void _setStateWhenSafe(VoidCallback update) {
+    if (!mounted) return;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(update);
+      });
+      return;
+    }
+    setState(update);
+  }
+
+  String _describeStreamError(Object error) {
+    if (error is FirebaseException) {
+      final message = (error.message ?? '').trim();
+      if (message.isEmpty) return '[${error.code}]';
+      return '[${error.code}] $message';
+    }
+    return error.toString();
+  }
+
   void _subscribeToStreams(String projectId) {
     _cancelSubscriptions();
     _activeProjectId = projectId;
@@ -913,17 +951,20 @@ class _FrontEndPlanningProcurementScreenState
         ProcurementService.streamItems(projectId, limit: _itemsLimit).listen(
       (data) {
         if (!mounted) return;
-        setState(() {
+        _setStateWhenSafe(() {
           _items = data;
           _streamError = null;
           _recomputeDerivedProcurementData();
           _syncWorkflowStateWithScopes();
         });
         _clearResolvedValidationErrors();
+        unawaited(_autoAssignVendorsToItemsIfMissing());
       },
       onError: (error) {
         if (!mounted) return;
-        setState(() => _streamError = 'Unable to load procurement items.');
+        final details = _describeStreamError(error);
+        _setStateWhenSafe(
+            () => _streamError = 'Unable to load procurement items: $details');
         debugPrint('Procurement items stream error: $error');
       },
     );
@@ -934,7 +975,7 @@ class _FrontEndPlanningProcurementScreenState
     ).listen(
       (data) {
         if (!mounted) return;
-        setState(() {
+        _setStateWhenSafe(() {
           _strategies = data;
           _streamError = null;
           _recomputeDerivedProcurementData();
@@ -943,7 +984,9 @@ class _FrontEndPlanningProcurementScreenState
       },
       onError: (error) {
         if (!mounted) return;
-        setState(() => _streamError = 'Unable to load procurement strategies.');
+        final details = _describeStreamError(error);
+        _setStateWhenSafe(() =>
+            _streamError = 'Unable to load procurement strategies: $details');
         debugPrint('Procurement strategies stream error: $error');
       },
     );
@@ -954,16 +997,19 @@ class _FrontEndPlanningProcurementScreenState
     ).listen(
       (data) {
         if (!mounted) return;
-        setState(() {
+        _setStateWhenSafe(() {
           _vendors = data;
           _streamError = null;
           _recomputeDerivedProcurementData();
         });
         _clearResolvedValidationErrors();
+        unawaited(_autoAssignVendorsToItemsIfMissing());
       },
       onError: (error) {
         if (!mounted) return;
-        setState(() => _streamError = 'Unable to load vendors.');
+        final details = _describeStreamError(error);
+        _setStateWhenSafe(
+            () => _streamError = 'Unable to load vendors: $details');
         debugPrint('Vendors stream error: $error');
       },
     );
@@ -974,7 +1020,7 @@ class _FrontEndPlanningProcurementScreenState
     ).listen(
       (data) {
         if (!mounted) return;
-        setState(() {
+        _setStateWhenSafe(() {
           _rfqs = data;
           _streamError = null;
           _recomputeDerivedProcurementData();
@@ -983,7 +1029,8 @@ class _FrontEndPlanningProcurementScreenState
       },
       onError: (error) {
         if (!mounted) return;
-        setState(() => _streamError = 'Unable to load RFQs.');
+        final details = _describeStreamError(error);
+        _setStateWhenSafe(() => _streamError = 'Unable to load RFQs: $details');
         debugPrint('RFQ stream error: $error');
       },
     );
@@ -994,7 +1041,7 @@ class _FrontEndPlanningProcurementScreenState
     ).listen(
       (data) {
         if (!mounted) return;
-        setState(() {
+        _setStateWhenSafe(() {
           _purchaseOrders = data;
           _streamError = null;
           _recomputeDerivedProcurementData();
@@ -1003,7 +1050,9 @@ class _FrontEndPlanningProcurementScreenState
       },
       onError: (error) {
         if (!mounted) return;
-        setState(() => _streamError = 'Unable to load purchase orders.');
+        final details = _describeStreamError(error);
+        _setStateWhenSafe(
+            () => _streamError = 'Unable to load purchase orders: $details');
         debugPrint('Purchase orders stream error: $error');
       },
     );
@@ -1019,6 +1068,121 @@ class _FrontEndPlanningProcurementScreenState
     final dataProjectId = ProjectDataHelper.getData(context).projectId ?? '';
     final projectId = (_activeProjectId ?? dataProjectId).trim();
     return projectId;
+  }
+
+  int _categoryMatchScore(String itemCategory, String vendorCategory) {
+    final item = itemCategory.trim().toLowerCase();
+    final vendor = vendorCategory.trim().toLowerCase();
+    if (item.isEmpty || vendor.isEmpty) return 0;
+    if (item == vendor) return 100;
+    if (item.contains(vendor) || vendor.contains(item)) return 70;
+
+    final itemTokens = item
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    final vendorTokens = vendor
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    if (itemTokens.isEmpty || vendorTokens.isEmpty) return 0;
+    final overlap = itemTokens.intersection(vendorTokens).length;
+    return overlap * 15;
+  }
+
+  VendorModel? _bestVendorForItem(ProcurementItemModel item) {
+    if (_vendors.isEmpty) return null;
+    VendorModel? best;
+    var bestScore = -1;
+    for (final vendor in _vendors) {
+      var score = _categoryMatchScore(item.category, vendor.category);
+      if (vendor.isApproved) score += 8;
+      if (vendor.isPreferred) score += 5;
+      if (score > bestScore) {
+        best = vendor;
+        bestScore = score;
+      }
+    }
+    return best ?? _vendors.first;
+  }
+
+  Future<void> _autoAssignVendorsToItemsIfMissing() async {
+    if (_isAutoAssigningVendors) return;
+    if (_items.isEmpty || _vendors.isEmpty) return;
+
+    final projectId = _resolveProjectId();
+    if (projectId.isEmpty) return;
+
+    final targets = _items
+        .where((item) => (item.vendorId ?? '').trim().isEmpty)
+        .toList(growable: false);
+    if (targets.isEmpty) return;
+
+    _isAutoAssigningVendors = true;
+    try {
+      for (final item in targets) {
+        final vendor = _bestVendorForItem(item);
+        if (vendor == null || vendor.id.trim().isEmpty) continue;
+        await ProcurementService.updateItem(projectId, item.id, {
+          'vendorId': vendor.id,
+        });
+      }
+    } catch (e) {
+      debugPrint('Auto vendor assignment failed: $e');
+    } finally {
+      _isAutoAssigningVendors = false;
+    }
+  }
+
+  Future<void> _ensurePurchaseOrdersSeeded({bool silent = true}) async {
+    if (_isEnsuringPurchaseOrders) return;
+    final projectId = _resolveProjectId();
+    if (projectId.isEmpty) return;
+
+    _isEnsuringPurchaseOrders = true;
+    try {
+      final hasPos = await ProcurementService.hasAnyPos(projectId).timeout(
+        const Duration(seconds: 6),
+        onTimeout: () => _purchaseOrders.isNotEmpty,
+      );
+      if (!hasPos && _purchaseOrders.isEmpty) {
+        if (!mounted) return;
+        final data = ProjectDataHelper.getData(context);
+        final projectName =
+            data.projectName.trim().isEmpty ? 'Project' : data.projectName;
+        final solutionTitle =
+            data.solutionTitle.trim().isEmpty ? 'Solution' : data.solutionTitle;
+        await _seedPurchaseOrders(
+          projectId,
+          projectName,
+          solutionTitle,
+          _buildProcurementAiContext(data),
+        );
+        _refreshSubscriptionsForActiveProject();
+        if (!silent && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Purchase orders generated successfully.'),
+              backgroundColor: Color(0xFF16A34A),
+            ),
+          );
+        }
+      }
+
+      await _autoAssignVendorsToItemsIfMissing();
+    } catch (e) {
+      debugPrint('Failed ensuring purchase orders: $e');
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to prepare purchase orders: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      _isEnsuringPurchaseOrders = false;
+    }
   }
 
   void _recomputeDerivedProcurementData() {
@@ -1637,12 +1801,13 @@ class _FrontEndPlanningProcurementScreenState
       final list = <VendorModel>[];
       if (vendors.isNotEmpty) {
         for (final v in vendors) {
-          final name = (v['name'] ?? '').toString();
+          final name = (v['name'] ?? '').toString().trim();
+          final safeName = name.isEmpty ? 'Vendor ${list.length + 1}' : name;
           list.add(VendorModel(
             // Need full constructor
             id: '', // Service handles
             projectId: projectId,
-            name: name,
+            name: safeName,
             category: (v['category'] ?? 'IT Equipment').toString(),
             criticality: 'Medium',
             sla: '98%',
@@ -1749,47 +1914,167 @@ class _FrontEndPlanningProcurementScreenState
       String solutionTitle, String notes) async {
     try {
       final now = DateTime.now();
-      final pos = [
-        PurchaseOrderModel(
-            id: '',
-            poNumber: 'PO-1001',
-            projectId: projectId,
-            vendorName: 'TechCorp',
-            category: 'IT',
-            owner: 'Procurement Lead',
-            orderedDate: now,
-            expectedDate: now.add(const Duration(days: 10)),
-            amount: 50000,
-            progress: 0.65,
-            createdAt: now,
-            status: PurchaseOrderStatus.issued),
-        PurchaseOrderModel(
-            id: '',
-            poNumber: 'PO-1002',
-            projectId: projectId,
-            vendorName: 'BuildRight Services',
-            category: 'Construction Services',
-            owner: 'Delivery Manager',
-            orderedDate: now.subtract(const Duration(days: 5)),
-            expectedDate: now.add(const Duration(days: 14)),
-            amount: 82000,
-            progress: 0.25,
-            createdAt: now,
-            status: PurchaseOrderStatus.awaitingApproval),
-        PurchaseOrderModel(
-            id: '',
-            poNumber: 'PO-1003',
-            projectId: projectId,
-            vendorName: 'Office Source',
-            category: 'Furniture',
-            owner: 'Operations',
-            orderedDate: now.subtract(const Duration(days: 16)),
-            expectedDate: now.subtract(const Duration(days: 2)),
-            amount: 24000,
-            progress: 1.0,
-            createdAt: now,
-            status: PurchaseOrderStatus.received),
-      ];
+      final aiGenerated = await _openAi.generateProcurementPurchaseOrders(
+        projectName: projectName,
+        solutionTitle: solutionTitle,
+        contextNotes: notes,
+        count: 4,
+      );
+
+      DateTime parseDate(dynamic rawValue, DateTime fallback) {
+        if (rawValue is DateTime) return rawValue;
+        if (rawValue is Timestamp) return rawValue.toDate();
+        if (rawValue is String) {
+          final trimmed = rawValue.trim();
+          if (trimmed.isEmpty) return fallback;
+          final parsedIso = DateTime.tryParse(trimmed);
+          if (parsedIso != null) return parsedIso;
+          try {
+            return DateFormat('yyyy-MM-dd').parseStrict(trimmed);
+          } catch (_) {
+            return fallback;
+          }
+        }
+        return fallback;
+      }
+
+      double parseAmount(dynamic rawValue, double fallback) {
+        if (rawValue is num) return rawValue.toDouble();
+        if (rawValue is String) {
+          final cleaned = rawValue.replaceAll(RegExp(r'[^0-9.\-]'), '');
+          return double.tryParse(cleaned) ?? fallback;
+        }
+        return fallback;
+      }
+
+      double parseProgress(dynamic rawValue, double fallback) {
+        final parsed = parseAmount(rawValue, fallback);
+        if (parsed.isNaN || !parsed.isFinite) return fallback;
+        if (parsed > 1.0 && parsed <= 100.0) return (parsed / 100.0);
+        if (parsed < 0.0) return 0.0;
+        if (parsed > 1.0) return 1.0;
+        return parsed;
+      }
+
+      PurchaseOrderStatus parseStatus(dynamic rawValue) {
+        final normalized = (rawValue ?? '')
+            .toString()
+            .trim()
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^a-z]'), '');
+        switch (normalized) {
+          case 'awaitingapproval':
+            return PurchaseOrderStatus.awaitingApproval;
+          case 'issued':
+            return PurchaseOrderStatus.issued;
+          case 'intransit':
+            return PurchaseOrderStatus.inTransit;
+          case 'received':
+            return PurchaseOrderStatus.received;
+          case 'cancelled':
+            return PurchaseOrderStatus.cancelled;
+          default:
+            return PurchaseOrderStatus.draft;
+        }
+      }
+
+      final pos = <PurchaseOrderModel>[];
+      if (aiGenerated.isNotEmpty) {
+        for (var i = 0; i < aiGenerated.length; i++) {
+          final row = aiGenerated[i];
+          final fallbackOrdered = now.subtract(Duration(days: i * 3));
+          final orderedDate = parseDate(row['orderedDate'], fallbackOrdered);
+          var expectedDate = parseDate(
+            row['expectedDate'],
+            orderedDate.add(const Duration(days: 14)),
+          );
+          if (expectedDate.isBefore(orderedDate)) {
+            expectedDate = orderedDate.add(const Duration(days: 14));
+          }
+
+          final fallbackAmount = 20000.0 + (i * 15000.0);
+          final amount =
+              parseAmount(row['amount'], fallbackAmount).clamp(1000.0, 1e9);
+          final progress = parseProgress(row['progress'], 0.25);
+          final status = parseStatus(row['status']);
+          final vendorName =
+              (row['vendor'] ?? row['vendorName'] ?? '').toString().trim();
+          final category = (row['category'] ?? '').toString().trim().isNotEmpty
+              ? row['category'].toString().trim()
+              : 'Services';
+          final owner = (row['owner'] ?? '').toString().trim().isNotEmpty
+              ? row['owner'].toString().trim()
+              : 'Procurement Lead';
+          final poNumber = (row['id'] ?? row['poNumber'] ?? '')
+              .toString()
+              .trim()
+              .toUpperCase();
+          final resolvedPoNumber =
+              poNumber.isEmpty ? 'PO-${1001 + i}' : poNumber;
+
+          pos.add(
+            PurchaseOrderModel(
+              id: '',
+              poNumber: resolvedPoNumber,
+              projectId: projectId,
+              vendorName: vendorName.isEmpty ? 'Vendor ${i + 1}' : vendorName,
+              category: category,
+              owner: owner,
+              orderedDate: orderedDate,
+              expectedDate: expectedDate,
+              amount: amount,
+              progress: progress,
+              createdAt: now,
+              status: status,
+            ),
+          );
+        }
+      }
+
+      if (pos.isEmpty) {
+        pos.addAll([
+          PurchaseOrderModel(
+              id: '',
+              poNumber: 'PO-1001',
+              projectId: projectId,
+              vendorName: 'TechCorp',
+              category: 'IT',
+              owner: 'Procurement Lead',
+              orderedDate: now,
+              expectedDate: now.add(const Duration(days: 10)),
+              amount: 50000,
+              progress: 0.65,
+              createdAt: now,
+              status: PurchaseOrderStatus.issued),
+          PurchaseOrderModel(
+              id: '',
+              poNumber: 'PO-1002',
+              projectId: projectId,
+              vendorName: 'BuildRight Services',
+              category: 'Construction Services',
+              owner: 'Delivery Manager',
+              orderedDate: now.subtract(const Duration(days: 5)),
+              expectedDate: now.add(const Duration(days: 14)),
+              amount: 82000,
+              progress: 0.25,
+              createdAt: now,
+              status: PurchaseOrderStatus.awaitingApproval),
+          PurchaseOrderModel(
+              id: '',
+              poNumber: 'PO-1003',
+              projectId: projectId,
+              vendorName: 'Office Source',
+              category: 'Furniture',
+              owner: 'Operations',
+              orderedDate: now.subtract(const Duration(days: 16)),
+              expectedDate: now.subtract(const Duration(days: 2)),
+              amount: 24000,
+              progress: 1.0,
+              createdAt: now,
+              status: PurchaseOrderStatus.received),
+        ]);
+      }
+
       for (final po in pos) {
         await ProcurementService.createPo(po);
       }
@@ -2317,6 +2602,9 @@ class _FrontEndPlanningProcurementScreenState
       return;
     }
     setState(() => _selectedTab = tab);
+    if (tab == _ProcurementTab.purchaseOrders) {
+      unawaited(_ensurePurchaseOrdersSeeded(silent: false));
+    }
   }
 
   void _handleTrackableSelected(int index) {
@@ -2471,6 +2759,7 @@ class _FrontEndPlanningProcurementScreenState
 
   bool get _hasVendorSelection {
     if (_selectedVendorIds.isNotEmpty) return true;
+    if (_vendors.isNotEmpty) return true;
     return _items.any((item) => (item.vendorId ?? '').trim().isNotEmpty);
   }
 
@@ -2521,6 +2810,7 @@ class _FrontEndPlanningProcurementScreenState
         type: ValidationFieldType.text,
         value: _currentProcurementNotes(),
         fieldKey: _notesFieldKey,
+        required: false,
       ),
       ValidationFieldRule(
         id: 'item_list',
@@ -2584,6 +2874,7 @@ class _FrontEndPlanningProcurementScreenState
     return 'Select at least one vendor before continuing.';
   }
 
+  // ignore: unused_element
   void _setValidationState(FormValidationResult validation) {
     final tabErrors = validation.issues
         .map((issue) => _tabForFieldId(issue.id))
@@ -2602,9 +2893,7 @@ class _FrontEndPlanningProcurementScreenState
     if (_validationErrors.isEmpty && _tabsWithErrors.isEmpty) return;
 
     final next = Map<String, String>.from(_validationErrors);
-    if (_currentProcurementNotes().isNotEmpty) {
-      next.remove('procurement_notes');
-    }
+    next.remove('procurement_notes');
     if (_items.isNotEmpty) {
       next.remove('item_list');
     }
@@ -2624,7 +2913,7 @@ class _FrontEndPlanningProcurementScreenState
     final promptValidation =
         _showPendingSecurityPrompt ? _validateProcurementForNavigation() : null;
 
-    setState(() {
+    _setStateWhenSafe(() {
       _validationErrors = next;
       _tabsWithErrors
         ..clear()
@@ -2650,46 +2939,354 @@ class _FrontEndPlanningProcurementScreenState
     await FormValidationEngine.scrollToFirstIssue(validation);
   }
 
-  Future<void> _goToNextSection() async {
-    final nextTab = _nextTab();
-    if (nextTab != null) {
-      setState(() => _selectedTab = nextTab);
-      return;
-    }
+  bool _hasValidationIssue(FormValidationResult validation, String fieldId) {
+    return validation.issues.any((issue) => issue.id == fieldId);
+  }
 
-    final validation = _validateProcurementForNavigation();
-    if (validation.hasIssues) {
-      _setValidationState(validation);
-      setState(() {
-        _showPendingSecurityPrompt = true;
-        _pendingSecurityIssues = validation.issues;
-      });
-      FormValidationEngine.showValidationSnackBar(
-        context,
-        validation,
-        intro: 'Please complete the following before accessing Security:',
+  Future<void> _syncValidationSourcesFromBackend() async {
+    final projectId = _resolveProjectId();
+    if (projectId.isEmpty) return;
+
+    try {
+      final latestItemsFuture =
+          ProcurementService.streamItems(projectId, limit: _itemsLimit).first;
+      final latestVendorsFuture =
+          VendorService.streamVendors(projectId, limit: _vendorsLimit).first;
+      final latestItems = await latestItemsFuture.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => _items,
       );
-      await _focusFirstProcurementIssue(validation);
+      final latestVendors = await latestVendorsFuture.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => _vendors,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items = latestItems;
+        _vendors = latestVendors;
+        _recomputeDerivedProcurementData();
+      });
+    } catch (e) {
+      debugPrint('Unable to sync procurement validation sources: $e');
+    }
+  }
+
+  // ignore: unused_element
+  Future<_MissingProcurementAction?> _showMissingRequirementsDialog(
+    FormValidationResult validation,
+  ) {
+    final summaries = _pendingIssueSummaries(validation.issues);
+    final visible = summaries.take(6).toList(growable: false);
+    final hiddenCount = summaries.length - visible.length;
+
+    return showDialog<_MissingProcurementAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFB45309)),
+            SizedBox(width: 10),
+            Text('Procurement Requirements Missing'),
+          ],
+        ),
+        content: SizedBox(
+          width: 560,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Security is blocked until the following procurement fields are completed.',
+                style: TextStyle(fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              for (final item in visible)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '- $item',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                ),
+              if (hiddenCount > 0)
+                Text(
+                  '- +$hiddenCount more',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              const Text(
+                'Choose one option:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF6B7280),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_MissingProcurementAction.skip),
+            child: const Text('Skip for now'),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingProcurementAction.manual),
+            child: const Text('Add Missing Info'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingProcurementAction.autoFill),
+            icon: const Icon(Icons.auto_awesome, size: 16),
+            label: const Text('Auto-fill with AI'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Future<void> _openManualCompletionForIssues(
+    FormValidationResult validation,
+  ) async {
+    final issue = validation.firstIssue;
+    if (issue == null) return;
+
+    switch (issue.id) {
+      case 'item_list':
+        setState(() => _selectedTab = _ProcurementTab.itemsList);
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        await _openAddItemDialog();
+        return;
+      case 'project_budget':
+      case 'expected_delivery_date':
+        setState(() => _selectedTab = _ProcurementTab.itemsList);
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        ProcurementItemModel? target;
+        if (issue.id == 'project_budget') {
+          for (final item in _items) {
+            if (item.budget <= 0) {
+              target = item;
+              break;
+            }
+          }
+        } else {
+          for (final item in _items) {
+            if (item.estimatedDelivery == null) {
+              target = item;
+              break;
+            }
+          }
+        }
+        target ??= _items.isNotEmpty ? _items.first : null;
+        if (target == null) {
+          await _openAddItemDialog();
+        } else {
+          await _openEditItemDialog(target);
+        }
+        return;
+      case 'vendor_selection':
+        setState(() => _selectedTab = _ProcurementTab.vendorManagement);
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        if (_vendors.isEmpty) {
+          await _openAddVendorDialog();
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Select at least one vendor checkbox to continue to Security.',
+              ),
+            ),
+          );
+        }
+        return;
+      default:
+        await _focusFirstProcurementIssue(validation);
+    }
+  }
+
+  Future<void> _createFallbackProcurementItem(String projectId) async {
+    final data = ProjectDataHelper.getData(context);
+    final projectName = data.projectName.trim();
+    final solutionTitle = data.solutionTitle.trim();
+    final itemName = solutionTitle.isNotEmpty
+        ? '$solutionTitle Starter Procurement'
+        : (projectName.isNotEmpty
+            ? '$projectName Starter Procurement'
+            : 'Starter Procurement Item');
+
+    final item = ProcurementItemModel(
+      id: '',
+      projectId: projectId,
+      name: itemName,
+      description:
+          'Auto-created to satisfy minimum procurement requirements before security.',
+      category: 'General',
+      status: ProcurementItemStatus.planning,
+      priority: ProcurementPriority.medium,
+      budget: 10000,
+      estimatedDelivery: DateTime.now().add(const Duration(days: 30)),
+      responsibleMember: _vendors.isNotEmpty ? 'Yes' : 'Not Sure',
+      comments: '4 weeks',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    await ProcurementService.createItem(item);
+  }
+
+  Future<void> _createFallbackVendor(String projectId) async {
+    final data = ProjectDataHelper.getData(context);
+    final projectName = data.projectName.trim().isNotEmpty
+        ? data.projectName.trim()
+        : 'Project';
+    final nextReview = DateFormat('yyyy-MM-dd')
+        .format(DateTime.now().add(const Duration(days: 90)));
+    await VendorService.createVendor(
+      projectId: projectId,
+      name: '$projectName Preferred Vendor',
+      category: 'Services',
+      sla: '95%',
+      rating: 'A',
+      status: 'Active',
+      nextReview: nextReview,
+      onTimeDelivery: 0.95,
+      incidentResponse: 0.9,
+      qualityScore: 0.9,
+      costAdherence: 0.9,
+      notes: 'Auto-created to satisfy procurement vendor requirement.',
+    );
+  }
+
+  // ignore: unused_element
+  Future<bool> _autoFillMissingProcurementFields(
+    FormValidationResult validation,
+  ) async {
+    final projectId = _resolveProjectId();
+    if (projectId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Project not initialized. Cannot auto-fill procurement requirements.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+
+    final needsItems = _hasValidationIssue(validation, 'item_list');
+    final needsBudget = _hasValidationIssue(validation, 'project_budget');
+    final needsDelivery =
+        _hasValidationIssue(validation, 'expected_delivery_date');
+    final needsVendor = _hasValidationIssue(validation, 'vendor_selection');
+
+    try {
+      await _generateProcurementDataIfNeeded(
+        showIfAlreadySeeded: true,
+        silent: true,
+      );
+      await _syncValidationSourcesFromBackend();
+
+      if ((needsItems || _items.isEmpty) && _items.isEmpty) {
+        await _createFallbackProcurementItem(projectId);
+        await _syncValidationSourcesFromBackend();
+      }
+
+      if (needsBudget &&
+          _items.isNotEmpty &&
+          !_items.any((item) => item.budget > 0)) {
+        final target = _items.first;
+        await ProcurementService.updateItem(projectId, target.id, {
+          'budget': 10000.0,
+        });
+      }
+
+      if (needsDelivery &&
+          _items.isNotEmpty &&
+          !_items.any((item) => item.estimatedDelivery != null)) {
+        final target = _items.first;
+        await ProcurementService.updateItem(projectId, target.id, {
+          'estimatedDelivery': DateTime.now().add(const Duration(days: 30)),
+        });
+      }
+
+      if (needsVendor) {
+        if (_vendors.isEmpty) {
+          await _createFallbackVendor(projectId);
+          await _syncValidationSourcesFromBackend();
+        }
+        if (_vendors.isNotEmpty) {
+          final vendor = _vendors.first;
+          if (mounted) {
+            setState(() => _selectedVendorIds.add(vendor.id));
+          }
+          ProcurementItemModel? itemWithoutVendor;
+          for (final item in _items) {
+            if ((item.vendorId ?? '').trim().isEmpty) {
+              itemWithoutVendor = item;
+              break;
+            }
+          }
+          if (itemWithoutVendor != null) {
+            await ProcurementService.updateItem(
+                projectId, itemWithoutVendor.id, {
+              'vendorId': vendor.id,
+            });
+          }
+        }
+      }
+
+      await _syncValidationSourcesFromBackend();
+      _clearResolvedValidationErrors();
+      return true;
+    } catch (e) {
+      debugPrint('Auto-fill procurement requirements failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Auto-fill failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
+  void _clearNavigationValidationState() {
+    if (_validationErrors.isEmpty &&
+        _tabsWithErrors.isEmpty &&
+        !_showPendingSecurityPrompt &&
+        _pendingSecurityIssues.isEmpty) {
       return;
     }
+    setState(() {
+      _validationErrors = const {};
+      _tabsWithErrors.clear();
+      _showPendingSecurityPrompt = false;
+      _pendingSecurityIssues = const <ValidationIssue>[];
+    });
+  }
 
-    if (_validationErrors.isNotEmpty ||
-        _tabsWithErrors.isNotEmpty ||
-        _showPendingSecurityPrompt ||
-        _pendingSecurityIssues.isNotEmpty) {
-      setState(() {
-        _validationErrors = const {};
-        _tabsWithErrors.clear();
-        _showPendingSecurityPrompt = false;
-        _pendingSecurityIssues = const <ValidationIssue>[];
-      });
-    }
-
-    // Save all data before navigation to prevent data loss
+  Future<void> _saveAndNavigateToSecurity({
+    bool skippedValidation = false,
+    bool bypassDestinationLock = false,
+  }) async {
     final provider = ProjectDataHelper.getProvider(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      // Ensure all items are saved
       await provider.saveToFirebase(checkpoint: _checkpointId);
     } catch (e) {
       debugPrint('Error saving before navigation: $e');
@@ -2701,10 +3298,21 @@ class _FrontEndPlanningProcurementScreenState
           ),
         );
       }
-      return; // Don't navigate if save fails
+      return;
     }
 
     if (!mounted) return;
+
+    if (skippedValidation) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Continuing to Security. You can complete remaining procurement fields later.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
 
     if (_isPlanningMode) {
       await ProjectDataHelper.updateAndSave(
@@ -2720,6 +3328,27 @@ class _FrontEndPlanningProcurementScreenState
       );
       if (!mounted) return;
       PlanningPhaseNavigation.navigateToNext(context, 'procurement');
+      return;
+    }
+
+    if (bypassDestinationLock) {
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: _checkpointId,
+        dataUpdater: (data) => data.copyWith(
+          frontEndPlanning: ProjectDataHelper.updateFEPField(
+            current: data.frontEndPlanning,
+            procurement: _currentProcurementNotes(data),
+          ),
+        ),
+        showSnackbar: false,
+      );
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const FrontEndPlanningSecurityScreen(),
+        ),
+      );
       return;
     }
 
@@ -2745,6 +3374,31 @@ class _FrontEndPlanningProcurementScreenState
           procurement: _currentProcurementNotes(data),
         ),
       ),
+    );
+  }
+
+  Future<void> _skipMissingDataAndContinue() async {
+    _clearNavigationValidationState();
+    await _saveAndNavigateToSecurity(
+      skippedValidation: true,
+      bypassDestinationLock: true,
+    );
+  }
+
+  Future<void> _goToNextSection() async {
+    final nextTab = _nextTab();
+    if (nextTab != null) {
+      setState(() => _selectedTab = nextTab);
+      if (nextTab == _ProcurementTab.purchaseOrders) {
+        unawaited(_ensurePurchaseOrdersSeeded());
+      }
+      return;
+    }
+    _clearNavigationValidationState();
+    await _ensurePurchaseOrdersSeeded();
+    await _saveAndNavigateToSecurity(
+      skippedValidation: true,
+      bypassDestinationLock: true,
     );
   }
 
@@ -3059,6 +3713,9 @@ class _FrontEndPlanningProcurementScreenState
           'Please complete the current requirements before accessing Security.',
       pendingText: pendingText,
       onAcknowledge: _dismissPendingSecurityPrompt,
+      onSkip: () {
+        _skipMissingDataAndContinue();
+      },
     );
   }
 
@@ -4571,11 +5228,13 @@ class _PendingSecurityPromptBar extends StatelessWidget {
     required this.message,
     required this.pendingText,
     required this.onAcknowledge,
+    required this.onSkip,
   });
 
   final String message;
   final String pendingText;
   final VoidCallback onAcknowledge;
+  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -4621,22 +5280,45 @@ class _PendingSecurityPromptBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              TextButton(
-                onPressed: onAcknowledge,
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFFFFFFF),
-                  backgroundColor: const Color(0xFFEA580C),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  minimumSize: const Size(0, 36),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton(
+                    onPressed: onSkip,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF7C2D12),
+                      side: const BorderSide(color: Color(0xFFB45309)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Skip for now',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'OK',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
+                  const SizedBox(height: 6),
+                  TextButton(
+                    onPressed: onAcknowledge,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFFFFFFF),
+                      backgroundColor: const Color(0xFFEA580C),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 10),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -8980,7 +9662,7 @@ class _PurchaseOrdersView extends StatelessWidget {
             actionLabel: 'Create PO',
             onAction: onCreatePo,
           )
-        else if (isMobile)
+        else
           Column(
             children: [
               for (var i = 0; i < orders.length; i++) ...[
@@ -8993,14 +9675,6 @@ class _PurchaseOrdersView extends StatelessWidget {
                 if (i != orders.length - 1) const SizedBox(height: 12),
               ],
             ],
-          )
-        else
-          _PurchaseOrderTable(
-            orders: orders,
-            currencyFormat: currencyFormat,
-            onCreatePo: onCreatePo,
-            onEditPo: onEditPo,
-            onDeletePo: onDeletePo,
           ),
         const SizedBox(height: 24),
         if (isMobile)
@@ -9035,13 +9709,14 @@ class _PurchaseOrdersView extends StatelessWidget {
   }
 }
 
-class _PurchaseOrderTable extends StatelessWidget {
-  const _PurchaseOrderTable(
-      {required this.orders,
-      required this.currencyFormat,
-      required this.onCreatePo,
-      required this.onEditPo,
-      required this.onDeletePo});
+class _PurchaseOrderTable extends StatefulWidget {
+  const _PurchaseOrderTable({
+    required this.orders,
+    required this.currencyFormat,
+    required this.onCreatePo,
+    required this.onEditPo,
+    required this.onDeletePo,
+  });
 
   final List<PurchaseOrderModel> orders;
   final NumberFormat currencyFormat;
@@ -9050,14 +9725,27 @@ class _PurchaseOrderTable extends StatelessWidget {
   final ValueChanged<PurchaseOrderModel> onDeletePo;
 
   @override
+  State<_PurchaseOrderTable> createState() => _PurchaseOrderTableState();
+}
+
+class _PurchaseOrderTableState extends State<_PurchaseOrderTable> {
+  final ScrollController _horizontalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (orders.isEmpty) {
+    if (widget.orders.isEmpty) {
       return _EmptyStateCard(
         icon: Icons.receipt_long_outlined,
         title: 'No purchase orders yet',
         message: 'Create a PO to track approvals, shipments, and invoices.',
         actionLabel: 'Create PO',
-        onAction: onCreatePo,
+        onAction: widget.onCreatePo,
       );
     }
 
@@ -9070,9 +9758,11 @@ class _PurchaseOrderTable extends StatelessWidget {
             border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
           child: Scrollbar(
+            controller: _horizontalScrollController,
             thumbVisibility: true,
             scrollbarOrientation: ScrollbarOrientation.bottom,
             child: SingleChildScrollView(
+              controller: _horizontalScrollController,
               scrollDirection: Axis.horizontal,
               child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: constraints.maxWidth),
@@ -9084,14 +9774,14 @@ class _PurchaseOrderTable extends StatelessWidget {
                       child: _PurchaseOrderHeaderRow(),
                     ),
                     const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                    for (var i = 0; i < orders.length; i++) ...[
+                    for (var i = 0; i < widget.orders.length; i++) ...[
                       _PurchaseOrderRow(
-                        order: orders[i],
-                        currencyFormat: currencyFormat,
-                        onEdit: () => onEditPo(orders[i]),
-                        onDelete: () => onDeletePo(orders[i]),
+                        order: widget.orders[i],
+                        currencyFormat: widget.currencyFormat,
+                        onEdit: () => widget.onEditPo(widget.orders[i]),
+                        onDelete: () => widget.onDeletePo(widget.orders[i]),
                       ),
-                      if (i != orders.length - 1)
+                      if (i != widget.orders.length - 1)
                         const Divider(height: 1, color: Color(0xFFE2E8F0)),
                     ],
                   ],
@@ -9186,7 +9876,7 @@ class _PurchaseOrderRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 2,
-            child: Text(order.id,
+            child: Text(order.poNumber,
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -9749,6 +10439,18 @@ class _TrackingAlertsCard extends StatelessWidget {
 
   final List<_TrackingAlert> alerts;
 
+  DateTime _parseAlertDate(String rawValue) {
+    final raw = rawValue.trim();
+    if (raw.isEmpty) return DateTime.now();
+    final parsedIso = DateTime.tryParse(raw);
+    if (parsedIso != null) return parsedIso;
+    try {
+      return DateFormat('MMM d, yyyy').parseLoose(raw);
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (alerts.isEmpty) {
@@ -9802,7 +10504,7 @@ class _TrackingAlertsCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         DateFormat('M/d')
-                            .format(DateTime.parse(alerts[i].date)),
+                            .format(_parseAlertDate(alerts[i].date)),
                         style: const TextStyle(
                             fontSize: 11, color: Color(0xFF94A3B8)),
                       ),

@@ -213,8 +213,8 @@ Security Training:
     );
   }
 
-  Future<void> _handleNextPressed() async {
-    final validation = FormValidationEngine.validateForm([
+  FormValidationResult _validateSecuritySection() {
+    return FormValidationEngine.validateForm([
       ValidationFieldRule(
         id: 'security_requirements',
         label: 'Security Measures',
@@ -224,20 +224,21 @@ Security Training:
         fieldKey: _securityFieldKey,
       ),
     ]);
+  }
 
-    if (!validation.isValid) {
-      if (mounted) {
-        setState(() {
-          _validationErrors = validation.errorByFieldId;
-        });
-      }
-      FormValidationEngine.showValidationSnackBar(context, validation);
-      await FormValidationEngine.scrollToFirstIssue(validation);
-      return;
-    }
-
-    if (_validationErrors.isNotEmpty && mounted) {
-      setState(() => _validationErrors = const {});
+  Future<void> _saveAndNavigateToAllowance({
+    bool skippedValidation = false,
+  }) async {
+    if (!mounted) return;
+    if (skippedValidation) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Continuing to Allowance. You can complete Security details later.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
 
     await ProjectDataHelper.saveAndNavigate(
@@ -252,6 +253,68 @@ Security Training:
         ),
       ),
     );
+  }
+
+  Future<void> _handleNextPressed() async {
+    final validation = _validateSecuritySection();
+
+    if (!validation.isValid) {
+      if (mounted) {
+        setState(() {
+          _validationErrors = validation.errorByFieldId;
+        });
+      }
+
+      final action = await FormValidationEngine.showMissingRequirementsDialog(
+        context,
+        validation,
+        title: 'Security Requirements Missing',
+        intro:
+            'Allowance is blocked until the following Security fields are completed.',
+        manualActionLabel: 'Add Security Details',
+        showAutoFillAction: true,
+        autoFillActionLabel: 'Auto-fill with AI',
+      );
+      if (!mounted || action == null) return;
+
+      if (action == MissingRequirementsAction.skip) {
+        if (_validationErrors.isNotEmpty) {
+          setState(() => _validationErrors = const {});
+        }
+        await _saveAndNavigateToAllowance(skippedValidation: true);
+        return;
+      }
+
+      if (action == MissingRequirementsAction.autoFill) {
+        await _generateSecurityContent();
+        if (!mounted) return;
+        final postAutoValidation = _validateSecuritySection();
+        if (!postAutoValidation.isValid) {
+          if (mounted) {
+            setState(() {
+              _validationErrors = postAutoValidation.errorByFieldId;
+            });
+          }
+          FormValidationEngine.showValidationSnackBar(
+            context,
+            postAutoValidation,
+            intro: 'Some security fields still need your input:',
+          );
+          await FormValidationEngine.scrollToFirstIssue(postAutoValidation);
+          return;
+        }
+      } else {
+        FormValidationEngine.showValidationSnackBar(context, validation);
+        await FormValidationEngine.scrollToFirstIssue(validation);
+        return;
+      }
+    }
+
+    if (_validationErrors.isNotEmpty && mounted) {
+      setState(() => _validationErrors = const {});
+    }
+
+    await _saveAndNavigateToAllowance();
   }
 
   @override

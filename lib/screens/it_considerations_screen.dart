@@ -34,6 +34,18 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 
+enum _MissingItConsiderationsAction { manual, autoFill, skip }
+
+class _ItAutoFillPreviewRow {
+  const _ItAutoFillPreviewRow({
+    required this.title,
+    required this.items,
+  });
+
+  final String title;
+  final List<String> items;
+}
+
 class ITConsiderationsScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
@@ -1006,25 +1018,280 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
+  bool _hasRequiredItData(ProjectDataModel projectData) {
+    final data = projectData.itConsiderationsData;
+    if (data == null || data.solutionITData.isEmpty) return false;
+    return data.solutionITData
+        .any((item) => item.coreTechnology.trim().isNotEmpty);
+  }
+
+  Future<_MissingItConsiderationsAction?> _showMissingItDataDialog() {
+    return showDialog<_MissingItConsiderationsAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('IT Considerations Incomplete'),
+        content: const Text(
+          'No IT considerations were found. Add them manually, let AI generate them, or continue and complete later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingItConsiderationsAction.manual),
+            child: const Text('Add Manually'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingItConsiderationsAction.autoFill),
+            child: const Text('Auto Fill with AI'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingItConsiderationsAction.skip),
+            child: const Text('Skip for Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<AiSolutionItem> _resolveItSolutionsForAutofill(
+    ProjectDataModel projectData,
+  ) {
+    final solutions = _solutions
+        .where(
+            (s) => s.title.trim().isNotEmpty || s.description.trim().isNotEmpty)
+        .toList(growable: true);
+    if (solutions.isEmpty && projectData.projectName.trim().isNotEmpty) {
+      solutions.add(
+        AiSolutionItem(
+          title: projectData.projectName.trim(),
+          description: projectData.solutionDescription.trim(),
+        ),
+      );
+    }
+    return solutions;
+  }
+
+  Future<List<_ItAutoFillPreviewRow>> _buildItAutofillPreview() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final projectData = provider.projectData;
+    final solutionsToUse = _resolveItSolutionsForAutofill(projectData);
+    if (solutionsToUse.isEmpty) return const <_ItAutoFillPreviewRow>[];
+
+    var contextNotes = _notesController.text.trim();
+    if (contextNotes.isEmpty && projectData.projectName.trim().isNotEmpty) {
+      contextNotes = 'Project: ${projectData.projectName.trim()}';
+      if (projectData.solutionDescription.trim().isNotEmpty) {
+        contextNotes +=
+            '\nDescription: ${projectData.solutionDescription.trim()}';
+      }
+    }
+
+    final generated = await _openAi.generateTechnologiesForSolutions(
+      solutionsToUse,
+      contextNotes: contextNotes,
+    );
+
+    final preview = <_ItAutoFillPreviewRow>[];
+    for (var i = 0; i < solutionsToUse.length; i++) {
+      final sourceTitle = solutionsToUse[i].title.trim();
+      final title = _cleanSolutionTitle(sourceTitle).trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : _cleanSolutionTitle(sourceTitle).trim();
+      final suggestions = (generated[sourceTitle] ?? const <String>[])
+          .map((entry) => entry.trim())
+          .where((entry) => entry.isNotEmpty)
+          .toList(growable: false);
+      if (suggestions.isEmpty) continue;
+      preview.add(_ItAutoFillPreviewRow(title: title, items: suggestions));
+    }
+    return preview;
+  }
+
+  Future<bool> _showItAutofillPreviewDialog(
+    List<_ItAutoFillPreviewRow> previewRows,
+  ) async {
+    if (previewRows.isEmpty) return false;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm AI Autofill'),
+        content: SizedBox(
+          width: 620,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Review what AI will add before applying:',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                  ),
+                  const SizedBox(height: 12),
+                  for (var i = 0; i < previewRows.length; i++) ...[
+                    Text(
+                      previewRows[i].title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      previewRows[i].items.map((item) => '- $item').join('\n'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    if (i != previewRows.length - 1) ...[
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Apply AI Suggestions'),
+          ),
+        ],
+      ),
+    );
+    return approved == true;
+  }
+
+  Future<bool> _autoFillItWithConfirmation() async {
+    if (_isGenerating) return false;
+    setState(() {
+      _isGenerating = true;
+      _error = null;
+    });
+
+    try {
+      final previewRows = await _buildItAutofillPreview();
+      if (!mounted) return false;
+
+      if (previewRows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'AI could not generate IT suggestions. Add an entry manually or try again.',
+            ),
+          ),
+        );
+        return false;
+      }
+
+      final approved = await _showItAutofillPreviewDialog(previewRows);
+      if (!mounted || !approved) return false;
+
+      final provider = ProjectDataHelper.getProvider(context);
+      setState(() {
+        while (_solutions.length < previewRows.length) {
+          _solutions.add(
+            AiSolutionItem(
+                title: previewRows[_solutions.length].title, description: ''),
+          );
+        }
+        while (_techControllers.length < previewRows.length) {
+          final controller = TextEditingController();
+          controller.enableAutoBullet();
+          _techControllers.add(controller);
+        }
+
+        for (var i = 0; i < previewRows.length; i++) {
+          final row = previewRows[i];
+          final previous =
+              i < _techControllers.length ? _techControllers[i].text : '';
+          final fieldKey = 'it_tech_${row.title}_$i';
+          provider.addFieldToHistory(fieldKey, previous, isAiGenerated: true);
+          _solutions[i] = AiSolutionItem(
+            title: row.title,
+            description: _solutions[i].description,
+          );
+          _techControllers[i].text =
+              row.items.map((item) => '- $item').join('\n');
+        }
+      });
+
+      await provider.saveToFirebase(
+          checkpoint: 'it_considerations_regenerated');
+      await _saveITConsiderationsData();
+
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AI IT suggestions applied.')),
+      );
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('AI autofill failed: $e')),
+      );
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
+  }
+
   Future<void> _openInfrastructureConsiderations() async {
     // 1. Save data FIRST before validation
     await _saveITConsiderationsData();
     if (!mounted) return;
 
     // 2. Validate data completeness
-    final provider = ProjectDataInherited.read(context);
-    final projectData = provider.projectData;
-    final hasITData = projectData.itConsiderationsData != null &&
-        projectData.itConsiderationsData!.solutionITData.isNotEmpty &&
-        projectData.itConsiderationsData!.solutionITData
-            .any((item) => item.coreTechnology.trim().isNotEmpty);
+    var hasITData =
+        _hasRequiredItData(ProjectDataInherited.read(context).projectData);
 
     if (!hasITData) {
-      if (mounted) {
-        ProjectDataHelper.showMissingDataMessage(context,
-            'Please add IT considerations for at least one solution before proceeding.');
+      final action = await _showMissingItDataDialog();
+      if (!mounted || action == null) return;
+
+      if (action == _MissingItConsiderationsAction.manual) {
+        ProjectDataHelper.showMissingDataMessage(
+          context,
+          'Please add IT considerations for at least one solution before proceeding.',
+        );
+        return;
       }
-      return;
+
+      if (action == _MissingItConsiderationsAction.autoFill) {
+        final applied = await _autoFillItWithConfirmation();
+        if (!mounted || !applied) return;
+        if (!mounted) return;
+        hasITData =
+            _hasRequiredItData(ProjectDataInherited.read(context).projectData);
+        if (!hasITData) {
+          ProjectDataHelper.showMissingDataMessage(
+            context,
+            'AI could not generate complete IT considerations. Add at least one entry manually or skip.',
+          );
+          return;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Continuing without IT considerations. You can complete this later.',
+            ),
+          ),
+        );
+      }
     }
 
     // 3. Smart checkpoint check

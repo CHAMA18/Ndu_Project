@@ -33,6 +33,20 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
+enum _MissingStakeholderAction { manual, autoFill, skip }
+
+class _StakeholderAutoFillPreviewRow {
+  const _StakeholderAutoFillPreviewRow({
+    required this.title,
+    required this.internalItems,
+    required this.externalItems,
+  });
+
+  final String title;
+  final List<String> internalItems;
+  final List<String> externalItems;
+}
+
 class CoreStakeholdersScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
@@ -940,6 +954,300 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     );
   }
 
+  bool _hasRequiredStakeholderData(ProjectDataModel projectData) {
+    final data = projectData.coreStakeholdersData;
+    if (data == null || data.solutionStakeholderData.isEmpty) return false;
+    return data.solutionStakeholderData.any(
+      (item) =>
+          item.internalStakeholders.trim().isNotEmpty ||
+          item.externalStakeholders.trim().isNotEmpty,
+    );
+  }
+
+  Future<_MissingStakeholderAction?> _showMissingStakeholderDialog() {
+    return showDialog<_MissingStakeholderAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Core Stakeholders Incomplete'),
+        content: const Text(
+          'No stakeholder details were found. Add them manually, let AI generate them, or continue and complete later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingStakeholderAction.manual),
+            child: const Text('Add Manually'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingStakeholderAction.autoFill),
+            child: const Text('Auto Fill with AI'),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_MissingStakeholderAction.skip),
+            child: const Text('Skip for Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<AiSolutionItem> _resolveStakeholderSolutionsForAutofill(
+    ProjectDataModel projectData,
+  ) {
+    final solutions = _solutions
+        .where(
+            (s) => s.title.trim().isNotEmpty || s.description.trim().isNotEmpty)
+        .toList(growable: true);
+    if (solutions.isEmpty && projectData.projectName.trim().isNotEmpty) {
+      solutions.add(
+        AiSolutionItem(
+          title: projectData.projectName.trim(),
+          description: projectData.solutionDescription.trim(),
+        ),
+      );
+    }
+    return solutions;
+  }
+
+  Future<List<_StakeholderAutoFillPreviewRow>>
+      _buildStakeholderAutofillPreview() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final projectData = provider.projectData;
+    final solutionsToUse = _resolveStakeholderSolutionsForAutofill(projectData);
+    if (solutionsToUse.isEmpty) return const <_StakeholderAutoFillPreviewRow>[];
+
+    var contextNotes = _notesController.text.trim();
+    if (contextNotes.isEmpty && projectData.projectName.trim().isNotEmpty) {
+      contextNotes = 'Project: ${projectData.projectName.trim()}';
+      if (projectData.solutionDescription.trim().isNotEmpty) {
+        contextNotes +=
+            '\nDescription: ${projectData.solutionDescription.trim()}';
+      }
+    }
+
+    final generated = await _openAi.generateStakeholdersForSolutions(
+      solutionsToUse,
+      contextNotes: contextNotes,
+    );
+    final internalMap = generated['internal'] ?? const <String, List<String>>{};
+    final externalMap = generated['external'] ?? const <String, List<String>>{};
+
+    final preview = <_StakeholderAutoFillPreviewRow>[];
+    for (var i = 0; i < solutionsToUse.length; i++) {
+      final sourceTitle = solutionsToUse[i].title.trim();
+      final title = sourceTitle.isEmpty ? 'Solution ${i + 1}' : sourceTitle;
+      final internal = (internalMap[sourceTitle] ?? const <String>[])
+          .map((entry) => entry.trim())
+          .where((entry) => entry.isNotEmpty)
+          .toList(growable: false);
+      final external = (externalMap[sourceTitle] ?? const <String>[])
+          .map((entry) => entry.trim())
+          .where((entry) => entry.isNotEmpty)
+          .toList(growable: false);
+      if (internal.isEmpty && external.isEmpty) continue;
+      preview.add(
+        _StakeholderAutoFillPreviewRow(
+          title: title,
+          internalItems: internal,
+          externalItems: external,
+        ),
+      );
+    }
+    return preview;
+  }
+
+  Future<bool> _showStakeholderAutofillPreviewDialog(
+    List<_StakeholderAutoFillPreviewRow> previewRows,
+  ) async {
+    if (previewRows.isEmpty) return false;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm AI Autofill'),
+        content: SizedBox(
+          width: 640,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 460),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Review what AI will add before applying:',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                  ),
+                  const SizedBox(height: 12),
+                  for (var i = 0; i < previewRows.length; i++) ...[
+                    Text(
+                      previewRows[i].title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (previewRows[i].internalItems.isNotEmpty) ...[
+                      const Text(
+                        'Internal',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        previewRows[i]
+                            .internalItems
+                            .map((item) => '- $item')
+                            .join('\n'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (previewRows[i].externalItems.isNotEmpty) ...[
+                      const Text(
+                        'External',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        previewRows[i]
+                            .externalItems
+                            .map((item) => '- $item')
+                            .join('\n'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                    ],
+                    if (i != previewRows.length - 1) ...[
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Apply AI Suggestions'),
+          ),
+        ],
+      ),
+    );
+    return approved == true;
+  }
+
+  Future<bool> _autoFillStakeholdersWithConfirmation() async {
+    if (_isGenerating) return false;
+    setState(() {
+      _isGenerating = true;
+      _error = null;
+    });
+
+    try {
+      final previewRows = await _buildStakeholderAutofillPreview();
+      if (!mounted) return false;
+      if (previewRows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'AI could not generate stakeholder suggestions. Add an entry manually or try again.',
+            ),
+          ),
+        );
+        return false;
+      }
+
+      final approved = await _showStakeholderAutofillPreviewDialog(previewRows);
+      if (!mounted || !approved) return false;
+
+      final provider = ProjectDataHelper.getProvider(context);
+      setState(() {
+        while (_solutions.length < previewRows.length) {
+          _solutions.add(
+            AiSolutionItem(
+              title: previewRows[_solutions.length].title,
+              description: '',
+            ),
+          );
+        }
+        while (_internalStakeholderControllers.length < previewRows.length) {
+          final c = TextEditingController();
+          c.enableAutoBullet();
+          _internalStakeholderControllers.add(c);
+        }
+        while (_externalStakeholderControllers.length < previewRows.length) {
+          final c = TextEditingController();
+          c.enableAutoBullet();
+          _externalStakeholderControllers.add(c);
+        }
+
+        for (var i = 0; i < previewRows.length; i++) {
+          final row = previewRows[i];
+          provider.addFieldToHistory(
+            'stakeholder_internal_${row.title}',
+            _internalStakeholderControllers[i].text,
+            isAiGenerated: true,
+          );
+          provider.addFieldToHistory(
+            'stakeholder_external_${row.title}',
+            _externalStakeholderControllers[i].text,
+            isAiGenerated: true,
+          );
+
+          _solutions[i] = AiSolutionItem(
+            title: row.title,
+            description: _solutions[i].description,
+          );
+          _internalStakeholderControllers[i].text =
+              row.internalItems.map((item) => '- $item').join('\n');
+          _externalStakeholderControllers[i].text =
+              row.externalItems.map((item) => '- $item').join('\n');
+        }
+      });
+
+      await provider.saveToFirebase(checkpoint: 'stakeholders_regenerated');
+      await _saveCoreStakeholdersData();
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AI stakeholder suggestions applied.')),
+      );
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('AI autofill failed: $e')),
+      );
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
+  }
+
   Future<void> _handleNextPressed() async {
     // 1. Save data FIRST before validation check
     await _saveCoreStakeholdersData();
@@ -947,20 +1255,44 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     if (!mounted) return;
 
     // 2. Validate data completeness
-    final provider = ProjectDataInherited.read(context);
-    final projectData = provider.projectData;
-    final hasCoreStakeholders = projectData.coreStakeholdersData != null &&
-        projectData.coreStakeholdersData!.solutionStakeholderData.isNotEmpty &&
-        projectData.coreStakeholdersData!.solutionStakeholderData.any((item) =>
-            item.internalStakeholders.trim().isNotEmpty ||
-            item.externalStakeholders.trim().isNotEmpty);
+    var hasCoreStakeholders = _hasRequiredStakeholderData(
+        ProjectDataInherited.read(context).projectData);
 
     if (!hasCoreStakeholders) {
-      if (mounted) {
-        ProjectDataHelper.showMissingDataMessage(context,
-            'Please identify key stakeholders for at least one solution before proceeding.');
+      final action = await _showMissingStakeholderDialog();
+      if (!mounted || action == null) return;
+
+      if (action == _MissingStakeholderAction.manual) {
+        ProjectDataHelper.showMissingDataMessage(
+          context,
+          'Please identify key stakeholders for at least one solution before proceeding.',
+        );
+        return;
       }
-      return;
+
+      if (action == _MissingStakeholderAction.autoFill) {
+        final applied = await _autoFillStakeholdersWithConfirmation();
+        if (!mounted || !applied) return;
+        if (!mounted) return;
+        hasCoreStakeholders = _hasRequiredStakeholderData(
+          ProjectDataInherited.read(context).projectData,
+        );
+        if (!hasCoreStakeholders) {
+          ProjectDataHelper.showMissingDataMessage(
+            context,
+            'AI could not generate complete stakeholder data. Add at least one entry manually or skip.',
+          );
+          return;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Continuing without stakeholder details. You can complete this later.',
+            ),
+          ),
+        );
+      }
     }
 
     // 3. Smart checkpoint check: If destination is the immediate next checkpoint, allow it (if data is valid)

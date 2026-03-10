@@ -167,24 +167,99 @@ class _FrontEndPlanningMilestoneScreenState
     return FormValidationEngine.validateForm(rules);
   }
 
+  Future<void> _saveAndClose({bool skippedValidation = false}) async {
+    if (skippedValidation && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Saved progress. You can complete remaining milestone details later.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    await ProjectDataHelper.getProvider(context)
+        .saveToFirebase(checkpoint: 'fep_milestone');
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _autoFillMilestoneRequirements(
+    FormValidationResult validation,
+  ) async {
+    final needsDates = validation.issues.any((issue) =>
+        issue.id == 'project_start_date' ||
+        issue.id == 'project_end_date' ||
+        issue.id.startsWith('milestone_date_'));
+    final needsMilestones = validation.issues.any((issue) =>
+        issue.id == 'key_milestones' ||
+        issue.id.startsWith('milestone_name_') ||
+        issue.id.startsWith('milestone_date_'));
+
+    if (needsDates) {
+      await _generateDatesWithAI(silent: true);
+    }
+    if (needsMilestones) {
+      await _generateMilestonesWithAI(silent: true);
+    }
+  }
+
   Future<void> _handleSaveAndContinue() async {
     final validation = _validateMilestoneSection();
     if (!validation.isValid) {
       setState(() {
         _validationErrors = validation.errorByFieldId;
       });
-      FormValidationEngine.showValidationSnackBar(context, validation);
-      await FormValidationEngine.scrollToFirstIssue(validation);
-      return;
+
+      final action = await FormValidationEngine.showMissingRequirementsDialog(
+        context,
+        validation,
+        title: 'Milestone Requirements Missing',
+        intro:
+            'Please complete the following milestone fields before continuing.',
+        manualActionLabel: 'Add Milestone Details',
+        showAutoFillAction: true,
+        autoFillActionLabel: 'Auto-fill with AI',
+      );
+      if (!mounted || action == null) return;
+
+      if (action == MissingRequirementsAction.skip) {
+        if (_validationErrors.isNotEmpty) {
+          setState(() => _validationErrors = const {});
+        }
+        await _saveAndClose(skippedValidation: true);
+        return;
+      }
+
+      if (action == MissingRequirementsAction.autoFill) {
+        await _autoFillMilestoneRequirements(validation);
+        if (!mounted) return;
+        final postAutoValidation = _validateMilestoneSection();
+        if (!postAutoValidation.isValid) {
+          setState(() {
+            _validationErrors = postAutoValidation.errorByFieldId;
+          });
+          FormValidationEngine.showValidationSnackBar(
+            context,
+            postAutoValidation,
+            intro: 'Some milestone fields still need your input:',
+          );
+          await FormValidationEngine.scrollToFirstIssue(postAutoValidation);
+          return;
+        }
+      } else {
+        FormValidationEngine.showValidationSnackBar(context, validation);
+        await FormValidationEngine.scrollToFirstIssue(validation);
+        return;
+      }
     }
 
     if (_validationErrors.isNotEmpty) {
       setState(() => _validationErrors = const {});
     }
 
-    await ProjectDataHelper.getProvider(context)
-        .saveToFirebase(checkpoint: 'fep_milestone');
-    if (mounted) Navigator.of(context).pop();
+    await _saveAndClose();
   }
 
   DateTime? _parseDate(String dateStr) {

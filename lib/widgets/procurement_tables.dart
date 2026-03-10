@@ -69,9 +69,10 @@ class _ContractsTableState extends State<ContractsTable> {
                 ),
                 columns: const [
                   DataColumn(
-                      label: Center(
+                      label: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text('CONTRACT ITEM',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
@@ -79,9 +80,10 @@ class _ContractsTableState extends State<ContractsTable> {
                             color: Color(0xFF64748B))),
                   )),
                   DataColumn(
-                      label: Center(
+                      label: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text('CONTRACTOR',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
@@ -89,9 +91,10 @@ class _ContractsTableState extends State<ContractsTable> {
                             color: Color(0xFF64748B))),
                   )),
                   DataColumn(
-                      label: Center(
+                      label: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text('VALUE',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
@@ -99,9 +102,10 @@ class _ContractsTableState extends State<ContractsTable> {
                             color: Color(0xFF64748B))),
                   )),
                   DataColumn(
-                      label: Center(
+                      label: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text('TIMELINE',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
@@ -109,9 +113,10 @@ class _ContractsTableState extends State<ContractsTable> {
                             color: Color(0xFF64748B))),
                   )),
                   DataColumn(
-                      label: Center(
+                      label: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text('OWNER',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
@@ -119,9 +124,10 @@ class _ContractsTableState extends State<ContractsTable> {
                             color: Color(0xFF64748B))),
                   )),
                   DataColumn(
-                      label: Center(
+                      label: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text('STATUS',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
@@ -136,17 +142,17 @@ class _ContractsTableState extends State<ContractsTable> {
                       DataCell(
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               contract.title,
-                              textAlign: TextAlign.center,
+                              textAlign: TextAlign.left,
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             Text(
                               contract.description,
-                              textAlign: TextAlign.center,
+                              textAlign: TextAlign.left,
                               style: TextStyle(
                                   fontSize: 11, color: Colors.grey[500]),
                               overflow: TextOverflow.ellipsis,

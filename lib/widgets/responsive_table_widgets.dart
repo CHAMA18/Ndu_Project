@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 /// Responsive wrapper for data tables with horizontal scroll support
 class ResponsiveDataTableWrapper extends StatefulWidget {
@@ -18,7 +19,8 @@ class ResponsiveDataTableWrapper extends StatefulWidget {
       _ResponsiveDataTableWrapperState();
 }
 
-class _ResponsiveDataTableWrapperState extends State<ResponsiveDataTableWrapper> {
+class _ResponsiveDataTableWrapperState
+    extends State<ResponsiveDataTableWrapper> {
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _verticalController = ScrollController();
   bool _canScrollRight = false;
@@ -29,7 +31,8 @@ class _ResponsiveDataTableWrapperState extends State<ResponsiveDataTableWrapper>
     super.initState();
     _horizontalController.addListener(_updateScrollIndicators);
     _verticalController.addListener(_updateScrollIndicators);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateScrollIndicators());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _updateScrollIndicators());
   }
 
   @override
@@ -50,17 +53,30 @@ class _ResponsiveDataTableWrapperState extends State<ResponsiveDataTableWrapper>
         : null;
     final v =
         _verticalController.hasClients ? _verticalController.position : null;
-    final canRight = h != null &&
-        h.maxScrollExtent > 0 &&
-        h.pixels < h.maxScrollExtent - 1;
+    final canRight =
+        h != null && h.maxScrollExtent > 0 && h.pixels < h.maxScrollExtent - 1;
     final canDown =
         v != null && v.maxScrollExtent > 0 && v.pixels < v.maxScrollExtent - 1;
     if (canRight != _canScrollRight || canDown != _canScrollDown) {
-      setState(() {
+      _setStateWhenSafe(() {
         _canScrollRight = canRight;
         _canScrollDown = canDown;
       });
     }
+  }
+
+  void _setStateWhenSafe(VoidCallback update) {
+    if (!mounted) return;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(update);
+      });
+      return;
+    }
+    setState(update);
   }
 
   @override
@@ -175,7 +191,7 @@ class TruncatedTableCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textWidget =Text(
+    final textWidget = Text(
       text,
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,

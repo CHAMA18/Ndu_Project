@@ -33,6 +33,18 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 
+enum _MissingInfrastructureAction { manual, autoFill, skip }
+
+class _InfrastructureAutoFillPreviewRow {
+  const _InfrastructureAutoFillPreviewRow({
+    required this.title,
+    required this.items,
+  });
+
+  final String title;
+  final List<String> items;
+}
+
 class InfrastructureConsiderationsScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
@@ -1223,26 +1235,279 @@ class _InfrastructureConsiderationsScreenState
     );
   }
 
+  bool _hasRequiredInfrastructureData(ProjectDataModel projectData) {
+    final data = projectData.infrastructureConsiderationsData;
+    if (data == null || data.solutionInfrastructureData.isEmpty) return false;
+    return data.solutionInfrastructureData
+        .any((item) => item.majorInfrastructure.trim().isNotEmpty);
+  }
+
+  Future<_MissingInfrastructureAction?> _showMissingInfrastructureDialog() {
+    return showDialog<_MissingInfrastructureAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Infrastructure Considerations Incomplete'),
+        content: const Text(
+          'No infrastructure considerations were found. Add them manually, let AI generate them, or continue and complete later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingInfrastructureAction.manual),
+            child: const Text('Add Manually'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingInfrastructureAction.autoFill),
+            child: const Text('Auto Fill with AI'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(_MissingInfrastructureAction.skip),
+            child: const Text('Skip for Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<AiSolutionItem> _resolveInfrastructureSolutionsForAutofill(
+    ProjectDataModel projectData,
+  ) {
+    final solutions = _solutions
+        .where(
+            (s) => s.title.trim().isNotEmpty || s.description.trim().isNotEmpty)
+        .toList(growable: true);
+    if (solutions.isEmpty && projectData.projectName.trim().isNotEmpty) {
+      solutions.add(
+        AiSolutionItem(
+          title: projectData.projectName.trim(),
+          description: projectData.solutionDescription.trim(),
+        ),
+      );
+    }
+    return solutions;
+  }
+
+  Future<List<_InfrastructureAutoFillPreviewRow>>
+      _buildInfrastructureAutofillPreview() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final projectData = provider.projectData;
+    final solutionsToUse =
+        _resolveInfrastructureSolutionsForAutofill(projectData);
+    if (solutionsToUse.isEmpty) {
+      return const <_InfrastructureAutoFillPreviewRow>[];
+    }
+
+    var contextNotes = _notesController.text.trim();
+    if (contextNotes.isEmpty && projectData.projectName.trim().isNotEmpty) {
+      contextNotes = 'Project: ${projectData.projectName.trim()}';
+      if (projectData.solutionDescription.trim().isNotEmpty) {
+        contextNotes +=
+            '\nDescription: ${projectData.solutionDescription.trim()}';
+      }
+    }
+
+    final generated = await _openAi.generateInfrastructureForSolutions(
+      solutionsToUse,
+      contextNotes: contextNotes,
+    );
+
+    final preview = <_InfrastructureAutoFillPreviewRow>[];
+    for (var i = 0; i < solutionsToUse.length; i++) {
+      final sourceTitle = solutionsToUse[i].title.trim();
+      final title = sourceTitle.isEmpty ? 'Solution ${i + 1}' : sourceTitle;
+      final suggestions = (generated[sourceTitle] ?? const <String>[])
+          .map((entry) => entry.trim())
+          .where((entry) => entry.isNotEmpty)
+          .toList(growable: false);
+      if (suggestions.isEmpty) continue;
+      preview.add(
+        _InfrastructureAutoFillPreviewRow(title: title, items: suggestions),
+      );
+    }
+    return preview;
+  }
+
+  Future<bool> _showInfrastructureAutofillPreviewDialog(
+    List<_InfrastructureAutoFillPreviewRow> previewRows,
+  ) async {
+    if (previewRows.isEmpty) return false;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm AI Autofill'),
+        content: SizedBox(
+          width: 620,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Review what AI will add before applying:',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                  ),
+                  const SizedBox(height: 12),
+                  for (var i = 0; i < previewRows.length; i++) ...[
+                    Text(
+                      previewRows[i].title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      previewRows[i].items.map((item) => '- $item').join('\n'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    if (i != previewRows.length - 1) ...[
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Apply AI Suggestions'),
+          ),
+        ],
+      ),
+    );
+    return approved == true;
+  }
+
+  Future<bool> _autoFillInfrastructureWithConfirmation() async {
+    if (_isGeneratingInfra) return false;
+    setState(() => _isGeneratingInfra = true);
+
+    try {
+      final previewRows = await _buildInfrastructureAutofillPreview();
+      if (!mounted) return false;
+
+      if (previewRows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'AI could not generate infrastructure suggestions. Add an entry manually or try again.',
+            ),
+          ),
+        );
+        return false;
+      }
+
+      final approved =
+          await _showInfrastructureAutofillPreviewDialog(previewRows);
+      if (!mounted || !approved) return false;
+
+      final provider = ProjectDataHelper.getProvider(context);
+      setState(() {
+        while (_solutions.length < previewRows.length) {
+          _solutions.add(
+            AiSolutionItem(
+              title: previewRows[_solutions.length].title,
+              description: '',
+            ),
+          );
+        }
+        while (_infraControllers.length < previewRows.length) {
+          _infraControllers.add(TextEditingController());
+        }
+
+        for (var i = 0; i < previewRows.length; i++) {
+          final row = previewRows[i];
+          final previous =
+              i < _infraControllers.length ? _infraControllers[i].text : '';
+          final fieldKey = 'infra_${row.title}_$i';
+          provider.addFieldToHistory(fieldKey, previous, isAiGenerated: true);
+          _solutions[i] = AiSolutionItem(
+            title: row.title,
+            description: _solutions[i].description,
+          );
+          _infraControllers[i].text =
+              row.items.map((item) => '- $item').join('\n');
+        }
+      });
+
+      await provider.saveToFirebase(checkpoint: 'infrastructure_regenerated');
+      await _saveInfrastructureConsiderationsData();
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AI infrastructure suggestions applied.')),
+      );
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('AI autofill failed: $e')),
+      );
+      return false;
+    } finally {
+      if (mounted) setState(() => _isGeneratingInfra = false);
+    }
+  }
+
   Future<void> _handleNextPressed() async {
     // 1. Save data FIRST before validation
     await _saveInfrastructureConsiderationsData();
     if (!mounted) return;
 
     // 2. Validate data completeness
-    final provider = ProjectDataInherited.read(context);
-    final projectData = provider.projectData;
-    final hasInfraData = projectData.infrastructureConsiderationsData != null &&
-        projectData.infrastructureConsiderationsData!.solutionInfrastructureData
-            .isNotEmpty &&
-        projectData.infrastructureConsiderationsData!.solutionInfrastructureData
-            .any((item) => item.majorInfrastructure.trim().isNotEmpty);
+    var hasInfraData = _hasRequiredInfrastructureData(
+      ProjectDataInherited.read(context).projectData,
+    );
 
     if (!hasInfraData) {
-      if (mounted) {
-        ProjectDataHelper.showMissingDataMessage(context,
-            'Please add infrastructure considerations for at least one solution before proceeding.');
+      final action = await _showMissingInfrastructureDialog();
+      if (!mounted || action == null) return;
+
+      if (action == _MissingInfrastructureAction.manual) {
+        ProjectDataHelper.showMissingDataMessage(
+          context,
+          'Please add infrastructure considerations for at least one solution before proceeding.',
+        );
+        return;
       }
-      return;
+
+      if (action == _MissingInfrastructureAction.autoFill) {
+        final applied = await _autoFillInfrastructureWithConfirmation();
+        if (!mounted || !applied) return;
+        if (!mounted) return;
+        hasInfraData = _hasRequiredInfrastructureData(
+          ProjectDataInherited.read(context).projectData,
+        );
+        if (!hasInfraData) {
+          ProjectDataHelper.showMissingDataMessage(
+            context,
+            'AI could not generate complete infrastructure considerations. Add at least one entry manually or skip.',
+          );
+          return;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Continuing without infrastructure considerations. You can complete this later.',
+            ),
+          ),
+        );
+      }
     }
 
     // 3. Smart checkpoint check
