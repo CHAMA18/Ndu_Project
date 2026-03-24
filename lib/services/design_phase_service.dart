@@ -130,9 +130,23 @@ class DesignPhaseService {
             .any((r) => r.title.toLowerCase() == item.toLowerCase());
         if (!exists) {
           existingReqs.add(RequirementRow(
+            requirementId: _buildRequirementId(existingReqs.length + 1),
             title: item,
             owner: 'Unassigned',
             definition: 'Imported from Project Scope',
+            requirementType: _inferRequirementType(item),
+            designArtifactLabel: _defaultArtifactLabel(item),
+            designArtifactType: _inferRequirementType(item) == 'Non-Functional'
+                ? 'PDF'
+                : 'Figma',
+            validationStatus: 'Unmapped',
+            acceptanceCriteria:
+                'Confirm the design package fully addresses the scope intent.',
+            testMethod: _inferRequirementType(item) == 'Non-Functional'
+                ? 'Compliance review'
+                : 'Design walkthrough',
+            sourceDocument: 'Project Scope',
+            gapStatus: 'Pending Approval',
           ));
           addedCount++;
         }
@@ -154,6 +168,37 @@ class DesignPhaseService {
       debugPrint('Error syncing scope to requirements: $e');
       return 0;
     }
+  }
+
+  String _buildRequirementId(int index) =>
+      'REQ-${index.toString().padLeft(3, '0')}';
+
+  String _inferRequirementType(String text) {
+    final normalized = text.toLowerCase();
+    const nonFunctionalSignals = [
+      'latency',
+      'performance',
+      'security',
+      'capacity',
+      'safety',
+      'compliance',
+      'availability',
+      'privacy',
+      'access',
+      'network',
+      'load',
+    ];
+    return nonFunctionalSignals.any(normalized.contains)
+        ? 'Non-Functional'
+        : 'Functional';
+  }
+
+  String _defaultArtifactLabel(String text) {
+    final requirementType = _inferRequirementType(text);
+    if (requirementType == 'Non-Functional') {
+      return 'Control narrative / compliance pack';
+    }
+    return 'Primary flow wireframe';
   }
 
   // --- Technical Alignment ---

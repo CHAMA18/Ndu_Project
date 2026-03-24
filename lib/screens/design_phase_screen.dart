@@ -18,7 +18,7 @@ import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:ndu_project/widgets/whiteboard_canvas.dart';
 import 'package:ndu_project/widgets/chart_builder_workspace.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
-import 'package:ndu_project/widgets/design_management_widgets.dart';
+import 'package:ndu_project/widgets/design_governance_dashboard.dart';
 import 'package:ndu_project/services/design_phase_service.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/widgets/design_readiness_card.dart';
@@ -280,7 +280,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
 
   static String? _hexFromColor(Color? c) {
     if (c == null) return null;
-    final argb = c.value;
+    final argb = c.toARGB32();
     return '#${argb.toRadixString(16).padLeft(8, '0').toUpperCase()}';
   }
 
@@ -948,42 +948,14 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
 
   Widget _buildManagementCards() {
     final ProjectDataProvider? provider = ProjectDataInherited.maybeOf(context);
-    final DesignManagementData data =
-        provider?.projectData.designManagementData ?? DesignManagementData();
-    final methodology = data.methodology;
-    final industry = data.industry;
+    final projectData = provider?.projectData ?? ProjectDataModel();
+    final data = projectData.designManagementData ?? DesignManagementData();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isBroad = constraints.maxWidth > 1100;
-
-        final Widget primaryCard = methodology == ProjectMethodology.agile
-            ? const _AgileBacklogCard()
-            : const DesignDocumentsCard();
-        final Widget secondaryCard = industry == ProjectIndustry.construction
-            ? const _BlueprintToolsCard()
-            : const DesignToolsCard();
-
-        if (isBroad) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: primaryCard),
-              const SizedBox(width: 16),
-              Expanded(child: secondaryCard),
-            ],
-          );
-        } else {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              primaryCard,
-              const SizedBox(height: 16),
-              secondaryCard,
-            ],
-          );
-        }
-      },
+    return DesignGovernanceDashboard(
+      projectData: projectData,
+      managementData: data,
+      readiness: _progress,
+      architectureNodeCount: _nodes.length,
     );
   }
 
@@ -1489,131 +1461,4 @@ class _PaletteItem {
   const _PaletteItem(this.label, this.icon);
   final String label;
   final IconData icon;
-}
-
-class _AgileBacklogCard extends StatelessWidget {
-  const _AgileBacklogCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Backlog & Sprints',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              Icon(Icons.view_kanban, color: Colors.purple.shade400),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Manage user stories, sprint planning, and backlog refinement.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          // Mock Items
-          _buildItem('User Auth Stories', 'Sprint 1', true),
-          _buildItem('Payment Integration', 'Sprint 2', false),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {},
-              child: const Text('Open Board'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItem(String title, String tag, bool active) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Icon(
-              active
-                  ? Icons.check_circle_outline
-                  : Icons.radio_button_unchecked,
-              size: 16,
-              color: active ? Colors.green : Colors.grey),
-          const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 13)),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.purple.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(tag,
-                style: TextStyle(fontSize: 10, color: Colors.purple.shade700)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BlueprintToolsCard extends StatelessWidget {
-  const _BlueprintToolsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Blueprints & Plans',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              Icon(Icons.architecture, color: Colors.orange.shade700),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Manage defects, architectural drawings, and site plans.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildTool('AutoCAD', Icons.grid_on),
-              _buildTool('Revit', Icons.apartment),
-              _buildTool('Site Plan', Icons.map),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTool(String label, IconData icon) {
-    return Chip(
-      avatar: Icon(icon, size: 16, color: Colors.orange.shade800),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      backgroundColor: Colors.orange.shade50,
-      side: BorderSide.none,
-    );
-  }
 }
