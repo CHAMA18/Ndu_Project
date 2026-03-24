@@ -1,6 +1,9 @@
+// ignore_for_file: unused_element
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/design_phase_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
@@ -8,6 +11,7 @@ import 'package:ndu_project/screens/technical_alignment_screen.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/requirements_traceability_dashboard.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
@@ -25,22 +29,59 @@ class _RequirementsImplementationScreenState
   Timer? _saveDebounce;
   bool _isLoading = false;
   bool _suspendSave = false;
+  bool _showAllRows = false;
+  int _selectedRequirementIndex = 0;
 
   final List<RequirementRow> _requirementRows = [
     RequirementRow(
-      title: 'User journeys',
+      requirementId: 'REQ-001',
+      title: 'API endpoint authentication for partner booking sync',
       owner: 'Product',
-      definition: 'Epic to story map locked, acceptance criteria captured.',
+      definition:
+          'Trace the service entry point, failure states, and implementation handoff into the design pack.',
+      requirementType: 'Functional',
+      designArtifactType: 'Figma',
+      designArtifactLabel: 'Figma service blueprint',
+      validationStatus: 'Mapped',
+      acceptanceCriteria:
+          'Authentication states and fallback handling are visible in the approved design artifact.',
+      testMethod: 'API walkthrough and contract review',
+      sourceDocument: 'Contract clause 4.2',
+      gapStatus: 'Closed',
     ),
     RequirementRow(
-      title: 'System behaviors',
+      requirementId: 'REQ-002',
+      title: 'Venue capacity and circulation planning',
       owner: 'Engineering',
-      definition: 'Functional and non-functional requirements approved.',
+      definition:
+          'Confirm that occupancy limits, movement flow, and physical safety logic are represented in the design controls.',
+      requirementType: 'Non-Functional',
+      designArtifactType: 'PDF',
+      designArtifactLabel: 'Venue compliance PDF pack',
+      validationStatus: 'Mapped',
+      acceptanceCriteria:
+          'Capacity thresholds, egress assumptions, and signage logic are documented and reviewable.',
+      testMethod: 'Venue safety and operations review',
+      sourceDocument: 'Safety schedule appendix B',
+      gapStatus: 'Closed',
     ),
     RequirementRow(
-      title: 'Integration points',
+      requirementId: 'REQ-003',
+      title: 'Brand wallfinding package for main foyer',
       owner: 'Platform',
-      definition: 'Contracts, payloads, and error handling documented.',
+      definition:
+          'Coordinate the brand expression, physical signage pack, and downstream fabrication notes.',
+      requirementType: 'Non-Functional',
+      designArtifactType: 'PDF',
+      validationStatus: 'Unmapped',
+      acceptanceCriteria:
+          'Wayfinding hierarchy, material guidance, and review ownership are defined.',
+      testMethod: 'Brand and venue coordination review',
+      sourceDocument: 'Brand standards section 7',
+      gapStatus: 'Pending Approval',
+      conflictNote:
+          'Brand requirements are still waiting for final venue dimensions.',
+      conflictImpact: 'Low',
     ),
   ];
 
@@ -72,8 +113,10 @@ class _RequirementsImplementationScreenState
     final deduped = <RequirementRow>[];
     for (final row in rows) {
       final key =
-          '${_normalize(row.title)}|${_normalize(row.owner)}|${_normalize(row.definition)}';
-      if (key == '||') continue;
+          '${_normalize(row.requirementId)}|${_normalize(row.title)}|${_normalize(row.owner)}|${_normalize(row.definition)}';
+      if (_normalize(row.title).isEmpty && _normalize(row.definition).isEmpty) {
+        continue;
+      }
       if (seen.add(key)) deduped.add(row);
     }
     return deduped;
@@ -177,6 +220,11 @@ class _RequirementsImplementationScreenState
               ..clear()
               ..addAll(_dedupeChecklist(parsed));
           }
+
+          if (_selectedRequirementIndex >= _requirementRows.length) {
+            _selectedRequirementIndex =
+                _requirementRows.isEmpty ? 0 : _requirementRows.length - 1;
+          }
         });
       }
     } catch (e) {
@@ -225,21 +273,129 @@ class _RequirementsImplementationScreenState
     );
   }
 
+  List<String> _ownerOptions(ProjectDataModel projectData) {
+    final names = <String>{
+      ...projectData.teamMembers
+          .map((member) => member.name.trim())
+          .where((name) => name.isNotEmpty),
+    };
+    if (projectData.charterProjectManagerName.trim().isNotEmpty) {
+      names.add(projectData.charterProjectManagerName.trim());
+    }
+    if (projectData.charterProjectSponsorName.trim().isNotEmpty) {
+      names.add(projectData.charterProjectSponsorName.trim());
+    }
+    if (names.isEmpty) {
+      names.addAll(const ['Unassigned', 'Design Lead', 'Technical Lead']);
+    }
+    final options = names.toList()..sort();
+    return options;
+  }
+
+  String _buildRequirementId(int index) =>
+      'REQ-${index.toString().padLeft(3, '0')}';
+
+  int get _safeSelectedRequirementIndex {
+    if (_requirementRows.isEmpty) return 0;
+    if (_selectedRequirementIndex < 0) return 0;
+    if (_selectedRequirementIndex >= _requirementRows.length) {
+      return _requirementRows.length - 1;
+    }
+    return _selectedRequirementIndex;
+  }
+
+  void _selectRequirement(int index) {
+    if (index < 0 || index >= _requirementRows.length) return;
+    setState(() => _selectedRequirementIndex = index);
+  }
+
+  void _updateRequirement(
+    int index,
+    RequirementRow Function(RequirementRow current) update,
+  ) {
+    if (index < 0 || index >= _requirementRows.length) return;
+    setState(() {
+      _requirementRows[index] = update(_requirementRows[index]);
+    });
+    _scheduleSave();
+  }
+
+  void _updateSelectedRequirement(
+      RequirementRow Function(RequirementRow current) update) {
+    _updateRequirement(_safeSelectedRequirementIndex, update);
+  }
+
+  void _toggleShowAllRows() {
+    setState(() => _showAllRows = !_showAllRows);
+  }
+
+  void _addRequirement(ProjectDataModel projectData) {
+    final ownerOptions = _ownerOptions(projectData);
+    final requirementIndex = _requirementRows.length + 1;
+    setState(() {
+      _requirementRows.add(
+        RequirementRow(
+          requirementId: _buildRequirementId(requirementIndex),
+          title: 'New requirement',
+          owner: ownerOptions.first,
+          definition:
+              'Describe the requirement intent, design dependency, and release constraints.',
+          requirementType: 'Functional',
+          designArtifactType: 'Figma',
+          validationStatus: 'Unmapped',
+          acceptanceCriteria:
+              'Define measurable criteria for design and implementation sign-off.',
+          testMethod: 'Design walkthrough',
+          sourceDocument: 'Planning requirement register',
+          gapStatus: 'Pending Approval',
+          conflictImpact: 'Low',
+        ),
+      );
+      _selectedRequirementIndex = _requirementRows.length - 1;
+      _showAllRows = true;
+    });
+    _scheduleSave();
+  }
+
+  Future<void> _deleteRequirement(int index) async {
+    if (index < 0 || index >= _requirementRows.length) return;
+    final confirmed = await _confirmDelete('requirement');
+    if (!confirmed) return;
+    setState(() {
+      _requirementRows.removeAt(index);
+      if (_selectedRequirementIndex >= _requirementRows.length) {
+        _selectedRequirementIndex =
+            _requirementRows.isEmpty ? 0 : _requirementRows.length - 1;
+      }
+    });
+    _scheduleSave();
+  }
+
+  void _showArtifactMessage(RequirementRow row) {
+    final message = row.designArtifactUrl.trim().isNotEmpty
+        ? '${row.designArtifactLabel} linked to ${row.designArtifactUrl}'
+        : row.designArtifactLabel.trim().isNotEmpty
+            ? '${row.designArtifactLabel} is captured as a ${row.designArtifactType} artifact.'
+            : 'No design artifact has been linked yet.';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFF0F172A),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final horizontalPadding = isMobile ? 16.0 : 40.0;
-
-    // Get team members from provider
     final provider = ProjectDataInherited.maybeOf(context);
-    final List<String> ownerOptions =
-        ((provider?.projectData.teamMembers ?? const [])
-            .map((m) => m.name.trim())
-            .where((n) => n.isNotEmpty)).toSet().toList();
-
-    if (ownerOptions.isEmpty) {
-      ownerOptions.add('Unassigned');
-    }
+    final projectData = provider?.projectData ?? ProjectDataModel();
+    final ownerOptions = _ownerOptions(projectData);
+    final selectedRequirement = _requirementRows.isEmpty
+        ? null
+        : _requirementRows[_safeSelectedRequirementIndex];
 
     return ResponsiveScaffold(
       activeItemLabel: 'Design Specifications',
@@ -265,107 +421,22 @@ class _RequirementsImplementationScreenState
                   Padding(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Section label
-                        Text(
-                          'DESIGN SPECIFICATIONS',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[600],
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Main heading
-                        const Text(
-                          'Design Specifications',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1D1F),
-                            height: 1.3,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Description
-                        Text(
-                          'Break down the approved design intent into user stories, functional requirements, and constraints that downstream teams can build against.',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.grey[700],
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        // Next in flow banner
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF3E0),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'Next in flow: Technical alignment',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFFE65100),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        // Notes input field
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE4E7EC)),
-                          ),
-                          child: TextField(
-                            controller: _notesController,
-                            maxLines: null,
-                            minLines: 3,
-                            keyboardType: TextInputType.multiline,
-                            style: const TextStyle(
-                                color: Color(0xFF1F2937), fontSize: 14),
-                            decoration: const InputDecoration(
-                              hintText:
-                                  'Capture key implementation notes here... (priorities, story mapping decisions, sequencing, and non-negotiables)',
-                              hintStyle: TextStyle(
-                                color: Color(0xFF9CA3AF),
-                                fontSize: 13,
-                              ),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Keep this focused on what implementation teams must understand before estimating and building.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildRequirementsBreakdownCard(ownerOptions),
-                            const SizedBox(height: 24),
-                            _buildReadinessChecklistCard(ownerOptions),
-                          ],
-                        ),
-                      ],
+                    child: RequirementsTraceabilityDashboard(
+                      projectData: projectData,
+                      requirements: _requirementRows,
+                      checklistItems: _checklistItems,
+                      ownerOptions: ownerOptions,
+                      notesController: _notesController,
+                      selectedRequirementIndex: _safeSelectedRequirementIndex,
+                      selectedRequirement: selectedRequirement,
+                      showAllRows: _showAllRows,
+                      onAddRequirement: () => _addRequirement(projectData),
+                      onRefreshContext: _syncAndLoad,
+                      onToggleShowAll: _toggleShowAllRows,
+                      onSelectRequirement: _selectRequirement,
+                      onDeleteRequirement: _deleteRequirement,
+                      onArtifactTap: _showArtifactMessage,
+                      onUpdateSelectedRequirement: _updateSelectedRequirement,
                     ),
                   ),
                   const SizedBox(height: 40),

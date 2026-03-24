@@ -4,30 +4,155 @@ enum ChecklistStatus { ready, inReview, pending }
 // Requirements Implementation Models
 class RequirementRow {
   RequirementRow({
+    String? id,
     required this.title,
     required this.owner,
     required this.definition,
-  });
+    this.requirementId = '',
+    this.requirementType = 'Functional',
+    this.designArtifactLabel = '',
+    this.designArtifactType = 'Figma',
+    this.designArtifactUrl = '',
+    this.validationStatus = 'Unmapped',
+    this.acceptanceCriteria = '',
+    this.testMethod = '',
+    this.sourceDocument = '',
+    this.isOutOfScope = false,
+    this.conflictNote = '',
+    this.conflictImpact = 'Low',
+    this.gapStatus = 'Pending Approval',
+  }) : id = (id == null || id.trim().isEmpty) ? _generateId() : id;
 
+  String id;
   String title;
   String owner;
   String definition;
+  String requirementId;
+  String requirementType;
+  String designArtifactLabel;
+  String designArtifactType;
+  String designArtifactUrl;
+  String validationStatus;
+  String acceptanceCriteria;
+  String testMethod;
+  String sourceDocument;
+  bool isOutOfScope;
+  String conflictNote;
+  String conflictImpact;
+  String gapStatus;
+
+  RequirementRow copyWith({
+    String? title,
+    String? owner,
+    String? definition,
+    String? requirementId,
+    String? requirementType,
+    String? designArtifactLabel,
+    String? designArtifactType,
+    String? designArtifactUrl,
+    String? validationStatus,
+    String? acceptanceCriteria,
+    String? testMethod,
+    String? sourceDocument,
+    bool? isOutOfScope,
+    String? conflictNote,
+    String? conflictImpact,
+    String? gapStatus,
+  }) {
+    return RequirementRow(
+      id: id,
+      title: title ?? this.title,
+      owner: owner ?? this.owner,
+      definition: definition ?? this.definition,
+      requirementId: requirementId ?? this.requirementId,
+      requirementType: requirementType ?? this.requirementType,
+      designArtifactLabel: designArtifactLabel ?? this.designArtifactLabel,
+      designArtifactType: designArtifactType ?? this.designArtifactType,
+      designArtifactUrl: designArtifactUrl ?? this.designArtifactUrl,
+      validationStatus: validationStatus ?? this.validationStatus,
+      acceptanceCriteria: acceptanceCriteria ?? this.acceptanceCriteria,
+      testMethod: testMethod ?? this.testMethod,
+      sourceDocument: sourceDocument ?? this.sourceDocument,
+      isOutOfScope: isOutOfScope ?? this.isOutOfScope,
+      conflictNote: conflictNote ?? this.conflictNote,
+      conflictImpact: conflictImpact ?? this.conflictImpact,
+      gapStatus: gapStatus ?? this.gapStatus,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'title': title,
       'owner': owner,
       'definition': definition,
+      'requirementId': requirementId,
+      'requirementType': requirementType,
+      'designArtifactLabel': designArtifactLabel,
+      'designArtifactType': designArtifactType,
+      'designArtifactUrl': designArtifactUrl,
+      'validationStatus': validationStatus,
+      'acceptanceCriteria': acceptanceCriteria,
+      'testMethod': testMethod,
+      'sourceDocument': sourceDocument,
+      'isOutOfScope': isOutOfScope,
+      'conflictNote': conflictNote,
+      'conflictImpact': conflictImpact,
+      'gapStatus': gapStatus,
     };
   }
 
   factory RequirementRow.fromMap(Map<String, dynamic> map) {
     return RequirementRow(
+      id: map['id']?.toString(),
       title: map['title']?.toString() ?? '',
       owner: map['owner']?.toString() ?? '',
       definition: map['definition']?.toString() ?? '',
+      requirementId: map['requirementId']?.toString() ??
+          map['requirement_id']?.toString() ??
+          '',
+      requirementType: map['requirementType']?.toString() ??
+          map['requirement_type']?.toString() ??
+          'Functional',
+      designArtifactLabel: map['designArtifactLabel']?.toString() ??
+          map['design_artifact_label']?.toString() ??
+          '',
+      designArtifactType: map['designArtifactType']?.toString() ??
+          map['design_artifact_type']?.toString() ??
+          'Figma',
+      designArtifactUrl: map['designArtifactUrl']?.toString() ??
+          map['design_artifact_url']?.toString() ??
+          '',
+      validationStatus: map['validationStatus']?.toString() ??
+          map['validation_status']?.toString() ??
+          'Unmapped',
+      acceptanceCriteria: map['acceptanceCriteria']?.toString() ??
+          map['acceptance_criteria']?.toString() ??
+          '',
+      testMethod: map['testMethod']?.toString() ??
+          map['verificationMethod']?.toString() ??
+          map['test_method']?.toString() ??
+          '',
+      sourceDocument: map['sourceDocument']?.toString() ??
+          map['source_document']?.toString() ??
+          '',
+      isOutOfScope: map['isOutOfScope'] == true ||
+          map['outOfScope'] == true ||
+          map['out_of_scope'] == true,
+      conflictNote: map['conflictNote']?.toString() ??
+          map['conflict_note']?.toString() ??
+          '',
+      conflictImpact: map['conflictImpact']?.toString() ??
+          map['conflict_impact']?.toString() ??
+          'Low',
+      gapStatus: map['gapStatus']?.toString() ??
+          map['gap_status']?.toString() ??
+          'Pending Approval',
     );
   }
+
+  static String _generateId() =>
+      DateTime.now().microsecondsSinceEpoch.toString();
 }
 
 class RequirementChecklistItem {
