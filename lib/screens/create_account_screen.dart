@@ -5,7 +5,6 @@ import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/elevated_auth_container.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/screens/home_screen.dart';
@@ -42,37 +41,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
-  }
-
-  Future<void> _handleGoogleSignIn(BuildContext context) async {
-    final nav = Navigator.of(context);
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await FirebaseAuthService.signInWithGoogle();
-      if (!mounted) return;
-        _showSuccessSnackBar('Successfully signed in with Google!');
-        // Navigate to the authenticated landing screen
-        nav.pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
-          ),
-        );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   bool _isValidEmail(String email) {
@@ -438,48 +406,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading ? null : () => _handleGoogleSignIn(context),
-                          icon: Image.asset('assets/images/search.png', height: 20, width: 20),
-                          label: _isLoading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
-                                  ),
-                                )
-                              : const Text(
-                                  'Sign in with Google',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.shade300),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            backgroundColor: Colors.white,
-                          ),
+                      Text(
+                        'Create your account using business profile details.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text('OR', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                          ),
-                          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
                       if (isMobile)
                         Column(

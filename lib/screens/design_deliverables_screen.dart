@@ -6,7 +6,6 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
@@ -14,6 +13,16 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/design_phase_service.dart';
+
+const Color _kPageBackground = Color(0xFFF4F7FF);
+const Color _kSurface = Colors.white;
+const Color _kPanelSoft = Color(0xFFF8FAFF);
+const Color _kBorder = Color(0xFFDDE5F3);
+const Color _kPrimary = Color(0xFF0B4DBB);
+const Color _kPrimaryDeep = Color(0xFF082A63);
+const Color _kSecondary = Color(0xFF5B6F95);
+const Color _kTeal = Color(0xFF0B7D68);
+const Color _kSubtext = Color(0xFF667085);
 
 class DesignDeliverablesScreen extends StatefulWidget {
   const DesignDeliverablesScreen({super.key});
@@ -274,7 +283,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
     final data = _data;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: _kPageBackground,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,57 +301,32 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                         horizontal: horizontalPadding, vertical: 24),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final width = constraints.maxWidth;
-                        final cardWidth = width;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _TopHeader(
                                 onBack: () => Navigator.maybePop(context)),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Track design artifacts, approvals, and delivery readiness.',
-                              style: TextStyle(
-                                  fontSize: 14, color: Color(0xFF6B7280)),
+                            const SizedBox(height: 20),
+                            _ExecutiveIntroBanner(
+                              isSaving: _saving,
+                              savedAt: _lastSavedAt,
+                              isLoading: _loading,
+                              error: _error,
                             ),
                             const SizedBox(height: 20),
-                            const PlanningAiNotesCard(
-                              title: 'Notes',
-                              sectionLabel: 'Design Deliverables',
-                              noteKey: 'design_deliverables_notes',
-                              checkpoint: 'design_deliverables',
-                              description:
-                                  'Summarize key deliverables, approvals, and handoff criteria.',
-                            ),
                             const SizedBox(height: 24),
-                            _MetricsRow(
-                              metrics: data.metrics,
-                            ),
-                            if (_saving || _lastSavedAt != null) ...[
-                              const SizedBox(height: 12),
-                              _SaveStatusChip(
-                                  isSaving: _saving, savedAt: _lastSavedAt),
-                            ],
-                            if (_loading || _error != null) ...[
-                              const SizedBox(height: 12),
-                              _StatusBanner(isLoading: _loading, error: _error),
-                            ],
+                            _MetricsPanel(metrics: data.metrics),
                             const SizedBox(height: 24),
-                            SizedBox(
-                              width: cardWidth,
-                              child: _DeliverablePipelineCard(
-                                items: data.pipeline,
-                                onChanged: (items) =>
-                                    _updateData(data.copyWith(pipeline: items)),
-                              ),
+                            _DeliverablePipelineCard(
+                              items: data.pipeline,
+                              onChanged: (items) =>
+                                  _updateData(data.copyWith(pipeline: items)),
                             ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: cardWidth,
-                              child: _ApprovalStatusCard(
-                                items: data.approvals,
-                                onChanged: (items) => _updateData(
-                                    data.copyWith(approvals: items)),
+                            const SizedBox(height: 20),
+                            _ApprovalStatusCard(
+                              items: data.approvals,
+                              onChanged: (items) => _updateData(
+                                data.copyWith(approvals: items),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -351,24 +335,22 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                               onChanged: (rows) =>
                                   _updateData(data.copyWith(register: rows)),
                             ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: cardWidth,
-                              child: _DesignDependenciesCard(
-                                items: data.dependencies,
-                                onChanged: (items) => _updateData(
-                                    data.copyWith(dependencies: items)),
+                            const SizedBox(height: 20),
+                            _DesignDependenciesCard(
+                              items: data.dependencies,
+                              onChanged: (items) => _updateData(
+                                data.copyWith(dependencies: items),
                               ),
                             ),
                             const SizedBox(height: 24),
-                            SizedBox(
-                              width: cardWidth,
-                              child: _DesignHandoffCard(
-                                items: data.handoffChecklist,
-                                onChanged: (items) => _updateData(
-                                    data.copyWith(handoffChecklist: items)),
+                            _DesignHandoffCard(
+                              items: data.handoffChecklist,
+                              onChanged: (items) => _updateData(
+                                data.copyWith(handoffChecklist: items),
                               ),
                             ),
+                            const SizedBox(height: 24),
+                            const _IntegrityPanel(),
                             const SizedBox(height: 28),
                             Align(
                               alignment: Alignment.centerRight,
@@ -417,23 +399,327 @@ class _TopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _kBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12082A63),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _CircleIconButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: onBack,
+          ),
+          const SizedBox(width: 12),
+          const _CircleIconButton(icon: Icons.arrow_forward_ios_rounded),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Design Deliverables',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: _kPrimaryDeep,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Track design artifacts, approvals, dependencies, and delivery readiness in one executive-grade workspace.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _kSubtext,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          const _UserChip(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExecutiveIntroBanner extends StatelessWidget {
+  const _ExecutiveIntroBanner({
+    required this.isSaving,
+    required this.savedAt,
+    required this.isLoading,
+    required this.error,
+  });
+
+  final bool isSaving;
+  final DateTime? savedAt;
+  final bool isLoading;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _CircleIconButton(
-            icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
-        const SizedBox(width: 12),
-        const _CircleIconButton(icon: Icons.arrow_forward_ios_rounded),
-        const SizedBox(width: 16),
-        const Text(
-          'Design Deliverables',
-          style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF111827)),
+        const _BannerPill(
+          label: 'Phase: Design Deliverables',
+          background: Color(0xFFE5EEFF),
+          foreground: _kPrimary,
+          icon: Icons.dashboard_customize_outlined,
         ),
-        const Spacer(),
-        const _UserChip(),
+        const _BannerPill(
+          label: 'Executive tracking mode',
+          background: Color(0xFFEAF8F3),
+          foreground: _kTeal,
+          icon: Icons.verified_outlined,
+        ),
+        _SaveStatusChip(isSaving: isSaving, savedAt: savedAt),
+        _StatusBanner(isLoading: isLoading, error: error),
       ],
+    );
+  }
+}
+
+class _BannerPill extends StatelessWidget {
+  const _BannerPill({
+    required this.label,
+    required this.background,
+    required this.foreground,
+    required this.icon,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: foreground),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: foreground,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricsPanel extends StatelessWidget {
+  const _MetricsPanel({required this.metrics});
+
+  final DesignDeliverablesMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      _MetricCardData(
+        label: 'Active Deliverables',
+        accent: _kPrimary,
+        value: metrics.active,
+        icon: Icons.inventory_2_rounded,
+        progress: metrics.active == 0 ? 0.18 : 0.70,
+      ),
+      _MetricCardData(
+        label: 'In Review',
+        accent: const Color(0xFFD58A00),
+        value: metrics.inReview,
+        icon: Icons.visibility_outlined,
+        progress: metrics.inReview == 0 ? 0.12 : 0.30,
+      ),
+      _MetricCardData(
+        label: 'Approved',
+        accent: _kTeal,
+        value: metrics.approved,
+        icon: Icons.verified_rounded,
+        progress: metrics.approved == 0 ? 0.12 : 0.92,
+      ),
+      _MetricCardData(
+        label: 'At Risk',
+        accent: const Color(0xFFDC2626),
+        value: metrics.atRisk,
+        icon: Icons.warning_amber_rounded,
+        progress: metrics.atRisk == 0 ? 0.08 : 0.15,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        if (compact) {
+          return Column(
+            children: [
+              for (var i = 0; i < cards.length; i++) ...[
+                _MetricCard(data: cards[i]),
+                if (i != cards.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: _MetricCard(data: cards[0])),
+                const SizedBox(width: 12),
+                Expanded(child: _MetricCard(data: cards[1])),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _MetricCard(data: cards[2])),
+                const SizedBox(width: 12),
+                Expanded(child: _MetricCard(data: cards[3])),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _IntegrityPanel extends StatelessWidget {
+  const _IntegrityPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_kPrimaryDeep, Color(0xFF1B3F86)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22082A63),
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 760;
+          final iconBlock = Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: const Icon(
+              Icons.token_rounded,
+              size: 40,
+              color: Colors.white,
+            ),
+          );
+          final content = const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'System Integrity Check',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'Final approval should only happen after active deliverables are mapped to approvals, dependencies, and handoff evidence. This keeps the next phase clean and reduces rework risk.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFFD6E4FF),
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ),
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                iconBlock,
+                const SizedBox(height: 18),
+                const Text(
+                  'System Integrity Check',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Final approval should only happen after active deliverables are mapped to approvals, dependencies, and handoff evidence. This keeps the next phase clean and reduces rework risk.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFFD6E4FF),
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _OutlineActionButton(
+                  label: 'View Logs',
+                  onPressed: () {},
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              iconBlock,
+              const SizedBox(width: 20),
+              content,
+              const SizedBox(width: 20),
+              _OutlineActionButton(
+                label: 'View Logs',
+                onPressed: () {},
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -450,14 +736,14 @@ class _CircleIconButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
-        width: 36,
-        height: 36,
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _kPanelSoft,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: _kBorder),
         ),
-        child: Icon(icon, size: 16, color: const Color(0xFF6B7280)),
+        child: Icon(icon, size: 18, color: _kPrimaryDeep),
       ),
     );
   }
@@ -481,18 +767,18 @@ class _UserChip extends StatelessWidget {
         final role = isAdmin ? 'Admin' : 'Member';
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _kPanelSoft,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: _kBorder),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: const Color(0xFFE5E7EB),
+                backgroundColor: const Color(0xFFDCE7FF),
                 backgroundImage: user?.photoURL != null
                     ? NetworkImage(user!.photoURL!)
                     : null,
@@ -504,7 +790,7 @@ class _UserChip extends StatelessWidget {
                         style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF374151)),
+                            color: _kPrimaryDeep),
                       )
                     : null,
               ),
@@ -515,15 +801,15 @@ class _UserChip extends StatelessWidget {
                 children: [
                   Text(primaryText,
                       style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _kPrimaryDeep)),
                   Text(role,
-                      style: const TextStyle(
-                          fontSize: 10, color: Color(0xFF6B7280))),
+                      style: const TextStyle(fontSize: 10, color: _kSubtext)),
                 ],
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.keyboard_arrow_down,
-                  size: 18, color: Color(0xFF9CA3AF)),
+              const Icon(Icons.keyboard_arrow_down, size: 18, color: _kSubtext),
             ],
           ),
         );
@@ -532,83 +818,78 @@ class _UserChip extends StatelessWidget {
   }
 }
 
-class _MetricsRow extends StatelessWidget {
-  const _MetricsRow({
-    required this.metrics,
-  });
-
-  final DesignDeliverablesMetrics metrics;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: [
-        _MetricCard(
-          label: 'Active Deliverables',
-          accent: const Color(0xFF2563EB),
-          value: metrics.active,
-        ),
-        _MetricCard(
-          label: 'In Review',
-          accent: const Color(0xFFF59E0B),
-          value: metrics.inReview,
-        ),
-        _MetricCard(
-          label: 'Approved',
-          accent: const Color(0xFF10B981),
-          value: metrics.approved,
-        ),
-        _MetricCard(
-          label: 'At Risk',
-          accent: const Color(0xFFEF4444),
-          value: metrics.atRisk,
-        ),
-      ],
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
+class _MetricCardData {
+  const _MetricCardData({
     required this.label,
     required this.accent,
     required this.value,
+    required this.icon,
+    required this.progress,
   });
 
   final String label;
   final Color accent;
   final int value;
+  final IconData icon;
+  final double progress;
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.data});
+
+  final _MetricCardData data;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 190,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _kBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F082A63),
+            blurRadius: 16,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(data.icon, color: data.accent, size: 22),
+              Text(
+                data.value.toString().padLeft(2, '0'),
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  color: _kPrimaryDeep,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            data.label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: _kSubtext,
+              letterSpacing: 0.8,
             ),
-            child: Text(
-              value.toString(),
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w700, color: accent),
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              minHeight: 6,
+              value: data.progress,
+              backgroundColor: data.accent.withValues(alpha: 0.14),
+              valueColor: AlwaysStoppedAnimation<Color>(data.accent),
             ),
           ),
         ],
@@ -878,29 +1159,40 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _kBorder),
         boxShadow: const [
           BoxShadow(
-              color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 6)),
+            color: Color(0x0F082A63),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827))),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: _kPrimaryDeep,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text(subtitle,
-              style: const TextStyle(
-                  fontSize: 12, color: Color(0xFF6B7280), height: 1.4)),
-          const SizedBox(height: 16),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              color: _kSubtext,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 18),
           child,
         ],
       ),
@@ -1404,10 +1696,23 @@ class _EmptyStateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Text(message,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
+      decoration: BoxDecoration(
+        color: _kPanelSoft,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: _kSubtext,
+        ),
+      ),
     );
   }
 }
@@ -1424,14 +1729,14 @@ class _StatusBanner extends StatelessWidget {
         ? 'Generating deliverables from project context...'
         : error ?? 'Ready';
     final color = isLoading
-        ? const Color(0xFF2563EB)
-        : (error == null ? const Color(0xFF16A34A) : const Color(0xFFDC2626));
+        ? _kPrimary
+        : (error == null ? _kTeal : const Color(0xFFDC2626));
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
@@ -1460,16 +1765,48 @@ class _SaveStatusChip extends StatelessWidget {
         : savedAt == null
             ? 'Not saved'
             : 'Saved ${TimeOfDay.fromDateTime(savedAt!).format(context)}';
-    final color = isSaving ? const Color(0xFF64748B) : const Color(0xFF16A34A);
+    final color = isSaving ? _kSecondary : _kTeal;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
       child: Text(label,
           style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
+class _OutlineActionButton extends StatelessWidget {
+  const _OutlineActionButton({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+        ),
+      ),
     );
   }
 }
