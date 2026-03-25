@@ -372,8 +372,8 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   _buildDetailedRegistersPanel(),
                   const SizedBox(height: 32),
                   LaunchPhaseNavigation(
-                    backLabel: 'Back: Development set up',
-                    nextLabel: 'Next: Backend design',
+                    backLabel: 'Back: Development Set Up',
+                    nextLabel: 'Next: Backend Design',
                     onBack: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const DevelopmentSetUpScreen(),
@@ -782,7 +782,16 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             children: snapshot.componentPreviews
                 .map(
                   (component) => FilledButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${component.label} is available in the design-system handoff set.',
+                          ),
+                          backgroundColor: const Color(0xFF0F172A),
+                        ),
+                      );
+                    },
                     style: FilledButton.styleFrom(
                       backgroundColor: component.color,
                       foregroundColor: Colors.white,

@@ -985,7 +985,7 @@ class _LandingScreenState extends State<LandingScreen>
                                               icon:
                                                   Icons.calendar_month_rounded,
                                               onTap: () => _launchExternalLink(
-                                                  'https://calendly.com/chimmie-nduproject'),
+                                                  'https://calendar.app.google/xALNuroZpxiU491x6'),
                                             ),
                                           ),
                                           const SizedBox(height: 12),
@@ -1014,7 +1014,7 @@ class _LandingScreenState extends State<LandingScreen>
                                           label: 'Schedule Consultations',
                                           icon: Icons.calendar_month_rounded,
                                           onTap: () => _launchExternalLink(
-                                              'https://calendly.com/chimmie-nduproject'),
+                                              'https://calendar.app.google/xALNuroZpxiU491x6'),
                                         ),
                                         _HeroActionButton(
                                           label:
@@ -2895,7 +2895,7 @@ class _LandingScreenState extends State<LandingScreen>
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () => _launchExternalLink(
-                                'https://calendly.com/chimmie-nduproject'),
+                                'https://calendar.app.google/xALNuroZpxiU491x6'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: const Color(0xFF111827),
@@ -2954,7 +2954,7 @@ class _LandingScreenState extends State<LandingScreen>
                         const SizedBox(width: 16),
                         ElevatedButton(
                           onPressed: () => _launchExternalLink(
-                              'https://calendly.com/chimmie-nduproject'),
+                              'https://calendar.app.google/xALNuroZpxiU491x6'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: const Color(0xFF111827),

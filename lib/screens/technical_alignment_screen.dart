@@ -8,10 +8,12 @@ import 'package:ndu_project/services/design_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/screens/requirements_implementation_screen.dart';
 import 'package:ndu_project/screens/development_set_up_screen.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
@@ -259,6 +261,22 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   bool _isGenerating = false;
   final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
 
+  void _navigateToRequirementsImplementation() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const RequirementsImplementationScreen(),
+      ),
+    );
+  }
+
+  void _navigateToDevelopmentSetUp() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const DevelopmentSetUpScreen(),
+      ),
+    );
+  }
+
   Future<void> _generateAllAlignment() async {
     final provider = ProjectDataInherited.maybeOf(context);
     final projectId = provider?.projectData.projectId;
@@ -272,32 +290,48 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     setState(() => _isGenerating = true);
 
     try {
-      // Build context
       final data = provider!.projectData;
+      final projectContext = ProjectDataHelper.buildProjectContextScan(
+        data,
+        sectionLabel: 'Technical Alignment',
+      );
       final contextBuffer = StringBuffer();
-      final goalNames = data.projectGoals
-          .map((goal) => goal.name.trim())
-          .where((name) => name.isNotEmpty)
-          .join(', ');
-      final techNames =
-          _TechnicalAlignmentDashboardSnapshot._extractNamedValues(
-                  data.technologyDefinitions)
-              .join(', ');
-      contextBuffer.writeln('Project: ${data.projectName}');
-      contextBuffer.writeln('Description: ${data.projectDescription}');
-      contextBuffer.writeln('Goals: $goalNames');
-      contextBuffer.writeln(
-          'Tech Stack: ${techNames.isNotEmpty ? techNames : data.technology}');
-      contextBuffer
-          .writeln('Requirements: ${data.frontEndPlanningData.requirements}');
-      contextBuffer
-          .writeln('Security Notes: ${data.frontEndPlanningData.security}');
-      contextBuffer.writeln(
-          'Infrastructure Notes: ${data.frontEndPlanningData.infrastructure}');
-      contextBuffer
-          .writeln('IT Constraints: ${data.itConsiderationsData?.notes ?? ''}');
-      contextBuffer.writeln(
-          'Venue Constraints: ${data.infrastructureConsiderationsData?.notes ?? ''}');
+      contextBuffer.writeln(projectContext);
+      contextBuffer.writeln('Current Technical Alignment Notes:');
+      contextBuffer.writeln(_notesController.text.trim());
+      contextBuffer.writeln();
+      contextBuffer.writeln('Existing Constraints:');
+      for (final row in _constraints.take(6)) {
+        final constraint = row.constraint.trim();
+        final guardrail = row.guardrail.trim();
+        if (constraint.isEmpty && guardrail.isEmpty) continue;
+        contextBuffer.writeln(
+          '- ${constraint.isEmpty ? 'Constraint' : constraint}'
+          '${guardrail.isEmpty ? '' : ' | Guardrail: $guardrail'}',
+        );
+      }
+      contextBuffer.writeln();
+      contextBuffer.writeln('Existing Requirement Mappings:');
+      for (final row in _mappings.take(6)) {
+        final requirement = row.requirement.trim();
+        final approach = row.approach.trim();
+        if (requirement.isEmpty && approach.isEmpty) continue;
+        contextBuffer.writeln(
+          '- ${requirement.isEmpty ? 'Requirement' : requirement}'
+          '${approach.isEmpty ? '' : ' | Approach: $approach'}',
+        );
+      }
+      contextBuffer.writeln();
+      contextBuffer.writeln('Existing Dependencies and Decisions:');
+      for (final row in _dependencies.take(6)) {
+        final item = row.item.trim();
+        final detail = row.detail.trim();
+        if (item.isEmpty && detail.isEmpty) continue;
+        contextBuffer.writeln(
+          '- ${item.isEmpty ? 'Dependency' : item}'
+          '${detail.isEmpty ? '' : ' | Detail: $detail'}',
+        );
+      }
 
       final result = await _openAi.generateTechnicalAlignment(
         context: contextBuffer.toString(),
@@ -405,14 +439,10 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                   _buildDetailedRegistersPanel(ownerOptions),
                   const SizedBox(height: 32),
                   LaunchPhaseNavigation(
-                    backLabel: 'Back: Requirements implementation',
-                    nextLabel: 'Next: Development set up',
-                    onBack: () => Navigator.of(context).maybePop(),
-                    onNext: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const DevelopmentSetUpScreen(),
-                      ),
-                    ),
+                    backLabel: 'Back: Requirements Implementation',
+                    nextLabel: 'Next: Development Set Up',
+                    onBack: _navigateToRequirementsImplementation,
+                    onNext: _navigateToDevelopmentSetUp,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -2722,9 +2752,9 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).maybePop(),
+            onPressed: _navigateToRequirementsImplementation,
             icon: const Icon(Icons.arrow_back, size: 18),
-            label: const Text('Back: Requirements implementation'),
+            label: const Text('Back: Requirements Implementation'),
             style: OutlinedButton.styleFrom(
               backgroundColor: accent,
               foregroundColor: onAccent,
@@ -2736,11 +2766,9 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DevelopmentSetUpScreen()),
-            ),
+            onPressed: _navigateToDevelopmentSetUp,
             icon: const Icon(Icons.arrow_forward, size: 18),
-            label: const Text('Next: Development set up'),
+            label: const Text('Next: Development Set Up'),
             style: ElevatedButton.styleFrom(
               backgroundColor: accent,
               foregroundColor: onAccent,
@@ -2757,9 +2785,9 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     return Row(
       children: [
         OutlinedButton.icon(
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: _navigateToRequirementsImplementation,
           icon: const Icon(Icons.arrow_back, size: 18),
-          label: const Text('Back: Requirements implementation'),
+          label: const Text('Back: Requirements Implementation'),
           style: OutlinedButton.styleFrom(
             backgroundColor: accent,
             foregroundColor: onAccent,
@@ -2771,16 +2799,14 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
         ),
         const SizedBox(width: 16),
         Text(
-          'Design phase · Technical alignment',
+          'Design phase | Technical Alignment',
           style: TextStyle(fontSize: 13, color: Colors.grey[600]),
         ),
         const Spacer(),
         ElevatedButton.icon(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const DevelopmentSetUpScreen()),
-          ),
+          onPressed: _navigateToDevelopmentSetUp,
           icon: const Icon(Icons.arrow_forward, size: 18),
-          label: const Text('Next: Development set up'),
+          label: const Text('Next: Development Set Up'),
           style: ElevatedButton.styleFrom(
             backgroundColor: accent,
             foregroundColor: onAccent,

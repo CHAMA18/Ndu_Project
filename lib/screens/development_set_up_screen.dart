@@ -343,7 +343,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                   _buildDetailedRegistersPanel(),
                   const SizedBox(height: 32),
                   LaunchPhaseNavigation(
-                    backLabel: 'Back: Technical alignment',
+                    backLabel: 'Back: Technical Alignment',
                     nextLabel: 'Next: UI/UX Design',
                     onBack: _navigateToTechnicalAlignment,
                     onNext: _navigateToUiUxDesign,
