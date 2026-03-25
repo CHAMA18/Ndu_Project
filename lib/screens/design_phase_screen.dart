@@ -540,6 +540,17 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
   Widget _buildCollaboratorsSection() {
     final provider = ProjectDataInherited.maybeOf(context);
     final teamMembers = provider?.projectData.teamMembers ?? [];
+    final collaborators = teamMembers.map((member) {
+      final trimmedName = member.name.trim();
+      final trimmedRole = member.role.trim();
+      final displayName = trimmedName.isNotEmpty
+          ? trimmedName
+          : trimmedRole.isNotEmpty
+              ? trimmedRole
+              : 'Unassigned team member';
+      final displayRole = trimmedRole.isNotEmpty ? trimmedRole : 'Team Member';
+      return (displayName, displayRole);
+    }).toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -560,10 +571,10 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text('${teamMembers.length} members',
+          Text('${collaborators.length} members',
               style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           const SizedBox(height: 12),
-          if (teamMembers.isEmpty)
+          if (collaborators.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
@@ -575,12 +586,14 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
               ),
             )
           else
-            ...teamMembers.map((member) {
-              final initials = _getInitials(member.name);
-              final color = _getColorForMember(member.name);
+            ...collaborators.map((member) {
+              final displayName = member.$1;
+              final displayRole = member.$2;
+              final initials = _getInitials(displayName);
+              final color = _getColorForMember(displayName);
               return _buildCollaboratorItem(
-                member.name,
-                member.role.isNotEmpty ? member.role : 'Team Member',
+                displayName,
+                displayRole,
                 initials,
                 color,
               );
@@ -591,8 +604,14 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
   }
 
   String _getInitials(String name) {
-    if (name.isEmpty) return '?';
-    final parts = name.trim().split(' ');
+    final normalized = name.trim();
+    if (normalized.isEmpty) return '?';
+
+    final parts = normalized
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
     if (parts.length == 1) {
       return parts[0].substring(0, 1).toUpperCase();
     }

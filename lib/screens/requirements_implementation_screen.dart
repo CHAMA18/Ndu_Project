@@ -190,6 +190,17 @@ class _RequirementsImplementationScreenState
     _scheduleSave();
   }
 
+  Future<void> _saveNotesNow() async {
+    await _saveToFirestore();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Requirements notes saved.'),
+        backgroundColor: Color(0xFF16A34A),
+      ),
+    );
+  }
+
   Future<void> _loadFromFirestore() async {
     final provider = ProjectDataInherited.maybeOf(context);
     final projectId = provider?.projectData.projectId;
@@ -441,8 +452,8 @@ class _RequirementsImplementationScreenState
                   ),
                   const SizedBox(height: 40),
                   LaunchPhaseNavigation(
-                    backLabel: 'Back: Design overview',
-                    nextLabel: 'Next: Technical alignment',
+                    backLabel: 'Back: Design Management',
+                    nextLabel: 'Next: Technical Alignment',
                     onBack: _navigateToDesignOverview,
                     onNext: _navigateToTechnicalAlignment,
                   ),
@@ -575,9 +586,9 @@ class _RequirementsImplementationScreenState
               ),
               const SizedBox(width: 12),
               TextButton.icon(
-                onPressed: () {},
+                onPressed: _syncAndLoad,
                 icon: const Icon(Icons.auto_awesome_outlined, size: 18),
-                label: const Text('Import from design'),
+                label: const Text('Refresh from context'),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF475569),
                   padding:
@@ -725,7 +736,7 @@ class _RequirementsImplementationScreenState
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: _saveNotesNow,
               icon: const Icon(Icons.save_outlined, size: 18),
               label: const Text('Save notes'),
               style: OutlinedButton.styleFrom(

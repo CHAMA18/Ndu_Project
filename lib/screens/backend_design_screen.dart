@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/services/architecture_service.dart';
+import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
@@ -33,6 +36,9 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   final _Debouncer _saveDebounce = _Debouncer();
   bool _isLoading = false;
   bool _suspendSave = false;
+  bool _didSeedDefaults = false;
+  bool _registersExpanded = false;
+  Map<String, dynamic>? _architectureWorkspace;
 
   final List<String> _componentTypes = const [
     'Client',
@@ -88,7 +94,16 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     super.initState();
     _architectureSummaryController.addListener(_scheduleSave);
     _databaseSummaryController.addListener(_scheduleSave);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final projectId = _projectId();
+      if (projectId != null && projectId.isNotEmpty) {
+        await ProjectNavigationService.instance.saveLastPage(
+          projectId,
+          'backend-design',
+        );
+      }
+      await _loadFromFirestore();
+    });
   }
 
   @override
@@ -99,10 +114,178 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     super.dispose();
   }
 
+  String _defaultArchitectureSummary() {
+    return 'Invisible architecture covering cloud services, venue plant systems, vendor handoffs, and the operational backbone that supports the visible experience.';
+  }
+
+  String _defaultDatabaseSummary() {
+    return 'Information architecture for users, guest lists, stock, access control, and operational events flowing from capture to storage and reporting.';
+  }
+
+  List<_ArchitectureComponent> _defaultComponents() {
+    return [
+      _ArchitectureComponent(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'API Gateway',
+        type: 'Service',
+        responsibility:
+            'Routes app traffic, ticket scans, and vendor callbacks.',
+        owner: 'Platform',
+        status: 'Planned',
+      ),
+      _ArchitectureComponent(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'Operational Data Store',
+        type: 'Data store',
+        responsibility:
+            'Stores guest records, material stock, and audit events.',
+        owner: 'Data',
+        status: 'Planned',
+      ),
+      _ArchitectureComponent(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'Venue Power Grid',
+        type: 'Integration',
+        responsibility:
+            'Feeds registration desks, stage systems, and back-of-house loads.',
+        owner: 'Venue Ops',
+        status: 'In progress',
+      ),
+      _ArchitectureComponent(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'HVAC Monitoring',
+        type: 'Analytics',
+        responsibility:
+            'Tracks thermal load and occupancy comfort during peak periods.',
+        owner: 'Facilities',
+        status: 'Planned',
+      ),
+    ];
+  }
+
+  List<_ArchitectureDataFlow> _defaultDataFlows() {
+    return [
+      _ArchitectureDataFlow(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        source: 'Ticket Scanner',
+        destination: 'API Gateway',
+        protocol: 'HTTP',
+        notes: 'Scan payload in, validation result out.',
+      ),
+      _ArchitectureDataFlow(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        source: 'Guest Registration Form',
+        destination: 'Operational Data Store',
+        protocol: 'Event',
+        notes:
+            'Guest profile, dietary data, and access class persist for operations.',
+      ),
+      _ArchitectureDataFlow(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        source: 'Fire Alarm Panel',
+        destination: 'Sprinkler and Ops Escalation',
+        protocol: 'Batch',
+        notes: 'Manual handoff fallback if automation path is unavailable.',
+      ),
+    ];
+  }
+
+  List<_DesignDocument> _defaultDocuments() {
+    return [
+      _DesignDocument(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: 'Service topology pack',
+        description:
+            'Cloud services, auth boundary, and vendor integration map.',
+        owner: 'Architecture',
+        status: 'Draft',
+        location: 'AWS Cloud / Architecture repo',
+      ),
+      _DesignDocument(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: 'Back-of-house operations layout',
+        description:
+            'Power, comms, storage, and logistics zones behind the customer-facing experience.',
+        owner: 'Operations',
+        status: 'In review',
+        location: 'Venue operations folder',
+      ),
+    ];
+  }
+
+  List<_DbEntity> _defaultEntities() {
+    return [
+      _DbEntity(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'GuestList',
+        primaryKey: 'guest_id',
+        owner: 'Operations',
+        description:
+            'Guest identity, access class, dietary restrictions, and arrival status.',
+      ),
+      _DbEntity(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'MaterialStock',
+        primaryKey: 'stock_id',
+        owner: 'Procurement',
+        description:
+            'Materials, quantities, storage location, and issue history.',
+      ),
+      _DbEntity(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'AccessCredential',
+        primaryKey: 'credential_id',
+        owner: 'Security',
+        description: 'Backstage passes, wristbands, and zone permissions.',
+      ),
+    ];
+  }
+
+  List<_DbField> _defaultFields() {
+    return [
+      _DbField(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        table: 'GuestList',
+        field: 'dietary_restriction',
+        type: 'string',
+        constraints: 'nullable',
+        notes: 'Shared with catering 2 hours before service.',
+      ),
+      _DbField(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        table: 'MaterialStock',
+        field: 'weight_kg',
+        type: 'decimal',
+        constraints: '>= 0',
+        notes: 'Used for load-bearing and transport planning.',
+      ),
+      _DbField(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        table: 'AccessCredential',
+        field: 'zone_access',
+        type: 'array',
+        constraints: 'required',
+        notes: 'Maps digital roles to physical access zones.',
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final padding = AppBreakpoints.pagePadding(context);
+    final projectData = ProjectDataHelper.getData(context);
+    final snapshot = _BackendInfrastructureSnapshot.from(
+      projectData: projectData,
+      architectureWorkspace: _architectureWorkspace,
+      architectureSummary: _architectureSummaryController.text,
+      databaseSummary: _databaseSummaryController.text,
+      components: _components,
+      dataFlows: _dataFlows,
+      documents: _designDocuments,
+      entities: _entities,
+      fields: _fields,
+    );
 
     return ResponsiveScaffold(
       activeItemLabel: 'Backend Design',
@@ -112,6 +295,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             title: 'Design Phase',
             showImportButton: false,
             showContentButton: false,
+            showNavigationButtons: false,
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -120,31 +304,22 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-                  if (_isLoading) const SizedBox(height: 16),
-                  Text(
-                    'Backend Design',
-                    style: TextStyle(
-                      fontSize: isMobile ? 22 : 24,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Define the backend architecture, database schema, and API endpoints.',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  const SizedBox(height: 24),
+                  _buildInfrastructureHero(
+                    isMobile: isMobile,
+                    snapshot: snapshot,
                   ),
                   const SizedBox(height: 24),
-                  Column(
-                    children: [
-                      _buildArchitectureCard(),
-                      const SizedBox(height: 16),
-                      _buildDatabaseCard(),
-                    ],
-                  ),
+                  _buildInfrastructureTopSection(snapshot, isMobile),
+                  const SizedBox(height: 20),
+                  _buildContractsAndSecuritySection(snapshot, isMobile),
+                  const SizedBox(height: 20),
+                  _buildOperationsGrid(snapshot),
+                  const SizedBox(height: 20),
+                  _buildDetailedRegistersPanel(),
                   const SizedBox(height: 28),
                   LaunchPhaseNavigation(
-                    backLabel: 'Back: UI/UX design',
+                    backLabel: 'Back: UI/UX Design',
                     nextLabel: 'Next: Engineering',
                     onBack: () => Navigator.push(
                         context,
@@ -169,7 +344,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   Future<void> _loadFromFirestore() async {
     final projectId = _projectId();
     if (projectId == null || projectId.isEmpty) return;
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
+    bool shouldSeedDefaults = false;
     try {
       final doc = await FirebaseFirestore.instance
           .collection('projects')
@@ -177,17 +353,14 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           .collection('design_phase_sections')
           .doc('backend_design')
           .get();
+      final architectureWorkspace = await ArchitectureService.load(projectId);
       final data = doc.data() ?? {};
       final architecture =
           Map<String, dynamic>.from(data['architecture'] ?? {});
       final database = Map<String, dynamic>.from(data['database'] ?? {});
+      shouldSeedDefaults = data.isEmpty && !_didSeedDefaults;
 
       _suspendSave = true;
-      _architectureSummaryController.text =
-          architecture['summary']?.toString() ?? '';
-      _databaseSummaryController.text = database['summary']?.toString() ?? '';
-      _suspendSave = false;
-
       final components =
           _ArchitectureComponent.fromList(architecture['components']);
       final flows = _ArchitectureDataFlow.fromList(architecture['dataFlows']);
@@ -197,26 +370,54 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
 
       if (!mounted) return;
       setState(() {
-        _components
-          ..clear()
-          ..addAll(components);
-        _dataFlows
-          ..clear()
-          ..addAll(flows);
-        _designDocuments
-          ..clear()
-          ..addAll(documents);
-        _entities
-          ..clear()
-          ..addAll(entities);
-        _fields
-          ..clear()
-          ..addAll(fields);
+        _architectureWorkspace = architectureWorkspace;
+        if (shouldSeedDefaults) {
+          _didSeedDefaults = true;
+          _architectureSummaryController.text = _defaultArchitectureSummary();
+          _databaseSummaryController.text = _defaultDatabaseSummary();
+          _components
+            ..clear()
+            ..addAll(_defaultComponents());
+          _dataFlows
+            ..clear()
+            ..addAll(_defaultDataFlows());
+          _designDocuments
+            ..clear()
+            ..addAll(_defaultDocuments());
+          _entities
+            ..clear()
+            ..addAll(_defaultEntities());
+          _fields
+            ..clear()
+            ..addAll(_defaultFields());
+        } else {
+          _architectureSummaryController.text =
+              architecture['summary']?.toString() ?? '';
+          _databaseSummaryController.text =
+              database['summary']?.toString() ?? '';
+          _components
+            ..clear()
+            ..addAll(components);
+          _dataFlows
+            ..clear()
+            ..addAll(flows);
+          _designDocuments
+            ..clear()
+            ..addAll(documents);
+          _entities
+            ..clear()
+            ..addAll(entities);
+          _fields
+            ..clear()
+            ..addAll(fields);
+        }
       });
     } catch (error) {
       debugPrint('Failed to load backend design data: $error');
     } finally {
+      _suspendSave = false;
       if (mounted) setState(() => _isLoading = false);
+      if (shouldSeedDefaults) _scheduleSave();
     }
   }
 
@@ -249,6 +450,1060 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         .collection('design_phase_sections')
         .doc('backend_design')
         .set(payload, SetOptions(merge: true));
+  }
+
+  Widget _buildInfrastructureHero({
+    required bool isMobile,
+    required _BackendInfrastructureSnapshot snapshot,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0B1220),
+            Color(0xFF132238),
+            Color(0xFF1D4ED8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A0F172A),
+            blurRadius: 28,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hidden Infrastructure & Operational Logic',
+            style: TextStyle(
+              fontSize: isMobile ? 24 : 28,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Backend Design for ${snapshot.projectLabel}. This hub captures the invisible architecture behind the customer experience: system topology, data movement, interface contracts, security, business rules, operational load, vendor support, and deployment path.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.84),
+              height: 1.5,
+            ),
+          ),
+          if (_architectureSummaryController.text.trim().isNotEmpty ||
+              _databaseSummaryController.text.trim().isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+              child: Text(
+                [
+                  _architectureSummaryController.text.trim(),
+                  _databaseSummaryController.text.trim(),
+                ].where((value) => value.isNotEmpty).join('\n\n'),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: Colors.white.withValues(alpha: 0.82),
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildHeroMetricPill(
+                  'Architecture Nodes', '${snapshot.systemNodes.length}'),
+              _buildHeroMetricPill(
+                  'Data Entities', '${snapshot.dataEntities.length}'),
+              _buildHeroMetricPill('Interface Contracts',
+                  '${snapshot.interfaceContracts.length}'),
+              _buildHeroMetricPill(
+                  'Vendors', '${snapshot.vendorDependencies.length}'),
+              _buildHeroMetricPill('AI Signals', '${snapshot.aiSignalCount}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfrastructureTopSection(
+    _BackendInfrastructureSnapshot snapshot,
+    bool isMobile,
+  ) {
+    if (isMobile) {
+      return Column(
+        children: [
+          _buildSystemArchitecturePanel(snapshot),
+          const SizedBox(height: 20),
+          _buildDataArchitecturePanel(snapshot),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 6, child: _buildSystemArchitecturePanel(snapshot)),
+        const SizedBox(width: 20),
+        Expanded(flex: 5, child: _buildDataArchitecturePanel(snapshot)),
+      ],
+    );
+  }
+
+  Widget _buildContractsAndSecuritySection(
+    _BackendInfrastructureSnapshot snapshot,
+    bool isMobile,
+  ) {
+    if (isMobile) {
+      return Column(
+        children: [
+          _buildInterfaceContractsPanel(snapshot),
+          const SizedBox(height: 20),
+          _buildSecurityAccessPanel(snapshot),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 6, child: _buildInterfaceContractsPanel(snapshot)),
+        const SizedBox(width: 20),
+        Expanded(flex: 5, child: _buildSecurityAccessPanel(snapshot)),
+      ],
+    );
+  }
+
+  Widget _buildOperationsGrid(_BackendInfrastructureSnapshot snapshot) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final spacing = 20.0;
+        final columns = constraints.maxWidth >= 1080
+            ? 2
+            : constraints.maxWidth >= 760
+                ? 2
+                : 1;
+        final width = columns == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        final cards = [
+          _buildBusinessLogicPanel(snapshot),
+          _buildPerformancePanel(snapshot),
+          _buildVendorDependenciesPanel(snapshot),
+          _buildPipelinePanel(snapshot),
+        ];
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children:
+              cards.map((card) => SizedBox(width: width, child: card)).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailedRegistersPanel() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: _registersExpanded,
+          onExpansionChanged: (value) {
+            setState(() => _registersExpanded = value);
+          },
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          title: const Text(
+            'Detailed Registers',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          subtitle: const Text(
+            'Edit the architecture, data, and document registers feeding the dashboard above.',
+            style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+          ),
+          children: [
+            _buildArchitectureCard(),
+            const SizedBox(height: 16),
+            _buildDatabaseCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSystemArchitecturePanel(
+      _BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'System Architecture & Structural Framework',
+      subtitle:
+          'High-level component map showing where the hidden system lives and how services or structural systems connect.',
+      icon: Icons.account_tree_outlined,
+      accent: const Color(0xFF1D4ED8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 760;
+              final visibleNodes = snapshot.systemNodes.take(4).toList();
+              if (stacked) {
+                return Column(
+                  children: List.generate(visibleNodes.length, (index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == visibleNodes.length - 1 ? 0 : 12,
+                      ),
+                      child: Column(
+                        children: [
+                          _buildSystemNodeCard(visibleNodes[index]),
+                          if (index != visibleNodes.length - 1)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Icon(Icons.arrow_downward_rounded,
+                                  color: Color(0xFF64748B)),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.generate(visibleNodes.length, (index) {
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: index == visibleNodes.length - 1 ? 0 : 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                              child: _buildSystemNodeCard(visibleNodes[index])),
+                          if (index != visibleNodes.length - 1) ...[
+                            const SizedBox(width: 8),
+                            const Icon(Icons.east_rounded,
+                                color: Color(0xFF64748B)),
+                            const SizedBox(width: 8),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Connections',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF475569),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...snapshot.systemLinks.map(
+            (link) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      link.from,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.east_rounded, color: Color(0xFF64748B)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      link.to,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _buildStatusBadge(link.location, const Color(0xFF1D4ED8)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataArchitecturePanel(_BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'Data Architecture & Information Flow',
+      subtitle:
+          'Entity and attribute view for the information backbone behind operations and delivery.',
+      icon: Icons.dataset_outlined,
+      accent: const Color(0xFF0F766E),
+      child: Column(
+        children: snapshot.dataEntities
+            .map(
+              (entity) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            entity.name,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                        _buildStatusBadge(
+                            entity.flowLabel, const Color(0xFF0F766E)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: entity.attributes
+                          .map((attribute) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Text(
+                                  attribute,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF334155),
+                                  ),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      entity.flowDetail,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildInterfaceContractsPanel(
+      _BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'API & Interface Contracts',
+      subtitle:
+          'Specification list for technical integrations and operational handoff agreements.',
+      icon: Icons.cable_outlined,
+      accent: const Color(0xFF1D4ED8),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Interface Name',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Method/Protocol',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: Text(
+                    'Input / Output',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (int i = 0; i < snapshot.interfaceContracts.length; i++) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: i.isEven ? Colors.white : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      snapshot.interfaceContracts[i].name,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      snapshot.interfaceContracts[i].method,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF475569),
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 4,
+                    child: Text(
+                      snapshot.interfaceContracts[i].ioDescription,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (i != snapshot.interfaceContracts.length - 1)
+              const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityAccessPanel(_BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'Security & Access Control Logic',
+      subtitle:
+          'Matrix of roles, permissions, and protection protocols across digital and physical access.',
+      icon: Icons.shield_outlined,
+      accent: const Color(0xFF0F766E),
+      child: Column(
+        children: snapshot.accessRules
+            .map(
+              (rule) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        rule.role,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        rule.permission,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF334155),
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: _buildStatusBadge(
+                          rule.protocol,
+                          const Color(0xFF1D4ED8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildBusinessLogicPanel(_BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'Business Logic & Rule Engine',
+      subtitle:
+          'Server-side, operational, and safety rules that decide what happens when conditions change.',
+      icon: Icons.rule_outlined,
+      accent: const Color(0xFF1D4ED8),
+      child: Column(
+        children: snapshot.logicRules
+            .map(
+              (rule) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rule.name,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'IF ${rule.condition}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF334155),
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'THEN ${rule.action}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildPerformancePanel(_BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'Performance & Scalability Strategy',
+      subtitle:
+          'Load handling, resilience, and capacity strategy for software and physical infrastructure.',
+      icon: Icons.speed_outlined,
+      accent: const Color(0xFF0F766E),
+      child: Column(
+        children: snapshot.performanceStrategies
+            .map(
+              (item) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.metric,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                        _buildStatusBadge(item.target, const Color(0xFF1D4ED8)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.strategy,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF334155),
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item.context,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildVendorDependenciesPanel(
+      _BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'Third-Party Services & Vendor Dependencies',
+      subtitle:
+          'External services, contracts, and support providers needed to make the backend or operations layer work.',
+      icon: Icons.handshake_outlined,
+      accent: const Color(0xFF1D4ED8),
+      child: Column(
+        children: snapshot.vendorDependencies
+            .map(
+              (item) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        item.service,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        item.purpose,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildStatusBadge(
+                        item.status, _vendorStatusColor(item.status)),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildPipelinePanel(_BackendInfrastructureSnapshot snapshot) {
+    return _buildDashboardPanel(
+      title: 'DevOps & Deployment Pipeline',
+      subtitle:
+          'Implementation path from internal design validation through production or on-site activation.',
+      icon: Icons.alt_route_outlined,
+      accent: const Color(0xFF0F766E),
+      child: Column(
+        children: List.generate(snapshot.pipelineStages.length, (index) {
+          final stage = snapshot.pipelineStages[index];
+          return Container(
+            margin: EdgeInsets.only(
+              bottom: index == snapshot.pipelineStages.length - 1 ? 0 : 12,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  children: [
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1D4ED8),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    if (index != snapshot.pipelineStages.length - 1)
+                      Container(
+                        width: 2,
+                        height: 54,
+                        color: const Color(0xFFCBD5E1),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                stage.environment,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ),
+                            _buildStatusBadge(
+                              stage.label,
+                              const Color(0xFF0F766E),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          stage.steps,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildDashboardPanel({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: accent.withValues(alpha: 0.18)),
+                ),
+                child: Icon(icon, color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF64748B),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroMetricPill(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.white.withValues(alpha: 0.72),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSystemNodeCard(_SystemNodeItem node) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            node.name,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            node.hostLocation,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF475569),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildStatusBadge(node.type, const Color(0xFF1D4ED8)),
+              _buildStatusBadge(node.status, _statusColor(node.status)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Approved':
+      case 'Ready':
+      case 'Live':
+      case 'Contract Signed':
+      case 'API Key Ready':
+        return AppSemanticColors.success;
+      case 'In review':
+      case 'In progress':
+      case 'Draft':
+        return AppSemanticColors.warning;
+      default:
+        return const Color(0xFF1D4ED8);
+    }
+  }
+
+  Color _vendorStatusColor(String status) {
+    switch (status) {
+      case 'Contract Signed':
+      case 'API Key Ready':
+        return AppSemanticColors.success;
+      case 'Pending':
+      case 'Identified':
+        return AppSemanticColors.warning;
+      default:
+        return const Color(0xFF1D4ED8);
+    }
   }
 
   Widget _buildArchitectureCard() {
@@ -730,6 +1985,621 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       ],
     );
   }
+}
+
+class _BackendInfrastructureSnapshot {
+  const _BackendInfrastructureSnapshot({
+    required this.projectLabel,
+    required this.systemNodes,
+    required this.systemLinks,
+    required this.dataEntities,
+    required this.interfaceContracts,
+    required this.accessRules,
+    required this.logicRules,
+    required this.performanceStrategies,
+    required this.vendorDependencies,
+    required this.pipelineStages,
+    required this.aiSignalCount,
+  });
+
+  final String projectLabel;
+  final List<_SystemNodeItem> systemNodes;
+  final List<_SystemLinkItem> systemLinks;
+  final List<_DataEntityItem> dataEntities;
+  final List<_InterfaceContractItem> interfaceContracts;
+  final List<_AccessRuleItem> accessRules;
+  final List<_LogicRuleItem> logicRules;
+  final List<_PerformanceStrategyItem> performanceStrategies;
+  final List<_VendorDependencyItem> vendorDependencies;
+  final List<_PipelineStageItem> pipelineStages;
+  final int aiSignalCount;
+
+  factory _BackendInfrastructureSnapshot.from({
+    required ProjectDataModel projectData,
+    required Map<String, dynamic>? architectureWorkspace,
+    required String architectureSummary,
+    required String databaseSummary,
+    required List<_ArchitectureComponent> components,
+    required List<_ArchitectureDataFlow> dataFlows,
+    required List<_DesignDocument> documents,
+    required List<_DbEntity> entities,
+    required List<_DbField> fields,
+  }) {
+    final projectLabel = projectData.projectName.trim().isNotEmpty
+        ? projectData.projectName.trim()
+        : 'the current design package';
+    final summaryContext =
+        '$architectureSummary $databaseSummary'.toLowerCase();
+    final documentLocations = documents
+        .map((document) => document.location.trim())
+        .where((location) => location.isNotEmpty)
+        .toList();
+
+    final workspaceNodes =
+        ((architectureWorkspace?['nodes'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((raw) => Map<String, dynamic>.from(raw))
+            .toList();
+    final workspaceEdges =
+        ((architectureWorkspace?['edges'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((raw) => Map<String, dynamic>.from(raw))
+            .toList();
+
+    final systemNodes = <_SystemNodeItem>[];
+    if (workspaceNodes.isNotEmpty) {
+      for (final node in workspaceNodes.take(5)) {
+        final label = node['label']?.toString().trim() ?? '';
+        if (label.isEmpty) continue;
+        systemNodes.add(_SystemNodeItem(
+          name: label,
+          type: _typeForLabel(label),
+          status: 'Mapped',
+          hostLocation: documentLocations.isNotEmpty
+              ? documentLocations.first
+              : _hostForLabel(label),
+        ));
+      }
+    }
+    if (systemNodes.isEmpty) {
+      for (final component in components.take(5)) {
+        final name = component.name.trim();
+        if (name.isEmpty) continue;
+        systemNodes.add(_SystemNodeItem(
+          name: name,
+          type: component.type.trim().isNotEmpty
+              ? component.type.trim()
+              : 'Service',
+          status: component.status.trim().isNotEmpty
+              ? component.status.trim()
+              : 'Planned',
+          hostLocation: documentLocations.isNotEmpty
+              ? documentLocations.first
+              : _hostForComponent(name, component.type),
+        ));
+      }
+    }
+    if (systemNodes.isEmpty) {
+      systemNodes.addAll(const [
+        _SystemNodeItem(
+          name: 'Database',
+          type: 'Data store',
+          status: 'Planned',
+          hostLocation: 'AWS Cloud',
+        ),
+        _SystemNodeItem(
+          name: 'Auth Server',
+          type: 'Service',
+          status: 'Planned',
+          hostLocation: 'AWS Cloud',
+        ),
+        _SystemNodeItem(
+          name: 'Power Grid',
+          type: 'Integration',
+          status: 'In review',
+          hostLocation: 'Venue Power Grid',
+        ),
+        _SystemNodeItem(
+          name: 'HVAC System',
+          type: 'Integration',
+          status: 'Planned',
+          hostLocation: 'Plant Room',
+        ),
+      ]);
+    }
+
+    final labelById = <String, String>{
+      for (final node in workspaceNodes)
+        if ((node['id']?.toString().trim() ?? '').isNotEmpty)
+          node['id']!.toString(): node['label']?.toString() ?? '',
+    };
+    final systemLinks = <_SystemLinkItem>[];
+    for (final edge in workspaceEdges.take(4)) {
+      final from = labelById[edge['from']?.toString() ?? ''] ?? '';
+      final to = labelById[edge['to']?.toString() ?? ''] ?? '';
+      if (from.isEmpty || to.isEmpty) continue;
+      systemLinks.add(_SystemLinkItem(
+        from: from,
+        to: to,
+        location: _locationForLink(from, to),
+      ));
+    }
+    if (systemLinks.isEmpty) {
+      for (final flow in dataFlows.take(4)) {
+        final source = flow.source.trim();
+        final destination = flow.destination.trim();
+        if (source.isEmpty || destination.isEmpty) continue;
+        systemLinks.add(_SystemLinkItem(
+          from: source,
+          to: destination,
+          location: _locationForLink(source, destination),
+        ));
+      }
+    }
+    if (systemLinks.isEmpty) {
+      systemLinks.addAll(const [
+        _SystemLinkItem(
+          from: 'API Gateway',
+          to: 'Operational Data Store',
+          location: 'AWS Cloud',
+        ),
+        _SystemLinkItem(
+          from: 'Fire Alarm Panel',
+          to: 'Sprinkler and Ops Escalation',
+          location: 'Venue Plant Room',
+        ),
+      ]);
+    }
+
+    final groupedFields = <String, List<_DbField>>{};
+    for (final field in fields) {
+      final key = field.table.trim();
+      if (key.isEmpty) continue;
+      groupedFields.putIfAbsent(key, () => []).add(field);
+    }
+
+    final dataEntities = <_DataEntityItem>[];
+    for (final entity in entities.take(4)) {
+      final name = entity.name.trim();
+      if (name.isEmpty) continue;
+      final attributes = groupedFields[name]
+              ?.take(3)
+              .map((field) => field.field.trim())
+              .where((value) => value.isNotEmpty)
+              .toList() ??
+          [];
+      final primaryKey = entity.primaryKey.trim();
+      dataEntities.add(_DataEntityItem(
+        name: name,
+        attributes: attributes.isNotEmpty
+            ? attributes
+            : [if (primaryKey.isNotEmpty) primaryKey else 'key_attribute'],
+        flowLabel: _flowLabelForEntity(name),
+        flowDetail: entity.description.trim().isNotEmpty
+            ? entity.description.trim()
+            : 'Moves from operational input to controlled storage and reporting.',
+      ));
+    }
+    if (dataEntities.isEmpty) {
+      dataEntities.addAll(const [
+        _DataEntityItem(
+          name: 'UserProfile',
+          attributes: ['name', 'access_level', 'contact'],
+          flowLabel: 'Input -> Storage',
+          flowDetail:
+              'User and operator identity records for permissions and communication.',
+        ),
+        _DataEntityItem(
+          name: 'GuestList',
+          attributes: ['guest_name', 'dietary_restriction', 'ticket_class'],
+          flowLabel: 'Capture -> Ops',
+          flowDetail:
+              'Registration data passed into catering, seating, and access workflows.',
+        ),
+        _DataEntityItem(
+          name: 'MaterialStock',
+          attributes: ['sku', 'quantity', 'weight_kg'],
+          flowLabel: 'Inventory -> Site',
+          flowDetail:
+              'Material issue and replenishment flow for physical production planning.',
+        ),
+      ]);
+    }
+
+    final interfaceContracts = <_InterfaceContractItem>[];
+    for (final flow in dataFlows.take(4)) {
+      final source = flow.source.trim();
+      final destination = flow.destination.trim();
+      if (source.isEmpty || destination.isEmpty) continue;
+      interfaceContracts.add(_InterfaceContractItem(
+        name: '$source -> $destination',
+        method: flow.protocol.trim().isNotEmpty ? flow.protocol.trim() : 'REST',
+        ioDescription: flow.notes.trim().isNotEmpty
+            ? flow.notes.trim()
+            : 'Input from $source, output to $destination.',
+      ));
+    }
+    if (interfaceContracts.isEmpty) {
+      interfaceContracts.addAll(const [
+        _InterfaceContractItem(
+          name: 'Payment Gateway API',
+          method: 'REST',
+          ioDescription:
+              'Payment request in, authorization status and receipt out.',
+        ),
+        _InterfaceContractItem(
+          name: 'Weather Service',
+          method: 'WebSocket',
+          ioDescription: 'Weather feed in, event contingency trigger out.',
+        ),
+        _InterfaceContractItem(
+          name: 'Catering Handoff',
+          method: 'Manual Handoff',
+          ioDescription:
+              'Headcount and dietary changes in, service readiness confirmation out.',
+        ),
+      ]);
+    }
+
+    final roles = projectData.teamMembers
+        .map((member) => member.role.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList();
+    if (roles.isEmpty) {
+      roles.addAll(['Admin', 'Vendor', 'Operations', 'Public']);
+    }
+    final accessRules = roles.take(4).map((role) {
+      final lower = role.toLowerCase();
+      if (lower.contains('security') || lower.contains('admin')) {
+        return const _AccessRuleItem(
+          role: 'Admin',
+          permission: 'Read, write, delete, and edit structural plans',
+          protocol: 'OAuth 2.0',
+        );
+      }
+      if (lower.contains('vendor')) {
+        return const _AccessRuleItem(
+          role: 'Vendor',
+          permission:
+              'Read operational schedule and access assigned zones only',
+          protocol: 'Key Card System',
+        );
+      }
+      if (lower.contains('ops') || lower.contains('operations')) {
+        return const _AccessRuleItem(
+          role: 'Operations',
+          permission:
+              'Read live status, update logistics checkpoints, access back-of-house',
+          protocol: 'Biometric Scanner',
+        );
+      }
+      return const _AccessRuleItem(
+        role: 'Public',
+        permission: 'Read approved schedules and ticket status only',
+        protocol: 'Wristband Access',
+      );
+    }).toList();
+
+    final logicRules = [
+      const _LogicRuleItem(
+        name: 'Capacity Limit',
+        condition: 'crowd density rises above the approved threshold',
+        action: 'pause entry, redirect arrivals, and notify operations control',
+      ),
+      const _LogicRuleItem(
+        name: 'Rain Contingency',
+        condition: 'rain forecast exceeds 5mm during the live window',
+        action:
+            'switch event flow to Hall B and reroute power and signage plans',
+      ),
+      const _LogicRuleItem(
+        name: 'Stock Reorder Trigger',
+        condition: 'material stock drops below the safety buffer',
+        action: 'create a replenishment request and alert procurement',
+      ),
+      const _LogicRuleItem(
+        name: 'Access Escalation',
+        condition: 'an unapproved credential attempts secure-zone entry',
+        action: 'deny access and log an incident for security review',
+      ),
+    ];
+
+    final performanceStrategies = [
+      const _PerformanceStrategyItem(
+        metric: 'Response Time',
+        target: '< 250ms',
+        strategy: 'Caching, edge routing, and lean payload contracts.',
+        context: 'Supports high-traffic app and scanner validation peaks.',
+      ),
+      const _PerformanceStrategyItem(
+        metric: 'Throughput',
+        target: '10k requests/min',
+        strategy: 'Load balancing and queue-based retry handling.',
+        context: 'Protects check-in and live operations workflows.',
+      ),
+      const _PerformanceStrategyItem(
+        metric: 'Load Bearing Capacity',
+        target: '<= approved stage load',
+        strategy: 'Reinforced flooring and staged equipment placement.',
+        context: 'Ensures hidden structural systems support visible outputs.',
+      ),
+      _PerformanceStrategyItem(
+        metric: 'Voltage Load',
+        target: summaryContext.contains('generator')
+            ? 'Generator-backed load approved'
+            : 'Within venue power envelope',
+        strategy: 'Generator backup and split power zones.',
+        context:
+            'Prevents backend operations and stage services from overload.',
+      ),
+    ];
+
+    final vendorDependencies = projectData.vendors.isNotEmpty
+        ? projectData.vendors.take(4).map((vendor) {
+            return _VendorDependencyItem(
+              service: vendor.name.trim().isNotEmpty
+                  ? vendor.name.trim()
+                  : 'External Vendor',
+              purpose: vendor.equipmentOrService.trim().isNotEmpty
+                  ? vendor.equipmentOrService.trim()
+                  : 'Operational support service',
+              status: vendor.status.trim().isNotEmpty
+                  ? vendor.status.trim()
+                  : vendor.procurementStage.trim().isNotEmpty
+                      ? vendor.procurementStage.trim()
+                      : 'Pending',
+            );
+          }).toList()
+        : [
+            const _VendorDependencyItem(
+              service: 'Stripe',
+              purpose: 'Payment authorization and settlement.',
+              status: 'API Key Ready',
+            ),
+            const _VendorDependencyItem(
+              service: 'Power Generator Rental',
+              purpose:
+                  'Backup power for stage, registration, and back-of-house operations.',
+              status: 'Contract Signed',
+            ),
+            const _VendorDependencyItem(
+              service: 'Waste Management',
+              purpose:
+                  'Supports backend site logistics and environmental compliance.',
+              status: 'Pending',
+            ),
+            const _VendorDependencyItem(
+              service: 'Security Crew',
+              purpose:
+                  'Zone control, credential checks, and incident escalation.',
+              status: 'Pending',
+            ),
+          ];
+
+    final pipelineStages = const [
+      _PipelineStageItem(
+        environment: 'Staging',
+        label: 'Validate',
+        steps:
+            'CI build -> integration tests -> sandbox scanners and mock vendor handoffs.',
+      ),
+      _PipelineStageItem(
+        environment: 'Production',
+        label: 'Release',
+        steps:
+            'Deploy services -> verify monitoring -> enable live traffic and escalation alerts.',
+      ),
+      _PipelineStageItem(
+        environment: 'Mock-up Site',
+        label: 'Rehearse',
+        steps:
+            'Prefabrication checks -> test kitchen rehearsal -> site safety sign-off.',
+      ),
+      _PipelineStageItem(
+        environment: 'On-site Assembly',
+        label: 'Activate',
+        steps: 'Shipping -> install -> commissioning -> operational handover.',
+      ),
+    ];
+
+    final aiSignalCount = projectData.aiUsageCounts.values.fold<int>(
+          0,
+          (total, value) => total + value,
+        ) +
+        projectData.aiRecommendations.length +
+        projectData.aiIntegrations.length;
+
+    return _BackendInfrastructureSnapshot(
+      projectLabel: projectLabel,
+      systemNodes: systemNodes,
+      systemLinks: systemLinks,
+      dataEntities: dataEntities,
+      interfaceContracts: interfaceContracts,
+      accessRules: accessRules,
+      logicRules: logicRules,
+      performanceStrategies: performanceStrategies,
+      vendorDependencies: vendorDependencies,
+      pipelineStages: pipelineStages,
+      aiSignalCount: aiSignalCount,
+    );
+  }
+
+  static String _typeForLabel(String label) {
+    final normalized = label.toLowerCase();
+    if (normalized.contains('db') || normalized.contains('data')) {
+      return 'Data store';
+    }
+    if (normalized.contains('power') ||
+        normalized.contains('hvac') ||
+        normalized.contains('alarm')) {
+      return 'Integration';
+    }
+    if (normalized.contains('queue')) return 'Queue';
+    if (normalized.contains('api') || normalized.contains('auth')) {
+      return 'Service';
+    }
+    return 'Component';
+  }
+
+  static String _hostForLabel(String label) {
+    final normalized = label.toLowerCase();
+    if (normalized.contains('power')) return 'Venue Power Grid';
+    if (normalized.contains('hvac')) return 'Plant Room';
+    if (normalized.contains('alarm')) return 'Fire Control Panel';
+    if (normalized.contains('db') || normalized.contains('data')) {
+      return 'AWS Cloud';
+    }
+    if (normalized.contains('auth') || normalized.contains('api')) {
+      return 'Cloud Compute Cluster';
+    }
+    return 'Back of House Operations';
+  }
+
+  static String _hostForComponent(String name, String type) {
+    final normalized = '$name $type'.toLowerCase();
+    if (normalized.contains('power')) return 'Venue Power Grid';
+    if (normalized.contains('hvac')) return 'Plant Room';
+    if (normalized.contains('data')) return 'Managed Database Cluster';
+    if (normalized.contains('integration')) return 'Vendor Edge Network';
+    if (normalized.contains('analytics')) return 'Reporting Warehouse';
+    return 'AWS Cloud';
+  }
+
+  static String _locationForLink(String from, String to) {
+    final combined = '$from $to'.toLowerCase();
+    if (combined.contains('power') || combined.contains('hvac')) {
+      return 'Plant / Site';
+    }
+    if (combined.contains('scanner') || combined.contains('guest')) {
+      return 'Edge -> Cloud';
+    }
+    return 'Core Platform';
+  }
+
+  static String _flowLabelForEntity(String name) {
+    final normalized = name.toLowerCase();
+    if (normalized.contains('guest')) return 'Capture -> Ops';
+    if (normalized.contains('stock') || normalized.contains('material')) {
+      return 'Inventory -> Site';
+    }
+    if (normalized.contains('access')) return 'Identity -> Control';
+    return 'Input -> Storage';
+  }
+}
+
+class _SystemNodeItem {
+  const _SystemNodeItem({
+    required this.name,
+    required this.type,
+    required this.status,
+    required this.hostLocation,
+  });
+
+  final String name;
+  final String type;
+  final String status;
+  final String hostLocation;
+}
+
+class _SystemLinkItem {
+  const _SystemLinkItem({
+    required this.from,
+    required this.to,
+    required this.location,
+  });
+
+  final String from;
+  final String to;
+  final String location;
+}
+
+class _DataEntityItem {
+  const _DataEntityItem({
+    required this.name,
+    required this.attributes,
+    required this.flowLabel,
+    required this.flowDetail,
+  });
+
+  final String name;
+  final List<String> attributes;
+  final String flowLabel;
+  final String flowDetail;
+}
+
+class _InterfaceContractItem {
+  const _InterfaceContractItem({
+    required this.name,
+    required this.method,
+    required this.ioDescription,
+  });
+
+  final String name;
+  final String method;
+  final String ioDescription;
+}
+
+class _AccessRuleItem {
+  const _AccessRuleItem({
+    required this.role,
+    required this.permission,
+    required this.protocol,
+  });
+
+  final String role;
+  final String permission;
+  final String protocol;
+}
+
+class _LogicRuleItem {
+  const _LogicRuleItem({
+    required this.name,
+    required this.condition,
+    required this.action,
+  });
+
+  final String name;
+  final String condition;
+  final String action;
+}
+
+class _PerformanceStrategyItem {
+  const _PerformanceStrategyItem({
+    required this.metric,
+    required this.target,
+    required this.strategy,
+    required this.context,
+  });
+
+  final String metric;
+  final String target;
+  final String strategy;
+  final String context;
+}
+
+class _VendorDependencyItem {
+  const _VendorDependencyItem({
+    required this.service,
+    required this.purpose,
+    required this.status,
+  });
+
+  final String service;
+  final String purpose;
+  final String status;
+}
+
+class _PipelineStageItem {
+  const _PipelineStageItem({
+    required this.environment,
+    required this.label,
+    required this.steps,
+  });
+
+  final String environment;
+  final String label;
+  final String steps;
 }
 
 class _CardShell extends StatelessWidget {
