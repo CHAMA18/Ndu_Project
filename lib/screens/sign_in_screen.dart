@@ -46,24 +46,6 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    if (_isUnsupportedDevice(context)) {
-      await _showDeviceRestrictionDialog();
-      return;
-    }
-    setState(() => _isLoading = true);
-    try {
-      await FirebaseAuthService.signInWithGoogle();
-      if (!mounted) return;
-      _showSnack('Signed in with Google', Colors.green);
-      _navigateAfterSignIn();
-    } catch (e) {
-      _showSnack('Google sign-in failed: $e', Colors.red);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   Future<void> _handleEmailSignIn() async {
     if (_isUnsupportedDevice(context)) {
       await _showDeviceRestrictionDialog();
@@ -229,7 +211,6 @@ class _SignInScreenState extends State<SignInScreen> {
     const primaryText = Color(0xFF1F2933);
     const secondaryText = Color(0xFF616E7C);
     const fieldBorder = Color(0xFFD2D6DC);
-    const dividerColor = Color(0xFFCBD2D9);
     const headlineAccent = LightModeColors.accent;
 
     InputDecoration fieldDecoration(String hint, {Widget? suffix}) {
@@ -296,58 +277,15 @@ class _SignInScreenState extends State<SignInScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Google sign-in button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading ? null : _handleGoogleSignIn,
-                          icon: Image.asset('assets/images/search.png',
-                              height: 20, width: 20),
-                          label: _isLoading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        primaryText),
-                                  ),
-                                )
-                              : const Text(
-                                  'Log in with Google',
-                                  style: TextStyle(
-                                      fontSize: 15,
-                                      color: primaryText,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                                color: fieldBorder, width: 1.5),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            backgroundColor: Colors.white,
-                          ),
+                      Text(
+                        'Sign in with your work email and password.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: secondaryText.withValues(alpha: 0.9),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          const Expanded(
-                              child:
-                                  Divider(color: dividerColor, thickness: 1)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: const Text('OR',
-                                style: TextStyle(
-                                    color: secondaryText, fontSize: 13)),
-                          ),
-                          const Expanded(
-                              child:
-                                  Divider(color: dividerColor, thickness: 1)),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 18),
 
                       const Text('Email',
                           style: TextStyle(

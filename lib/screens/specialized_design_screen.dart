@@ -11,6 +11,17 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 
+const Color _kSpecSurface = Colors.white;
+const Color _kSpecBorder = Color(0xFFDCE4F2);
+const Color _kSpecPanel = Color(0xFFEAF1FF);
+const Color _kSpecPanelSoft = Color(0xFFF8FAFF);
+const Color _kSpecPrimary = Color(0xFF0B4DBB);
+const Color _kSpecPrimaryDeep = Color(0xFF082A63);
+const Color _kSpecTeal = Color(0xFF0B7D68);
+const Color _kSpecText = Color(0xFF111827);
+const Color _kSpecSubtext = Color(0xFF667085);
+const Color _kSpecError = Color(0xFFB42318);
+
 class SpecializedDesignScreen extends StatefulWidget {
   const SpecializedDesignScreen({super.key});
 
@@ -279,7 +290,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
       body: Column(
         children: [
           const PlanningPhaseHeader(
-            title: 'Design Phase',
+            title: 'Specialized Design',
             showImportButton: false,
             showContentButton: false,
             showNavigationButtons: false,
@@ -290,92 +301,57 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Page Title
-                  Text(
-                    'SPECIALIZED DESIGN',
-                    style: TextStyle(
-                      fontSize: isMobile ? 12 : 14,
-                      fontWeight: FontWeight.w600,
-                      color: LightModeColors.accent,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Lock in specialized patterns for security, performance, and data',
-                    style: TextStyle(
-                      fontSize: isMobile ? 20 : 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Capture the critical, non-generic design decisions so engineers know exactly how to implement edge cases, secure zones, and high-scale components.',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // AI Generation Button
-                  if (_isGenerating)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  else
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: _generateAllSpecializedDesign,
-                        icon: const Icon(Icons.auto_awesome,
-                            color: Colors.white, size: 18),
-                        label: const Text('AI Auto-Generate Design'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppSemanticColors.ai,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                        ),
-                      ),
-                    ),
+                  _buildHeroSection(isMobile),
                   const SizedBox(height: 24),
-
-                  // Notes Input
+                  _buildStatusStrip(),
+                  const SizedBox(height: 24),
+                  _buildUpperInsightGrid(),
+                  const SizedBox(height: 24),
+                  _buildMiddleInsightGrid(),
+                  const SizedBox(height: 24),
+                  _buildLowerInsightGrid(),
+                  const SizedBox(height: 24),
+                  _buildWorkingNotesCard(),
+                  const SizedBox(height: 24),
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppSemanticColors.border),
+                      color: _kSpecSurface,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: _kSpecBorder),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 22,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
                     ),
-                    child: TextField(
-                      controller: _notesController,
-                      minLines: 1,
-                      maxLines: null,
-                      textAlign: TextAlign.center,
-                      textAlignVertical: TextAlignVertical.center,
-                      onChanged: (_) => _scheduleSave(),
-                      decoration: InputDecoration(
-                        hintText:
-                            'Summarize the specialized design choices here... security zones, performance patterns, data flows, integrations that must be implemented in a very specific way.',
-                        hintStyle:
-                            TextStyle(color: Colors.grey[500], fontSize: 14),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Working Track Registers',
+                          style: TextStyle(
+                            fontSize: isMobile ? 24 : 28,
+                            fontWeight: FontWeight.w900,
+                            color: _kSpecPrimaryDeep,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'This is the editable execution layer. Use it to lock down the exact specialized controls, performance hotspots, and integration contracts that engineering and reviewers will follow.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _kSpecSubtext,
+                            height: 1.55,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Helper Text
-                  Text(
-                    'Keep this focused on decisions that go beyond standard templates and will be hard to change later.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
                   if (_isLoading)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -409,22 +385,502 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                             fontSize: 12, color: Color(0xFFB91C1C)),
                       ),
                     ),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSecurityPatternsCard(ownerOptions),
-                      const SizedBox(height: 20),
-                      _buildPerformancePatternsCard(),
-                      const SizedBox(height: 20),
-                      _buildIntegrationFlowsCard(ownerOptions),
-                    ],
-                  ),
+                  _buildSecurityPatternsCard(ownerOptions),
+                  const SizedBox(height: 20),
+                  _buildPerformancePatternsCard(),
+                  const SizedBox(height: 20),
+                  _buildIntegrationFlowsCard(ownerOptions),
                   const SizedBox(height: 32),
-
-                  // Bottom Navigation
                   _buildBottomNavigation(isMobile),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroSection(bool isMobile) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 22 : 30),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF9FBFF), Color(0xFFEAF1FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: _kSpecBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _HeroChip(
+                label: 'Security Track',
+                icon: Icons.shield_outlined,
+                selected: true,
+              ),
+              _HeroChip(
+                label: 'Accessibility',
+                icon: Icons.visibility_outlined,
+              ),
+              _HeroChip(
+                label: 'Structural',
+                icon: Icons.architecture_outlined,
+              ),
+              _HeroChip(
+                label: 'SME Validation',
+                icon: Icons.verified_user_outlined,
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 860;
+              final headline = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'DESIGN PHASE: SPECIALIZED TRACKS',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: LightModeColors.accent,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'High-fidelity validation and sign-off architecture for critical design paths',
+                    style: TextStyle(
+                      fontSize: isMobile ? 28 : 38,
+                      fontWeight: FontWeight.w900,
+                      color: _kSpecPrimaryDeep,
+                      height: 1.12,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This workspace captures the non-generic design logic that determines whether the project is secure, compliant, resilient, and implementation-ready.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: _kSpecSubtext,
+                      height: 1.6,
+                    ),
+                  ),
+                ],
+              );
+
+              final actionButton = _isGenerating
+                  ? const SizedBox(
+                      height: 56,
+                      width: 56,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: _generateAllSpecializedDesign,
+                      icon: const Icon(Icons.auto_awesome, size: 18),
+                      label: const Text('Generate Audit Report'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _kSpecPrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 18,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    headline,
+                    const SizedBox(height: 18),
+                    actionButton,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: headline),
+                  const SizedBox(width: 20),
+                  actionButton,
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusStrip() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        const _InfoPill(
+          label: 'Track: Security-first review',
+          color: _kSpecPrimary,
+          background: Color(0xFFE6EEFF),
+          icon: Icons.shield_rounded,
+        ),
+        _InfoPill(
+          label: _isLoading ? 'Loading data' : 'Data connected',
+          color: _isLoading ? _kSpecPrimary : _kSpecTeal,
+          background:
+              _isLoading ? const Color(0xFFE6EEFF) : const Color(0xFFEAF8F3),
+          icon: _isLoading ? Icons.sync : Icons.cloud_done_outlined,
+        ),
+        _InfoPill(
+          label: _loadError == null ? 'Review flow healthy' : _loadError!,
+          color: _loadError == null ? _kSpecTeal : _kSpecError,
+          background: _loadError == null
+              ? const Color(0xFFEAF8F3)
+              : const Color(0xFFFEE4E2),
+          icon: _loadError == null
+              ? Icons.verified_outlined
+              : Icons.error_outline,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpperInsightGrid() {
+    return Column(
+      children: [
+        _DashboardPanel(
+          title: 'Compliance & Regulatory Standards',
+          icon: Icons.fact_check_outlined,
+          accent: _kSpecPrimary,
+          child: Column(
+            children: const [
+              _ComplianceRow(
+                  name: 'GDPR (Data Residency)', status: 'Mandatory'),
+              _ComplianceRow(
+                  name: 'SOC2 Type II (Annual)', status: 'Mandatory'),
+              _ComplianceRow(name: 'ISO 27001 Annex A', status: 'Optional'),
+              _ComplianceRow(name: 'FedRAMP Compliance', status: 'Mandatory'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _DashboardPanel(
+          title: 'Specialized Technical Specifications',
+          icon: Icons.settings_input_component_outlined,
+          accent: _kSpecPrimary,
+          child: Column(
+            children: const [
+              _SpecGrid(),
+              SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'VIEW FULL ARCHITECTURAL MANIFESTO',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: _kSpecPrimary,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiddleInsightGrid() {
+    return const Column(
+      children: [
+        _DashboardPanel(
+          title: 'Subject Matter Experts',
+          icon: Icons.groups_outlined,
+          accent: _kSpecPrimary,
+          child: Column(
+            children: [
+              _PersonRow(
+                name: 'Marcus Thorne',
+                role: 'Security Architect',
+                badge: 'Sign-off',
+                badgeColor: _kSpecTeal,
+              ),
+              SizedBox(height: 10),
+              _PersonRow(
+                name: 'Elena Vance',
+                role: 'Structural Lead',
+                badge: 'Review',
+                badgeColor: _kSpecPrimary,
+              ),
+              SizedBox(height: 10),
+              _PersonRow(
+                name: 'Julian Sterling',
+                role: 'Regulatory Officer',
+                badge: 'Sign-off',
+                badgeColor: _kSpecTeal,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 20),
+        _DashboardPanel(
+          title: 'Validation Criteria',
+          icon: Icons.biotech_outlined,
+          accent: _kSpecPrimary,
+          child: Column(
+            children: [
+              _ValidationRow(
+                label: 'Penetration Testing (L3)',
+                status: 'Pass',
+                statusColor: _kSpecTeal,
+                icon: Icons.check_circle,
+              ),
+              _ValidationRow(
+                label: 'Structural Load Simulation',
+                status: 'Fail',
+                statusColor: _kSpecError,
+                icon: Icons.cancel,
+              ),
+              _ValidationRow(
+                label: 'WCAG 2.1 Compliance Audit',
+                status: 'Pass',
+                statusColor: _kSpecTeal,
+                icon: Icons.check_circle,
+              ),
+              _ValidationRow(
+                label: 'Disaster Recovery (RTO 4h)',
+                status: 'Queued',
+                statusColor: _kSpecPrimary,
+                icon: Icons.hourglass_empty,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 20),
+        _DashboardPanel(
+          title: 'Certifications',
+          icon: Icons.article_outlined,
+          accent: _kSpecPrimary,
+          child: Column(
+            children: [
+              _DocumentRow(
+                title: 'Fire Safety Cert (Class A)',
+                subtitle: 'Validated: 12 Oct 2023',
+                status: 'Uploaded',
+                pending: false,
+              ),
+              SizedBox(height: 10),
+              _DocumentRow(
+                title: 'Data Privacy Impact (DPIA)',
+                subtitle: 'Awaiting Final Draft',
+                status: 'Pending',
+                pending: true,
+              ),
+              SizedBox(height: 10),
+              _DocumentRow(
+                title: 'SLA Tier 1 Agreement',
+                subtitle: 'Validated: 15 Oct 2023',
+                status: 'Uploaded',
+                pending: false,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLowerInsightGrid() {
+    return Column(
+      children: [
+        const _DashboardPanel(
+          title: 'Risk & Mitigation Strategy',
+          icon: Icons.report_problem_outlined,
+          accent: _kSpecError,
+          child: Column(
+            children: [
+              _RiskRow(
+                profile: 'Data Breach (Unauthorized Access)',
+                control: 'Hardware-backed MFA & Zero Trust tunnels',
+                impact: 'Critical',
+                critical: true,
+              ),
+              _RiskRow(
+                profile: 'Structural Fatigue (Vibration)',
+                control: 'Passive damper systems & real-time sensors',
+                impact: 'Moderate',
+              ),
+              _RiskRow(
+                profile: 'Supply Chain Delay (Lead times)',
+                control: 'Dual-sourcing Tier 1 components',
+                impact: 'Low',
+                low: true,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _DashboardPanel(
+          title: 'Cross-System Integration Points',
+          icon: Icons.hub_outlined,
+          accent: _kSpecPrimary,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return GridView.count(
+                crossAxisCount: constraints.maxWidth < 680 ? 1 : 2,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: constraints.maxWidth < 680 ? 2.8 : 1.65,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: const [
+                  _IntegrationInsightCard(
+                    title: 'Structural pillars block sightlines in Sector 4G',
+                    area: 'Impact Area: Physical/Visibility',
+                    detail: 'Re-routing required',
+                    state: 'Active Conflict',
+                    accent: _kSpecError,
+                  ),
+                  _IntegrationInsightCard(
+                    title: 'SAML 2.0 Identity bridge to Legacy CRM',
+                    area: 'Impact Area: Digital Architecture',
+                    detail: 'Testing complete',
+                    state: 'Resolved',
+                    accent: _kSpecTeal,
+                  ),
+                  _IntegrationInsightCard(
+                    title: 'Power load for GPU cluster cooling',
+                    area: 'Impact Area: HVAC/Environmental',
+                    detail: 'Under Review',
+                    state: 'Draft Stage',
+                    accent: _kSpecPrimary,
+                  ),
+                  _IntegrationInsightCard(
+                    title: 'Maintenance corridor access control',
+                    area: 'Impact Area: Operations',
+                    detail: 'Dual-key validated',
+                    state: 'Resolved',
+                    accent: _kSpecTeal,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWorkingNotesCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _kSpecSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _kSpecBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8EEFF),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child:
+                    const Icon(Icons.edit_note_rounded, color: _kSpecPrimary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Specialized Working Notes',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: _kSpecPrimaryDeep,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Capture the high-risk specialized decisions that should survive handoff without interpretation loss.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _kSpecSubtext,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: _notesController,
+            minLines: 3,
+            maxLines: 8,
+            onChanged: (_) => _scheduleSave(),
+            style:
+                const TextStyle(fontSize: 14, color: _kSpecText, height: 1.5),
+            decoration: InputDecoration(
+              hintText:
+                  'Summarize the specialized design choices here: security zones, compliance obligations, performance hot paths, integration contracts, and validation caveats that must not be lost.',
+              hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+              filled: true,
+              fillColor: _kSpecPanelSoft,
+              contentPadding: const EdgeInsets.all(18),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: _kSpecBorder),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: _kSpecBorder),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: _kSpecPrimary, width: 2),
               ),
             ),
           ),
@@ -716,9 +1172,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.18)),
           ),
           child: Icon(icon, color: color, size: 22),
         ),
@@ -729,10 +1185,13 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             children: [
               Text(title,
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: _kSpecPrimaryDeep)),
               const SizedBox(height: 4),
               Text(subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  style: const TextStyle(
+                      fontSize: 13, color: _kSpecSubtext, height: 1.5)),
             ],
           ),
         ),
@@ -742,8 +1201,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
           label: Text(actionLabel),
           style: OutlinedButton.styleFrom(
             foregroundColor: color,
-            side: const BorderSide(color: Color(0xFFD6DCE8)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            side: const BorderSide(color: _kSpecBorder),
+            backgroundColor: _kSpecPanelSoft,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
           ),
         ),
       ],
@@ -754,9 +1217,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
+        color: _kSpecPanelSoft,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kSpecBorder),
       ),
       child: Row(
         children: [
@@ -770,9 +1233,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: 0.4,
-                    color: Color(0xFF475467),
+                    color: _kSpecSubtext,
                   ),
                 ),
               ),
@@ -791,9 +1254,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
+        color: isStriped ? _kSpecPanelSoft : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kSpecBorder),
       ),
       child: Row(
         children: [
@@ -868,9 +1331,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
+        color: isStriped ? _kSpecPanelSoft : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kSpecBorder),
       ),
       child: Row(
         children: [
@@ -949,9 +1412,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
+        color: isStriped ? _kSpecPanelSoft : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kSpecBorder),
       ),
       child: Row(
         children: [
@@ -1040,20 +1503,20 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
         hintStyle: TextStyle(fontSize: 13, color: Colors.grey[500]),
         isDense: true,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: _kSpecPanelSoft,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF1D4ED8), width: 2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecPrimary, width: 2),
         ),
       ),
     );
@@ -1092,20 +1555,20 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
       decoration: InputDecoration(
         isDense: true,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: _kSpecPanelSoft,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF1D4ED8), width: 2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecPrimary, width: 2),
         ),
       ),
     );
@@ -1119,9 +1582,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
+        color: _kSpecPanelSoft,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kSpecBorder),
       ),
       child: Row(
         children: [
@@ -1135,8 +1598,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
             onPressed: onAction,
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF1A1D1F),
-              side: const BorderSide(color: Color(0xFFD6DCE8)),
+              side: const BorderSide(color: _kSpecBorder),
+              backgroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             child: Text(actionLabel),
           ),
@@ -1174,19 +1641,19 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
       decoration: InputDecoration(
         isDense: true,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: _kSpecPanelSoft,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _kSpecBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: accent, width: 2),
         ),
       ),
@@ -1201,7 +1668,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
       icon: const Icon(Icons.delete_outline, size: 18),
       label: const Text('Delete'),
       style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFFB91C1C),
+        foregroundColor: _kSpecError,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       ),
     );
@@ -1344,4 +1811,609 @@ class _TableColumn {
   final String label;
   final int flex;
   final Alignment alignment;
+}
+
+class _HeroChip extends StatelessWidget {
+  const _HeroChip({
+    required this.label,
+    required this.icon,
+    this.selected = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? _kSpecPanel : _kSpecSurface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+            color: selected ? const Color(0xFFC6D7FF) : _kSpecBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: selected ? _kSpecPrimary : _kSpecSubtext),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: selected ? _kSpecPrimary : _kSpecSubtext,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({
+    required this.label,
+    required this.color,
+    required this.background,
+    required this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final Color background;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardPanel extends StatelessWidget {
+  const _DashboardPanel({
+    required this.title,
+    required this.icon,
+    required this.accent,
+    required this.child,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color accent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _kSpecSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _kSpecBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: _kSpecPrimaryDeep,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ComplianceRow extends StatelessWidget {
+  const _ComplianceRow({required this.name, required this.status});
+
+  final String name;
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final mandatory = status.toLowerCase() == 'mandatory';
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _kSpecBorder)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _kSpecText,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color:
+                  mandatory ? const Color(0xFFEAF8F3) : const Color(0xFFEAF1FF),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              status.toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                color: mandatory ? _kSpecTeal : _kSpecPrimary,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpecGrid extends StatelessWidget {
+  const _SpecGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      ('Encryption Standard', 'AES-256 GCM (Encrypted at Rest)'),
+      ('Load Capacity', '500kg/m² (Seismic Grade B)'),
+      ('Auth Protocol', 'OpenID Connect + mTLS'),
+      ('HVAC Redundancy', 'N+2 Parallel Configuration'),
+      ('Network Latency', '< 15ms Intra-Regional'),
+      ('API Rate Limit', '5,000 Req/min (Burst 10k)'),
+    ];
+
+    return Wrap(
+      spacing: 14,
+      runSpacing: 14,
+      children: [
+        for (final item in items)
+          SizedBox(
+            width: 280,
+            child: Container(
+              padding: const EdgeInsets.only(bottom: 12),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: _kSpecBorder)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.$1.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: _kSpecSubtext,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    item.$2,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _kSpecPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PersonRow extends StatelessWidget {
+  const _PersonRow({
+    required this.name,
+    required this.role,
+    required this.badge,
+    required this.badgeColor,
+  });
+
+  final String name;
+  final String role;
+  final String badge;
+  final Color badgeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kSpecPanelSoft,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kSpecBorder),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: const Color(0xFFDCE7FF),
+            child: Text(
+              name.split(' ').map((e) => e[0]).take(2).join(),
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                color: _kSpecPrimaryDeep,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: _kSpecText,
+                  ),
+                ),
+                Text(
+                  role.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: _kSpecSubtext,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: badgeColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              badge.toUpperCase(),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                color: badgeColor,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ValidationRow extends StatelessWidget {
+  const _ValidationRow({
+    required this.label,
+    required this.status,
+    required this.statusColor,
+    required this.icon,
+  });
+
+  final String label;
+  final String status;
+  final Color statusColor;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _kSpecBorder)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _kSpecText,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Icon(icon, size: 18, color: statusColor),
+              const SizedBox(width: 6),
+              Text(
+                status.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentRow extends StatelessWidget {
+  const _DocumentRow({
+    required this.title,
+    required this.subtitle,
+    required this.status,
+    required this.pending,
+  });
+
+  final String title;
+  final String subtitle;
+  final String status;
+  final bool pending;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kSpecPanelSoft,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kSpecBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            pending ? Icons.cloud_upload_outlined : Icons.description_outlined,
+            color: _kSpecSubtext,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: pending ? _kSpecSubtext : _kSpecText,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: _kSpecSubtext,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            status.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: pending ? _kSpecError : _kSpecTeal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RiskRow extends StatelessWidget {
+  const _RiskRow({
+    required this.profile,
+    required this.control,
+    required this.impact,
+    this.critical = false,
+    this.low = false,
+  });
+
+  final String profile;
+  final String control;
+  final String impact;
+  final bool critical;
+  final bool low;
+
+  @override
+  Widget build(BuildContext context) {
+    final badgeColor = critical
+        ? const Color(0xFFFEE4E2)
+        : low
+            ? const Color(0xFFE6EEFF)
+            : const Color(0xFFEAF1FF);
+    final textColor = critical
+        ? _kSpecError
+        : low
+            ? _kSpecPrimary
+            : _kSpecPrimaryDeep;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _kSpecBorder)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              profile,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: _kSpecText,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Text(
+              control,
+              style: const TextStyle(
+                fontSize: 12,
+                color: _kSpecSubtext,
+                height: 1.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: badgeColor,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              impact.toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                color: textColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IntegrationInsightCard extends StatelessWidget {
+  const _IntegrationInsightCard({
+    required this.title,
+    required this.area,
+    required this.detail,
+    required this.state,
+    required this.accent,
+  });
+
+  final String title;
+  final String area;
+  final String detail;
+  final String state;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kSpecPanelSoft,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kSpecBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            area.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: _kSpecSubtext,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: _kSpecText,
+              height: 1.4,
+            ),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  detail,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: _kSpecSubtext,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              Text(
+                state.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
