@@ -170,6 +170,7 @@ class _FrontEndPlanningProcurementScreenState
   String? _activeProjectId;
   String? _autoGenerationRequestedProjectId;
   String? _scheduledProjectBootstrapId;
+  String? _autoSeededStrategiesProjectId;
 
   int _itemsLimit = _initialStreamLimit;
   int _strategiesLimit = _initialStreamLimit;
@@ -981,6 +982,12 @@ class _FrontEndPlanningProcurementScreenState
           _recomputeDerivedProcurementData();
         });
         _clearResolvedValidationErrors();
+        if (data.isEmpty &&
+            !_isGeneratingData &&
+            _autoSeededStrategiesProjectId != projectId) {
+          _autoSeededStrategiesProjectId = projectId;
+          unawaited(_seedStrategies(projectId));
+        }
       },
       onError: (error) {
         if (!mounted) return;
@@ -1782,7 +1789,11 @@ class _FrontEndPlanningProcurementScreenState
     ];
 
     for (final s in strategies) {
-      await ProcurementService.createStrategy(s);
+      try {
+        await ProcurementService.createStrategy(s);
+      } catch (e) {
+        debugPrint('Unable to seed strategy "${s.title}": $e');
+      }
     }
   }
 
@@ -2504,26 +2515,21 @@ class _FrontEndPlanningProcurementScreenState
     }
 
     final checks = await Future.wait<bool>([
-      ProcurementService.hasAnyItems(projectId).timeout(
-        const Duration(seconds: 6),
-        onTimeout: () => true,
-      ),
-      ProcurementService.hasAnyStrategies(projectId).timeout(
-        const Duration(seconds: 6),
-        onTimeout: () => true,
-      ),
-      VendorService.hasAnyVendors(projectId).timeout(
-        const Duration(seconds: 6),
-        onTimeout: () => true,
-      ),
-      ProcurementService.hasAnyRfqs(projectId).timeout(
-        const Duration(seconds: 6),
-        onTimeout: () => true,
-      ),
-      ProcurementService.hasAnyPos(projectId).timeout(
-        const Duration(seconds: 6),
-        onTimeout: () => true,
-      ),
+      ProcurementService.hasAnyItems(projectId)
+          .timeout(const Duration(seconds: 6), onTimeout: () => false)
+          .catchError((_) => false),
+      ProcurementService.hasAnyStrategies(projectId)
+          .timeout(const Duration(seconds: 6), onTimeout: () => false)
+          .catchError((_) => false),
+      VendorService.hasAnyVendors(projectId)
+          .timeout(const Duration(seconds: 6), onTimeout: () => false)
+          .catchError((_) => false),
+      ProcurementService.hasAnyRfqs(projectId)
+          .timeout(const Duration(seconds: 6), onTimeout: () => false)
+          .catchError((_) => false),
+      ProcurementService.hasAnyPos(projectId)
+          .timeout(const Duration(seconds: 6), onTimeout: () => false)
+          .catchError((_) => false),
     ]);
 
     final hasItems = checks[0];
@@ -3299,7 +3305,9 @@ class _FrontEndPlanningProcurementScreenState
           ),
         );
       }
-      return;
+      if (!bypassDestinationLock) {
+        return;
+      }
     }
 
     if (!mounted) return;
@@ -3938,6 +3946,16 @@ class _FrontEndPlanningProcurementScreenState
   }
 
   Future<void> _openAddStrategyDialog() async {
+    final projectId = _resolveProjectId();
+    if (projectId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Project not initialized. Unable to add strategy.'),
+        ),
+      );
+      return;
+    }
     final strategy = await _showStrategyDialog();
     if (strategy == null) return;
     try {
@@ -3948,9 +3966,12 @@ class _FrontEndPlanningProcurementScreenState
         const SnackBar(content: Text('Strategy added.')),
       );
     } catch (e) {
+      debugPrint('Unable to add strategy: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to add strategy: $e')),
+        const SnackBar(
+            content:
+                Text('Unable to add strategy. Please try again in a moment.')),
       );
     }
   }

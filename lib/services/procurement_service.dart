@@ -176,7 +176,15 @@ class ProcurementService {
   }
 
   static Future<void> createStrategy(ProcurementStrategyModel strategy) async {
-    await _strategiesCol(strategy.projectId).add(strategy.toMap());
+    final projectId = strategy.projectId.trim();
+    if (projectId.isEmpty) {
+      throw Exception('Missing project id for procurement strategy.');
+    }
+    if (strategy.title.trim().isEmpty || strategy.category.trim().isEmpty) {
+      throw Exception('Strategy title and category are required.');
+    }
+    final ref = _strategiesCol(projectId).doc();
+    await ref.set(strategy.toMap());
   }
 
   static Future<void> updateStrategy(

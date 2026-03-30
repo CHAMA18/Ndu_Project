@@ -3072,9 +3072,18 @@ $c
 
     final data =
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-    final content =
-        (data['choices'] as List).first['message']['content'] as String;
-    final parsed = jsonDecode(content) as Map<String, dynamic>;
+
+    Map<String, dynamic>? parsed;
+    if (data.containsKey('choices')) {
+      final content =
+          (data['choices'] as List).first['message']['content'] as String;
+      parsed = _decodeJsonSafely(content);
+    } else if (data.containsKey('requirements')) {
+      parsed = data;
+    }
+    if (parsed == null) {
+      throw Exception('OpenAI returned invalid JSON for requirements.');
+    }
     final items = (parsed['requirements'] as List? ?? [])
         .map((e) {
           final item = e as Map<String, dynamic>;

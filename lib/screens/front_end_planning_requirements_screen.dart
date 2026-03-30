@@ -249,12 +249,8 @@ class _FrontEndPlanningRequirementsScreenState
   void _loadSavedRequirements(ProjectDataModel data) {
     final savedItems = data.frontEndPlanning.requirementItems;
     if (savedItems.isNotEmpty) {
-      for (final row in _rows) {
-        row.dispose();
-      }
-      _rows
-        ..clear()
-        ..addAll(savedItems.asMap().entries.map((entry) {
+      _replaceRowsSafely(
+        savedItems.asMap().entries.map((entry) {
           final item = entry.value;
           final row = _createRow(entry.key + 1);
           row.setDescriptionFromCode(item.description);
@@ -270,7 +266,8 @@ class _FrontEndPlanningRequirementsScreenState
           row.selectedPhase = _normalizePhaseSelection(item.phase);
           row.sourceController.text = item.requirementSource;
           return row;
-        }));
+        }).toList(),
+      );
       return;
     }
 
@@ -282,16 +279,13 @@ class _FrontEndPlanningRequirementsScreenState
           .where((line) => line.isNotEmpty)
           .toList();
       if (lines.isNotEmpty) {
-        for (final row in _rows) {
-          row.dispose();
-        }
-        _rows
-          ..clear()
-          ..addAll(lines.asMap().entries.map((entry) {
+        _replaceRowsSafely(
+          lines.asMap().entries.map((entry) {
             final row = _createRow(entry.key + 1);
             row.setDescriptionFromCode(entry.value);
             return row;
-          }));
+          }).toList(),
+        );
       }
     }
   }
@@ -343,46 +337,42 @@ class _FrontEndPlanningRequirementsScreenState
           }
         }
 
-        setState(() {
-          for (final row in _rows) {
-            row.dispose();
+        final nextRows = reqs.asMap().entries.map((e) {
+          final r = _createRow(e.key + 1);
+          final requirementText = (e.value['requirement'] ?? '').toString();
+          r.setDescriptionFromCode(requirementText);
+          r.commentsController.text = '';
+          r.selectedType = _normalizeRequirementTypeSelection(
+            (e.value['requirementType'] ?? 'Functional').toString(),
+          );
+          final aiDiscipline = (e.value['discipline'] ?? '').toString();
+          final aiRole = (e.value['role'] ?? '').toString();
+          final aiPerson = (e.value['person'] ?? '').toString();
+          r.selectedDiscipline = _normalizeDisciplineSelection(aiDiscipline);
+          r.roleController.text = aiRole;
+          r.personController.text =
+              _resolvePersonSelection(aiPerson, roleHint: aiRole);
+          r.selectedPhase =
+              _normalizePhaseSelection((e.value['phase'] ?? '').toString());
+          r.sourceController.text =
+              (e.value['requirementSource'] ?? '').toString();
+
+          // Track new AI-generated content
+          if (requirementText.isNotEmpty) {
+            provider.addFieldToHistory(
+              'fep_requirement_${r.number}_description',
+              requirementText,
+              isAiGenerated: true,
+            );
           }
-          _rows
-            ..clear()
-            ..addAll(reqs.asMap().entries.map((e) {
-              final r = _createRow(e.key + 1);
-              final requirementText = (e.value['requirement'] ?? '').toString();
-              r.setDescriptionFromCode(requirementText);
-              r.commentsController.text = '';
-              r.selectedType = _normalizeRequirementTypeSelection(
-                (e.value['requirementType'] ?? 'Functional').toString(),
-              );
-              final aiDiscipline = (e.value['discipline'] ?? '').toString();
-              final aiRole = (e.value['role'] ?? '').toString();
-              final aiPerson = (e.value['person'] ?? '').toString();
-              r.selectedDiscipline =
-                  _normalizeDisciplineSelection(aiDiscipline);
-              r.roleController.text = aiRole;
-              r.personController.text =
-                  _resolvePersonSelection(aiPerson, roleHint: aiRole);
-              r.selectedPhase =
-                  _normalizePhaseSelection((e.value['phase'] ?? '').toString());
-              r.sourceController.text =
-                  (e.value['requirementSource'] ?? '').toString();
 
-              // Track new AI-generated content
-              if (requirementText.isNotEmpty) {
-                provider.addFieldToHistory(
-                  'fep_requirement_${r.number}_description',
-                  requirementText,
-                  isAiGenerated: true,
-                );
-              }
+          return r;
+        }).toList();
 
-              return r;
-            }));
+        setState(() {
           _isGeneratingRequirements = false;
         });
+        _replaceRowsSafely(nextRows);
         _commitAutoSave(showSnack: false);
         if (mounted && showSeedNotice) {
           await showDialog<void>(
@@ -405,6 +395,14 @@ class _FrontEndPlanningRequirementsScreenState
       }
     } catch (e) {
       debugPrint('AI requirements suggestion failed: $e');
+      if (mounted) {
+        final message = e.toString();
+        setState(() {
+          _initialGenerationError = message.contains('OpenAI API key')
+              ? 'OpenAI API key is not configured. Please add a valid key in Settings to use AI.'
+              : 'AI requirements suggestion failed. Please try again.';
+        });
+      }
     }
     if (mounted) {
       setState(() => _isGeneratingRequirements = false);
@@ -2250,6 +2248,29 @@ class _FrontEndPlanningRequirementsScreenState
           duration: Duration(seconds: 1),
         ),
       );
+  }
+
+  void _replaceRowsSafely(List<_RequirementRow> nextRows) {
+    final previousRows = List<_RequirementRow>.from(_rows);
+    if (!mounted) {
+      for (final row in previousRows) {
+        row.dispose();
+      }
+      for (final row in nextRows) {
+        row.dispose();
+      }
+      return;
+    }
+    setState(() {
+      _rows
+        ..clear()
+        ..addAll(nextRows);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final row in previousRows) {
+        row.dispose();
+      }
+    });
   }
 }
 

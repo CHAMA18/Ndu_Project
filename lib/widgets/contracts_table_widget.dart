@@ -129,6 +129,11 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
   bool _isRegenerating = false;
   ContractModel? _previousState; // For undo
 
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'TBD';
+    return DateFormat('MMM d, yyyy').format(date);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -728,7 +733,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                     flex: 2,
                     child: Center(
                       child: Text(
-                        DateFormat('MMM d, yyyy').format(_contract.startDate),
+                        _formatDate(_contract.startDate),
                         style: const TextStyle(
                             fontSize: 11, color: Color(0xFF111827)),
                       ),
@@ -738,13 +743,15 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                     flex: 2,
                     child: Center(
                       child: Text(
-                        DateFormat('MMM d, yyyy').format(_contract.endDate),
+                        _formatDate(_contract.endDate),
                         style: TextStyle(
                           fontSize: 11,
-                          color: _contract.endDate.isBefore(DateTime.now())
+                          color: _contract.endDate != null &&
+                                  _contract.endDate!.isBefore(DateTime.now())
                               ? const Color(0xFFEF4444)
                               : const Color(0xFF111827),
-                          fontWeight: _contract.endDate.isBefore(DateTime.now())
+                          fontWeight: _contract.endDate != null &&
+                                  _contract.endDate!.isBefore(DateTime.now())
                               ? FontWeight.w700
                               : FontWeight.normal,
                         ),

@@ -168,7 +168,6 @@ class _FrontEndPlanningSummaryScreenState
     return ResponsiveScaffold(
       activeItemLabel: 'Details',
       backgroundColor: Colors.white,
-      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Stack(
         children: [
           const AdminEditToggle(),
@@ -1546,6 +1545,8 @@ class _BottomOverlay extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 16),
+                  const KazAiChatBubble(positioned: false),
                   const SizedBox(width: 16),
                   ElevatedButton(
                     onPressed: () async {

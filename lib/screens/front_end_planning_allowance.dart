@@ -70,6 +70,9 @@ class _FrontEndPlanningAllowanceScreenState
       _notes.addListener(_syncNotesToProvider);
       _isSyncReady = true;
       _syncItemsToProvider();
+      if (_allowanceItems.isEmpty) {
+        Future<void>(() async => _generateDefaultAllowances());
+      }
       setState(() {});
     });
   }
