@@ -1237,14 +1237,11 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     } catch (e) {
       if (!mounted) return;
       final denied = e is FirebaseException && e.code == 'permission-denied';
+      final message = denied
+          ? 'Scope management data is locked by Firestore permissions.'
+          : 'Scope management data is temporarily unavailable. You can continue working.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            denied
-                ? 'Unable to load scope management state due to Firestore permissions. Deploy updated rules for contracting scope collections.'
-                : 'Unable to load scope management state: $e',
-          ),
-        ),
+        SnackBar(content: Text(message)),
       );
     } finally {
       if (mounted) {
@@ -1405,9 +1402,14 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           ..._scopeManagementByScopeId,
           item.id: startedState,
         };
+        _selectedManagementTab = _ContractingManagementTab.contractingTemplates;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Scope process started successfully.')),
+        const SnackBar(
+          content: Text(
+            'Scope process started. Templates, tracking, and reports are now unlocked.',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1621,26 +1623,19 @@ class _FrontEndPlanningContractVendorQuotesScreenState
               _ContractingManagementTab.scopeManagement)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
-              child: Text(
-                _selectedManagementTab ==
-                        _ContractingManagementTab.contractingTemplates
-                    ? 'Contracting templates are now available because at least one scope process has started.'
-                    : _selectedManagementTab ==
-                            _ContractingManagementTab.contractTracking
-                        ? 'Contract tracking is now available because a scope process has been commenced.'
-                        : 'Reports are now available after scope commencement.',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF374151),
-                  height: 1.35,
-                ),
-              ),
+              child: _selectedManagementTab ==
+                      _ContractingManagementTab.contractingTemplates
+                  ? _buildTemplatesTab(items)
+                  : _selectedManagementTab ==
+                          _ContractingManagementTab.contractTracking
+                      ? _buildTrackingTab(items)
+                      : _buildReportsTab(items, contractors),
             )
           else ...[
             Row(
@@ -1653,6 +1648,12 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                       color: Color(0xFF6B7280),
                     ),
                   ),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _scopeManagementSaving ? null : _openAddItemDialog,
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
+                  label: const Text('Add Scope'),
                 ),
                 const SizedBox(width: 10),
                 OutlinedButton.icon(
@@ -1699,9 +1700,21 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFE5E7EB)),
                 ),
-                child: const Text(
-                  'No contract scopes found. Add scope items to manage commencement.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'No contract scopes found. Add scope items to manage commencement.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: _openAddItemDialog,
+                      child: const Text('Add Scope'),
+                    ),
+                  ],
                 ),
               )
             else
@@ -1714,6 +1727,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                         final state = _scopeStateForItem(item, availableRoles);
                         final canStart = _canCommenceScope(
                             state: state, actingRole: actingRole);
+                        final scopeContractors = _contractorsForScope(item);
                         return Container(
                           width: double.infinity,
                           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -1821,6 +1835,81 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                                 ],
                               ),
                               const SizedBox(height: 8),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Contractors:',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF4B5563),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: scopeContractors.isEmpty
+                                        ? const Text(
+                                            'None assigned yet.',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              color: Color(0xFF9CA3AF),
+                                            ),
+                                          )
+                                        : Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: scopeContractors
+                                                .map(
+                                                  (name) => Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                          0xFFEFF6FF),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              999),
+                                                      border: Border.all(
+                                                        color: const Color(
+                                                            0xFFBFDBFE),
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      name,
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color:
+                                                            Color(0xFF1E3A8A),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton(
+                                    onPressed: () async {
+                                      await _promptAssignContractorToScopes(
+                                        contractorName: '',
+                                        scopes: [item],
+                                      );
+                                    },
+                                    child: const Text('Assign'),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  TextButton(
+                                    onPressed: () => _openEditItemDialog(item),
+                                    child: const Text('Manage Scope'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
                               if (state.startedAt != null)
                                 Text(
                                   'Started by ${state.startedByRole.trim().isEmpty ? '-' : state.startedByRole} (${state.startedByEmail.trim().isEmpty ? 'unknown user' : state.startedByEmail}) on ${_formatDateTimeShort(state.startedAt!)}',
@@ -1900,9 +1989,21 @@ class _FrontEndPlanningContractVendorQuotesScreenState
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: approvedContractors
-                  .map(
-                    (name) => Container(
+              children: approvedContractors.map(
+                (name) {
+                  final vendor = _vendorForName(contractors, name);
+                  final statusLabel = vendor == null
+                      ? 'Untracked'
+                      : vendor.status.trim().isEmpty
+                          ? 'Pending'
+                          : vendor.status.trim();
+                  return InkWell(
+                    onTap: () => _openContractorActionsDialog(
+                      name: name,
+                      vendor: vendor,
+                      scopes: items,
+                    ),
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(
@@ -1910,17 +2011,49 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF374151),
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF374151),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: vendor == null
+                                  ? const Color(0xFFF3F4F6)
+                                  : const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: vendor == null
+                                    ? const Color(0xFFE5E7EB)
+                                    : const Color(0xFFBFDBFE),
+                              ),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: vendor == null
+                                    ? const Color(0xFF6B7280)
+                                    : const Color(0xFF1E3A8A),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                  .toList(),
+                  );
+                },
+              ).toList(),
             ),
         ],
       ),
@@ -2103,7 +2236,37 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     final alreadyExists = existingContractors.any(
       (contractor) => contractor.name.trim().toLowerCase() == normalizedName,
     );
-    if (alreadyExists) {
+    if (!alreadyExists) {
+      try {
+        await VendorService.createVendor(
+          projectId: projectId,
+          name: result.name.trim(),
+          category: result.category.trim(),
+          criticality: result.criticality,
+          rating: result.rating,
+          status: result.status,
+          sla: result.sla,
+          slaPerformance: result.slaPerformance,
+          leadTime: result.leadTime,
+          requiredDeliverables: result.requiredDeliverables,
+          nextReview: result.nextReview,
+          onTimeDelivery: result.onTimeDelivery,
+          incidentResponse: result.incidentResponse,
+          qualityScore: result.qualityScore,
+          costAdherence: result.costAdherence,
+          notes: result.notes,
+          createdById: result.createdById,
+          createdByEmail: result.createdByEmail,
+          createdByName: result.createdByName,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to add contractor: $e')),
+        );
+        return;
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -2111,41 +2274,18 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           ),
         ),
       );
-      return;
     }
 
-    try {
-      await VendorService.createVendor(
-        projectId: projectId,
-        name: result.name.trim(),
-        category: result.category.trim(),
-        criticality: result.criticality,
-        rating: result.rating,
-        status: result.status,
-        sla: result.sla,
-        slaPerformance: result.slaPerformance,
-        leadTime: result.leadTime,
-        requiredDeliverables: result.requiredDeliverables,
-        nextReview: result.nextReview,
-        onTimeDelivery: result.onTimeDelivery,
-        incidentResponse: result.incidentResponse,
-        qualityScore: result.qualityScore,
-        costAdherence: result.costAdherence,
-        notes: result.notes,
-        createdById: result.createdById,
-        createdByEmail: result.createdByEmail,
-        createdByName: result.createdByName,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Contractor added.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to add contractor: $e')),
-      );
-    }
+    final scopes = await (_itemsStream?.first.timeout(
+          const Duration(seconds: 6),
+          onTimeout: () => const <ProcurementItemModel>[],
+        ) ??
+        Future.value(const <ProcurementItemModel>[]));
+    if (!mounted) return;
+    await _promptAssignContractorToScopes(
+      contractorName: result.name.trim(),
+      scopes: scopes,
+    );
   }
 
   Future<ProcurementItemModel?> _showContractScopeDialog({
@@ -2473,6 +2613,546 @@ class _FrontEndPlanningContractVendorQuotesScreenState
         .toList();
   }
 
+  List<String> _contractorsForScope(ProcurementItemModel item) {
+    return _splitContractorTokens(item.notes);
+  }
+
+  Future<void> _assignContractorToScopes({
+    required String contractorName,
+    required List<ProcurementItemModel> scopes,
+  }) async {
+    final trimmed = contractorName.trim();
+    if (trimmed.isEmpty || scopes.isEmpty) return;
+
+    for (final scope in scopes) {
+      final existing = _contractorsForScope(scope);
+      if (existing.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+        continue;
+      }
+      final next = [...existing, trimmed].join(', ');
+      await ProcurementService.updateItem(scope.projectId, scope.id, {
+        'notes': next,
+      });
+    }
+  }
+
+  Future<void> _promptAssignContractorToScopes({
+    required String contractorName,
+    required List<ProcurementItemModel> scopes,
+  }) async {
+    var selectedContractor = contractorName.trim();
+    if (scopes.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No contract scopes yet. Add a scope first.'),
+        ),
+      );
+      return;
+    }
+
+    if (selectedContractor.isEmpty) {
+      final vendors = await (_contractorsStream?.first.timeout(
+            const Duration(seconds: 6),
+            onTimeout: () => const <VendorModel>[],
+          ) ??
+          Future.value(const <VendorModel>[]));
+      final candidates = _collectApprovedContractors(const [], scopes, vendors);
+      final controller = TextEditingController();
+      final picked = await showDialog<String>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Select Contractor'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: candidates.isNotEmpty ? candidates.first : null,
+                      items: candidates
+                          .map((name) => DropdownMenuItem<String>(
+                                value: name,
+                                child: Text(name),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        controller.text = value;
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Approved Contractors',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(
+                        labelText: 'Or enter contractor name',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, controller.text.trim()),
+                  child: const Text('Continue'),
+                ),
+              ],
+            ),
+          ) ??
+          '';
+      controller.dispose();
+      selectedContractor = picked.trim();
+    }
+
+    if (selectedContractor.isEmpty) return;
+
+    final selected = <String>{};
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              title: const Text('Assign Contractor to Scope'),
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Select the scopes that should include "$selectedContractor".',
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                      const SizedBox(height: 10),
+                      for (final scope in scopes)
+                        CheckboxListTile(
+                          value: selected.contains(scope.id),
+                          dense: true,
+                          onChanged: (value) {
+                            setState(() {
+                              if (value == true) {
+                                selected.add(scope.id);
+                              } else {
+                                selected.remove(scope.id);
+                              }
+                            });
+                          },
+                          title: Text(
+                            scope.name.trim().isEmpty
+                                ? 'Untitled Scope'
+                                : scope.name.trim(),
+                          ),
+                          subtitle: Text(
+                            scope.description.trim().isEmpty
+                                ? 'No description'
+                                : scope.description.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selected.isEmpty
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
+                  child: const Text('Assign'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+
+    if (!confirmed || selected.isEmpty) return;
+    final targets =
+        scopes.where((scope) => selected.contains(scope.id)).toList();
+    await _assignContractorToScopes(
+      contractorName: selectedContractor,
+      scopes: targets,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Assigned "$selectedContractor" to ${targets.length} scope(s).'),
+      ),
+    );
+  }
+
+  String _templateKeyForScope(String scopeId) =>
+      'contracting_template_$scopeId';
+
+  String _trackingKeyForScope(String scopeId) =>
+      'contracting_tracking_$scopeId';
+
+  Future<void> _savePlanningNote(String key, String value) async {
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'fep_contract_vendor_quotes',
+      dataUpdater: (data) => data.copyWith(
+        planningNotes: {
+          ...data.planningNotes,
+          key: value.trim(),
+        },
+      ),
+      showSnackbar: false,
+    );
+  }
+
+  Future<void> _openTemplateEditor(ProcurementItemModel item) async {
+    final data = ProjectDataHelper.getData(context);
+    final key = _templateKeyForScope(item.id);
+    final controller = TextEditingController(
+      text: (data.planningNotes[key] ?? '').toString(),
+    );
+
+    final saved = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(
+              'Template for ${item.name.trim().isEmpty ? 'Scope' : item.name.trim()}',
+            ),
+            content: SizedBox(
+              width: 560,
+              child: TextField(
+                controller: controller,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  hintText:
+                      'Capture scope-specific template clauses, milestones, SLAs, and deliverables.',
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Save Template'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (saved) {
+      await _savePlanningNote(key, controller.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Template saved.')),
+        );
+      }
+    }
+    controller.dispose();
+  }
+
+  Widget _buildTemplatesTab(List<ProcurementItemModel> items) {
+    final started = items.where((item) {
+      final state = _scopeManagementByScopeId[item.id];
+      return state?.started == true;
+    }).toList();
+    if (started.isEmpty) {
+      return const Text(
+        'Start a scope process to generate and manage contracting templates.',
+        style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+      );
+    }
+
+    final notes = ProjectDataHelper.getData(context).planningNotes;
+    return Column(
+      children: [
+        for (final item in started)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name.trim().isEmpty
+                            ? 'Untitled Scope'
+                            : item.name.trim(),
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        (notes[_templateKeyForScope(item.id)] ?? '')
+                                .toString()
+                                .isEmpty
+                            ? 'No template yet. Create one for this scope.'
+                            : 'Template saved for this scope.',
+                        style: const TextStyle(
+                            fontSize: 11.5, color: Color(0xFF6B7280)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: () => _openTemplateEditor(item),
+                  child: const Text('Edit Template'),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTrackingTab(List<ProcurementItemModel> items) {
+    final started = items.where((item) {
+      final state = _scopeManagementByScopeId[item.id];
+      return state?.started == true;
+    }).toList();
+    if (started.isEmpty) {
+      return const Text(
+        'Contract tracking will appear once at least one scope is started.',
+        style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+      );
+    }
+
+    const statuses = [
+      'RFQ Drafted',
+      'RFQ Sent',
+      'Responses In',
+      'Evaluation',
+      'Awarded',
+      'Contract Signed',
+    ];
+    final notes = ProjectDataHelper.getData(context).planningNotes;
+    return Column(
+      children: [
+        for (final item in started)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.name.trim().isEmpty
+                        ? 'Untitled Scope'
+                        : item.name.trim(),
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    value: (notes[_trackingKeyForScope(item.id)] ?? '')
+                            .toString()
+                            .trim()
+                            .isEmpty
+                        ? statuses.first
+                        : (notes[_trackingKeyForScope(item.id)] ?? '')
+                            .toString()
+                            .trim(),
+                    items: statuses
+                        .map((status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(status),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      _savePlanningNote(
+                        _trackingKeyForScope(item.id),
+                        value,
+                      );
+                    },
+                    decoration:
+                        const InputDecoration(labelText: 'Tracking Status'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildReportsTab(
+    List<ProcurementItemModel> items,
+    List<VendorModel> contractors,
+  ) {
+    final started = items.where((item) {
+      final state = _scopeManagementByScopeId[item.id];
+      return state?.started == true;
+    }).toList();
+    final approvedCount = contractors
+        .where((vendor) => vendor.status.toLowerCase() == 'approved')
+        .length;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Contracting Summary',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Started scopes: ${started.length}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Approved contractors: $approvedCount',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Use scope tracking and templates to populate fuller reports.',
+            style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7280)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  VendorModel? _vendorForName(
+    List<VendorModel> contractors,
+    String name,
+  ) {
+    final normalized = name.trim().toLowerCase();
+    for (final vendor in contractors) {
+      if (vendor.name.trim().toLowerCase() == normalized) return vendor;
+    }
+    return null;
+  }
+
+  Future<void> _setVendorStatus(VendorModel vendor, String status) async {
+    try {
+      await VendorService.updateVendor(
+        projectId: vendor.projectId,
+        vendorId: vendor.id,
+        status: status,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Contractor marked as $status.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update contractor: $e')),
+      );
+    }
+  }
+
+  Future<void> _openContractorActionsDialog({
+    required String name,
+    required VendorModel? vendor,
+    required List<ProcurementItemModel> scopes,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              vendor == null
+                  ? 'Status: Untracked (not yet in vendors list)'
+                  : 'Status: ${vendor.status}',
+              style: const TextStyle(fontSize: 12.5),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Actions',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+          if (vendor != null) ...[
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await _setVendorStatus(vendor, 'Approved');
+              },
+              child: const Text('Approve'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await _setVendorStatus(vendor, 'Denied');
+              },
+              child: const Text('Deny', style: TextStyle(color: Colors.red)),
+            ),
+          ] else
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await _openAddContractorDialog();
+              },
+              child: const Text('Add To Vendors'),
+            ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _promptAssignContractorToScopes(
+                contractorName: name,
+                scopes: scopes,
+              );
+            },
+            child: const Text('Assign to Scope'),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<String> _collectApprovedContractors(
     List<ContractModel> contracts,
     List<ProcurementItemModel> items,
@@ -2539,63 +3219,111 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       final contractors =
           _collectApprovedContractors(contracts, items, storedContractors);
 
+      final vendorByName = <String, VendorModel>{};
+      for (final vendor in storedContractors) {
+        vendorByName[vendor.name.trim().toLowerCase()] = vendor;
+      }
+
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.fact_check_outlined, color: Color(0xFF2563EB)),
-              SizedBox(width: 10),
-              Text('Approved Contractor List'),
-            ],
-          ),
-          content: SizedBox(
-            width: 560,
-            child: contractors.isEmpty
-                ? const Text(
-                    'No approved contractors found yet. Add contract details or contractor candidates in scope items to populate this list.',
-                    style: TextStyle(height: 1.45),
-                  )
-                : ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 360),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: contractors.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 12, thickness: 0.5),
-                      itemBuilder: (_, index) {
-                        final name = contractors[index];
-                        return ListTile(
-                          dense: true,
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 0),
-                          leading: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: const Color(0xFFEFF6FF),
-                            child: Text(
-                              name.isEmpty ? '?' : name.trim()[0].toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF2563EB),
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.fact_check_outlined, color: Color(0xFF2563EB)),
+                SizedBox(width: 10),
+                Text('Approved Contractor List'),
+              ],
+            ),
+            content: SizedBox(
+              width: 620,
+              child: contractors.isEmpty
+                  ? const Text(
+                      'No approved contractors found yet. Add contract details or contractor candidates in scope items to populate this list.',
+                      style: TextStyle(height: 1.45),
+                    )
+                  : ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 420),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: contractors.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 12, thickness: 0.5),
+                        itemBuilder: (_, index) {
+                          final name = contractors[index];
+                          final vendor =
+                              vendorByName[name.trim().toLowerCase()];
+                          final statusLabel = vendor == null
+                              ? 'Untracked'
+                              : vendor.status.trim().isEmpty
+                                  ? 'Pending'
+                                  : vendor.status.trim();
+                          return ListTile(
+                            dense: true,
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 0),
+                            leading: CircleAvatar(
+                              radius: 14,
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              child: Text(
+                                name.isEmpty
+                                    ? '?'
+                                    : name.trim()[0].toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2563EB),
+                                ),
                               ),
                             ),
-                          ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        );
-                      },
+                            title: Text(
+                              name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              'Status: $statusLabel',
+                              style: const TextStyle(fontSize: 11.5),
+                            ),
+                            trailing: vendor == null
+                                ? TextButton(
+                                    onPressed: () async {
+                                      Navigator.of(dialogContext).pop();
+                                      await _openAddContractorDialog();
+                                    },
+                                    child: const Text('Add to Vendors'),
+                                  )
+                                : Wrap(
+                                    spacing: 6,
+                                    children: [
+                                      TextButton(
+                                        onPressed: () async {
+                                          await _setVendorStatus(
+                                              vendor, 'Approved');
+                                        },
+                                        child: const Text('Approve'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          await _setVendorStatus(
+                                              vendor, 'Denied');
+                                        },
+                                        child: const Text('Deny'),
+                                      ),
+                                    ],
+                                  ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Close'),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
         ),
       );
     } catch (e) {
@@ -3304,7 +4032,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'fep_contract_vendor_quotes',
-      destinationCheckpoint: 'fep_procurement',
+      destinationCheckpoint: null,
       saveInBackground: true,
       nextScreenBuilder: () => const FrontEndPlanningProcurementScreen(),
       dataUpdater: (data) => data.copyWith(

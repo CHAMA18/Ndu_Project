@@ -3696,7 +3696,8 @@ class _PreferredSolutionAnalysisScreenState
               ),
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Center(
+                child: Align(
+                    alignment: Alignment.centerLeft,
                     child:
                         Text(row.cost, style: const TextStyle(fontSize: 12))),
               ),
@@ -5758,19 +5759,21 @@ class _PreferredSolutionDetailsScreenState
                             children: [
                               Expanded(
                                 flex: 2,
-                                child: Center(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
                                   child: Text(
                                     cbaRows[i].itemName.isEmpty
                                         ? 'Cost item'
                                         : cbaRows[i].itemName,
                                     style: const TextStyle(fontSize: 11),
-                                    textAlign: TextAlign.center,
+                                    textAlign: TextAlign.left,
                                   ),
                                 ),
                               ),
                               Expanded(
                                 flex: 1,
-                                child: Center(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
                                   child: Text(
                                     cbaRows[i].cost.isEmpty
                                         ? '-'
@@ -5779,19 +5782,20 @@ class _PreferredSolutionDetailsScreenState
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
-                                    textAlign: TextAlign.center,
+                                    textAlign: TextAlign.left,
                                   ),
                                 ),
                               ),
                               Expanded(
                                 flex: 2,
-                                child: Center(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
                                   child: Text(
                                     cbaRows[i].description.isEmpty
                                         ? '-'
                                         : cbaRows[i].description,
                                     style: const TextStyle(fontSize: 11),
-                                    textAlign: TextAlign.center,
+                                    textAlign: TextAlign.left,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),

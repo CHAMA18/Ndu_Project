@@ -403,7 +403,9 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
         final contracts = snapshot.data!;
         final activeCount = contracts.where((c) => c.status == 'Active').length;
         final renewalDue = contracts.where((c) {
-          final daysUntilRenewal = c.endDate.difference(DateTime.now()).inDays;
+          final endDate = c.endDate;
+          if (endDate == null) return false;
+          final daysUntilRenewal = endDate.difference(DateTime.now()).inDays;
           return daysUntilRenewal <= 30 && daysUntilRenewal > 0;
         }).length;
         final totalValue =
@@ -562,11 +564,15 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     if (_selectedFilters.contains('All contracts')) return contracts;
     return contracts.where((c) {
       if (_selectedFilters.contains('Renewal due')) {
-        final daysUntilRenewal = c.endDate.difference(DateTime.now()).inDays;
+        final endDate = c.endDate;
+        if (endDate == null) return false;
+        final daysUntilRenewal = endDate.difference(DateTime.now()).inDays;
         return daysUntilRenewal <= 60 && daysUntilRenewal > 0;
       }
       if (_selectedFilters.contains('At risk')) {
-        final daysUntilRenewal = c.endDate.difference(DateTime.now()).inDays;
+        final endDate = c.endDate;
+        if (endDate == null) return false;
+        final daysUntilRenewal = endDate.difference(DateTime.now()).inDays;
         return daysUntilRenewal <= 30 &&
             daysUntilRenewal > 0 &&
             c.status != 'Expired';

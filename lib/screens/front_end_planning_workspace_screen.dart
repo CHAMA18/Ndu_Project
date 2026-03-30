@@ -571,40 +571,47 @@ class _FrontEndPlanningWorkspaceScreenState
           Positioned(
             right: 24,
             bottom: 24,
-            child: ElevatedButton(
-              onPressed: () {
-                ProjectDataHelper.saveAndNavigate(
-                  context: context,
-                  checkpoint: 'fep_details_complete',
-                  saveInBackground: true,
-                  nextScreenBuilder: () =>
-                      const FrontEndPlanningRequirementsScreen(),
-                  dataUpdater: (data) => data.copyWith(
-                    withinScope: _withinScope,
-                    outOfScope: _outOfScope,
-                    assumptions: _assumptions,
-                    constraints: _constraints,
-                    frontEndPlanning: ProjectDataHelper.updateFEPField(
-                      current: data.frontEndPlanning,
-                      summary: _summaryController.text,
-                    ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const KazAiChatBubble(positioned: false),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    ProjectDataHelper.saveAndNavigate(
+                      context: context,
+                      checkpoint: 'fep_details_complete',
+                      saveInBackground: true,
+                      nextScreenBuilder: () =>
+                          const FrontEndPlanningRequirementsScreen(),
+                      dataUpdater: (data) => data.copyWith(
+                        withinScope: _withinScope,
+                        outOfScope: _outOfScope,
+                        assumptions: _assumptions,
+                        constraints: _constraints,
+                        frontEndPlanning: ProjectDataHelper.updateFEPField(
+                          current: data.frontEndPlanning,
+                          summary: _summaryController.text,
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFC812),
+                    foregroundColor: const Color(0xFF111827),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22)),
+                    elevation: 0,
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFC812),
-                foregroundColor: const Color(0xFF111827),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22)),
-                elevation: 0,
-              ),
-              child: const Text('Next',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: const Text('Next',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ],
             ),
           ),
-          const KazAiChatBubble(),
         ],
       ),
     );

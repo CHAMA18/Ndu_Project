@@ -257,13 +257,6 @@ class _FrontEndPlanningContractsScreenState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _ContractHeader(
-                                title: 'Contract',
-                                onBack: () => Navigator.maybePop(context),
-                                onForward: null,
-                                onCreateContract: _openCreateContract,
-                              ),
-                              const SizedBox(height: 28),
                               _ContractTabs(
                                 selectedIndex: _selectedTabIndex,
                                 onTabSelected: (index) {
@@ -4039,6 +4032,8 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
       final created = contract.createdAt;
       final start = contract.startDate;
       final end = contract.endDate;
+      final bidOpeningDate =
+          end != null ? end.add(const Duration(days: 2)) : null;
       _overviewMilestones = [
         _ContractMilestoneData(
           title: 'Published Date',
@@ -4058,7 +4053,7 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
         ),
         _ContractMilestoneData(
           title: 'Bid Opening',
-          value: _formatShortDate(end.add(const Duration(days: 2))),
+          value: _formatShortDate(bidOpeningDate),
           accentColor: const Color(0xFF2563EB),
         ),
       ];
@@ -4454,8 +4449,12 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
 
   void _buildTimelineFromContracts() {
     if (_contracts.isEmpty) return;
-    final startDates = _contracts.map((c) => c.startDate).toList();
-    final endDates = _contracts.map((c) => c.endDate).toList();
+    final contractsWithDates = _contracts
+        .where((c) => c.startDate != null && c.endDate != null)
+        .toList();
+    if (contractsWithDates.isEmpty) return;
+    final startDates = contractsWithDates.map((c) => c.startDate!).toList();
+    final endDates = contractsWithDates.map((c) => c.endDate!).toList();
     final earliest = startDates.reduce((a, b) => a.isBefore(b) ? a : b);
     final latest = endDates.reduce((a, b) => a.isAfter(b) ? a : b);
 
@@ -4468,13 +4467,13 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
     }
 
     final now = DateTime.now();
-    final rows = _contracts.map((contract) {
+    final rows = contractsWithDates.map((contract) {
       final cells = months.map((_) {
-        if (now.isAfter(contract.endDate)) {
+        if (now.isAfter(contract.endDate!)) {
           return const _StatusTimelineCellData(
               status: _TimelineStatusState.complete);
         }
-        if (now.isBefore(contract.startDate)) {
+        if (now.isBefore(contract.startDate!)) {
           return const _StatusTimelineCellData(
               status: _TimelineStatusState.notStarted);
         }
@@ -4979,21 +4978,30 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
     if (_contracts.isEmpty) return;
     final rows = <_SummaryTableRowData>[];
     double totalValue = 0.0;
-    int maxDurationDays = 0;
+    int maxDurationDaysWithDates = 0;
     for (final contract in _contracts) {
-      final duration = contract.endDate.difference(contract.startDate).inDays;
-      maxDurationDays = duration > maxDurationDays ? duration : maxDurationDays;
+      final hasDates = contract.startDate != null && contract.endDate != null;
+      final duration = hasDates
+          ? contract.endDate!.difference(contract.startDate!).inDays
+          : 0;
+      if (hasDates) {
+        maxDurationDaysWithDates = duration > maxDurationDaysWithDates
+            ? duration
+            : maxDurationDaysWithDates;
+      }
       totalValue += contract.estimatedValue;
       rows.add(_SummaryTableRowData(
         contract: contract.name,
-        contractor: contract.discipline.isNotEmpty
-            ? contract.discipline
-            : (contract.createdByName.isNotEmpty
-                ? contract.createdByName
-                : 'TBD'),
+        contractor: contract.contractorName.isNotEmpty
+            ? contract.contractorName
+            : (contract.discipline.isNotEmpty
+                ? contract.discipline
+                : (contract.createdByName.isNotEmpty
+                    ? contract.createdByName
+                    : 'TBD')),
         method: '${contract.contractType} / ${contract.paymentType}',
         estimatedValue: _formatCurrency(contract.estimatedValue),
-        duration: '${duration < 0 ? 0 : duration} days',
+        duration: hasDates ? '${duration < 0 ? 0 : duration} days' : 'TBD',
         statusLabel: contract.status.isNotEmpty ? contract.status : 'Pending',
       ));
     }
@@ -5002,7 +5010,9 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
       contractor: '',
       method: '',
       estimatedValue: _formatCurrency(totalValue),
-      duration: '${maxDurationDays < 0 ? 0 : maxDurationDays} days',
+      duration: maxDurationDaysWithDates > 0
+          ? '${maxDurationDaysWithDates < 0 ? 0 : maxDurationDaysWithDates} days'
+          : 'TBD',
       isTotals: true,
     ));
     _summaryRows = rows;
@@ -5014,17 +5024,27 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
       currentEstimate: _formatCurrency(totalValue),
       variance: 'TBD',
     );
-    final earliest = _contracts
-        .map((c) => c.startDate)
-        .reduce((a, b) => a.isBefore(b) ? a : b);
-    final latest =
-        _contracts.map((c) => c.endDate).reduce((a, b) => a.isAfter(b) ? a : b);
+    final datedContracts = _contracts
+        .where((c) => c.startDate != null && c.endDate != null)
+        .toList();
+    DateTime? earliest;
+    DateTime? latest;
+    if (datedContracts.isNotEmpty) {
+      earliest = datedContracts
+          .map((c) => c.startDate!)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+      latest = datedContracts
+          .map((c) => c.endDate!)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+    }
     _scheduleImpact = _ScheduleImpactData(
       summary:
           'Contract durations have been incorporated into the project schedule. The longest contract duration informs the critical path.',
       projectStart: _formatShortDate(earliest),
       contractingFinish: _formatShortDate(latest),
-      totalDuration: '${latest.difference(earliest).inDays} days',
+      totalDuration: (earliest != null && latest != null)
+          ? '${latest.difference(earliest).inDays} days'
+          : 'TBD',
     );
     _warrantyRows = _contracts
         .map((contract) => _WarrantyRowData(

@@ -562,7 +562,7 @@ Opportunity generation constraints:
                                             _showAddOpportunityDialog(),
                                         icon: const Icon(Icons.add, size: 18),
                                         label: const Text(
-                                          '+ Add Opportunity',
+                                          'Add Opportunity',
                                           style: TextStyle(
                                               fontWeight: FontWeight.w600),
                                         ),
@@ -1003,7 +1003,7 @@ Opportunity generation constraints:
                       onPressed: () => _showAddOpportunityDialog(),
                       icon: const Icon(Icons.add, size: 17),
                       label: const Text(
-                        '+ Add Opportunity',
+                        ' Add Opportunity',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                       style: OutlinedButton.styleFrom(

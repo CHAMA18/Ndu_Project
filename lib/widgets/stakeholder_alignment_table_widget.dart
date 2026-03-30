@@ -48,8 +48,7 @@ class StakeholderAlignmentTableWidget extends StatelessWidget {
             minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
             maxHeight: 560,
             child: DataTable(
-              headingRowColor:
-                  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
               columnSpacing: 24,
               horizontalMargin: 20,
               headingRowHeight: 56,
@@ -217,16 +216,18 @@ class _StakeholderAlignmentRowWidgetState
   Widget build(BuildContext context) {
     switch (widget.column) {
       case _StakeholderAlignmentColumn.stakeholderName:
-        return Center(
+        return Align(
+          alignment: Alignment.centerLeft,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               InlineEditableText(
                 value: widget.item.stakeholderName,
                 hint: 'Enter name',
                 onChanged: (value) =>
                     _updateItem(widget.item.copyWith(stakeholderName: value)),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
                 maxLines: 1,
               ),
               if (widget.item.stakeholderRole.isNotEmpty)
@@ -239,7 +240,8 @@ class _StakeholderAlignmentRowWidgetState
           ),
         );
       case _StakeholderAlignmentColumn.alignmentStatus:
-        return Center(
+        return Align(
+          alignment: Alignment.centerLeft,
           child: _AlignmentStatusPill(
             status: widget.item.alignmentStatus,
             onChanged: (value) =>
@@ -247,7 +249,8 @@ class _StakeholderAlignmentRowWidgetState
           ),
         );
       case _StakeholderAlignmentColumn.keyInterest:
-        return Center(
+        return Align(
+          alignment: Alignment.centerLeft,
           child: DropdownButton<String>(
             value: widget.item.keyInterest.isEmpty ||
                     !_keyInterests.contains(widget.item.keyInterest)
@@ -270,18 +273,20 @@ class _StakeholderAlignmentRowWidgetState
           ),
         );
       case _StakeholderAlignmentColumn.feedbackSummary:
-        return Center(
+        return Align(
+          alignment: Alignment.centerLeft,
           child: InlineEditableText(
             value: widget.item.feedbackSummary,
             hint: 'Enter feedback (prose, no bullets)',
             onChanged: (value) =>
                 _updateItem(widget.item.copyWith(feedbackSummary: value)),
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.left,
             maxLines: 2,
           ),
         );
       case _StakeholderAlignmentColumn.lastEngagementDate:
-        return Center(
+        return Align(
+          alignment: Alignment.centerLeft,
           child: GestureDetector(
             onTap: () => _selectDate(context),
             child: Container(
@@ -306,42 +311,48 @@ class _StakeholderAlignmentRowWidgetState
           ),
         );
       case _StakeholderAlignmentColumn.actions:
-        return MouseRegion(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon:
-                    const Icon(Icons.undo, size: 16, color: Color(0xFF64748B)),
-                onPressed: _previousState != null ? _undo : null,
-                tooltip: 'Undo',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-              IconButton(
-                icon: _isRegenerating
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_awesome,
-                        size: 16, color: Color(0xFF64748B)),
-                onPressed:
-                    _isRegenerating ? null : _regenerateEngagementStrategy,
-                tooltip: 'Regenerate Engagement Strategy',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline,
-                    size: 16, color: Color(0xFFEF4444)),
-                onPressed: () => _deleteItem(widget.item),
-                tooltip: 'Delete',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-            ],
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: MouseRegion(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.undo,
+                      size: 16, color: Color(0xFF64748B)),
+                  onPressed: _previousState != null ? _undo : null,
+                  tooltip: 'Undo',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+                IconButton(
+                  icon: _isRegenerating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome,
+                          size: 16, color: Color(0xFF64748B)),
+                  onPressed:
+                      _isRegenerating ? null : _regenerateEngagementStrategy,
+                  tooltip: 'Regenerate Engagement Strategy',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      size: 16, color: Color(0xFFEF4444)),
+                  onPressed: () => _deleteItem(widget.item),
+                  tooltip: 'Delete',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ],
+            ),
           ),
         );
     }
