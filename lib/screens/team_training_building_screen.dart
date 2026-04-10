@@ -13,6 +13,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/premium_edit_dialog.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -336,6 +337,15 @@ class _TeamTrainingAndBuildingScreenState
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel: PlanningPhaseNavigation.backLabel('team_training'),
+              nextLabel: PlanningPhaseNavigation.nextLabel('team_training'),
+              onBack: () =>
+                  PlanningPhaseNavigation.goToPrevious(context, 'team_training'),
+              onNext: () =>
+                  PlanningPhaseNavigation.goToNext(context, 'team_training'),
             ),
             const SizedBox(height: 40),
           ],

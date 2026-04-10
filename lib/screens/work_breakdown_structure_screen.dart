@@ -87,8 +87,7 @@ class _WorkBreakdownStructureBodyState
     },
     {
       'value': 'Geographic Location',
-      'description':
-          'Used in multi-site projects or infrastructure rollouts.',
+      'description': 'Used in multi-site projects or infrastructure rollouts.',
     },
     {
       'value': 'Project Phases',
@@ -116,6 +115,11 @@ class _WorkBreakdownStructureBodyState
   Map<String, dynamic>? _contextSnapshot;
   DateTime? _contextCapturedAt;
 
+  void _syncWbsToProvider() {
+    if (!mounted) return;
+    ProjectDataHelper.getProvider(context).updateWBSData(wbsTree: _wbsItems);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -130,6 +134,7 @@ class _WorkBreakdownStructureBodyState
       if (_wbsItems.isEmpty &&
           projectData.goalWorkItems.any((list) => list.isNotEmpty)) {
         _migrateFromGoalsToTree(projectData.goalWorkItems);
+        _syncWbsToProvider();
       }
       _syncGoalFrameworks(projectData);
       _applyOverallFrameworkRules(projectData);
@@ -177,6 +182,7 @@ class _WorkBreakdownStructureBodyState
         _collapsedNodeIds.remove(parent.id);
       }
     });
+    _syncWbsToProvider();
   }
 
   Future<WorkItem?> _openAddNodeDialog(
@@ -257,8 +263,9 @@ class _WorkBreakdownStructureBodyState
                         if (parentId.isEmpty && _isHybridOverall) ...[
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
-                            initialValue:
-                                selectedFramework.isEmpty ? null : selectedFramework,
+                            initialValue: selectedFramework.isEmpty
+                                ? null
+                                : selectedFramework,
                             decoration: const InputDecoration(
                                 labelText: 'Framework (Goal level)'),
                             items: const [
@@ -268,7 +275,8 @@ class _WorkBreakdownStructureBodyState
                                   value: 'Agile', child: Text('Agile')),
                             ],
                             onChanged: (value) {
-                              setStateDialog(() => selectedFramework = value ?? '');
+                              setStateDialog(
+                                  () => selectedFramework = value ?? '');
                             },
                           ),
                         ],
@@ -338,6 +346,7 @@ class _WorkBreakdownStructureBodyState
     final updated = await _openAddNodeDialog(existingNode: node);
     if (updated != null) {
       setState(() {});
+      _syncWbsToProvider();
     }
   }
 
@@ -350,6 +359,7 @@ class _WorkBreakdownStructureBodyState
       }
       _removeCollapsedIds(node);
     });
+    _syncWbsToProvider();
   }
 
   void _removeNodeFromChildren(List<WorkItem> items, WorkItem nodeToRemove) {
@@ -573,8 +583,7 @@ class _WorkBreakdownStructureBodyState
       for (final item in _wbsItems) {
         _applyFrameworkToSubtree(item, overall);
       }
-      ProjectDataHelper.getProvider(context)
-          .updateWBSData(wbsTree: _wbsItems);
+      ProjectDataHelper.getProvider(context).updateWBSData(wbsTree: _wbsItems);
     }
   }
 
@@ -592,9 +601,8 @@ class _WorkBreakdownStructureBodyState
       {required String hint,
       required String? value,
       required ValueChanged<String?> onChanged}) {
-    final normalizedValue = _criteriaOptions.any((o) => o['value'] == value)
-        ? value
-        : null;
+    final normalizedValue =
+        _criteriaOptions.any((o) => o['value'] == value) ? value : null;
     return SizedBox(
       width: 280,
       child: DropdownButtonFormField<String>(
@@ -830,9 +838,7 @@ class _WorkBreakdownStructureBodyState
                       GestureDetector(
                         onTap: () => _toggleCollapse(item),
                         child: Icon(
-                          isCollapsed
-                              ? Icons.chevron_right
-                              : Icons.expand_more,
+                          isCollapsed ? Icons.chevron_right : Icons.expand_more,
                           size: 18,
                           color: _kSecondaryText,
                         ),
@@ -1059,7 +1065,8 @@ class _WorkBreakdownStructureBodyState
       initialValue: item.framework.isEmpty ? null : item.framework,
       isDense: true,
       decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         filled: true,
         fillColor: const Color(0xFFF9FAFB),
         border: OutlineInputBorder(
@@ -1228,8 +1235,9 @@ class _WorkBreakdownStructureBodyState
         final itemFramework = _sanitizeFramework(item.framework);
         final goalFramework =
             i < goals.length ? (goals[i].framework ?? '') : '';
-        final resolved =
-            itemFramework.isNotEmpty ? itemFramework : _sanitizeFramework(goalFramework);
+        final resolved = itemFramework.isNotEmpty
+            ? itemFramework
+            : _sanitizeFramework(goalFramework);
         if (resolved.isNotEmpty) {
           _applyFrameworkToSubtree(item, resolved);
         } else {
@@ -1287,8 +1295,7 @@ class _WorkBreakdownStructureBodyState
         'wbs_project_context_${DateTime.now().millisecondsSinceEpoch}.pdf';
     final goals = (contextData['goals'] as List?) ?? const [];
     final projectName = (contextData['projectName'] ?? '').toString();
-    final projectObjective =
-        (contextData['projectObjective'] ?? '').toString();
+    final projectObjective = (contextData['projectObjective'] ?? '').toString();
     final dimension = (contextData['breakdownDimension'] ?? '').toString();
     final dimensionDescription =
         (contextData['dimensionDescription'] ?? '').toString();
@@ -1445,9 +1452,7 @@ class _WorkBreakdownStructureBodyState
                   ),
                 ),
                 Icon(
-                  _contextExpanded
-                      ? Icons.expand_less
-                      : Icons.expand_more,
+                  _contextExpanded ? Icons.expand_less : Icons.expand_more,
                   color: _kSecondaryText,
                 ),
               ],
@@ -1460,7 +1465,8 @@ class _WorkBreakdownStructureBodyState
                 Expanded(
                   child: Text(
                     caption,
-                    style: const TextStyle(fontSize: 11, color: _kSecondaryText),
+                    style:
+                        const TextStyle(fontSize: 11, color: _kSecondaryText),
                   ),
                 ),
                 OutlinedButton.icon(
@@ -1506,8 +1512,7 @@ class _WorkBreakdownStructureBodyState
                       ? goal
                       : {'name': '', 'description': goal.toString()};
                   final name = (goalMap['name'] ?? '').toString();
-                  final description =
-                      (goalMap['description'] ?? '').toString();
+                  final description = (goalMap['description'] ?? '').toString();
                   final framework = (goalMap['framework'] ?? '').toString();
                   if (name.trim().isEmpty && description.trim().isEmpty) {
                     return const SizedBox.shrink();

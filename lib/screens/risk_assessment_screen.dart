@@ -29,6 +29,14 @@ class RiskAssessmentScreen extends StatefulWidget {
 }
 
 class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
+  static const List<String> _riskLevelOptions = ['Low', 'Medium', 'High'];
+  static const List<String> _riskStatusOptions = [
+    'Open',
+    'In Progress',
+    'Monitoring',
+    'Closed',
+  ];
+
   final List<_RiskEntry> _entries = [];
   final TextEditingController _searchController = TextEditingController();
   String? _statusFilter;
@@ -170,73 +178,94 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
         TextEditingController(text: entry?.description ?? '');
     final categoryController =
         TextEditingController(text: entry?.category ?? '');
-    final probabilityController =
-        TextEditingController(text: entry?.probability ?? '');
-    final impactController = TextEditingController(text: entry?.impact ?? '');
     final scoreController = TextEditingController(text: entry?.score ?? '');
     final ownerController = TextEditingController(text: entry?.owner ?? '');
-    final statusController = TextEditingController(text: entry?.status ?? '');
+    String selectedProbability =
+        _riskLevelOptions.contains(entry?.probability ?? '')
+            ? (entry?.probability ?? _riskLevelOptions[1])
+            : _riskLevelOptions[1];
+    String selectedImpact = _riskLevelOptions.contains(entry?.impact ?? '')
+        ? (entry?.impact ?? _riskLevelOptions[1])
+        : _riskLevelOptions[1];
+    String selectedStatus = _riskStatusOptions.contains(entry?.status ?? '')
+        ? (entry?.status ?? _riskStatusOptions.first)
+        : _riskStatusOptions.first;
 
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
         final bool isEditing = entry != null;
-        return AlertDialog(
-          title: Text(
-              readOnly ? 'View risk' : (isEditing ? 'Edit risk' : 'Add risk')),
-          content: SizedBox(
-            width: 440,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _dialogField(
-                      controller: idController,
-                      label: 'Risk ID',
-                      readOnly: readOnly),
-                  _dialogField(
-                      controller: descriptionController,
-                      label: 'Description',
-                      readOnly: readOnly,
-                      maxLines: 2),
-                  _dialogField(
-                      controller: categoryController,
-                      label: 'Category',
-                      readOnly: readOnly),
-                  _dialogField(
-                      controller: probabilityController,
+        return StatefulBuilder(
+          builder: (context, setLocalState) => AlertDialog(
+            title: Text(readOnly
+                ? 'View risk'
+                : (isEditing ? 'Edit risk' : 'Add risk')),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _dialogField(
+                        controller: idController,
+                        label: 'Risk ID',
+                        readOnly: readOnly),
+                    _dialogField(
+                        controller: descriptionController,
+                        label: 'Description',
+                        readOnly: readOnly,
+                        maxLines: 2),
+                    _dialogField(
+                        controller: categoryController,
+                        label: 'Category',
+                        readOnly: readOnly),
+                    _dialogDropdownField(
                       label: 'Probability',
-                      readOnly: readOnly),
-                  _dialogField(
-                      controller: impactController,
+                      value: selectedProbability,
+                      options: _riskLevelOptions,
+                      enabled: !readOnly,
+                      onChanged: (value) =>
+                          setLocalState(() => selectedProbability = value),
+                    ),
+                    _dialogDropdownField(
                       label: 'Impact',
-                      readOnly: readOnly),
-                  _dialogField(
-                      controller: scoreController,
-                      label: 'Risk Score',
-                      readOnly: readOnly),
-                  _dialogField(
-                      controller: ownerController,
-                      label: 'Owner',
-                      readOnly: readOnly),
-                  _dialogField(
-                      controller: statusController,
+                      value: selectedImpact,
+                      options: _riskLevelOptions,
+                      enabled: !readOnly,
+                      onChanged: (value) =>
+                          setLocalState(() => selectedImpact = value),
+                    ),
+                    _dialogField(
+                        controller: scoreController,
+                        label: 'Risk Score',
+                        readOnly: readOnly),
+                    _dialogField(
+                        controller: ownerController,
+                        label: 'Owner',
+                        readOnly: readOnly),
+                    _dialogDropdownField(
                       label: 'Status',
-                      readOnly: readOnly),
-                ],
+                      value: selectedStatus,
+                      options: _riskStatusOptions,
+                      enabled: !readOnly,
+                      onChanged: (value) =>
+                          setLocalState(() => selectedStatus = value),
+                    ),
+                  ],
+                ),
               ),
             ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Close')),
+              if (!readOnly)
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(isEditing ? 'Save' : 'Add'),
+                ),
+            ],
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Close')),
-            if (!readOnly)
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(isEditing ? 'Save' : 'Add'),
-              ),
-          ],
         );
       },
     );
@@ -249,15 +278,13 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
           : idController.text.trim(),
       description: descriptionController.text.trim(),
       category: categoryController.text.trim(),
-      probability: probabilityController.text.trim(),
-      impact: impactController.text.trim(),
+      probability: selectedProbability,
+      impact: selectedImpact,
       score: scoreController.text.trim(),
       discipline: '',
       role: '',
       owner: ownerController.text.trim(),
-      status: statusController.text.trim().isEmpty
-          ? 'Open'
-          : statusController.text.trim(),
+      status: selectedStatus,
       createdAt: entry?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -1682,6 +1709,7 @@ class _RiskRegister extends StatelessWidget {
   final ValueChanged<_RiskEntry> onEdit;
 
   static const List<int> _columnFlex = [4, 3, 2, 2, 2, 1, 2, 2, 2];
+  static const double _actionsColumnWidth = 96;
 
   @override
   Widget build(BuildContext context) {
@@ -1809,6 +1837,7 @@ class _RiskRegister extends StatelessWidget {
                               _RegisterRow(
                                 entry: entry,
                                 columnFlex: _columnFlex,
+                                actionsColumnWidth: _actionsColumnWidth,
                                 onView: () => onView(entry),
                                 onEdit: () => onEdit(entry),
                               ),
@@ -1857,7 +1886,8 @@ class _RegisterHeader extends StatelessWidget {
       children: [
         ...List.generate(_labels.length, (index) {
           if (index == _labels.length - 1) {
-            return const SizedBox(width: 60); // reserve space for icons
+            return const SizedBox(
+                width: _RiskRegister._actionsColumnWidth); // icons
           }
           final flex = columnFlex[index];
           return Expanded(
@@ -1880,12 +1910,14 @@ class _RegisterRow extends StatelessWidget {
   const _RegisterRow({
     required this.entry,
     required this.columnFlex,
+    required this.actionsColumnWidth,
     required this.onView,
     required this.onEdit,
   });
 
   final _RiskEntry entry;
   final List<int> columnFlex;
+  final double actionsColumnWidth;
   final VoidCallback onView;
   final VoidCallback onEdit;
 
@@ -1914,6 +1946,8 @@ class _RegisterRow extends StatelessWidget {
           flex: columnFlex[0],
           child: Text(
             entry.description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
           ),
         ),
@@ -1921,6 +1955,8 @@ class _RegisterRow extends StatelessWidget {
           flex: columnFlex[1],
           child: Text(
             entry.category,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
           ),
         ),
@@ -1950,6 +1986,8 @@ class _RegisterRow extends StatelessWidget {
           flex: columnFlex[6],
           child: Text(
             entry.role,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
           ),
         ),
@@ -1957,6 +1995,8 @@ class _RegisterRow extends StatelessWidget {
           flex: columnFlex[7],
           child: Text(
             entry.owner,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
           ),
         ),
@@ -1977,7 +2017,7 @@ class _RegisterRow extends StatelessWidget {
           ),
         ),
         SizedBox(
-          width: 60,
+          width: actionsColumnWidth,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -1986,12 +2026,16 @@ class _RegisterRow extends StatelessWidget {
                     size: 18, color: Color(0xFF6B7280)),
                 onPressed: onView,
                 tooltip: 'View',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
               IconButton(
                 icon: const Icon(Icons.edit_outlined,
                     size: 18, color: Color(0xFF6B7280)),
                 onPressed: onEdit,
                 tooltip: 'Edit',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
             ],
           ),
@@ -2123,6 +2167,35 @@ Widget _dialogField({
       controller: controller,
       readOnly: readOnly,
       maxLines: maxLines,
+      decoration: InputDecoration(labelText: label),
+    ),
+  );
+}
+
+Widget _dialogDropdownField({
+  required String label,
+  required String value,
+  required List<String> options,
+  required ValueChanged<String> onChanged,
+  bool enabled = true,
+}) {
+  final selected = options.contains(value) ? value : options.first;
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: DropdownButtonFormField<String>(
+      initialValue: selected,
+      onChanged: enabled
+          ? (next) {
+              if (next == null) return;
+              onChanged(next);
+            }
+          : null,
+      items: options
+          .map((option) => DropdownMenuItem<String>(
+                value: option,
+                child: Text(option),
+              ))
+          .toList(),
       decoration: InputDecoration(labelText: label),
     ),
   );

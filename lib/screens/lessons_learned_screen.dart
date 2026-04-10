@@ -46,44 +46,140 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
     setState(() {});
   }
 
-  Future<void> _openAddLessonDialog() async {
-    final newEntry = await showDialog<_LessonEntry>(
+  Future<void> _openLessonDialog([_LessonEntry? existing]) async {
+    final result = await showDialog<_LessonEntry>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => const _AddLessonDialog(),
+      builder: (dialogContext) => _LessonDialog(existing: existing),
     );
 
-    if (newEntry == null || !mounted) return;
+    if (result == null || !mounted) return;
 
-    // Convert to LessonRecord and persist
-    final lesson = LessonRecord(
-      lesson: newEntry.lesson,
-      category: newEntry.category,
-      type: newEntry.type,
-      phase: newEntry.phase,
-      status: newEntry.status,
-      submittedBy: newEntry.submittedBy,
-      notes: '',
-      dateSubmitted: DateTime.now(),
-    );
+    try {
+      final isEdit = existing != null;
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'lessons_learned',
+        showSnackbar: false,
+        dataUpdater: (current) {
+          final lessons = List<LessonRecord>.from(current.lessonsLearned);
+          if (isEdit) {
+            final idx = lessons.indexWhere((l) => l.id == existing.id);
+            if (idx != -1) {
+              lessons[idx] = LessonRecord(
+                id: existing.id,
+                lesson: result.lesson,
+                category: result.category,
+                type: result.type,
+                phase: result.phase,
+                status: result.status,
+                submittedBy: result.submittedBy,
+                notes: '',
+                impact: result.impact,
+                highlight: result.highlight,
+                dateSubmitted: _parseDate(result.date),
+              );
+            }
+          } else {
+            lessons.insert(
+              0,
+              LessonRecord(
+                lesson: result.lesson,
+                category: result.category,
+                type: result.type,
+                phase: result.phase,
+                status: result.status,
+                submittedBy: result.submittedBy,
+                notes: '',
+                impact: result.impact,
+                highlight: result.highlight,
+                dateSubmitted: _parseDate(result.date),
+              ),
+            );
+          }
+          return current.copyWith(lessonsLearned: lessons);
+        },
+      );
 
-    await ProjectDataHelper.updateAndSave(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(isEdit
+              ? 'Lesson updated successfully.'
+              : 'Lesson added to Lessons Learned.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _confirmDelete(String id) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      checkpoint: 'lessons_learned',
-      dataUpdater: (current) => current.copyWith(
-        lessonsLearned: [lesson, ...current.lessonsLearned],
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Lesson'),
+        content: const Text(
+            'Are you sure you want to delete this lesson? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lesson added to Project Tasks.')));
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'lessons_learned',
+        showSnackbar: false,
+        dataUpdater: (current) => current.copyWith(
+          lessonsLearned:
+              current.lessonsLearned.where((l) => l.id != id).toList(),
+        ),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Lesson deleted.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  DateTime? _parseDate(String dateStr) {
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        return DateTime(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+          int.parse(parts[2]),
+        );
+      }
+    } catch (_) {}
+    return null;
   }
 
   List<_LessonEntry> get _filteredEntries {
     final query = _searchController.text.trim().toLowerCase();
 
-    final data = ProjectDataHelper.getData(context);
+    final data = ProjectDataHelper.getDataListening(context);
     final lessons = data.lessonsLearned;
 
     final mapped = lessons
@@ -93,13 +189,13 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
               type: l.type,
               category: l.category,
               phase: l.phase,
-              impact: '',
+              impact: l.impact,
               status: l.status,
               submittedBy: l.submittedBy,
               date: l.dateSubmitted != null
                   ? '${l.dateSubmitted!.year.toString().padLeft(4, '0')}-${l.dateSubmitted!.month.toString().padLeft(2, '0')}-${l.dateSubmitted!.day.toString().padLeft(2, '0')}'
                   : '',
-              highlight: false,
+              highlight: l.highlight,
             ))
         .toList();
 
@@ -107,7 +203,6 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
 
     return mapped
         .where((entry) =>
-            entry.id.toLowerCase().contains(query) ||
             entry.lesson.toLowerCase().contains(query) ||
             entry.type.toLowerCase().contains(query) ||
             entry.category.toLowerCase().contains(query) ||
@@ -115,6 +210,12 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
             entry.status.toLowerCase().contains(query) ||
             entry.submittedBy.toLowerCase().contains(query))
         .toList();
+  }
+
+  int _countByType(List<LessonRecord> lessons, String type) {
+    return lessons
+        .where((l) => l.type.toLowerCase() == type.toLowerCase())
+        .length;
   }
 
   @override
@@ -163,7 +264,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
           const SizedBox(height: 24),
           _buildSummaryCard(isMobile),
           const SizedBox(height: 24),
-          _buildProjectTasksCard(isMobile),
+          _buildLessonsCard(isMobile),
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.only(bottom: 80),
@@ -263,6 +364,12 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
   }
 
   Widget _buildSummaryCard(bool isMobile) {
+    final data = ProjectDataHelper.getDataListening(context);
+    final lessons = data.lessonsLearned;
+    final successCount = _countByType(lessons, 'Success');
+    final challengeCount = _countByType(lessons, 'Challenge');
+    final insightCount = _countByType(lessons, 'Insight');
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -299,7 +406,8 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                   children: [
                     _summaryLeftColumn(),
                     const SizedBox(height: 20),
-                    _summaryRightColumn(),
+                    _summaryRightColumn(
+                        successCount, challengeCount, insightCount),
                   ],
                 )
               : Row(
@@ -312,7 +420,9 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                       margin: const EdgeInsets.symmetric(horizontal: 24),
                       color: Colors.grey.withValues(alpha: 0.2),
                     ),
-                    Expanded(child: _summaryRightColumn()),
+                    Expanded(
+                        child: _summaryRightColumn(
+                            successCount, challengeCount, insightCount)),
                   ],
                 ),
         ],
@@ -346,7 +456,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
     );
   }
 
-  Widget _summaryRightColumn() {
+  Widget _summaryRightColumn(int successes, int challenges, int insights) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -366,15 +476,21 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
         _benefitRow('Reduces risk in similar future projects'),
         const SizedBox(height: 24),
         Row(
-          children: const [
+          children: [
             _SummaryStat(
-                label: 'Successes', value: '4', color: Color(0xFF36C275)),
-            SizedBox(width: 16),
+                label: 'Successes',
+                value: '$successes',
+                color: const Color(0xFF36C275)),
+            const SizedBox(width: 16),
             _SummaryStat(
-                label: 'Challenges', value: '4', color: Color(0xFFFFB74D)),
-            SizedBox(width: 16),
+                label: 'Challenges',
+                value: '$challenges',
+                color: const Color(0xFFFFB74D)),
+            const SizedBox(width: 16),
             _SummaryStat(
-                label: 'Insights', value: '4', color: Color(0xFF5C6BC0)),
+                label: 'Insights',
+                value: '$insights',
+                color: const Color(0xFF5C6BC0)),
           ],
         ),
       ],
@@ -434,7 +550,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
     );
   }
 
-  Widget _buildProjectTasksCard(bool isMobile) {
+  Widget _buildLessonsCard(bool isMobile) {
     final entries = _filteredEntries;
     return Container(
       width: double.infinity,
@@ -457,7 +573,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
           Row(
             children: [
               const Text(
-                'Project Tasks',
+                'Lessons Learned',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const Spacer(),
@@ -502,7 +618,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
-                      onPressed: _openAddLessonDialog,
+                      onPressed: () => _openLessonDialog(),
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text('Add Lesson'),
                       style: ElevatedButton.styleFrom(
@@ -564,7 +680,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _openAddLessonDialog,
+                          onPressed: () => _openLessonDialog(),
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Add Lesson'),
                           style: ElevatedButton.styleFrom(
@@ -638,26 +754,25 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                   ),
                   child: Row(
                     children: const [
-                      Expanded(flex: 8, child: Text('#', style: headerStyle)),
-                      Expanded(flex: 10, child: Text('ID', style: headerStyle)),
+                      Expanded(flex: 6, child: Text('#', style: headerStyle)),
                       Expanded(
-                          flex: 30, child: Text('Lesson', style: headerStyle)),
+                          flex: 32, child: Text('Lesson', style: headerStyle)),
                       Expanded(
-                          flex: 16, child: Text('Type', style: headerStyle)),
+                          flex: 14, child: Text('Type', style: headerStyle)),
                       Expanded(
-                          flex: 16,
+                          flex: 14,
                           child: Text('Category', style: headerStyle)),
                       Expanded(
-                          flex: 18, child: Text('Phase', style: headerStyle)),
+                          flex: 14, child: Text('Phase', style: headerStyle)),
                       Expanded(
-                          flex: 14, child: Text('Impact', style: headerStyle)),
+                          flex: 12, child: Text('Impact', style: headerStyle)),
                       Expanded(
-                          flex: 18, child: Text('Status', style: headerStyle)),
+                          flex: 14, child: Text('Status', style: headerStyle)),
                       Expanded(
-                          flex: 24,
+                          flex: 20,
                           child: Text('Submitted By', style: headerStyle)),
                       Expanded(
-                          flex: 16, child: Text('Date', style: headerStyle)),
+                          flex: 14, child: Text('Date', style: headerStyle)),
                       Expanded(
                           flex: 10,
                           child: Text('Actions',
@@ -696,13 +811,10 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                  flex: 8,
+                                  flex: 6,
                                   child: Text('${i + 1}', style: cellStyle)),
                               Expanded(
-                                  flex: 10,
-                                  child: Text(entries[i].id, style: cellStyle)),
-                              Expanded(
-                                flex: 30,
+                                flex: 32,
                                 child: Text(
                                   entries[i].lesson,
                                   style: cellStyle.copyWith(
@@ -710,18 +822,18 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                                 ),
                               ),
                               Expanded(
-                                  flex: 16,
+                                  flex: 14,
                                   child: _statusPill(entries[i].type)),
                               Expanded(
-                                  flex: 16,
+                                  flex: 14,
                                   child: Text(entries[i].category,
                                       style: cellStyle)),
                               Expanded(
-                                  flex: 18,
+                                  flex: 14,
                                   child:
                                       Text(entries[i].phase, style: cellStyle)),
                               Expanded(
-                                flex: 14,
+                                flex: 12,
                                 child: Text(
                                   entries[i].impact,
                                   style: entries[i].impact == 'High'
@@ -731,11 +843,11 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                                 ),
                               ),
                               Expanded(
-                                  flex: 18,
+                                  flex: 14,
                                   child: Text(entries[i].status,
                                       style: cellStyle)),
                               Expanded(
-                                flex: 24,
+                                flex: 20,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -745,7 +857,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                                 ),
                               ),
                               Expanded(
-                                  flex: 16,
+                                  flex: 14,
                                   child:
                                       Text(entries[i].date, style: cellStyle)),
                               Expanded(
@@ -756,43 +868,24 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       IconButton(
-                                        onPressed: () {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    'Edit ${entries[i].id} coming soon.')),
-                                          );
-                                        },
+                                        onPressed: () =>
+                                            _openLessonDialog(entries[i]),
                                         icon: const Icon(Icons.edit_outlined,
-                                            size: 20, color: Colors.grey),
+                                            size: 18, color: Colors.grey),
                                         tooltip: 'Edit lesson',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                            minWidth: 32, minHeight: 32),
                                       ),
                                       IconButton(
-                                        onPressed: () async {
-                                          // Delete the lesson from persisted store
-                                          final messenger =
-                                              ScaffoldMessenger.of(context);
-                                          final id = entries[i].id;
-                                          await ProjectDataHelper.updateAndSave(
-                                            context: context,
-                                            checkpoint: 'lessons_learned',
-                                            dataUpdater: (current) =>
-                                                current.copyWith(
-                                              lessonsLearned: current
-                                                  .lessonsLearned
-                                                  .where((l) => l.id != id)
-                                                  .toList(),
-                                            ),
-                                          );
-                                          if (!mounted) return;
-                                          messenger.showSnackBar(const SnackBar(
-                                              content:
-                                                  Text('Lesson deleted.')));
-                                        },
+                                        onPressed: () =>
+                                            _confirmDelete(entries[i].id),
                                         icon: const Icon(Icons.delete_outline,
-                                            size: 20, color: Colors.redAccent),
+                                            size: 18, color: Colors.redAccent),
                                         tooltip: 'Delete lesson',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                            minWidth: 32, minHeight: 32),
                                       ),
                                     ],
                                   ),
@@ -949,16 +1042,17 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
   }
 }
 
-class _AddLessonDialog extends StatefulWidget {
-  const _AddLessonDialog();
+class _LessonDialog extends StatefulWidget {
+  final _LessonEntry? existing;
+
+  const _LessonDialog({this.existing});
 
   @override
-  State<_AddLessonDialog> createState() => _AddLessonDialogState();
+  State<_LessonDialog> createState() => _LessonDialogState();
 }
 
-class _AddLessonDialogState extends State<_AddLessonDialog> {
+class _LessonDialogState extends State<_LessonDialog> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _idController = TextEditingController();
   final TextEditingController _lessonController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _phaseController = TextEditingController();
@@ -971,9 +1065,37 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
   bool _highlightRow = false;
   DateTime? _selectedDate;
 
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existing != null) {
+      final e = widget.existing!;
+      _lessonController.text = e.lesson;
+      _categoryController.text = e.category;
+      _phaseController.text = e.phase;
+      _statusController.text = e.status;
+      _submittedByController.text = e.submittedBy;
+      _dateController.text = e.date;
+      _selectedType = e.type;
+      _selectedImpact = e.impact;
+      _highlightRow = e.highlight;
+      if (e.date.isNotEmpty) {
+        try {
+          final parts = e.date.split('-');
+          _selectedDate = DateTime(
+            int.parse(parts[0]),
+            int.parse(parts[1]),
+            int.parse(parts[2]),
+          );
+        } catch (_) {}
+      }
+    }
+  }
+
   @override
   void dispose() {
-    _idController.dispose();
     _lessonController.dispose();
     _categoryController.dispose();
     _phaseController.dispose();
@@ -1001,10 +1123,10 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
                 children: [
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Add Lesson',
-                          style: TextStyle(
+                          _isEdit ? 'Edit Lesson' : 'Add Lesson',
+                          style: const TextStyle(
                               fontSize: 20, fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -1017,20 +1139,12 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Fill in the Project Task details below.',
+                    _isEdit
+                        ? 'Update the lesson details below.'
+                        : 'Fill in the lesson details below.',
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _idController,
-                    decoration: _inputDecoration('ID', hintText: 'e.g. T-004'),
-                    textInputAction: TextInputAction.next,
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty)
-                            ? 'Please provide an ID.'
-                            : null,
-                  ),
-                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _lessonController,
                     decoration: _inputDecoration('Lesson'),
@@ -1196,7 +1310,7 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Add Lesson'),
+                          child: Text(_isEdit ? 'Update Lesson' : 'Add Lesson'),
                         ),
                       ),
                     ],
@@ -1243,12 +1357,10 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
   }
 
   void _handleSubmit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     final entry = _LessonEntry(
-      id: _idController.text.trim(),
+      id: widget.existing?.id ?? '',
       lesson: _lessonController.text.trim(),
       type: _selectedType,
       category: _categoryController.text.trim(),

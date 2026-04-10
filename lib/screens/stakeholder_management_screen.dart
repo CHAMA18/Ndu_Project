@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
@@ -143,6 +144,18 @@ class _StakeholderManagementScreenState
                                     : _addEngagementPlan,
                                 onSearch: (v) =>
                                     setState(() => _searchQuery = v),
+                              ),
+                              const SizedBox(height: 24),
+                              LaunchPhaseNavigation(
+                                backLabel: PlanningPhaseNavigation.backLabel(
+                                    'stakeholder_management'),
+                                nextLabel: PlanningPhaseNavigation.nextLabel(
+                                    'stakeholder_management'),
+                                onBack: () =>
+                                    PlanningPhaseNavigation.goToPrevious(
+                                        context, 'stakeholder_management'),
+                                onNext: () => PlanningPhaseNavigation.goToNext(
+                                    context, 'stakeholder_management'),
                               ),
                               const SizedBox(height: 60),
                             ],

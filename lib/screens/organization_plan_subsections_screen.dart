@@ -708,6 +708,17 @@ class _OrganizationStaffingPlanScreenState
                               ),
                             ),
                           ),
+                        const SizedBox(height: 24),
+                        LaunchPhaseNavigation(
+                          backLabel: PlanningPhaseNavigation.backLabel(
+                              'organization_staffing_plan'),
+                          nextLabel: PlanningPhaseNavigation.nextLabel(
+                              'organization_staffing_plan'),
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
+                              context, 'organization_staffing_plan'),
+                          onNext: () => PlanningPhaseNavigation.goToNext(
+                              context, 'organization_staffing_plan'),
+                        ),
                         const SizedBox(height: 40),
                       ],
                     ),

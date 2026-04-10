@@ -324,6 +324,7 @@ class ProjectDataProvider extends ChangeNotifier {
         'goalWorkItems=${listCount('goalWorkItems')}, '
         'aiRecommendations=${listCount('aiRecommendations')}, '
         'aiIntegrations=${listCount('aiIntegrations')}, '
+        'externalIntegrations=${listCount('externalIntegrations')}, '
         'executionSections=$executionSections';
   }
 
@@ -356,6 +357,11 @@ class ProjectDataProvider extends ChangeNotifier {
     final aiIntegrations = compactList('aiIntegrations', 200);
     if (aiIntegrations != null) {
       compact['aiIntegrations'] = aiIntegrations;
+    }
+
+    final externalIntegrations = compactList('externalIntegrations', 200);
+    if (externalIntegrations != null) {
+      compact['externalIntegrations'] = externalIntegrations;
     }
 
     final execution = payload['executionPhaseData'];

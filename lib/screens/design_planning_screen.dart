@@ -5,11 +5,13 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/design_planning_document.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -18,6 +20,9 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 const Color _kPageBg = Color(0xFFF5F7FB);
 const Color _kSurface = Colors.white;
@@ -475,6 +480,22 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
     final current =
         _sectionProgress[sectionId] ?? _SectionProgressState.pending;
     if (current == state) return;
+    if (state == _SectionProgressState.complete &&
+        (sectionId == 'requirements' ||
+            sectionId == 'design_specifications_workspace')) {
+      final requirementOptions =
+          _requirementAttachmentOptions(ProjectDataHelper.getData(context));
+      final missing = _unlinkedRequirements(requirementOptions);
+      if (missing.isNotEmpty) {
+        final preview = missing.take(3).map((item) => item.label).join(', ');
+        _showToast(
+          'Link specifications to all requirements first. '
+          '${missing.length} requirement(s) still unlinked'
+          '${preview.isEmpty ? '' : ': $preview'}',
+        );
+        return;
+      }
+    }
     if (state != _SectionProgressState.pending) {
       final confirmed = await _confirmStatusChange(state);
       if (!confirmed) return;
@@ -684,140 +705,392 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
 
   Future<void> _showSpecificationsTableDialog() async {
     final rows = _specificationOptions();
+    final searchController = TextEditingController();
+    var query = '';
+    var disciplineFilter = 'All';
+    var areaFilter = 'All';
+    var typeFilter = 'All';
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Specifications Table'),
-          content: SizedBox(
-            width: 1240,
-            child: rows.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Text(
-                      'No specification rows available.',
-                      style: TextStyle(color: _kMuted),
-                    ),
-                  )
-                : Scrollbar(
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 1180),
-                          child: DataTable(
-                            columnSpacing: 34,
-                            dataRowMinHeight: 56,
-                            dataRowMaxHeight: 72,
-                            columns: const [
-                              DataColumn(
-                                  label: SizedBox(
-                                      width: 220, child: Text('Title'))),
-                              DataColumn(
-                                  label: SizedBox(
-                                      width: 120, child: Text('Spec type'))),
-                              DataColumn(
-                                  label: SizedBox(
-                                      width: 150, child: Text('Discipline'))),
-                              DataColumn(
-                                  label: SizedBox(
-                                      width: 150, child: Text('Area'))),
-                              DataColumn(
-                                  label: SizedBox(
-                                      width: 130, child: Text('Source type'))),
-                              DataColumn(
-                                  label: SizedBox(
-                                      width: 140, child: Text('Owner'))),
-                              DataColumn(
-                                  label: SizedBox(
-                                      width: 100, child: Text('Status'))),
-                            ],
-                            rows: rows
-                                .map(
-                                  (item) => DataRow(
-                                    cells: [
-                                      DataCell(SizedBox(
-                                        width: 220,
-                                        child: Text(
-                                          item.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )),
-                                      DataCell(SizedBox(
-                                        width: 120,
-                                        child: Text(
-                                          item.specificationType,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )),
-                                      DataCell(SizedBox(
-                                        width: 150,
-                                        child: Text(
-                                          item.discipline.isEmpty
-                                              ? '-'
-                                              : item.discipline,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )),
-                                      DataCell(SizedBox(
-                                        width: 150,
-                                        child: Text(
-                                          item.area.isEmpty ? '-' : item.area,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )),
-                                      DataCell(SizedBox(
-                                        width: 130,
-                                        child: Text(
-                                          item.sourceType.isEmpty
-                                              ? '-'
-                                              : item.sourceType,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )),
-                                      DataCell(SizedBox(
-                                        width: 140,
-                                        child: Text(
-                                          item.owner.isEmpty ? '-' : item.owner,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )),
-                                      DataCell(SizedBox(
-                                        width: 100,
-                                        child: Text(
-                                          item.status.isEmpty
-                                              ? '-'
-                                              : item.status,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )),
-                                    ],
-                                  ),
-                                )
-                                .toList(growable: false),
-                          ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final disciplineOptions = _dedupeOptions([
+              'All',
+              ...rows.map((row) => row.discipline).where((e) => e.isNotEmpty),
+            ]);
+            final areaOptions = _dedupeOptions([
+              'All',
+              ...rows.map((row) => row.area).where((e) => e.isNotEmpty),
+            ]);
+            final typeOptions = _dedupeOptions([
+              'All',
+              ...rows
+                  .map((row) => row.specificationType)
+                  .where((e) => e.isNotEmpty),
+            ]);
+
+            final filteredRows = rows.where((row) {
+              final haystack = [
+                row.title,
+                row.details,
+                row.discipline,
+                row.area,
+                row.specificationType,
+                row.sourceType,
+                row.owner,
+                row.status,
+                row.wbsWorkPackageTitle,
+              ].join(' ').toLowerCase();
+              final matchesQuery = query.isEmpty ||
+                  haystack.contains(query.toLowerCase().trim());
+              final matchesDiscipline = disciplineFilter == 'All' ||
+                  row.discipline == disciplineFilter;
+              final matchesArea = areaFilter == 'All' || row.area == areaFilter;
+              final matchesType =
+                  typeFilter == 'All' || row.specificationType == typeFilter;
+              return matchesQuery &&
+                  matchesDiscipline &&
+                  matchesArea &&
+                  matchesType;
+            }).toList(growable: false);
+
+            return AlertDialog(
+              title: const Text('Specifications Table'),
+              content: SizedBox(
+                width: 1320,
+                child: rows.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'No specification rows available.',
+                          style: TextStyle(color: _kMuted),
                         ),
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _FourColumnGrid(
+                            children: [
+                              TextField(
+                                controller: searchController,
+                                decoration:
+                                    _inputDecoration('Search specifications'),
+                                onChanged: (value) {
+                                  setDialogState(() => query = value);
+                                },
+                              ),
+                              _DropdownField(
+                                value: disciplineFilter,
+                                label: 'Discipline',
+                                options: disciplineOptions,
+                                onChanged: (value) => setDialogState(
+                                    () => disciplineFilter = value),
+                              ),
+                              _DropdownField(
+                                value: areaFilter,
+                                label: 'Area',
+                                options: areaOptions,
+                                onChanged: (value) =>
+                                    setDialogState(() => areaFilter = value),
+                              ),
+                              _DropdownField(
+                                value: typeFilter,
+                                label: 'Document type',
+                                options: typeOptions,
+                                onChanged: (value) =>
+                                    setDialogState(() => typeFilter = value),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '${filteredRows.length} row(s)',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _kMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 420,
+                            child: Scrollbar(
+                              thumbVisibility: true,
+                              child: SingleChildScrollView(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: ConstrainedBox(
+                                    constraints:
+                                        const BoxConstraints(minWidth: 1240),
+                                    child: DataTable(
+                                      columnSpacing: 30,
+                                      dataRowMinHeight: 56,
+                                      dataRowMaxHeight: 76,
+                                      columns: const [
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 220,
+                                                child: Text('Title'))),
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 120,
+                                                child: Text('Spec type'))),
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 140,
+                                                child: Text('Discipline'))),
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 140,
+                                                child: Text('Area'))),
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 170,
+                                                child:
+                                                    Text('WBS Work Package'))),
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 120,
+                                                child: Text('Source type'))),
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 120,
+                                                child: Text('Owner'))),
+                                        DataColumn(
+                                            label: SizedBox(
+                                                width: 90,
+                                                child: Text('Status'))),
+                                      ],
+                                      rows: filteredRows
+                                          .map(
+                                            (item) => DataRow(
+                                              cells: [
+                                                DataCell(SizedBox(
+                                                  width: 220,
+                                                  child: Text(
+                                                    item.title,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                                DataCell(SizedBox(
+                                                  width: 120,
+                                                  child: Text(
+                                                    item.specificationType,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                                DataCell(SizedBox(
+                                                  width: 140,
+                                                  child: Text(
+                                                    item.discipline.isEmpty
+                                                        ? '-'
+                                                        : item.discipline,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                                DataCell(SizedBox(
+                                                  width: 140,
+                                                  child: Text(
+                                                    item.area.isEmpty
+                                                        ? '-'
+                                                        : item.area,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                                DataCell(SizedBox(
+                                                  width: 170,
+                                                  child: Text(
+                                                    item.wbsWorkPackageTitle
+                                                            .isEmpty
+                                                        ? '-'
+                                                        : item
+                                                            .wbsWorkPackageTitle,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                                DataCell(SizedBox(
+                                                  width: 120,
+                                                  child: Text(
+                                                    item.sourceType.isEmpty
+                                                        ? '-'
+                                                        : item.sourceType,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                                DataCell(SizedBox(
+                                                  width: 120,
+                                                  child: Text(
+                                                    item.owner.isEmpty
+                                                        ? '-'
+                                                        : item.owner,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                                DataCell(SizedBox(
+                                                  width: 90,
+                                                  child: Text(
+                                                    item.status.isEmpty
+                                                        ? '-'
+                                                        : item.status,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                )),
+                                              ],
+                                            ),
+                                          )
+                                          .toList(growable: false),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Close'),
-            ),
-          ],
+              ),
+              actions: [
+                FilledButton.icon(
+                  onPressed: filteredRows.isEmpty
+                      ? null
+                      : () => _exportSpecificationsTablePdf(filteredRows),
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  label: const Text('Export PDF'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+    searchController.dispose();
+  }
+
+  String _pdfCellValue(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? '-' : trimmed;
+  }
+
+  String _buildSpecificationsPdfFilename() {
+    final now = DateTime.now();
+    final stamp =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+    return 'design_specifications_table_$stamp.pdf';
+  }
+
+  Future<void> _exportSpecificationsTablePdf(
+    List<_SpecificationOption> rows,
+  ) async {
+    if (rows.isEmpty) {
+      _showToast('No table rows to export.');
+      return;
+    }
+
+    final filename = _buildSpecificationsPdfFilename();
+
+    try {
+      final doc = pw.Document();
+      final generatedAt = DateTime.now();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4.landscape,
+          margin: const pw.EdgeInsets.all(24),
+          build: (_) => [
+            pw.Text(
+              'Design Specifications Table',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              'Generated ${generatedAt.toLocal().toIso8601String()}',
+              style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+            ),
+            pw.SizedBox(height: 12),
+            pw.TableHelper.fromTextArray(
+              headerStyle: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+              ),
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+              cellStyle: const pw.TextStyle(fontSize: 8.5),
+              cellAlignment: pw.Alignment.topLeft,
+              headerAlignment: pw.Alignment.centerLeft,
+              cellPadding:
+                  const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+              headers: const [
+                'Title',
+                'Spec type',
+                'Discipline',
+                'Area',
+                'WBS Work Package',
+                'Source type',
+                'Owner',
+                'Status',
+              ],
+              data: rows
+                  .map(
+                    (item) => [
+                      _pdfCellValue(item.title),
+                      _pdfCellValue(item.specificationType),
+                      _pdfCellValue(item.discipline),
+                      _pdfCellValue(item.area),
+                      _pdfCellValue(item.wbsWorkPackageTitle),
+                      _pdfCellValue(item.sourceType),
+                      _pdfCellValue(item.owner),
+                      _pdfCellValue(item.status),
+                    ],
+                  )
+                  .toList(growable: false),
+            ),
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      if (kIsWeb) {
+        download_helper.downloadFile(
+          bytes,
+          filename,
+          mimeType: 'application/pdf',
+        );
+      } else {
+        await Printing.sharePdf(bytes: bytes, filename: filename);
+      }
+
+      if (!mounted) return;
+      _showToast('PDF exported: $filename');
+    } catch (e) {
+      if (!mounted) return;
+      _showToast('Failed to export PDF: $e');
+    }
   }
 
   void _addSpecificationDocument() {
@@ -1282,10 +1555,127 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
           owner: row.owner.trim(),
           status: row.status.trim(),
           referenceLink: row.referenceLink.trim(),
+          wbsWorkPackageId: row.wbsWorkPackageId.trim(),
+          wbsWorkPackageTitle: row.wbsWorkPackageTitle.trim(),
         ),
       );
     }
     return options;
+  }
+
+  String _stripWbsPrefix(String title) {
+    final pattern = RegExp(r'^[GS]\d+(?:\.\d+)*(?:\s*[:\-])?\s*');
+    return title.replaceFirst(pattern, '').trim();
+  }
+
+  List<_WbsWorkPackageOption> _extractWbsWorkPackages(ProjectDataModel data) {
+    final output = <_WbsWorkPackageOption>[];
+
+    void addOption({
+      required WorkItem item,
+      required String parentTitle,
+      required String disciplineSeed,
+      required String areaSeed,
+      required int level,
+    }) {
+      final title = _stripWbsPrefix(item.title);
+      if (title.isEmpty) return;
+      final rawId = item.id.trim();
+      final id = rawId.isNotEmpty
+          ? rawId
+          : 'wbs_pkg_${level}_${output.length + 1}_${parentTitle.hashCode.abs()}_${title.hashCode.abs()}';
+      output.add(
+        _WbsWorkPackageOption(
+          id: id,
+          title: title,
+          parentTitle: parentTitle,
+          level: level,
+          disciplineSeed: disciplineSeed,
+          areaSeed: areaSeed,
+        ),
+      );
+    }
+
+    for (final topLevel in data.wbsTree) {
+      final topTitle = _stripWbsPrefix(topLevel.title);
+      if (topLevel.children.isNotEmpty) {
+        for (final level2 in topLevel.children) {
+          final level2Title = _stripWbsPrefix(level2.title);
+          addOption(
+            item: level2,
+            parentTitle: topTitle,
+            disciplineSeed: topTitle,
+            areaSeed: level2Title.isEmpty ? topTitle : level2Title,
+            level: 2,
+          );
+        }
+      } else {
+        addOption(
+          item: topLevel,
+          parentTitle: '',
+          disciplineSeed: topTitle,
+          areaSeed: topTitle,
+          level: 1,
+        );
+      }
+    }
+
+    return output;
+  }
+
+  List<String> _wbsDisciplineOptions(
+    List<_WbsWorkPackageOption> packages,
+    List<String> fallback,
+  ) {
+    final values = <String>[
+      ...packages
+          .map((item) => item.disciplineSeed.trim())
+          .where((value) => value.isNotEmpty),
+      ...fallback,
+    ];
+    return _dedupeOptions(values);
+  }
+
+  List<String> _wbsAreaOptions(
+    List<_WbsWorkPackageOption> packages,
+    List<String> fallback,
+  ) {
+    final values = <String>[
+      ...packages
+          .map((item) => item.areaSeed.trim())
+          .where((value) => value.isNotEmpty),
+      ...fallback,
+    ];
+    return _dedupeOptions(values);
+  }
+
+  List<String> _dedupeOptions(List<String> values) {
+    final output = <String>[];
+    final seen = <String>{};
+    for (final value in values) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) continue;
+      final key = trimmed.toLowerCase();
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      output.add(trimmed);
+    }
+    return output;
+  }
+
+  List<_RequirementAttachmentOption> _unlinkedRequirements(
+    List<_RequirementAttachmentOption> requirementOptions,
+  ) {
+    final linkedIds = <String>{};
+    for (final row in _document.specifications) {
+      for (final id in row.attachedRequirementIds) {
+        final trimmed = id.trim();
+        if (trimmed.isNotEmpty) linkedIds.add(trimmed);
+      }
+    }
+    return requirementOptions
+        .where((option) => !linkedIds.contains(option.id))
+        .toList(growable: false);
   }
 
   @override
@@ -1871,6 +2261,9 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
 
   Widget _buildRequirementsSection(List<String> owners) {
     final specificationOptions = _specificationOptions();
+    final requirementOptions =
+        _requirementAttachmentOptions(ProjectDataHelper.getData(context));
+    final unlinkedRequirements = _unlinkedRequirements(requirementOptions);
     return _buildGuidedSectionCard(
       sectionId: 'requirements',
       sectionKey: _sectionKeys['requirements']!,
@@ -1880,6 +2273,26 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
       accent: const Color(0xFF0F9D58),
       child: Column(
         children: [
+          if (unlinkedRequirements.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF59E0B)),
+              ),
+              child: Text(
+                '${unlinkedRequirements.length} requirement(s) are not linked to specifications yet.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF9A3412),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
           _SubHeader(
             title: 'Mappings',
             actionLabel: 'Add mapping',
@@ -2054,6 +2467,11 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
     final projectData = ProjectDataHelper.getData(context);
     final owners = _ownerOptions(projectData);
     final requirementOptions = _requirementAttachmentOptions(projectData);
+    final wbsWorkPackages = _extractWbsWorkPackages(projectData);
+    final disciplineOptions =
+        _wbsDisciplineOptions(wbsWorkPackages, _specDisciplineOptions);
+    final areaOptions = _wbsAreaOptions(wbsWorkPackages, _specAreaOptions);
+    final unlinkedRequirements = _unlinkedRequirements(requirementOptions);
     return _buildGuidedSectionCard(
       sectionId: 'design_specifications_workspace',
       sectionKey: _sectionKeys['design_specifications_workspace']!,
@@ -2113,6 +2531,46 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (unlinkedRequirements.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFF59E0B)),
+                        ),
+                        child: Text(
+                          'Requirement coverage gap: ${unlinkedRequirements.length} requirement(s) not linked to any specification row.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF9A3412),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (wbsWorkPackages.isEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                        ),
+                        child: const Text(
+                          'WBS continuity warning: no WBS work packages found. Populate Work Breakdown Structure first to auto-seed Discipline and Area.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF991B1B),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                     _SubHeader(
                       title: 'Specification rows',
                       actionLabel: 'Add row',
@@ -2143,8 +2601,9 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
                           owners: owners,
                           requirementOptions: requirementOptions,
                           specificationTypeOptions: _specificationTypeOptions,
-                          disciplineOptions: _specDisciplineOptions,
-                          areaOptions: _specAreaOptions,
+                          disciplineOptions: disciplineOptions,
+                          areaOptions: areaOptions,
+                          wbsWorkPackages: wbsWorkPackages,
                           sourceTypeOptions: _specSourceTypeOptions,
                           ruleTypeOptions: _specRuleTypeOptions,
                           statusOptions: _specRowStatusOptions,
@@ -3162,6 +3621,7 @@ class _SpecificationPlanRowCard extends StatelessWidget {
     required this.specificationTypeOptions,
     required this.disciplineOptions,
     required this.areaOptions,
+    required this.wbsWorkPackages,
     required this.sourceTypeOptions,
     required this.ruleTypeOptions,
     required this.statusOptions,
@@ -3178,6 +3638,7 @@ class _SpecificationPlanRowCard extends StatelessWidget {
   final List<String> specificationTypeOptions;
   final List<String> disciplineOptions;
   final List<String> areaOptions;
+  final List<_WbsWorkPackageOption> wbsWorkPackages;
   final List<String> sourceTypeOptions;
   final List<String> ruleTypeOptions;
   final List<String> statusOptions;
@@ -3188,6 +3649,34 @@ class _SpecificationPlanRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wbsPackageLabels = wbsWorkPackages
+        .map((item) => item.displayLabel)
+        .toList(growable: false);
+    String selectedWbsPackageLabel = '';
+    if (data.wbsWorkPackageTitle.trim().isNotEmpty) {
+      for (final item in wbsWorkPackages) {
+        if (item.displayLabel == data.wbsWorkPackageTitle.trim()) {
+          selectedWbsPackageLabel = item.displayLabel;
+          break;
+        }
+      }
+    }
+    if (selectedWbsPackageLabel.isEmpty) {
+      for (final item in wbsWorkPackages) {
+        if (item.id == data.wbsWorkPackageId) {
+          selectedWbsPackageLabel = item.displayLabel;
+          break;
+        }
+      }
+    }
+    if (selectedWbsPackageLabel.isEmpty &&
+        data.wbsWorkPackageTitle.trim().isNotEmpty) {
+      selectedWbsPackageLabel = data.wbsWorkPackageTitle.trim();
+    }
+    final wbsValue = selectedWbsPackageLabel.isEmpty
+        ? 'Not mapped'
+        : selectedWbsPackageLabel;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -3322,6 +3811,44 @@ class _SpecificationPlanRowCard extends StatelessWidget {
                 },
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          _DropdownField(
+            value: wbsValue,
+            label: 'WBS work package',
+            options: ['Not mapped', ...wbsPackageLabels],
+            onChanged: (value) {
+              if (value.trim() == 'Not mapped') {
+                data.wbsWorkPackageId = '';
+                data.wbsWorkPackageTitle = '';
+                onChanged();
+                return;
+              }
+              _WbsWorkPackageOption? selected;
+              for (final item in wbsWorkPackages) {
+                if (item.displayLabel == value) {
+                  selected = item;
+                  break;
+                }
+              }
+              if (selected == null || value.trim().isEmpty) {
+                data.wbsWorkPackageId = '';
+                data.wbsWorkPackageTitle = '';
+                onChanged();
+                return;
+              }
+              data.wbsWorkPackageId = selected.id;
+              data.wbsWorkPackageTitle = selected.displayLabel;
+              if (data.discipline.trim().isEmpty &&
+                  selected.disciplineSeed.trim().isNotEmpty) {
+                data.discipline = selected.disciplineSeed.trim();
+              }
+              if (data.area.trim().isEmpty &&
+                  selected.areaSeed.trim().isNotEmpty) {
+                data.area = selected.areaSeed.trim();
+              }
+              onChanged();
+            },
           ),
           if (data.uploadedFileName.trim().isNotEmpty)
             Padding(
@@ -4244,6 +4771,8 @@ class _SpecificationOption {
     this.owner = '',
     this.status = '',
     this.referenceLink = '',
+    this.wbsWorkPackageId = '',
+    this.wbsWorkPackageTitle = '',
   });
 
   final String id;
@@ -4256,6 +4785,31 @@ class _SpecificationOption {
   final String owner;
   final String status;
   final String referenceLink;
+  final String wbsWorkPackageId;
+  final String wbsWorkPackageTitle;
+}
+
+class _WbsWorkPackageOption {
+  const _WbsWorkPackageOption({
+    required this.id,
+    required this.title,
+    required this.parentTitle,
+    required this.level,
+    required this.disciplineSeed,
+    required this.areaSeed,
+  });
+
+  final String id;
+  final String title;
+  final String parentTitle;
+  final int level;
+  final String disciplineSeed;
+  final String areaSeed;
+
+  String get displayLabel {
+    if (parentTitle.trim().isEmpty) return title;
+    return '$parentTitle > $title';
+  }
 }
 
 class _RequirementMultiSelectField extends StatelessWidget {

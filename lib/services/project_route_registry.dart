@@ -14,7 +14,7 @@ import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/quality_management_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
 import 'package:ndu_project/screens/design_planning_screen.dart';
-import 'package:ndu_project/screens/front_end_planning_technology_screen.dart';
+import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/interface_management_screen.dart';
 import 'package:ndu_project/screens/risk_assessment_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_contracts_screen.dart';
@@ -50,7 +50,7 @@ class ProjectRouteRegistry {
     'quality_management': () => const QualityManagementScreen(),
     'execution_plan': () => const ExecutionPlanScreen(),
     'design': () => const DesignPlanningScreen(),
-    'technology': () => const FrontEndPlanningTechnologyScreen(),
+    'technology': () => const PlanningTechnologyScreen(),
     'interface_management': () => const InterfaceManagementScreen(),
     'risk_assessment': () => const RiskAssessmentScreen(),
     'contracts': () => const FrontEndPlanningContractsScreen(),

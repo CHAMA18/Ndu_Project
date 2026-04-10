@@ -25,7 +25,7 @@ import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
-import 'package:ndu_project/screens/front_end_planning_technology_screen.dart';
+import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_contracts_screen.dart';
 import 'package:ndu_project/screens/change_management_screen.dart';
@@ -717,8 +717,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openTechnology() {
-    _navigateWithCheckpoint(
-        'technology', const FrontEndPlanningTechnologyScreen());
+    _navigateWithCheckpoint('technology', const PlanningTechnologyScreen());
   }
 
   void _openInterfaceManagement() {
@@ -1847,9 +1846,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         _buildSubMenuItem('Design Planning',
             onTap: _openDesign,
             isActive: widget.activeItemLabel == 'Design Planning'),
-        _buildSubMenuItem('Technology',
+        _buildSubMenuItem('Technology Planning',
             onTap: _openTechnology,
-            isActive: widget.activeItemLabel == 'Technology'),
+            isActive: widget.activeItemLabel == 'Technology Planning'),
         _buildSubMenuItem(
           'Interface Management',
           onTap: lockInterfaceManagement ? null : _openInterfaceManagement,
@@ -2624,9 +2623,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isActive: widget.activeItemLabel == 'Design Planning'));
     }
     if ('technology'.contains(query)) {
-      results.add(_buildMenuItem(Icons.computer_outlined, 'Technology',
+      results.add(_buildMenuItem(Icons.computer_outlined, 'Technology Planning',
           onTap: _openTechnology,
-          isActive: widget.activeItemLabel == 'Technology'));
+          isActive: widget.activeItemLabel == 'Technology Planning'));
     }
     if ('interface management'.contains(query) ||
         'interfaces'.contains(query)) {

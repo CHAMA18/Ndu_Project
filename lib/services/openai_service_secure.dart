@@ -2703,13 +2703,20 @@ Estimation mode: "$mode"
 
       final list = (parsed['items'] as List?)?.map((e) {
             final map = e as Map<String, dynamic>;
+            final title = _stripAsterisks((map['title'] ?? '').toString());
+            final notes = _stripAsterisks((map['notes'] ?? '').toString());
+            final rawType =
+                (map['costType'] ?? map['type'] ?? '').toString();
             return CostEstimateItem(
-              title: _stripAsterisks((map['title'] ?? '').toString()),
+              title: title,
               amount: _toDouble(map['amount']),
-              notes: _stripAsterisks((map['notes'] ?? '').toString()),
-              costType: (map['costType'] ?? map['type'] ?? 'direct')
-                  .toString()
-                  .toLowerCase(),
+              notes: notes,
+              // Canonicalize to direct/indirect so UI filters always work.
+              costType: _normalizeCostTypeValue(
+                rawType,
+                title: title,
+                notes: notes,
+              ),
             );
           }).toList() ??
           [];
@@ -2867,6 +2874,7 @@ Return ONLY valid JSON with this structure:
 }
 
 Rules:
+- When returning 2+ items, include both cost types: at least one "direct" and one "indirect".
 - Align suggestions to the detected project type: $typeLabel.
 - Avoid generic placeholders like 100000, 250000, or 500000.
 - If context is insufficient, return {"items": []}.
@@ -2898,16 +2906,75 @@ $c
       final key = '${title.toLowerCase()}|${amount.round()}';
       if (seen.contains(key)) continue;
       seen.add(key);
+      final normalizedType = _normalizeCostTypeValue(
+        item.costType,
+        title: title,
+        notes: item.notes,
+      );
       filtered.add(
         CostEstimateItem(
           title: title,
           amount: _normalizeEstimatedCost(amount),
           notes: item.notes.trim(),
-          costType: item.costType,
+          costType: normalizedType,
         ),
       );
     }
     return filtered;
+  }
+
+  String _normalizeCostTypeValue(
+    String raw, {
+    required String title,
+    required String notes,
+  }) {
+    final value = raw.trim().toLowerCase();
+    if (value == 'direct' || value == 'indirect') return value;
+
+    final merged = '$value ${title.toLowerCase()} ${notes.toLowerCase()}';
+    const indirectSignals = [
+      'indirect',
+      'overhead',
+      'admin',
+      'administrative',
+      'support',
+      'training',
+      'maintenance',
+      'compliance',
+      'license',
+      'subscription',
+      'insurance',
+      'facility',
+      'utilities',
+      'governance',
+    ];
+    if (indirectSignals.any((signal) => merged.contains(signal))) {
+      return 'indirect';
+    }
+
+    const directSignals = [
+      'direct',
+      'implementation',
+      'delivery',
+      'build',
+      'construction',
+      'equipment',
+      'material',
+      'labor',
+      'development',
+      'integration',
+      'hardware',
+      'software',
+      'vendor',
+      'contractor',
+      'install',
+      'deployment',
+    ];
+    if (directSignals.any((signal) => merged.contains(signal))) {
+      return 'direct';
+    }
+
+    return 'direct';
   }
 
   // SOLUTIONS

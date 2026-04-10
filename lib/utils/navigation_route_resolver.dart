@@ -34,7 +34,7 @@ import 'package:ndu_project/screens/execution_plan_screen.dart';
 import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/design_planning_screen.dart';
-import 'package:ndu_project/screens/front_end_planning_technology_screen.dart';
+import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/interface_management_screen.dart';
 import 'package:ndu_project/screens/startup_planning_screen.dart';
 import 'package:ndu_project/screens/startup_planning_subsections_screen.dart';
@@ -336,7 +336,7 @@ class NavigationRouteResolver {
       case 'design_management':
         return const DesignPhaseScreen(activeItemLabel: 'Design Management');
       case 'technology':
-        return const FrontEndPlanningTechnologyScreen();
+        return const PlanningTechnologyScreen();
       case 'interface_management':
         return const InterfaceManagementScreen();
       case 'startup_planning':
