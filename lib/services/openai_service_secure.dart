@@ -1404,8 +1404,13 @@ $trimmedContext
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a senior project delivery planner. Return only a JSON object.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'execution planning specialist generating structured execution section inputs',
+            strictJson: true,
+            extraRules:
+                'Return only a JSON object with keys exactly matching the requested field keys.',
+          ),
         },
         {'role': 'user', 'content': prompt},
       ],
@@ -9295,8 +9300,13 @@ $escaped
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are an agile development specialist AI. Break down user stories into specific, actionable sub-tasks based on design components. Return ONLY valid JSON with sub-tasks formatted with "." bullet prefix.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'agile delivery specialist decomposing implementation work into executable sub-tasks',
+            strictJson: true,
+            extraRules:
+                'Return ONLY valid JSON with key "subTasks". Use "." bullets and generate practical steps aligned to project type and starting point.',
+          ),
         },
         {
           'role': 'user',
@@ -9397,8 +9407,13 @@ $escaped
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a quality assurance specialist helping to define verification steps for project deliverables. Always reply with JSON only and obey the required schema.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'quality assurance specialist defining verification steps for execution deliverables',
+            strictJson: true,
+            extraRules:
+                'Return JSON only with key "verificationSteps". Provide domain-appropriate verification actions for the detected project type and starting point.',
+          ),
         },
         {
           'role': 'user',
@@ -9577,7 +9592,7 @@ $escaped
     if (req.isEmpty) {
       return '. Acceptance criteria are defined and agreed by stakeholders\n. Evidence is recorded for verification and sign-off\n. All required deliverables are completed to specification';
     }
-    return '. ${req} is delivered as specified and verified by testing\n. Stakeholders review and approve the outcome\n. Evidence is documented for sign-off';
+    return '. $req is delivered as specified and verified by testing\n. Stakeholders review and approve the outcome\n. Evidence is documented for sign-off';
   }
 
   /// Generate engagement strategy for a stakeholder based on their alignment status and key interest
@@ -9616,8 +9631,13 @@ $escaped
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a stakeholder engagement specialist helping to draft communication plans and engagement strategies. Always reply with JSON only and obey the required schema.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'stakeholder engagement specialist drafting execution-phase engagement strategies',
+            strictJson: true,
+            extraRules:
+                'Return JSON only with key "engagementStrategy". Keep actions specific to stakeholder role, alignment status, and project type context.',
+          ),
         },
         {
           'role': 'user',
