@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,6 +37,9 @@ const Map<String, String> _executionCheckpointAlias = {
   'execution_plan_interface_overview':
       'execution_plan_interface_management_overview',
 };
+
+const String _executionStakeholderRowsNotesKey =
+    'execution_stakeholder_identification_rows';
 
 String _resolveExecutionCheckpoint(String key) {
   final trimmed = key.trim();
@@ -1286,7 +1290,6 @@ class _EarlyWorksTable extends StatelessWidget {
     _showToolDialog(context, null, projectId);
   }
 
-  // ignore: unused_element
   static void showEditDialog(BuildContext context, ExecutionToolModel tool) {
     final projectId = _getProjectIdStatic(context);
     if (projectId == null) {
@@ -1299,7 +1302,6 @@ class _EarlyWorksTable extends StatelessWidget {
     _showToolDialog(context, tool, projectId);
   }
 
-  // ignore: unused_element
   static void showDeleteDialog(BuildContext context, ExecutionToolModel tool) {
     final projectId = _getProjectIdStatic(context);
     if (projectId == null) {
@@ -1545,6 +1547,7 @@ class _EarlyWorksTable extends StatelessWidget {
               2: FlexColumnWidth(3),
               3: FlexColumnWidth(2),
               4: FlexColumnWidth(2),
+              5: FixedColumnWidth(100),
             },
             border: const TableBorder(
               horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
@@ -1588,11 +1591,30 @@ class _EarlyWorksTable extends StatelessWidget {
                       buildCell('${index + 1}', align: TextAlign.center),
                       buildCell(tool.tool),
                       buildCell(tool.description),
-                      buildCell(tool.cost ?? '—'),
+                      buildCell(tool.cost ?? 'N/A'),
                       buildCell(tool.comments),
-                      buildCell('',
-                          align: TextAlign.center,
-                          style: const TextStyle(fontSize: 0)),
+                      Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 18),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit,
+                                  size: 18, color: Color(0xFF64748B)),
+                              onPressed: () => showEditDialog(context, tool),
+                              tooltip: 'Edit',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  size: 18, color: Color(0xFFEF4444)),
+                              onPressed: () => showDeleteDialog(context, tool),
+                              tooltip: 'Delete',
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   );
                 }),
@@ -3242,7 +3264,6 @@ class _LessonsLearnedTable extends StatelessWidget {
                       buildCell(''),
                       buildCell(''),
                       buildCell(''),
-                      buildCell(''),
                     ],
                   )
                 else
@@ -3253,9 +3274,9 @@ class _LessonsLearnedTable extends StatelessWidget {
                       children: [
                         buildCell('${index + 1}', align: TextAlign.center),
                         buildCell(request.issueTopic),
-                        buildCell(request.llOrBp ?? '—'),
+                        buildCell(request.llOrBp ?? 'N/A'),
                         buildCell(request.discipline),
-                        buildCell(request.impacted ?? '—'),
+                        buildCell(request.impacted ?? 'N/A'),
                         buildCell(request.raisedBy),
                         buildCell(request.scheduleImpact),
                         buildCell(request.costImpact),
@@ -3481,7 +3502,6 @@ class _BestPracticesTable extends StatelessWidget {
         context, null, projectId, 'BP');
   }
 
-  // ignore: unused_element
   static void showEditDialog(
       BuildContext context, ExecutionIssueModel request) {
     final projectId = _getProjectIdStatic(context);
@@ -3496,7 +3516,6 @@ class _BestPracticesTable extends StatelessWidget {
         context, request, projectId, 'BP');
   }
 
-  // ignore: unused_element
   static void showDeleteDialog(
       BuildContext context, ExecutionIssueModel request) {
     final projectId = _getProjectIdStatic(context);
@@ -3657,6 +3676,8 @@ class _BestPracticesTable extends StatelessWidget {
                     buildCell('Cost Impact', isHeader: true),
                     buildCell('Approved?', isHeader: true),
                     buildCell('Comments', isHeader: true),
+                    buildCell('Actions',
+                        isHeader: true, align: TextAlign.center),
                   ],
                 ),
                 if (bestPractices.isEmpty)
@@ -3675,6 +3696,7 @@ class _BestPracticesTable extends StatelessWidget {
                       buildCell(''),
                       buildCell(''),
                       buildCell(''),
+                      buildCell(''),
                     ],
                   )
                 else
@@ -3685,14 +3707,38 @@ class _BestPracticesTable extends StatelessWidget {
                       children: [
                         buildCell('${index + 1}', align: TextAlign.center),
                         buildCell(request.issueTopic),
-                        buildCell(request.llOrBp ?? '—'),
+                        buildCell(request.llOrBp ?? 'N/A'),
                         buildCell(request.discipline),
-                        buildCell(request.impacted ?? '—'),
+                        buildCell(request.impacted ?? 'N/A'),
                         buildCell(request.raisedBy),
                         buildCell(request.scheduleImpact),
                         buildCell(request.costImpact),
                         buildCell(request.approved ? 'Yes' : 'No'),
                         buildCell(request.comments),
+                        Container(
+                          color: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 18),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit,
+                                    size: 18, color: Color(0xFF64748B)),
+                                onPressed: () =>
+                                    showEditDialog(context, request),
+                                tooltip: 'Edit',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete,
+                                    size: 18, color: Color(0xFFEF4444)),
+                                onPressed: () =>
+                                    showDeleteDialog(context, request),
+                                tooltip: 'Delete',
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     );
                   }),
@@ -4937,18 +4983,196 @@ class _StakeholderIdentificationSection extends StatefulWidget {
 class _StakeholderIdentificationSectionState
     extends State<_StakeholderIdentificationSection> {
   final List<Map<String, String>> _rows = [];
+  bool _didHydrateRows = false;
 
-  void _addRow() {
-    setState(() {
-      _rows.add({
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didHydrateRows) return;
+    _didHydrateRows = true;
+    _hydrateRowsFromNotes();
+  }
+
+  Map<String, String> _emptyRow() => {
         'stakeholderGroup': '',
         'category': '',
         'influence': '',
         'keyConcerns': '',
         'engagementStrategy': '',
         'comments': '',
+      };
+
+  Map<String, String> _normalizeRow(Map<dynamic, dynamic> source) => {
+        'stakeholderGroup': (source['stakeholderGroup'] ?? '').toString(),
+        'category': (source['category'] ?? '').toString(),
+        'influence': (source['influence'] ?? '').toString(),
+        'keyConcerns': (source['keyConcerns'] ?? '').toString(),
+        'engagementStrategy': (source['engagementStrategy'] ?? '').toString(),
+        'comments': (source['comments'] ?? '').toString(),
+      };
+
+  void _hydrateRowsFromNotes() {
+    final rawJson = ProjectDataHelper.getData(context)
+        .planningNotes[_executionStakeholderRowsNotesKey];
+    if (rawJson == null || rawJson.trim().isEmpty) return;
+    try {
+      final decoded = jsonDecode(rawJson);
+      if (decoded is! List) return;
+      final loaded = decoded
+          .whereType<Map>()
+          .map((row) => _normalizeRow(row))
+          .toList(growable: false);
+      if (loaded.isEmpty) return;
+      setState(() {
+        _rows
+          ..clear()
+          ..addAll(loaded);
       });
-    });
+    } catch (error) {
+      debugPrint('Failed to parse stakeholder identification rows: $error');
+    }
+  }
+
+  Future<void> _persistRows() async {
+    final rowsJson = jsonEncode(_rows);
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: _resolveExecutionCheckpoint(
+        'execution_stakeholder_identification',
+      ),
+      dataUpdater: (data) => data.copyWith(
+        planningNotes: {
+          ...data.planningNotes,
+          _executionStakeholderRowsNotesKey: rowsJson,
+        },
+      ),
+      showSnackbar: false,
+    );
+  }
+
+  Future<void> _openRowDialog({int? index}) async {
+    final isEdit = index != null;
+    final base = isEdit ? _rows[index] : _emptyRow();
+
+    final stakeholderGroupController =
+        TextEditingController(text: base['stakeholderGroup'] ?? '');
+    final categoryController =
+        TextEditingController(text: base['category'] ?? '');
+    final influenceController =
+        TextEditingController(text: base['influence'] ?? '');
+    final keyConcernsController =
+        TextEditingController(text: base['keyConcerns'] ?? '');
+    final engagementStrategyController =
+        TextEditingController(text: base['engagementStrategy'] ?? '');
+    final commentsController =
+        TextEditingController(text: base['comments'] ?? '');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isEdit ? 'Edit Stakeholder' : 'Add Stakeholder'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: stakeholderGroupController,
+                decoration:
+                    const InputDecoration(labelText: 'Stakeholder Group *'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: categoryController,
+                decoration: const InputDecoration(labelText: 'Category'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: influenceController,
+                decoration: const InputDecoration(labelText: 'Influence'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: keyConcernsController,
+                decoration: const InputDecoration(labelText: 'Key Concerns'),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: engagementStrategyController,
+                decoration:
+                    const InputDecoration(labelText: 'Engagement Strategy'),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: commentsController,
+                decoration: const InputDecoration(labelText: 'Comments'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final stakeholderGroup = stakeholderGroupController.text.trim();
+              if (stakeholderGroup.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Stakeholder Group is required.'),
+                  ),
+                );
+                return;
+              }
+
+              final updatedRow = _normalizeRow({
+                'stakeholderGroup': stakeholderGroup,
+                'category': categoryController.text.trim(),
+                'influence': influenceController.text.trim(),
+                'keyConcerns': keyConcernsController.text.trim(),
+                'engagementStrategy': engagementStrategyController.text.trim(),
+                'comments': commentsController.text.trim(),
+              });
+
+              setState(() {
+                if (index != null) {
+                  _rows[index] = updatedRow;
+                } else {
+                  _rows.add(updatedRow);
+                }
+              });
+              Navigator.pop(dialogContext);
+              await _persistRows();
+            },
+            child: Text(isEdit ? 'Update' : 'Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteRow(int index) async {
+    final removed = _rows[index];
+    setState(() => _rows.removeAt(index));
+    await _persistRows();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Stakeholder row deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            setState(() => _rows.insert(index, removed));
+            await _persistRows();
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -4967,11 +5191,15 @@ class _StakeholderIdentificationSectionState
           ),
         ),
         const SizedBox(height: 28),
-        _StakeholderIdentificationTable(rows: _rows),
+        _StakeholderIdentificationTable(
+          rows: _rows,
+          onEditRow: (rowIndex) => _openRowDialog(index: rowIndex),
+          onDeleteRow: _deleteRow,
+        ),
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: _AddRowButton(onPressed: _addRow),
+          child: _AddRowButton(onPressed: () => _openRowDialog()),
         ),
         const SizedBox(height: 44),
         if (isMobile)
@@ -4984,9 +5212,15 @@ class _StakeholderIdentificationSectionState
 }
 
 class _StakeholderIdentificationTable extends StatelessWidget {
-  const _StakeholderIdentificationTable({required this.rows});
+  const _StakeholderIdentificationTable({
+    required this.rows,
+    required this.onEditRow,
+    required this.onDeleteRow,
+  });
 
   final List<Map<String, String>> rows;
+  final ValueChanged<int> onEditRow;
+  final ValueChanged<int> onDeleteRow;
 
   @override
   Widget build(BuildContext context) {
@@ -5003,14 +5237,16 @@ class _StakeholderIdentificationTable extends StatelessWidget {
     );
 
     Widget buildCell(String text,
-        {bool isHeader = false, TextAlign align = TextAlign.left}) {
+        {bool isHeader = false,
+        TextAlign align = TextAlign.left,
+        TextStyle? style}) {
       return Container(
         color: isHeader ? const Color(0xFFF3F4F6) : Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         child: Text(
           text,
           textAlign: align,
-          style: isHeader ? headerStyle : cellStyle,
+          style: style ?? (isHeader ? headerStyle : cellStyle),
         ),
       );
     }
@@ -5030,6 +5266,7 @@ class _StakeholderIdentificationTable extends StatelessWidget {
           4: FlexColumnWidth(2),
           5: FlexColumnWidth(2),
           6: FlexColumnWidth(2),
+          7: FixedColumnWidth(100),
         },
         border: const TableBorder(
           horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
@@ -5049,23 +5286,62 @@ class _StakeholderIdentificationTable extends StatelessWidget {
               buildCell('Key Concerns', isHeader: true),
               buildCell('Engagement Strategy', isHeader: true),
               buildCell('Comments', isHeader: true),
+              buildCell('Actions', isHeader: true, align: TextAlign.center),
             ],
           ),
-          ...rows.asMap().entries.map((entry) {
-            final index = entry.key;
-            final row = entry.value;
-            return TableRow(
+          if (rows.isEmpty)
+            TableRow(
               children: [
-                buildCell('${index + 1}', align: TextAlign.center),
-                buildCell(row['stakeholderGroup'] ?? ''),
-                buildCell(row['category'] ?? ''),
-                buildCell(row['influence'] ?? ''),
-                buildCell(row['keyConcerns'] ?? ''),
-                buildCell(row['engagementStrategy'] ?? ''),
-                buildCell(row['comments'] ?? ''),
+                buildCell('', align: TextAlign.center),
+                buildCell('No stakeholders added yet',
+                    style: const TextStyle(
+                        color: Color(0xFF64748B), fontStyle: FontStyle.italic)),
+                buildCell(''),
+                buildCell(''),
+                buildCell(''),
+                buildCell(''),
+                buildCell(''),
+                buildCell(''),
               ],
-            );
-          }),
+            )
+          else
+            ...rows.asMap().entries.map((entry) {
+              final index = entry.key;
+              final row = entry.value;
+              return TableRow(
+                children: [
+                  buildCell('${index + 1}', align: TextAlign.center),
+                  buildCell(row['stakeholderGroup'] ?? ''),
+                  buildCell(row['category'] ?? ''),
+                  buildCell(row['influence'] ?? ''),
+                  buildCell(row['keyConcerns'] ?? ''),
+                  buildCell(row['engagementStrategy'] ?? ''),
+                  buildCell(row['comments'] ?? ''),
+                  Container(
+                    color: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit,
+                              size: 18, color: Color(0xFF64748B)),
+                          onPressed: () => onEditRow(index),
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete,
+                              size: 18, color: Color(0xFFEF4444)),
+                          onPressed: () => onDeleteRow(index),
+                          tooltip: 'Delete',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }),
         ],
       ),
     );
