@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:ndu_project/screens/front_end_planning_technology_personnel_screen.dart';
-import 'package:ndu_project/screens/front_end_planning_technology_screen.dart';
+import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/content_text.dart';
@@ -273,8 +273,7 @@ class _FrontEndPlanningInfrastructureScreenState
                                   _yellowPillButton(
                                     label: 'Go to Detailed View',
                                     onTap: () =>
-                                        FrontEndPlanningTechnologyScreen.open(
-                                            context),
+                                        PlanningTechnologyScreen.open(context),
                                   ),
                                 ],
                               ),

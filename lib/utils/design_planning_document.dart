@@ -993,6 +993,8 @@ class DesignSpecificationPlanRow {
     this.owner = '',
     this.status = 'Draft',
     this.referenceLink = '',
+    this.wbsWorkPackageId = '',
+    this.wbsWorkPackageTitle = '',
     this.uploadedFileName = '',
     this.uploadedStoragePath = '',
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
@@ -1010,6 +1012,8 @@ class DesignSpecificationPlanRow {
   String owner;
   String status;
   String referenceLink;
+  String wbsWorkPackageId;
+  String wbsWorkPackageTitle;
   String uploadedFileName;
   String uploadedStoragePath;
 
@@ -1044,6 +1048,12 @@ class DesignSpecificationPlanRow {
       owner: json['owner']?.toString() ?? '',
       status: json['status']?.toString() ?? 'Draft',
       referenceLink: json['referenceLink']?.toString() ?? '',
+      wbsWorkPackageId: json['wbsWorkPackageId']?.toString() ??
+          json['workPackageId']?.toString() ??
+          '',
+      wbsWorkPackageTitle: json['wbsWorkPackageTitle']?.toString() ??
+          json['workPackageTitle']?.toString() ??
+          '',
       uploadedFileName: json['uploadedFileName']?.toString() ?? '',
       uploadedStoragePath: json['uploadedStoragePath']?.toString() ?? '',
     );
@@ -1066,6 +1076,8 @@ class DesignSpecificationPlanRow {
         'owner': owner,
         'status': status,
         'referenceLink': referenceLink,
+        'wbsWorkPackageId': wbsWorkPackageId,
+        'wbsWorkPackageTitle': wbsWorkPackageTitle,
         'uploadedFileName': uploadedFileName,
         'uploadedStoragePath': uploadedStoragePath,
       };

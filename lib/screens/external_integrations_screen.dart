@@ -37,7 +37,7 @@ class _ExternalIntegrationsScreenState
     setState(() {
       _items
         ..clear()
-        ..addAll(provider.projectData.aiIntegrations);
+        ..addAll(provider.projectData.externalIntegrations);
       _loading = false;
     });
   }
@@ -45,7 +45,7 @@ class _ExternalIntegrationsScreenState
   Future<void> _save() async {
     final provider = ProjectDataInherited.maybeOf(context);
     if (provider == null) return;
-    provider.updateField((d) => d.copyWith(aiIntegrations: _items));
+    provider.updateField((d) => d.copyWith(externalIntegrations: _items));
     await provider.saveToFirebase(checkpoint: 'external_integrations');
   }
 

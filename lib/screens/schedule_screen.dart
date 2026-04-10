@@ -1,19 +1,20 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
-import 'package:ndu_project/services/api_key_manager.dart';
 
-/// Schedule screen recreated to match the provided mockup with
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
 
@@ -30,13 +31,22 @@ class ScheduleScreen extends StatefulWidget {
 class _ScheduleScreenState extends State<ScheduleScreen> {
   final TextEditingController _notesController = TextEditingController();
   final List<_ScheduleRow> _activityRows = [];
+
   String _selectedMethodology = 'Waterfall';
   DateTime? _scheduleStartDate;
   DateTime? _baselineDate;
-  Timer? _saveDebounce;
   DateTime? _lastSavedAt;
+  Timer? _saveDebounce;
+
   bool _isGeneratingSchedule = false;
   bool _autoImportAttempted = false;
+  bool _notesExpanded = false;
+
+  int _selectedTab = 0;
+  String _timelineView = 'Months';
+  String? _selectedTaskId;
+  String? _hoveredTaskId;
+  int _selectedWorkspaceSection = 1;
 
   @override
   void initState() {
@@ -45,54 +55,63 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ApiKeyManager.initializeApiKey();
       final data = ProjectDataHelper.getData(context);
       _notesController.text =
-          data.planningNotes['planning_schedule_notes'] ?? '';
-      _selectedMethodology =
-          data.planningNotes['planning_schedule_methodology'] ??
-              _selectedMethodology;
+          data.planningNotes['planning_schedule_notes']?.trim() ?? '';
+      _selectedMethodology = data.planningNotes['planning_schedule_methodology']
+                  ?.trim()
+                  .isNotEmpty ==
+              true
+          ? data.planningNotes['planning_schedule_methodology']!
+          : _selectedMethodology;
       final storedStart =
-          data.planningNotes['planning_schedule_start_date'] ?? '';
+          data.planningNotes['planning_schedule_start_date']?.trim() ?? '';
       _scheduleStartDate = DateTime.tryParse(storedStart) ?? DateTime.now();
-      final baseline = data.scheduleBaselineDate.trim().isEmpty
-          ? null
-          : DateTime.tryParse(data.scheduleBaselineDate.trim());
-      _baselineDate = baseline;
+      final baselineValue = data.scheduleBaselineDate.trim();
+      _baselineDate =
+          baselineValue.isEmpty ? null : DateTime.tryParse(baselineValue);
       _loadScheduleActivities(data);
       _notesController.addListener(_handleNotesChanged);
     });
   }
 
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    _notesController.removeListener(_handleNotesChanged);
+    _notesController.dispose();
+    for (final row in _activityRows) {
+      row.dispose();
+    }
+    super.dispose();
+  }
+
   void _handleNotesChanged() {
     _saveDebounce?.cancel();
-    _saveDebounce = Timer(const Duration(milliseconds: 700), () async {
+    _saveDebounce = Timer(const Duration(milliseconds: 650), () async {
       await _persistSchedule();
     });
   }
 
   void _handleActivityChanged() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
     _saveDebounce?.cancel();
-    _saveDebounce = Timer(const Duration(milliseconds: 700), () async {
+    _saveDebounce = Timer(const Duration(milliseconds: 650), () async {
       await _persistSchedule();
     });
   }
 
   Future<void> _persistSchedule() async {
-    final value = _notesController.text.trim();
-    final activities = _buildScheduleActivities();
     final success = await ProjectDataHelper.updateAndSave(
       context: context,
       checkpoint: 'planning_schedule',
       dataUpdater: (data) => data.copyWith(
         planningNotes: {
           ...data.planningNotes,
-          'planning_schedule_notes': value,
+          'planning_schedule_notes': _notesController.text.trim(),
           'planning_schedule_methodology': _selectedMethodology,
           'planning_schedule_start_date':
               _scheduleStartDate?.toIso8601String() ?? '',
         },
-        scheduleActivities: activities,
+        scheduleActivities: _buildScheduleActivities(),
       ),
       showSnackbar: false,
     );
@@ -103,29 +122,24 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   Future<void> _setBaseline() async {
     if (_activityRows.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Add schedule activities first.')),
-        );
-      }
+      _showInfo('Add schedule activities first.');
       return;
     }
-    final activities = _buildScheduleActivities();
-    final baselineDate = DateTime.now().toIso8601String();
+
+    final now = DateTime.now().toIso8601String();
     await ProjectDataHelper.updateAndSave(
       context: context,
       checkpoint: 'planning_schedule',
       dataUpdater: (data) => data.copyWith(
-        scheduleBaselineActivities: activities,
-        scheduleBaselineDate: baselineDate,
+        scheduleBaselineActivities: _buildScheduleActivities(),
+        scheduleBaselineDate: now,
       ),
       showSnackbar: false,
     );
+
     if (mounted) {
-      setState(() => _baselineDate = DateTime.parse(baselineDate));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Schedule baseline saved')),
-      );
+      setState(() => _baselineDate = DateTime.tryParse(now));
+      _showInfo('Schedule baseline saved.');
     }
   }
 
@@ -142,49 +156,96 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
   }
 
+  Future<void> _pickRowDate(_ScheduleRow row, {required bool isDueDate}) async {
+    final current = isDueDate
+        ? _parseDate(row.dueDateController.text)
+        : _parseDate(row.startDateController.text);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? _scheduleStartDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      if (isDueDate) {
+        row.dueDateController.text = _formatDate(picked);
+      } else {
+        row.startDateController.text = _formatDate(picked);
+      }
+      _handleActivityChanged();
+    }
+  }
+
+  void _showInfo(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   void _loadScheduleActivities(ProjectDataModel data) {
     final usedIds = <String>{};
     _activityRows
       ..clear()
-      ..addAll(data.scheduleActivities.map((a) {
-        var id = a.wbsId.isNotEmpty ? a.wbsId : a.id;
+      ..addAll(data.scheduleActivities.map((activity) {
+        var id = activity.wbsId.isNotEmpty ? activity.wbsId : activity.id;
         if (id.trim().isEmpty || usedIds.contains(id)) {
           id = DateTime.now().microsecondsSinceEpoch.toString();
         }
         usedIds.add(id);
-        return _ScheduleRow(
-          id: id,
-          wbsId: a.wbsId,
-          title: a.title,
-          durationDays: a.durationDays,
-          predecessorId:
-              a.predecessorIds.isEmpty ? null : a.predecessorIds.first,
-          isMilestone: a.isMilestone,
+        return _ScheduleRow.fromActivity(
+          activity,
+          idOverride: id,
           onChanged: _handleActivityChanged,
         );
       }));
+
     if (_activityRows.isEmpty && data.wbsTree.isNotEmpty) {
       _importFromWbs(showConfirm: false);
     }
   }
 
   List<ScheduleActivity> _buildScheduleActivities() {
-    return _activityRows
-        .map((row) => ScheduleActivity(
-              id: row.id,
-              wbsId: row.wbsId,
-              title: row.titleController.text.trim(),
-              durationDays:
-                  int.tryParse(row.durationController.text.trim()) ?? 5,
-              predecessorIds:
-                  row.predecessorId == null ? [] : [row.predecessorId!],
-              isMilestone: row.isMilestone,
-            ))
-        .toList();
+    final computed =
+        _computeSchedule(_activityRows, _scheduleStartDate ?? DateTime.now());
+    final computedById = {
+      for (final item in computed.items) item.id: item,
+    };
+
+    return _activityRows.map((row) {
+      final fallback = computedById[row.id];
+      final startDateText = row.startDateController.text.trim().isNotEmpty
+          ? row.startDateController.text.trim()
+          : (fallback != null ? _formatDate(fallback.startDate) : '');
+      final dueDateText = row.dueDateController.text.trim().isNotEmpty
+          ? row.dueDateController.text.trim()
+          : (fallback != null ? _formatDate(fallback.endDate) : '');
+
+      return ScheduleActivity(
+        id: row.id,
+        wbsId: row.wbsId,
+        title: row.titleController.text.trim(),
+        durationDays: int.tryParse(row.durationController.text.trim()) ?? 5,
+        predecessorIds: row.predecessorId == null ? [] : [row.predecessorId!],
+        isMilestone: row.isMilestone,
+        status: row.status,
+        priority: row.priority,
+        assignee: row.assigneeController.text.trim(),
+        discipline: row.disciplineController.text.trim(),
+        progress: (double.tryParse(row.progressController.text.trim()) ?? 0)
+                .clamp(0, 100) /
+            100,
+        startDate: startDateText,
+        dueDate: dueDateText,
+        estimatedHours: double.tryParse(row.hoursController.text.trim()) ?? 0,
+        milestone: row.milestoneController.text.trim(),
+      );
+    }).toList();
   }
 
   List<Map<String, String>> _flattenWbsItems(List<WorkItem> items) {
     final result = <Map<String, String>>[];
+
     void visit(List<WorkItem> nodes) {
       for (final node in nodes) {
         if (node.children.isEmpty) {
@@ -192,6 +253,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             'id': node.id,
             'title': node.title,
             'dependencies': node.dependencies.join(', '),
+            'discipline': node.framework,
           });
         } else {
           visit(node.children);
@@ -206,11 +268,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Future<void> _importFromWbs({bool showConfirm = true}) async {
     final data = ProjectDataHelper.getData(context);
     if (data.wbsTree.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No WBS items found.')),
-        );
-      }
+      _showInfo('No WBS items found.');
       return;
     }
 
@@ -220,13 +278,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         builder: (context) => AlertDialog(
           title: const Text('Replace schedule activities?'),
           content: const Text(
-              'Importing from WBS will replace your current schedule list.'),
+            'Importing from WBS will replace your current schedule list.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
-            TextButton(
+            FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Replace'),
             ),
@@ -237,48 +296,52 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
 
     final flattened = _flattenWbsItems(data.wbsTree);
-    String ensureId(String? raw, Set<String> usedIds) {
-      final trimmed = raw?.trim() ?? '';
-      var candidate = trimmed.isNotEmpty
-          ? trimmed
+    final usedIds = <String>{};
+    final titleToId = <String, String>{};
+    final rawIdToId = <String, String>{};
+
+    String ensureId(String? raw) {
+      final cleaned = raw?.trim() ?? '';
+      var candidate = cleaned.isNotEmpty
+          ? cleaned
           : DateTime.now().microsecondsSinceEpoch.toString();
       if (!usedIds.contains(candidate)) {
         usedIds.add(candidate);
         return candidate;
       }
-      var suffix = 2;
-      while (usedIds.contains('$candidate-$suffix')) {
-        suffix++;
+      var i = 2;
+      while (usedIds.contains('$candidate-$i')) {
+        i++;
       }
-      candidate = '$candidate-$suffix';
+      candidate = '$candidate-$i';
       usedIds.add(candidate);
       return candidate;
     }
 
-    final usedIds = <String>{};
-    final titleToId = <String, String>{};
-    final rawIdToId = <String, String>{};
     final normalized = <Map<String, String>>[];
-
     for (final item in flattened) {
       final rawId = (item['id'] ?? '').trim();
       final title = (item['title'] ?? '').trim();
-      final uniqueId = ensureId(rawId, usedIds);
+      final generated = ensureId(rawId);
       normalized.add({
         'rawId': rawId,
-        'id': uniqueId,
+        'id': generated,
         'title': title,
         'dependencies': (item['dependencies'] ?? '').trim(),
+        'discipline': (item['discipline'] ?? '').trim(),
       });
       if (rawId.isNotEmpty && !rawIdToId.containsKey(rawId)) {
-        rawIdToId[rawId] = uniqueId;
+        rawIdToId[rawId] = generated;
       }
       if (title.isNotEmpty && !titleToId.containsKey(title)) {
-        titleToId[title] = uniqueId;
+        titleToId[title] = generated;
       }
     }
 
     setState(() {
+      for (final row in _activityRows) {
+        row.dispose();
+      }
       _activityRows
         ..clear()
         ..addAll(normalized.map((item) {
@@ -287,34 +350,36 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               .map((e) => e.trim())
               .where((e) => e.isNotEmpty)
               .toList();
-          String? predecessorId;
+          String? predecessor;
           if (deps.isNotEmpty) {
-            final dep = deps.first;
-            predecessorId = rawIdToId[dep] ?? titleToId[dep];
+            predecessor = rawIdToId[deps.first] ?? titleToId[deps.first];
           }
+
           return _ScheduleRow(
             id: item['id'] ?? '',
             wbsId: item['rawId'] ?? '',
             title: item['title'] ?? '',
             durationDays: 5,
-            predecessorId: predecessorId,
+            predecessorId: predecessor,
             isMilestone: false,
+            discipline: item['discipline'] ?? '',
             onChanged: _handleActivityChanged,
           );
         }));
     });
+
     _handleActivityChanged();
+    _showInfo('Imported ${_activityRows.length} activities from WBS.');
   }
 
   Future<void> _generateScheduleFromAi() async {
     if (_isGeneratingSchedule) return;
     final data = ProjectDataHelper.getData(context);
     if (data.wbsTree.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add WBS items first.')),
-      );
+      _showInfo('Add WBS items first.');
       return;
     }
+
     setState(() => _isGeneratingSchedule = true);
     try {
       final wbsItems = _flattenWbsItems(data.wbsTree);
@@ -328,42 +393,514 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         wbsItems: wbsItems,
       );
       if (!mounted) return;
+
       setState(() {
+        for (final row in _activityRows) {
+          row.dispose();
+        }
         _activityRows
           ..clear()
-          ..addAll(activities.map((a) => _ScheduleRow.fromActivity(
-                a,
-                onChanged: _handleActivityChanged,
-              )));
+          ..addAll(activities.map(
+            (activity) => _ScheduleRow.fromActivity(
+              activity,
+              onChanged: _handleActivityChanged,
+            ),
+          ));
       });
+
       _handleActivityChanged();
-    } catch (e) {
-      debugPrint('AI schedule generation failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate schedule: $e')),
-        );
-      }
+    } catch (error) {
+      _showInfo('Failed to generate schedule: $error');
     } finally {
-      if (mounted) setState(() => _isGeneratingSchedule = false);
+      if (mounted) {
+        setState(() => _isGeneratingSchedule = false);
+      }
     }
   }
 
-  @override
-  void dispose() {
-    _saveDebounce?.cancel();
-    _notesController.removeListener(_handleNotesChanged);
-    _notesController.dispose();
-    for (final row in _activityRows) {
-      row.dispose();
+  void _addTask() {
+    unawaited(_openCreateTaskDialog());
+  }
+
+  Future<void> _openCreateTaskDialog() async {
+    final draft = await _showTaskDialog();
+    if (draft == null || !mounted) return;
+
+    setState(() {
+      _selectedWorkspaceSection = 1;
+      _selectedTab = 1;
+      _activityRows.add(_ScheduleRow(
+        id: _nextTaskId(),
+        wbsId: draft.wbsId,
+        title: draft.title,
+        durationDays: draft.durationDays,
+        predecessorId: draft.predecessorId,
+        isMilestone: draft.isMilestone,
+        status: draft.status,
+        priority: draft.priority,
+        assignee: draft.assignee,
+        discipline: draft.discipline,
+        progressPercent: draft.progressPercent,
+        startDate: draft.startDate,
+        dueDate: draft.dueDate,
+        estimatedHours: draft.estimatedHours,
+        milestone: draft.milestone,
+        onChanged: _handleActivityChanged,
+      ));
+    });
+    _handleActivityChanged();
+  }
+
+  Future<void> _editTask(String taskId) async {
+    final index = _activityRows.indexWhere((row) => row.id == taskId);
+    if (index == -1) return;
+    final row = _activityRows[index];
+    final draft = await _showTaskDialog(row: row);
+    if (draft == null || !mounted) return;
+
+    setState(() {
+      row.wbsId = draft.wbsId;
+      row.titleController.text = draft.title;
+      row.durationController.text = draft.durationDays.toString();
+      row.predecessorId = draft.predecessorId;
+      row.isMilestone = draft.isMilestone;
+      row.status = draft.status;
+      row.priority = draft.priority;
+      row.assigneeController.text = draft.assignee;
+      row.disciplineController.text = draft.discipline;
+      row.progressController.text =
+          (draft.progressPercent * 100).round().toString();
+      row.startDateController.text = draft.startDate;
+      row.dueDateController.text = draft.dueDate;
+      row.hoursController.text =
+          draft.estimatedHours <= 0 ? '' : draft.estimatedHours.toString();
+      row.milestoneController.text = draft.milestone;
+    });
+    _handleActivityChanged();
+  }
+
+  String _nextTaskId() => DateTime.now().microsecondsSinceEpoch.toString();
+
+  String _generateWbsId({String? preferred}) {
+    final preferredValue = (preferred ?? '').trim();
+    if (preferredValue.isNotEmpty) return preferredValue;
+    final used = _activityRows.map((row) => row.wbsId.trim()).toSet();
+    var idx = 1;
+    while (used.contains('TASK-$idx')) {
+      idx++;
     }
-    super.dispose();
+    return 'TASK-$idx';
+  }
+
+  String? _resolvePredecessorFromDependencyToken(String token) {
+    final dep = token.trim();
+    if (dep.isEmpty) return null;
+    for (final row in _activityRows) {
+      if (row.wbsId.trim() == dep) return row.id;
+      if (row.titleController.text.trim() == dep) return row.id;
+    }
+    return null;
+  }
+
+  Future<_TaskDraft?> _showTaskDialog({_ScheduleRow? row}) async {
+    final data = ProjectDataHelper.getData(context);
+    final wbsItems = _flattenWbsItems(data.wbsTree);
+    final predecessorOptions = _activityRows
+        .where((candidate) => row == null || candidate.id != row.id)
+        .toList();
+    String? selectedWbsRawId =
+        row != null && row.wbsId.trim().isNotEmpty ? row.wbsId.trim() : null;
+    final availableWbsIds = wbsItems
+        .map((item) => (item['id'] ?? '').trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (selectedWbsRawId != null &&
+        !availableWbsIds.contains(selectedWbsRawId)) {
+      selectedWbsRawId = null;
+    }
+    String? predecessorId = row?.predecessorId;
+    bool isMilestone = row?.isMilestone ?? false;
+    String status = row?.status ?? 'pending';
+    String priority = row?.priority ?? 'medium';
+
+    final titleController = TextEditingController(
+      text: row?.titleController.text.trim() ?? '',
+    );
+    final durationController = TextEditingController(
+      text: row?.durationController.text.trim().isNotEmpty == true
+          ? row!.durationController.text.trim()
+          : '5',
+    );
+    final assigneeController = TextEditingController(
+      text: row?.assigneeController.text.trim() ?? '',
+    );
+    final disciplineController = TextEditingController(
+      text: row?.disciplineController.text.trim() ?? '',
+    );
+    final progressController = TextEditingController(
+      text: row?.progressController.text.trim().isNotEmpty == true
+          ? row!.progressController.text.trim()
+          : '0',
+    );
+    final startDateController = TextEditingController(
+      text: row?.startDateController.text.trim() ?? '',
+    );
+    final dueDateController = TextEditingController(
+      text: row?.dueDateController.text.trim() ?? '',
+    );
+    final hoursController = TextEditingController(
+      text: row?.hoursController.text.trim() ?? '',
+    );
+    final milestoneController = TextEditingController(
+      text: row?.milestoneController.text.trim() ?? '',
+    );
+
+    final result = await showDialog<_TaskDraft>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isCreate = row == null;
+            return AlertDialog(
+              title: Text(isCreate ? 'Create Task' : 'Edit Task'),
+              content: SizedBox(
+                width: 640,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (wbsItems.isNotEmpty)
+                        DropdownButtonFormField<String>(
+                          value: selectedWbsRawId,
+                          decoration: const InputDecoration(
+                            labelText: 'WBS Item (optional)',
+                          ),
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: '',
+                              child: Text('None'),
+                            ),
+                            ...wbsItems.map(
+                              (item) => DropdownMenuItem<String>(
+                                value: (item['id'] ?? '').trim(),
+                                child: Text(
+                                  (item['title'] ?? '').trim().isEmpty
+                                      ? 'Untitled'
+                                      : (item['title'] ?? '').trim(),
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            final raw = (value ?? '').trim();
+                            setDialogState(() {
+                              selectedWbsRawId = raw.isEmpty ? null : raw;
+                              if (raw.isNotEmpty) {
+                                Map<String, String>? selected;
+                                for (final item in wbsItems) {
+                                  if ((item['id'] ?? '').trim() == raw) {
+                                    selected = item;
+                                    break;
+                                  }
+                                }
+                                final title =
+                                    (selected?['title'] ?? '').trim();
+                                final discipline =
+                                    (selected?['discipline'] ?? '').trim();
+                                final deps = (selected?['dependencies'] ?? '')
+                                    .split(',')
+                                    .map((e) => e.trim())
+                                    .where((e) => e.isNotEmpty);
+
+                                if (title.isNotEmpty) {
+                                  titleController.text = title;
+                                }
+                                if (discipline.isNotEmpty &&
+                                    disciplineController.text.trim().isEmpty) {
+                                  disciplineController.text = discipline;
+                                }
+                                predecessorId = null;
+                                for (final dep in deps) {
+                                  final match =
+                                      _resolvePredecessorFromDependencyToken(
+                                          dep);
+                                  if (match != null) {
+                                    predecessorId = match;
+                                    break;
+                                  }
+                                }
+                              }
+                            });
+                          },
+                        ),
+                      TextField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: 'Task Name'),
+                      ),
+                      TextField(
+                        controller: durationController,
+                        keyboardType: TextInputType.number,
+                        decoration:
+                            const InputDecoration(labelText: 'Duration (days)'),
+                      ),
+                      DropdownButtonFormField<String?>(
+                        value: predecessorId,
+                        decoration:
+                            const InputDecoration(labelText: 'Predecessor'),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          ...predecessorOptions.map(
+                            (candidate) => DropdownMenuItem<String?>(
+                              value: candidate.id,
+                              child: Text(
+                                candidate.titleController.text.trim().isEmpty
+                                    ? 'Untitled task'
+                                    : candidate.titleController.text.trim(),
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() => predecessorId = value);
+                        },
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: status,
+                              decoration:
+                                  const InputDecoration(labelText: 'Status'),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'pending', child: Text('Pending')),
+                                DropdownMenuItem(
+                                    value: 'in_progress',
+                                    child: Text('In Progress')),
+                                DropdownMenuItem(
+                                    value: 'completed',
+                                    child: Text('Completed')),
+                                DropdownMenuItem(
+                                    value: 'overdue', child: Text('Overdue')),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setDialogState(() => status = value);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: priority,
+                              decoration:
+                                  const InputDecoration(labelText: 'Priority'),
+                              items: const [
+                                DropdownMenuItem(value: 'low', child: Text('Low')),
+                                DropdownMenuItem(
+                                    value: 'medium', child: Text('Medium')),
+                                DropdownMenuItem(value: 'high', child: Text('High')),
+                                DropdownMenuItem(
+                                    value: 'critical', child: Text('Critical')),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setDialogState(() => priority = value);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextField(
+                        controller: assigneeController,
+                        decoration: const InputDecoration(labelText: 'Assignee'),
+                      ),
+                      TextField(
+                        controller: disciplineController,
+                        decoration:
+                            const InputDecoration(labelText: 'Discipline'),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: progressController,
+                              keyboardType: TextInputType.number,
+                              decoration:
+                                  const InputDecoration(labelText: 'Progress %'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: hoursController,
+                              keyboardType: TextInputType.number,
+                              decoration:
+                                  const InputDecoration(labelText: 'Hours'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: startDateController,
+                              decoration: const InputDecoration(
+                                  labelText: 'Start Date (YYYY-MM-DD)'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: dueDateController,
+                              decoration: const InputDecoration(
+                                  labelText: 'Due Date (YYYY-MM-DD)'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextField(
+                        controller: milestoneController,
+                        decoration:
+                            const InputDecoration(labelText: 'Milestone'),
+                      ),
+                      SwitchListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Milestone Task'),
+                        value: isMilestone,
+                        onChanged: (value) {
+                          setDialogState(() => isMilestone = value);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final title = titleController.text.trim();
+                    if (title.isEmpty) {
+                      _showInfo('Task name is required.');
+                      return;
+                    }
+
+                    final duration =
+                        int.tryParse(durationController.text.trim()) ?? 5;
+                    final progress = (double.tryParse(
+                                progressController.text.trim()) ??
+                            0)
+                        .clamp(0, 100) /
+                        100;
+                    final startDate = startDateController.text.trim();
+                    final dueDate = dueDateController.text.trim();
+
+                    if (startDate.isNotEmpty && _parseDate(startDate) == null) {
+                      _showInfo('Start date must be YYYY-MM-DD.');
+                      return;
+                    }
+                    if (dueDate.isNotEmpty && _parseDate(dueDate) == null) {
+                      _showInfo('Due date must be YYYY-MM-DD.');
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(
+                      _TaskDraft(
+                        title: title,
+                        wbsId: _generateWbsId(
+                          preferred: selectedWbsRawId ??
+                              (row?.wbsId.trim().isNotEmpty == true
+                                  ? row!.wbsId.trim()
+                                  : null),
+                        ),
+                        durationDays: duration < 0 ? 0 : duration,
+                        predecessorId: predecessorId,
+                        isMilestone: isMilestone,
+                        status: _normalizeScheduleStatus(status),
+                        priority: _normalizeSchedulePriority(priority),
+                        assignee: assigneeController.text.trim(),
+                        discipline: disciplineController.text.trim(),
+                        progressPercent: progress,
+                        startDate: startDate,
+                        dueDate: dueDate,
+                        estimatedHours:
+                            double.tryParse(hoursController.text.trim()) ?? 0,
+                        milestone: milestoneController.text.trim(),
+                      ),
+                    );
+                  },
+                  child: Text(isCreate ? 'Create Task' : 'Save Changes'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    titleController.dispose();
+    durationController.dispose();
+    assigneeController.dispose();
+    disciplineController.dispose();
+    progressController.dispose();
+    startDateController.dispose();
+    dueDateController.dispose();
+    hoursController.dispose();
+    milestoneController.dispose();
+    return result;
+  }
+
+  void _deleteTask(String id) {
+    setState(() {
+      final index = _activityRows.indexWhere((row) => row.id == id);
+      if (index != -1) {
+        _activityRows[index].dispose();
+        _activityRows.removeAt(index);
+      }
+    });
+    _handleActivityChanged();
+  }
+
+  void _validateSchedule() {
+    final unassigned = _activityRows
+        .where((row) => row.assigneeController.text.trim().isEmpty)
+        .length;
+    final noPredecessor = _activityRows
+        .where((row) => !row.isMilestone && row.predecessorId == null)
+        .length;
+    _showInfo(
+      'Validation complete: ${_activityRows.length} tasks, '
+      '$unassigned unassigned, $noPredecessor without predecessor.',
+    );
+  }
+
+  void _moveTaskToStatus(String taskId, String targetStatus) {
+    final rowIndex = _activityRows.indexWhere((row) => row.id == taskId);
+    if (rowIndex == -1) return;
+    final row = _activityRows[rowIndex];
+    if (row.status == targetStatus) return;
+    setState(() {
+      row.status = targetStatus;
+    });
+    _handleActivityChanged();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = AppBreakpoints.isMobile(context);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < AppBreakpoints.tablet;
+    final showSidebar = screenWidth >= 1024;
     final data = ProjectDataHelper.getData(context);
+
     if (!_autoImportAttempted &&
         _activityRows.isEmpty &&
         data.wbsTree.isNotEmpty) {
@@ -373,24 +910,30 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       });
     }
 
+    final computed = _computeSchedule(
+      _activityRows,
+      _scheduleStartDate ?? DateTime.now(),
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(activeItemLabel: 'Schedule'),
-            ),
+            if (showSidebar)
+              DraggableSidebar(
+                openWidth: AppBreakpoints.sidebarWidth(context),
+                child: const InitiationLikeSidebar(activeItemLabel: 'Schedule'),
+              ),
             Expanded(
               child: Stack(
                 children: [
                   SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(
-                      isMobile ? 20 : 32,
-                      28,
-                      isMobile ? 20 : 32,
+                      isMobile ? 20 : 28,
+                      24,
+                      isMobile ? 20 : 28,
                       28,
                     ),
                     child: Column(
@@ -409,51 +952,61 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           showImportButton: false,
                           showContentButton: false,
                         ),
-                        const SizedBox(height: 24),
-                        _NotesInputField(
+                        const SizedBox(height: 16),
+                        _NotesCard(
                           controller: _notesController,
                           savedAt: _lastSavedAt,
+                          expanded: _notesExpanded,
+                          onToggleExpanded: () {
+                            setState(() => _notesExpanded = !_notesExpanded);
+                          },
                         ),
-                        const SizedBox(height: 24),
-                        _ScheduleBuilderCard(
-                          isMobile: isMobile,
-                          rows: _activityRows,
-                          isGenerating: _isGeneratingSchedule,
-                          onImportWbs: () => _importFromWbs(),
-                          onGenerateAi: _generateScheduleFromAi,
-                          onRowChanged: _handleActivityChanged,
-                          onAddRow: () {
-                            setState(() {
-                              _activityRows.add(_ScheduleRow(
-                                id: DateTime.now()
-                                    .microsecondsSinceEpoch
-                                    .toString(),
-                                onChanged: _handleActivityChanged,
-                              ));
-                            });
+                        const SizedBox(height: 16),
+                        _ScheduleTopBar(
+                          methodology: _selectedMethodology,
+                          onMethodologyChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _selectedMethodology = value);
                             _handleActivityChanged();
                           },
-                          onDeleteRow: (id) {
-                            setState(() {
-                              _activityRows.removeWhere((row) => row.id == id);
-                            });
-                            _handleActivityChanged();
-                          },
-                          onSetBaseline: _setBaseline,
-                          scheduleStartDate: _scheduleStartDate,
-                          onPickStartDate: _pickStartDate,
+                          isGeneratingAi: _isGeneratingSchedule,
                           baselineDate: _baselineDate,
+                          onImportFromWbs: () => _importFromWbs(),
+                          onGenerateAi: _generateScheduleFromAi,
+                          onAddTask: _addTask,
+                          onValidate: _validateSchedule,
+                          onApproveBaseline: _setBaseline,
                         ),
-                        const SizedBox(height: 24),
-                        _ScheduleGanttSection(
-                          rows: _activityRows,
-                          startDate: _scheduleStartDate,
+                        const SizedBox(height: 16),
+                        _WorkspaceSectionTabs(
+                          selectedSection: _selectedWorkspaceSection,
+                          onChanged: (index) {
+                            setState(() => _selectedWorkspaceSection = index);
+                          },
                         ),
-                        const SizedBox(height: 24),
-                        _LookaheadSection(
-                          rows: _activityRows,
-                          startDate: _scheduleStartDate,
-                        ),
+                        const SizedBox(height: 12),
+                        if (_selectedWorkspaceSection == 0)
+                          _WbsAndSummaryCard(
+                            rows: _activityRows,
+                            wbsTree: data.wbsTree,
+                          )
+                        else
+                          _TimelineWorkspaceCard(
+                            selectedTab: _selectedTab,
+                            onTabChanged: (index) {
+                              setState(() => _selectedTab = index);
+                            },
+                            timelineView: _timelineView,
+                            onTimelineViewChanged: (value) {
+                              if (value != null) {
+                                setState(() => _timelineView = value);
+                              }
+                            },
+                            onPickStartDate: _pickStartDate,
+                            startDate: _scheduleStartDate,
+                            onValidate: _validateSchedule,
+                            child: _buildTimelineContent(computed),
+                          ),
                       ],
                     ),
                   ),
@@ -461,938 +1014,279 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   const AdminEditToggle(),
                 ],
               ),
-            ),
+            )
           ],
         ),
       ),
     );
   }
+
+  Widget _buildTimelineContent(_ComputedSchedule computed) {
+    if (_activityRows.isEmpty) {
+      return const _SectionEmpty(
+        title: 'No schedule items yet',
+        message:
+            'Import from WBS or add tasks to view Gantt, list, and board views.',
+      );
+    }
+
+    if (_selectedTab == 0) {
+      return _TimelineGantt(
+        computed: computed,
+        selectedTaskId: _selectedTaskId,
+        hoveredTaskId: _hoveredTaskId,
+        onTaskTap: (taskId) {
+          setState(() => _selectedTaskId = taskId);
+        },
+        onTaskHover: (taskId) {
+          setState(() => _hoveredTaskId = taskId);
+        },
+      );
+    }
+
+    if (_selectedTab == 1) {
+      return _TimelineList(
+        rows: _activityRows,
+        computed: computed,
+        onChanged: _handleActivityChanged,
+        onDelete: _deleteTask,
+        onPickDate: _pickRowDate,
+      );
+    }
+
+    return _TimelineBoard(
+      rows: _activityRows,
+      computed: computed,
+      onMoveTaskToStatus: _moveTaskToStatus,
+      onEditTask: _editTask,
+      onDeleteTask: _deleteTask,
+    );
+  }
 }
 
-class _NotesInputField extends StatelessWidget {
-  const _NotesInputField({required this.controller, this.savedAt});
+class _WorkspaceSectionTabs extends StatelessWidget {
+  const _WorkspaceSectionTabs({
+    required this.selectedSection,
+    required this.onChanged,
+  });
+
+  final int selectedSection;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['WBS', 'Project Timeline'];
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Wrap(
+        spacing: 8,
+        children: List.generate(labels.length, (index) {
+          return ChoiceChip(
+            label: Text(labels[index]),
+            selected: selectedSection == index,
+            onSelected: (_) => onChanged(index),
+            selectedColor: const Color(0xFFF59E0B),
+            labelStyle: TextStyle(
+              color: selectedSection == index
+                  ? const Color(0xFF111827)
+                  : const Color(0xFF4B5563),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _NotesCard extends StatelessWidget {
+  const _NotesCard({
+    required this.controller,
+    required this.savedAt,
+    required this.expanded,
+    required this.onToggleExpanded,
+  });
 
   final TextEditingController controller;
   final DateTime? savedAt;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-            boxShadow: const [
-              BoxShadow(
-                  color: Color(0x11000000),
-                  blurRadius: 14,
-                  offset: Offset(0, 8)),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: TextField(
-            controller: controller,
-            minLines: 3,
-            maxLines: 6,
-            decoration: const InputDecoration(
-              hintText: 'Input your notes here...',
-              hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-              border: InputBorder.none,
-            ),
-          ),
-        ),
-        if (savedAt != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Saved ${TimeOfDay.fromDateTime(savedAt!).format(context)}',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _ScheduleBuilderCard extends StatelessWidget {
-  const _ScheduleBuilderCard({
-    required this.isMobile,
-    required this.rows,
-    required this.isGenerating,
-    required this.onImportWbs,
-    required this.onGenerateAi,
-    required this.onRowChanged,
-    required this.onAddRow,
-    required this.onDeleteRow,
-    required this.onSetBaseline,
-    required this.scheduleStartDate,
-    required this.onPickStartDate,
-    required this.baselineDate,
-  });
-
-  final bool isMobile;
-  final List<_ScheduleRow> rows;
-  final bool isGenerating;
-  final VoidCallback onImportWbs;
-  final VoidCallback onGenerateAi;
-  final VoidCallback onRowChanged;
-  final VoidCallback onAddRow;
-  final void Function(String id) onDeleteRow;
-  final VoidCallback onSetBaseline;
-  final DateTime? scheduleStartDate;
-  final VoidCallback onPickStartDate;
-  final DateTime? baselineDate;
-
-  @override
-  Widget build(BuildContext context) {
-    final headerStyle = const TextStyle(
-        fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563));
-    final border = const BorderSide(color: Color(0xFFE5E7EB));
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x11000000), blurRadius: 14, offset: Offset(0, 8)),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
       ),
-      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Schedule Builder',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827)),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: onImportWbs,
-                icon: const Icon(Icons.playlist_add_check, size: 18),
-                label: const Text('Import from WBS'),
-              ),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: isGenerating ? null : onGenerateAi,
-                icon: isGenerating
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_fix_high, size: 18),
-                label: const Text('AI Generate'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Build schedule activities from WBS, set durations, and sequence dependencies.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-          ),
-          if (baselineDate != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Baseline set: ${_formatDate(baselineDate!)}',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-            ),
-          ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Text('Start date',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151))),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: onPickStartDate,
-                child: Text(
-                  scheduleStartDate == null
-                      ? 'Select'
-                      : '${scheduleStartDate!.year}-${scheduleStartDate!.month.toString().padLeft(2, '0')}-${scheduleStartDate!.day.toString().padLeft(2, '0')}',
+              const Text(
+                'Notes',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
                 ),
               ),
               const Spacer(),
-              OutlinedButton.icon(
-                onPressed: onAddRow,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add activity'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: onSetBaseline,
-                child: const Text('Set baseline'),
+              TextButton(
+                onPressed: onToggleExpanded,
+                child: Text(expanded ? 'Collapse' : 'Expand'),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (rows.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                'No schedule activities yet. Import from WBS or add manually.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-              ),
-            )
-          else
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-              ),
-              child: Table(
-                columnWidths: const {
-                  0: FlexColumnWidth(3),
-                  1: FixedColumnWidth(120),
-                  2: FlexColumnWidth(2),
-                  3: FixedColumnWidth(110),
-                  4: FixedColumnWidth(40),
-                },
-                border: TableBorder(
-                  horizontalInside: border,
-                  verticalInside: border,
-                  top: border,
-                  bottom: border,
-                  left: border,
-                  right: border,
-                ),
-                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                children: [
-                  TableRow(
-                    decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
-                    children: [
-                      _th('Activity', headerStyle),
-                      _th('Duration (days)', headerStyle),
-                      _th('Predecessor', headerStyle),
-                      _th('Milestone', headerStyle),
-                      _th('', headerStyle),
-                    ],
-                  ),
-                  ...rows.map((row) => _ScheduleRowWidget(
-                        row: row,
-                        allRows: rows,
-                        onChanged: onRowChanged,
-                        onDelete: () => onDeleteRow(row.id),
-                      ).buildRow(context)),
-                ],
-              ),
-            ),
-          const SizedBox(height: 8),
-          const Text(
-            'Tips: Set a predecessor to define sequencing. Check “Milestone” for 0‑day checkpoints (approvals, go‑live).',
-            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _th(String text, TextStyle style) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Text(text, style: style, textAlign: TextAlign.center),
-    );
-  }
-}
-
-class _ScheduleRowWidget {
-  const _ScheduleRowWidget({
-    required this.row,
-    required this.allRows,
-    required this.onChanged,
-    required this.onDelete,
-  });
-
-  final _ScheduleRow row;
-  final List<_ScheduleRow> allRows;
-  final VoidCallback onChanged;
-  final VoidCallback onDelete;
-
-  TableRow buildRow(BuildContext context) {
-    final options = allRows.where((r) => r.id != row.id).toList();
-    if (options.isEmpty && allRows.length > 1) {
-      debugPrint('Schedule predecessor options empty for ${row.id}');
-      debugPrint('All rows: ${allRows.map((r) => r.id).toList()}');
-    }
-
-    return TableRow(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: TextField(
-            controller: row.titleController,
-            onChanged: (_) => onChanged(),
+          TextField(
+            controller: controller,
+            minLines: expanded ? 5 : 2,
+            maxLines: expanded ? 8 : 3,
             decoration: const InputDecoration(
-              hintText: 'Activity name',
+              hintText: 'Input your notes here...',
               border: InputBorder.none,
               isDense: true,
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: TextField(
-            controller: row.durationController,
-            keyboardType: TextInputType.number,
-            onChanged: (_) => onChanged(),
-            decoration: const InputDecoration(
-              hintText: 'e.g. 5',
-              border: InputBorder.none,
-              isDense: true,
+          if (savedAt != null)
+            Text(
+              'Saved ${TimeOfDay.fromDateTime(savedAt!).format(context)}',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: DropdownButton<String>(
-              value: row.predecessorId ?? '',
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              items: [
-                const DropdownMenuItem<String>(
-                  value: '',
-                  child: Text('None'),
-                ),
-                ...options.map((r) {
-                  final title = r.titleController.text.trim().isEmpty
-                      ? 'Untitled activity'
-                      : r.titleController.text.trim();
-                  return DropdownMenuItem<String>(
-                    value: r.id,
-                    child: Text(title, overflow: TextOverflow.ellipsis),
-                  );
-                }),
-              ],
-              onChanged: (value) {
-                row.predecessorId =
-                    (value == null || value.isEmpty) ? null : value;
-                onChanged();
-              },
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Checkbox(
-            value: row.isMilestone,
-            onChanged: (value) {
-              row.isMilestone = value ?? false;
-              if (row.isMilestone) {
-                row.durationController.text = '0';
-              }
-              onChanged();
-            },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: IconButton(
-            icon: const Icon(Icons.delete_outline, size: 18),
-            onPressed: onDelete,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ScheduleRow {
-  _ScheduleRow({
-    required this.id,
-    this.wbsId = '',
-    String title = '',
-    int durationDays = 5,
-    String? predecessorId,
-    bool isMilestone = false,
-    this.onChanged,
-  })  : titleController = TextEditingController(text: title),
-        durationController =
-            TextEditingController(text: durationDays.toString()),
-        predecessorId = predecessorId,
-        isMilestone = isMilestone {
-    if (onChanged != null) {
-      titleController.addListener(onChanged!);
-      durationController.addListener(onChanged!);
-    }
-  }
-
-  final String id;
-  final String wbsId;
-  final TextEditingController titleController;
-  final TextEditingController durationController;
-  String? predecessorId;
-  bool isMilestone;
-  final VoidCallback? onChanged;
-
-  factory _ScheduleRow.fromActivity(
-    ScheduleActivity activity, {
-    VoidCallback? onChanged,
-  }) {
-    return _ScheduleRow(
-      id: activity.wbsId.isNotEmpty ? activity.wbsId : activity.id,
-      wbsId: activity.wbsId,
-      title: activity.title,
-      durationDays: activity.durationDays,
-      predecessorId:
-          activity.predecessorIds.isEmpty ? null : activity.predecessorIds[0],
-      isMilestone: activity.isMilestone,
-      onChanged: onChanged,
-    );
-  }
-
-  void dispose() {
-    titleController.dispose();
-    durationController.dispose();
-  }
-}
-
-class _ScheduleGanttSection extends StatelessWidget {
-  const _ScheduleGanttSection({
-    required this.rows,
-    required this.startDate,
-  });
-
-  final List<_ScheduleRow> rows;
-  final DateTime? startDate;
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) {
-      return _SectionCard(
-        title: 'Gantt Preview',
-        subtitle: 'Add activities to visualize schedule timing.',
-        child: const Text(
-          'No activities available.',
-          style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-        ),
-      );
-    }
-
-    final computed = _computeSchedule(rows, startDate ?? DateTime.now());
-    return _SectionCard(
-      title: 'Gantt Preview',
-      subtitle:
-          'Critical path is highlighted. Dates are derived from predecessors.',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final maxWidth = constraints.maxWidth;
-          final totalDays = computed.totalDurationDays;
-          final pxPerDay = totalDays > 0 ? maxWidth / totalDays : 8.0;
-
-          return Column(
-            children: computed.items.map((item) {
-              final left = item.startOffsetDays * pxPerDay;
-              final width =
-                  (item.durationDays == 0 ? 1 : item.durationDays) * pxPerDay;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 220,
-                      child: Text(
-                        item.title,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 13, color: Color(0xFF111827)),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          Container(
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF3F4F6),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          Positioned(
-                            left: left,
-                            child: Container(
-                              height: 20,
-                              width: width,
-                              decoration: BoxDecoration(
-                                color: item.isCritical
-                                    ? const Color(0xFFEF4444)
-                                    : const Color(0xFF3B82F6),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 140,
-                      child: Text(
-                        '${_formatDate(item.startDate)} → ${_formatDate(item.endDate)}',
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF6B7280)),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _LookaheadSection extends StatelessWidget {
-  const _LookaheadSection({
-    required this.rows,
-    required this.startDate,
-  });
-
-  final List<_ScheduleRow> rows;
-  final DateTime? startDate;
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) {
-      return _SectionCard(
-        title: 'Lookahead (Next 4 Weeks)',
-        subtitle: 'Upcoming activities once a schedule is defined.',
-        child: const Text(
-          'No activities available.',
-          style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-        ),
-      );
-    }
-
-    final computed = _computeSchedule(rows, startDate ?? DateTime.now());
-    final windowStart = startDate ?? DateTime.now();
-    final windowEnd = windowStart.add(const Duration(days: 28));
-    final upcoming = computed.items.where((item) {
-      return item.startDate.isBefore(windowEnd) &&
-          item.endDate.isAfter(windowStart);
-    }).toList();
-
-    return _SectionCard(
-      title: 'Lookahead (Next 4 Weeks)',
-      subtitle: 'Focus on near-term dependencies and readiness.',
-      child: upcoming.isEmpty
-          ? const Text(
-              'No activities in the next 4 weeks.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-            )
-          : Column(
-              children: upcoming.map((item) {
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(item.title,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: Text(
-                    '${_formatDate(item.startDate)} → ${_formatDate(item.endDate)}',
-                    style:
-                        const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                  ),
-                  trailing: item.isCritical
-                      ? const _CriticalTag()
-                      : const SizedBox.shrink(),
-                );
-              }).toList(),
-            ),
-    );
-  }
-}
-
-class _CriticalTag extends StatelessWidget {
-  const _CriticalTag();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const Text(
-        'Critical',
-        style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFB91C1C)),
-      ),
-    );
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
-
-  final String title;
-  final String subtitle;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 16),
-          child,
         ],
       ),
     );
   }
 }
 
-class _ComputedSchedule {
-  const _ComputedSchedule(
-      {required this.items, required this.totalDurationDays});
-
-  final List<_ComputedItem> items;
-  final int totalDurationDays;
-}
-
-class _ComputedItem {
-  const _ComputedItem({
-    required this.id,
-    required this.title,
-    required this.startDate,
-    required this.endDate,
-    required this.durationDays,
-    required this.startOffsetDays,
-    required this.isCritical,
-  });
-
-  final String id;
-  final String title;
-  final DateTime startDate;
-  final DateTime endDate;
-  final int durationDays;
-  final int startOffsetDays;
-  final bool isCritical;
-}
-
-_ComputedSchedule _computeSchedule(List<_ScheduleRow> rows, DateTime start) {
-  final byId = {for (final r in rows) r.id: r};
-  final resolved = <String, _ComputedItem>{};
-  int maxEndOffset = 0;
-
-  int durationFor(_ScheduleRow row) {
-    if (row.isMilestone) return 0;
-    return int.tryParse(row.durationController.text.trim()) ?? 5;
-  }
-
-  _ComputedItem compute(String id, [Set<String>? visiting]) {
-    if (resolved.containsKey(id)) return resolved[id]!;
-    final row = byId[id]!;
-    visiting ??= <String>{};
-    if (visiting.contains(id)) {
-      // cycle fallback
-      return _ComputedItem(
-        id: id,
-        title: row.titleController.text.trim(),
-        startDate: start,
-        endDate: start,
-        durationDays: durationFor(row),
-        startOffsetDays: 0,
-        isCritical: false,
-      );
-    }
-    visiting.add(id);
-    int startOffset = 0;
-    if (row.predecessorId != null && byId.containsKey(row.predecessorId)) {
-      final pred = compute(row.predecessorId!, visiting);
-      startOffset = pred.startOffsetDays + pred.durationDays;
-    }
-    final duration = durationFor(row);
-    final startDate = start.add(Duration(days: startOffset));
-    final endDate =
-        startDate.add(Duration(days: duration == 0 ? 0 : duration - 1));
-    final item = _ComputedItem(
-      id: id,
-      title: row.titleController.text.trim().isEmpty
-          ? 'Untitled activity'
-          : row.titleController.text.trim(),
-      startDate: startDate,
-      endDate: endDate,
-      durationDays: duration,
-      startOffsetDays: startOffset,
-      isCritical: false,
-    );
-    resolved[id] = item;
-    if (startOffset + duration > maxEndOffset) {
-      maxEndOffset = startOffset + duration;
-    }
-    visiting.remove(id);
-    return item;
-  }
-
-  for (final row in rows) {
-    compute(row.id);
-  }
-
-  // crude critical path: mark items that are on the longest chain by end offset
-  final longestEnd = maxEndOffset;
-  final criticalIds = <String>{};
-  for (final item in resolved.values) {
-    if (item.startOffsetDays + item.durationDays == longestEnd) {
-      criticalIds.add(item.id);
-    }
-  }
-
-  final items = resolved.values
-      .map((item) => _ComputedItem(
-            id: item.id,
-            title: item.title,
-            startDate: item.startDate,
-            endDate: item.endDate,
-            durationDays: item.durationDays,
-            startOffsetDays: item.startOffsetDays,
-            isCritical: criticalIds.contains(item.id),
-          ))
-      .toList()
-    ..sort((a, b) => a.startOffsetDays.compareTo(b.startOffsetDays));
-
-  return _ComputedSchedule(items: items, totalDurationDays: longestEnd);
-}
-
-class _ScheduleManagementCard extends StatelessWidget {
-  const _ScheduleManagementCard({
+class _ScheduleTopBar extends StatelessWidget {
+  const _ScheduleTopBar({
     required this.methodology,
     required this.onMethodologyChanged,
-    required this.isMobile,
+    required this.isGeneratingAi,
+    required this.baselineDate,
+    required this.onImportFromWbs,
+    required this.onGenerateAi,
+    required this.onAddTask,
+    required this.onValidate,
+    required this.onApproveBaseline,
   });
 
   final String methodology;
   final ValueChanged<String?> onMethodologyChanged;
-  final bool isMobile;
-
-  static const List<String> _methodologies = ['Waterfall', 'Agile', 'Hybrid'];
-
-  static const List<_ScheduleMetric> _metrics = [];
-  static const List<_TeamUtilization> _teamUtilization = [];
-  static const List<_WbsNode> _wbsNodes = [];
+  final bool isGeneratingAi;
+  final DateTime? baselineDate;
+  final VoidCallback onImportFromWbs;
+  final VoidCallback onGenerateAi;
+  final VoidCallback onAddTask;
+  final VoidCallback onValidate;
+  final VoidCallback onApproveBaseline;
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 1180;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 8)),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
       ),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final bool isCompact = constraints.maxWidth < 720;
-              final Widget dropdown = _MethodologyDropdown(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Schedule Management',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              _MethodologyDropdown(
                 value: methodology,
                 onChanged: onMethodologyChanged,
-              );
-              final Widget actions = _ScheduleActions(isCompact: isCompact);
-
-              if (isCompact) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Schedule Management',
-                      style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF111827)),
-                    ),
-                    const SizedBox(height: 8),
-                    dropdown,
-                    const SizedBox(height: 16),
-                    actions,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Schedule Management',
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF111827)),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  dropdown,
-                  const SizedBox(width: 20),
-                  Flexible(
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: actions,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-          const SizedBox(height: 24),
-          if (isMobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SummaryPanel(metrics: _metrics, utilization: _teamUtilization),
-                const SizedBox(height: 24),
-                _WbsSection(nodes: _wbsNodes),
-              ],
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 260,
-                  child: _SummaryPanel(
-                      metrics: _metrics, utilization: _teamUtilization),
+              ),
+              OutlinedButton.icon(
+                onPressed: onValidate,
+                icon: const Icon(Icons.verified_outlined, size: 18),
+                label: const Text('Validate'),
+              ),
+              ElevatedButton.icon(
+                onPressed: onImportFromWbs,
+                icon: const Icon(Icons.file_download_outlined, size: 18),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF22C55E),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
                 ),
-                const SizedBox(width: 28),
-                Expanded(child: _WbsSection(nodes: _wbsNodes)),
-              ],
-            ),
+                label: const Text('Import'),
+              ),
+              ElevatedButton.icon(
+                onPressed: onAddTask,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: const Color(0xFF111827),
+                  elevation: 0,
+                ),
+                label: const Text('New Task'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: isGeneratingAi ? null : onGenerateAi,
+                icon: isGeneratingAi
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome_outlined, size: 16),
+                label: const Text('Generate from AI'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onApproveBaseline,
+                icon: const Icon(Icons.check_circle_outline, size: 16),
+                label: const Text('Approve Baseline'),
+              ),
+              if (baselineDate != null)
+                Padding(
+                  padding: EdgeInsets.only(left: isCompact ? 0 : 8, top: 2),
+                  child: Text(
+                    'Baseline: ${_formatDate(baselineDate!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _ScheduleActions extends StatelessWidget {
-  const _ScheduleActions({required this.isCompact});
-
-  final bool isCompact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      alignment: isCompact ? WrapAlignment.start : WrapAlignment.end,
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        OutlinedButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.diversity_3_outlined,
-              size: 18, color: Color(0xFF4B5563)),
-          label: const Text('Team', style: TextStyle(color: Color(0xFF111827))),
-          style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.trending_up_outlined,
-              size: 18, color: Color(0xFF4B5563)),
-          label: const Text('Estimates',
-              style: TextStyle(color: Color(0xFF111827))),
-          style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        ElevatedButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.file_download_outlined, size: 18),
-          label: const Text('Import'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF10B981),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
-          ),
-        ),
-        ElevatedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Use "Add activity" in Schedule Builder to create a new task.',
-                ),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-          icon: const Icon(Icons.add_rounded, size: 18),
-          label: const Text('New Task'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFFB020),
-            foregroundColor: const Color(0xFF111827),
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1405,152 +1299,179 @@ class _MethodologyDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const options = ['Waterfall', 'Agile', 'Hybrid'];
+    final safeValue = options.contains(value) ? value : options.first;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppSemanticColors.border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF4B5563)),
-          style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF111827),
-              fontWeight: FontWeight.w600),
+          value: safeValue,
+          items: const [
+            DropdownMenuItem(value: 'Waterfall', child: Text('Waterfall')),
+            DropdownMenuItem(value: 'Agile', child: Text('Agile')),
+            DropdownMenuItem(value: 'Hybrid', child: Text('Hybrid')),
+          ],
           onChanged: onChanged,
-          items: _ScheduleManagementCard._methodologies
-              .map((option) =>
-                  DropdownMenuItem<String>(value: option, child: Text(option)))
-              .toList(),
         ),
       ),
     );
   }
 }
 
-class _SummaryPanel extends StatelessWidget {
-  const _SummaryPanel({required this.metrics, required this.utilization});
+class _WbsAndSummaryCard extends StatelessWidget {
+  const _WbsAndSummaryCard({required this.rows, required this.wbsTree});
 
-  final List<_ScheduleMetric> metrics;
-  final List<_TeamUtilization> utilization;
+  final List<_ScheduleRow> rows;
+  final List<WorkItem> wbsTree;
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 1000;
+    final unassigned =
+        rows.where((row) => row.assigneeController.text.trim().isEmpty).length;
+    final critical =
+        rows.where((row) => row.priority.toLowerCase() == 'critical').length;
+    final totalHours = rows.fold<double>(
+      0,
+      (sum, row) =>
+          sum + (double.tryParse(row.hoursController.text.trim()) ?? 0),
+    );
+    final done =
+        rows.where((row) => row.status.toLowerCase() == 'completed').length;
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE1E9FF)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
       ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ...metrics.map((metric) => Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: _MetricTile(metric: metric),
-              )),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFFCD9BD)),
-            ),
-            child: const Column(
+      padding: const EdgeInsets.all(16),
+      child: isCompact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildSummaryColumn(
+                  rows: rows,
+                  unassigned: unassigned,
+                  critical: critical,
+                  totalHours: totalHours,
+                  done: done,
+                ),
+                const SizedBox(height: 12),
+                _buildWbsPane(),
+              ],
+            )
+          : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Critical Path Identified',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF9A3412)),
+                SizedBox(
+                  width: 240,
+                  child: _buildSummaryColumn(
+                    rows: rows,
+                    unassigned: unassigned,
+                    critical: critical,
+                    totalHours: totalHours,
+                    done: done,
+                  ),
                 ),
-                SizedBox(height: 6),
-                Text(
-                  '4 dependencies impact project delivery. Review overlaps with integration tasks.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFFB45309)),
-                ),
+                const SizedBox(width: 16),
+                Expanded(child: _buildWbsPane()),
               ],
             ),
+    );
+  }
+
+  Widget _buildSummaryColumn({
+    required List<_ScheduleRow> rows,
+    required int unassigned,
+    required int critical,
+    required double totalHours,
+    required int done,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Work Breakdown Structure',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF111827),
           ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () {},
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              foregroundColor: const Color(0xFF2563EB),
-            ),
-            child: const Text('Manage Dependencies'),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Team Utilization',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 12),
-          ...utilization.map((data) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _UtilizationBar(data: data),
-              )),
-        ],
+        ),
+        const SizedBox(height: 10),
+        _SummaryStat(label: 'Tasks', value: rows.length.toString()),
+        _SummaryStat(label: 'Unassigned', value: unassigned.toString()),
+        _SummaryStat(label: 'Critical', value: critical.toString()),
+        _SummaryStat(
+          label: 'Estimated Hours',
+          value: totalHours.toStringAsFixed(1),
+        ),
+        _SummaryStat(label: 'Completed', value: done.toString()),
+      ],
+    );
+  }
+
+  Widget _buildWbsPane() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppSemanticColors.border),
       ),
+      child: wbsTree.isEmpty
+          ? const Text(
+              'No WBS entries yet.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            )
+          : Column(
+              children: wbsTree
+                  .map((node) => _WbsNodeTile(node: node, level: 0))
+                  .toList(),
+            ),
     );
   }
 }
 
-class _SectionEmptyState extends StatelessWidget {
-  const _SectionEmptyState(
-      {required this.title, required this.message, required this.icon});
+class _SummaryStat extends StatelessWidget {
+  const _SummaryStat({required this.label, required this.value});
 
-  final String title;
-  final String message;
-  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppSemanticColors.border),
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: const Color(0xFFF59E0B)),
-          ),
-          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827))),
-                const SizedBox(height: 6),
-                Text(message,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF6B7280))),
-              ],
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
             ),
           ),
         ],
@@ -1559,500 +1480,371 @@ class _SectionEmptyState extends StatelessWidget {
   }
 }
 
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({required this.metric});
+class _WbsNodeTile extends StatelessWidget {
+  const _WbsNodeTile({required this.node, required this.level});
 
-  final _ScheduleMetric metric;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF4FF),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(metric.icon, color: const Color(0xFF1D4ED8)),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                metric.label,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF6B7280)),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                metric.value,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827)),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                metric.caption,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _UtilizationBar extends StatelessWidget {
-  const _UtilizationBar({required this.data});
-
-  final _TeamUtilization data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(data.label,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-            Text('${(data.percent * 100).round()}%',
-                style:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: data.percent,
-            minHeight: 8,
-            backgroundColor: const Color(0xFFE5E7EB),
-            valueColor: AlwaysStoppedAnimation<Color>(data.color),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _WbsSection extends StatelessWidget {
-  const _WbsSection({required this.nodes});
-
-  final List<_WbsNode> nodes;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'Work Breakdown Structure',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827)),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'All Disciplines',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4B5563)),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFBFCFF),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            children: nodes.map((node) => _WbsTreeTile(node: node)).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _WbsTreeTile extends StatelessWidget {
-  const _WbsTreeTile({required this.node, this.level = 0});
-
-  final _WbsNode node;
+  final WorkItem node;
   final int level;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          margin: EdgeInsets.only(left: level * 22.0, top: 8, bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color:
-                node.highlight ? const Color(0xFFFFFBEB) : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              if (node.children.isNotEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.keyboard_arrow_down_rounded,
-                      size: 18, color: Color(0xFF6B7280)),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                        color: Color(0xFFCBD5F5), shape: BoxShape.circle),
-                  ),
-                ),
-              Expanded(
-                child: Text(
-                  node.title,
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF111827)),
-                ),
-              ),
-              if (node.badges.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: node.badges
-                      .map((badge) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: badge.backgroundColor,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: badge.borderColor),
-                            ),
-                            child: Text(
-                              badge.label,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: badge.textColor),
-                            ),
-                          ))
-                      .toList(),
-                ),
-              if (node.duration != null) ...[
-                const SizedBox(width: 12),
-                Text(
-                  node.duration!,
-                  style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4B5563)),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (node.children.isNotEmpty)
-          ...node.children
-              .map((child) => _WbsTreeTile(node: child, level: level + 1)),
-      ],
-    );
-  }
-}
-
-class _ProjectTimelineCard extends StatelessWidget {
-  const _ProjectTimelineCard(
-      {required this.selectedTab, required this.onTabChanged});
-
-  final int selectedTab;
-  final ValueChanged<int> onTabChanged;
-
-  static const List<String> _tabs = ['Gantt Chart', 'List', 'Board'];
-
-  static const List<_TimelineItem> _timelineItems = [];
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
+      margin: EdgeInsets.only(left: level * 18, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 8)),
-        ],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppSemanticColors.border),
       ),
-      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
-                'ProjectTimeline',
-                style: TextStyle(
-                    fontSize: 22,
+              Icon(
+                node.children.isEmpty
+                    ? Icons.subdirectory_arrow_right
+                    : Icons.keyboard_arrow_down,
+                size: 16,
+                color: const Color(0xFF6B7280),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  node.title.trim().isEmpty ? 'Untitled WBS Node' : node.title,
+                  style: const TextStyle(
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827)),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (int i = 0; i < _tabs.length; i++)
-                      Padding(
-                        padding: EdgeInsets.only(left: i == 0 ? 0 : 4),
-                        child: ChoiceChip(
-                          label: Text(_tabs[i]),
-                          selected: selectedTab == i,
-                          onSelected: (_) => onTabChanged(i),
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: selectedTab == i
-                                ? Colors.white
-                                : const Color(0xFF4B5563),
-                          ),
-                          selectedColor: const Color(0xFF111827),
-                          backgroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              const Text('View:',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-              const SizedBox(width: 12),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: 'Days',
-                    items: const [
-                      DropdownMenuItem(value: 'Days', child: Text('Days')),
-                      DropdownMenuItem(value: 'Weeks', child: Text('Weeks')),
-                      DropdownMenuItem(value: 'Months', child: Text('Months')),
-                    ],
-                    onChanged: (_) {},
+                    color: Color(0xFF111827),
                   ),
                 ),
               ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.verified_outlined,
-                    size: 18, color: Color(0xFF2563EB)),
-                label: const Text('Validate',
-                    style: TextStyle(color: Color(0xFF2563EB))),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFBFDBFE)),
+              if (node.framework.trim().isNotEmpty)
+                Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    node.framework,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1D4ED8),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.file_upload_outlined,
-                      color: Color(0xFF4B5563)),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 24),
-          if (_timelineItems.isEmpty)
-            const _SectionEmptyState(
-              title: 'No timeline data yet',
-              message:
-                  'Add schedule items to view Gantt, list, or board timelines.',
-              icon: Icons.timeline_outlined,
-            )
-          else
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: selectedTab == 0
-                  ? _TimelineGanttView(items: _timelineItems)
-                  : selectedTab == 1
-                      ? _TimelineListView(items: _timelineItems)
-                      : _TimelineBoardView(items: _timelineItems),
-            ),
+          if (node.children.isNotEmpty)
+            ...node.children
+                .map((child) => _WbsNodeTile(node: child, level: level + 1)),
         ],
       ),
     );
   }
 }
 
-class _TimelineGanttView extends StatelessWidget {
-  const _TimelineGanttView({required this.items});
+class _TimelineWorkspaceCard extends StatelessWidget {
+  const _TimelineWorkspaceCard({
+    required this.selectedTab,
+    required this.onTabChanged,
+    required this.timelineView,
+    required this.onTimelineViewChanged,
+    required this.onPickStartDate,
+    required this.startDate,
+    required this.onValidate,
+    required this.child,
+  });
 
-  final List<_TimelineItem> items;
-
-  static const int _totalWeeks = 52;
-  static const double _weekWidth = 28;
-  static const double _rowHeight = 46;
-  static const double _chartPaddingTop = 32;
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
+  final String timelineView;
+  final ValueChanged<String?> onTimelineViewChanged;
+  final VoidCallback onPickStartDate;
+  final DateTime? startDate;
+  final VoidCallback onValidate;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final double timelineWidth = _totalWeeks * _weekWidth;
-    final double chartHeight =
-        _chartPaddingTop + (items.length * _rowHeight) + 32;
-    final DateTime start = DateTime(2024, 1, 1);
-    final DateTime end = DateTime(2024, 12, 31);
-    final List<_TimelineSegment> months = _generateMonthSegments(start, end);
-    final List<_TimelineSegment> weeks = _generateWeekSegments(start, end);
+    const tabs = ['Gantt', 'List', 'Board'];
+    final isCompact = MediaQuery.sizeOf(context).width < 980;
+
+    final tabChips = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (int i = 0; i < tabs.length; i++)
+          ChoiceChip(
+            label: Text(tabs[i]),
+            selected: selectedTab == i,
+            onSelected: (_) => onTabChanged(i),
+            selectedColor: const Color(0xFFF59E0B),
+            labelStyle: TextStyle(
+              color:
+                  selectedTab == i ? const Color(0xFF111827) : const Color(0xFF4B5563),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+      ],
+    );
+
+    final controls = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        TextButton.icon(
+          onPressed: onPickStartDate,
+          icon: const Icon(Icons.event_outlined, size: 16),
+          label: Text(
+            startDate == null ? 'Start Date' : 'Start: ${_formatDate(startDate!)}',
+          ),
+        ),
+        Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppSemanticColors.border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: timelineView == 'Months' ? timelineView : 'Months',
+              onChanged: onTimelineViewChanged,
+              isDense: true,
+              items: const [
+                DropdownMenuItem(value: 'Months', child: Text('Months')),
+              ],
+            ),
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: onValidate,
+          icon: const Icon(Icons.verified_outlined, size: 16),
+          label: const Text('Validate'),
+        ),
+      ],
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Project Timeline',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (isCompact) ...[
+            tabChips,
+            const SizedBox(height: 8),
+            controls,
+          ] else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: tabChips),
+                const SizedBox(width: 12),
+                controls,
+              ],
+            ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionEmpty extends StatelessWidget {
+  const _SectionEmpty({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineGantt extends StatelessWidget {
+  const _TimelineGantt({
+    required this.computed,
+    required this.selectedTaskId,
+    required this.hoveredTaskId,
+    required this.onTaskTap,
+    required this.onTaskHover,
+  });
+
+  final _ComputedSchedule computed;
+  final String? selectedTaskId;
+  final String? hoveredTaskId;
+  final ValueChanged<String?> onTaskTap;
+  final ValueChanged<String?> onTaskHover;
+
+  static const double _leftColumnWidth = 280;
+  static const double _chartHeightPerRow = 44;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = computed.minDate ?? DateTime.now();
+    final end = computed.maxDate ?? start;
+    final monthSegments = _generateMonthSegments(start, end);
+    final totalDays = end.difference(start).inDays + 1;
+    final timelineWidth = (totalDays * 2.6).clamp(800.0, 2400.0);
+    final pxPerDay = timelineWidth / totalDays;
+    final chartHeight = computed.items.length * _chartHeightPerRow + 32;
+    final totalChartWidth = _leftColumnWidth + timelineWidth + 2;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Container(
-        width: timelineWidth + 140,
+        width: totalChartWidth,
         decoration: BoxDecoration(
           color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppSemanticColors.border),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(28, 24, 28, 12),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: const BoxDecoration(
+                border:
+                    Border(bottom: BorderSide(color: AppSemanticColors.border)),
+              ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: 80,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('2024',
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF111827))),
-                        SizedBox(height: 6),
-                        Text('Week',
-                            style: TextStyle(
-                                fontSize: 12, color: Color(0xFF6B7280))),
-                      ],
+                  const SizedBox(
+                    width: _leftColumnWidth,
+                    child: Text(
+                      'Task',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF6B7280),
+                      ),
                     ),
                   ),
                   SizedBox(
                     width: timelineWidth,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: months
-                              .map((segment) => Container(
-                                    width: segment.dayCount / 7 * _weekWidth,
-                                    alignment: Alignment.centerLeft,
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Text(segment.label,
-                                        style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600)),
-                                  ))
-                              .toList(),
+                    child: SizedBox(
+                      height: 18,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Row(
+                          children: monthSegments.map((segment) {
+                            final segmentWidth = segment.dayCount * pxPerDay;
+                            return SizedBox(
+                              width: segmentWidth,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 6),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    segment.label,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF374151),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: weeks
-                              .map((segment) => Container(
-                                    width: segment.dayCount / 7 * _weekWidth,
-                                    alignment: Alignment.center,
-                                    child: Text(segment.label,
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Color(0xFF9CA3AF))),
-                                  ))
-                              .toList(),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFE5E7EB)),
             SizedBox(
               height: chartHeight,
               child: Stack(
                 children: [
                   Positioned.fill(
                     child: CustomPaint(
-                      painter: _TimelineGridPainter(
-                        totalWeeks: _totalWeeks,
-                        weekWidth: _weekWidth,
-                        rowHeight: _rowHeight,
-                        itemCount: items.length,
+                      painter: _GanttGridPainter(
+                        leftColumnWidth: _leftColumnWidth,
+                        rowHeight: _chartHeightPerRow,
+                        rowCount: computed.items.length,
+                        monthSegments: monthSegments,
+                        pxPerDay: pxPerDay,
                       ),
                     ),
                   ),
-                  for (int index = 0; index < items.length; index++)
-                    _TimelineRow(
-                      item: items[index],
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _DependencyPainter(
+                        items: computed.items,
+                        leftColumnWidth: _leftColumnWidth,
+                        rowHeight: _chartHeightPerRow,
+                        startDate: start,
+                        pxPerDay: pxPerDay,
+                        selectedTaskId: selectedTaskId,
+                        hoveredTaskId: hoveredTaskId,
+                      ),
+                    ),
+                  ),
+                  for (int index = 0; index < computed.items.length; index++)
+                    _GanttRow(
+                      item: computed.items[index],
                       index: index,
-                      weekWidth: _weekWidth,
-                      timelineWidth: timelineWidth,
-                      rowHeight: _rowHeight,
-                      topOffset: _chartPaddingTop,
+                      startDate: start,
+                      leftColumnWidth: _leftColumnWidth,
+                      rowHeight: _chartHeightPerRow,
+                      pxPerDay: pxPerDay,
+                      isSelected: selectedTaskId == computed.items[index].id,
+                      onTap: () => onTaskTap(computed.items[index].id),
+                      onEnter: () => onTaskHover(computed.items[index].id),
+                      onExit: () => onTaskHover(null),
                     ),
                 ],
               ),
@@ -2064,312 +1856,826 @@ class _TimelineGanttView extends StatelessWidget {
   }
 }
 
-class _TimelineListView extends StatelessWidget {
-  const _TimelineListView({required this.items});
+class _GanttRow extends StatelessWidget {
+  const _GanttRow({
+    required this.item,
+    required this.index,
+    required this.startDate,
+    required this.leftColumnWidth,
+    required this.rowHeight,
+    required this.pxPerDay,
+    required this.isSelected,
+    required this.onTap,
+    required this.onEnter,
+    required this.onExit,
+  });
 
-  final List<_TimelineItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey<String>('timeline_list_view'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        children: [
-          const _TimelineListHeader(),
-          const SizedBox(height: 8),
-          ...items.map((item) => _TimelineListRow(item: item)),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineListHeader extends StatelessWidget {
-  const _TimelineListHeader();
+  final _ComputedItem item;
+  final int index;
+  final DateTime startDate;
+  final double leftColumnWidth;
+  final double rowHeight;
+  final double pxPerDay;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: Text(
-            'Item',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280)),
-          ),
-        ),
-        SizedBox(
-          width: 110,
-          child: Text(
-            'Start',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280)),
-          ),
-        ),
-        SizedBox(
-          width: 100,
-          child: Text(
-            'Duration',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280)),
-          ),
-        ),
-        SizedBox(
-          width: 120,
-          child: Text(
-            'Status',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280)),
-          ),
-        ),
-      ],
-    );
-  }
-}
+    final top = index * rowHeight + 6;
+    final leftOffset = item.startDate.difference(startDate).inDays * pxPerDay;
+    final durationDays = item.durationDays == 0 ? 1 : item.durationDays;
+    final width = (durationDays * pxPerDay).clamp(18.0, 600.0);
 
-class _TimelineListRow extends StatelessWidget {
-  const _TimelineListRow({required this.item});
-
-  final _TimelineItem item;
-
-  String _statusLabel() {
-    if (item.isMilestone) return 'Milestone';
-    if (item.progress >= 1) return 'Done';
-    if (item.progress > 0) return 'In Progress';
-    return 'Not Started';
-  }
-
-  Color _statusColor() {
-    if (item.isMilestone) return const Color(0xFF2563EB);
-    if (item.progress >= 1) return const Color(0xFF10B981);
-    if (item.progress > 0) return const Color(0xFFF59E0B);
-    return const Color(0xFF9CA3AF);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _statusLabel();
-    final color = _statusColor();
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-      ),
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: top,
+      height: rowHeight - 10,
       child: Row(
         children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: item.color,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    item.label,
-                    style: const TextStyle(
-                        fontSize: 13,
+          SizedBox(
+            width: leftColumnWidth,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF111827)),
-                  ),
-                ),
-                if (item.isCritical)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(999),
+                        color: Color(0xFF111827),
+                      ),
                     ),
-                    child: const Text(
-                      'Critical',
-                      style: TextStyle(
+                  ),
+                  if (item.isCritical)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'CP',
+                        style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFFDC2626)),
+                          color: Color(0xFFB91C1C),
+                        ),
+                      ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 110,
-            child: Text(
-              'Week ${item.startWeek}',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-            ),
-          ),
-          SizedBox(
-            width: 100,
-            child: Text(
-              '${item.durationWeeks}w',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-            ),
-          ),
-          SizedBox(
-            width: 120,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: color),
-                ),
+                ],
               ),
             ),
           ),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned(
+                  left: leftOffset,
+                  top: 3,
+                  child: MouseRegion(
+                    onEnter: (_) => onEnter(),
+                    onExit: (_) => onExit(),
+                    child: GestureDetector(
+                      onTap: onTap,
+                      child: Container(
+                        height: rowHeight - 16,
+                        width: width,
+                        decoration: BoxDecoration(
+                          color: item.isCritical
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF3B82F6),
+                          borderRadius: BorderRadius.circular(8),
+                          border: isSelected
+                              ? Border.all(
+                                  color: const Color(0xFFF59E0B), width: 2)
+                              : null,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${(item.progress * 100).round()}%',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _TimelineBoardView extends StatelessWidget {
-  const _TimelineBoardView({required this.items});
+class _GanttGridPainter extends CustomPainter {
+  const _GanttGridPainter({
+    required this.leftColumnWidth,
+    required this.rowHeight,
+    required this.rowCount,
+    required this.monthSegments,
+    required this.pxPerDay,
+  });
 
-  final List<_TimelineItem> items;
+  final double leftColumnWidth;
+  final double rowHeight;
+  final int rowCount;
+  final List<_TimelineSegment> monthSegments;
+  final double pxPerDay;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rowPaint = Paint()
+      ..color = const Color(0xFFE5E7EB)
+      ..strokeWidth = 1;
+
+    for (int row = 0; row <= rowCount; row++) {
+      final y = row * rowHeight;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), rowPaint);
+    }
+
+    final dividerPaint = Paint()
+      ..color = const Color(0xFFD1D5DB)
+      ..strokeWidth = 1;
+
+    double x = leftColumnWidth;
+    canvas.drawLine(Offset(x, 0), Offset(x, size.height), dividerPaint);
+    for (final segment in monthSegments) {
+      x += segment.dayCount * pxPerDay;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), dividerPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GanttGridPainter oldDelegate) => false;
+}
+
+class _DependencyPainter extends CustomPainter {
+  const _DependencyPainter({
+    required this.items,
+    required this.leftColumnWidth,
+    required this.rowHeight,
+    required this.startDate,
+    required this.pxPerDay,
+    required this.selectedTaskId,
+    required this.hoveredTaskId,
+  });
+
+  final List<_ComputedItem> items;
+  final double leftColumnWidth;
+  final double rowHeight;
+  final DateTime startDate;
+  final double pxPerDay;
+  final String? selectedTaskId;
+  final String? hoveredTaskId;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (selectedTaskId == null && hoveredTaskId == null) return;
+
+    final focusIds = <String>{};
+    if (selectedTaskId != null) focusIds.add(selectedTaskId!);
+    if (hoveredTaskId != null) focusIds.add(hoveredTaskId!);
+
+    final byId = {for (final item in items) item.id: item};
+
+    final paint = Paint()
+      ..color = const Color(0xFFF59E0B)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    for (final targetId in focusIds) {
+      final target = byId[targetId];
+      if (target == null) continue;
+
+      final targetRow = items.indexWhere((element) => element.id == target.id);
+      final targetY = targetRow * rowHeight + (rowHeight / 2);
+      final targetX = leftColumnWidth +
+          target.startDate.difference(startDate).inDays * pxPerDay;
+
+      for (final predecessorId in target.predecessorIds) {
+        final predecessor = byId[predecessorId];
+        if (predecessor == null) continue;
+
+        final predecessorRow =
+            items.indexWhere((element) => element.id == predecessor.id);
+        final predecessorY = predecessorRow * rowHeight + (rowHeight / 2);
+        final predecessorWidth =
+            (predecessor.durationDays == 0 ? 1 : predecessor.durationDays) *
+                pxPerDay;
+        final predecessorX = leftColumnWidth +
+            predecessor.startDate.difference(startDate).inDays * pxPerDay +
+            predecessorWidth;
+
+        final path = Path()
+          ..moveTo(predecessorX, predecessorY)
+          ..lineTo(predecessorX + 12, predecessorY)
+          ..lineTo(predecessorX + 12, targetY)
+          ..lineTo(targetX, targetY);
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DependencyPainter oldDelegate) {
+    return oldDelegate.selectedTaskId != selectedTaskId ||
+        oldDelegate.hoveredTaskId != hoveredTaskId ||
+        oldDelegate.items != items;
+  }
+}
+
+class _TimelineList extends StatelessWidget {
+  const _TimelineList({
+    required this.rows,
+    required this.computed,
+    required this.onChanged,
+    required this.onDelete,
+    required this.onPickDate,
+  });
+
+  final List<_ScheduleRow> rows;
+  final _ComputedSchedule computed;
+  final VoidCallback onChanged;
+  final ValueChanged<String> onDelete;
+  final Future<void> Function(_ScheduleRow row, {required bool isDueDate})
+      onPickDate;
+
+  static const _statusOptions = [
+    'pending',
+    'in_progress',
+    'completed',
+    'overdue',
+  ];
+  static const _priorityOptions = ['low', 'medium', 'high', 'critical'];
 
   @override
   Widget build(BuildContext context) {
-    final todo = items.where((item) => item.progress == 0).toList();
-    final inProgress =
-        items.where((item) => item.progress > 0 && item.progress < 1).toList();
-    final done = items.where((item) => item.progress >= 1).toList();
+    final computedById = {
+      for (final item in computed.items) item.id: item,
+    };
 
-    return Container(
-      key: const ValueKey<String>('timeline_board_view'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppSemanticColors.border),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+        ),
+        child: Table(
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          columnWidths: const {
+            0: FixedColumnWidth(180),
+            1: FixedColumnWidth(100),
+            2: FixedColumnWidth(95),
+            3: FixedColumnWidth(170),
+            4: FixedColumnWidth(120),
+            5: FixedColumnWidth(110),
+            6: FixedColumnWidth(150),
+            7: FixedColumnWidth(120),
+            8: FixedColumnWidth(120),
+            9: FixedColumnWidth(120),
+            10: FixedColumnWidth(120),
+            11: FixedColumnWidth(110),
+            12: FixedColumnWidth(170),
+            13: FixedColumnWidth(48),
+          },
+          border: const TableBorder(
+            horizontalInside: BorderSide(color: AppSemanticColors.border),
+            verticalInside: BorderSide(color: AppSemanticColors.border),
+          ),
           children: [
-            _TimelineBoardColumn(
-                title: 'To Do',
-                items: todo,
-                background: const Color(0xFFF5F7FE)),
-            const SizedBox(width: 16),
-            _TimelineBoardColumn(
-                title: 'In Progress',
-                items: inProgress,
-                background: const Color(0xFFEAF4FF)),
-            const SizedBox(width: 16),
-            _TimelineBoardColumn(
-                title: 'Done',
-                items: done,
-                background: const Color(0xFFE9F9F2)),
+            _headerRow(),
+            ...rows.map((row) {
+              final computedItem = computedById[row.id];
+              final computedStart = computedItem?.startDate;
+              final computedEnd = computedItem?.endDate;
+              final statusValue = _normalizeScheduleStatus(row.status);
+              final priorityValue = _normalizeSchedulePriority(row.priority);
+              final predecessorCandidates =
+                  rows.where((candidate) => candidate.id != row.id).toList();
+              final predecessorIds =
+                  predecessorCandidates.map((item) => item.id).toSet();
+              final predecessorValue =
+                  predecessorIds.contains(row.predecessorId)
+                      ? row.predecessorId
+                      : null;
+
+              if (row.status != statusValue) {
+                row.status = statusValue;
+              }
+              if (row.priority != priorityValue) {
+                row.priority = priorityValue;
+              }
+
+              return TableRow(
+                children: [
+                  _cell(
+                    TextField(
+                      controller: row.titleController,
+                      onChanged: (_) => onChanged(),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    TextFormField(
+                      initialValue: row.wbsId,
+                      onChanged: (value) {
+                        row.wbsId = value.trim();
+                        onChanged();
+                      },
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    TextField(
+                      controller: row.durationController,
+                      onChanged: (_) => onChanged(),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String?>(
+                        isExpanded: true,
+                        value: predecessorValue,
+                        hint: const Text('None'),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          ...predecessorCandidates.map((candidate) {
+                            final label = candidate.titleController.text
+                                    .trim()
+                                    .isEmpty
+                                ? 'Untitled task'
+                                : candidate.titleController.text.trim();
+                            return DropdownMenuItem<String?>(
+                              value: candidate.id,
+                              child: Text(label, overflow: TextOverflow.ellipsis),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          row.predecessorId = value;
+                          onChanged();
+                        },
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _TimelineList._statusOptions.contains(statusValue)
+                            ? statusValue
+                            : null,
+                        hint: const Text('Pending'),
+                        items: _statusOptions
+                            .map((option) => DropdownMenuItem(
+                                  value: option,
+                                  child: Text(_titleCase(option)),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          row.status = value;
+                          onChanged();
+                        },
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value:
+                            _TimelineList._priorityOptions.contains(priorityValue)
+                                ? priorityValue
+                                : null,
+                        hint: const Text('Medium'),
+                        items: _priorityOptions
+                            .map((option) => DropdownMenuItem(
+                                  value: option,
+                                  child: Text(_titleCase(option)),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          row.priority = value;
+                          onChanged();
+                        },
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    TextField(
+                      controller: row.assigneeController,
+                      onChanged: (_) => onChanged(),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    TextField(
+                      controller: row.disciplineController,
+                      onChanged: (_) => onChanged(),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: row.progressController,
+                            onChanged: (_) => onChanged(),
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const Text('%', style: TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  _cell(
+                    TextButton(
+                      onPressed: () => onPickDate(row, isDueDate: false),
+                      child: Text(
+                        row.startDateController.text.trim().isNotEmpty
+                            ? row.startDateController.text.trim()
+                            : (computedStart != null
+                                ? _formatDate(computedStart)
+                                : '-'),
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    TextButton(
+                      onPressed: () => onPickDate(row, isDueDate: true),
+                      child: Text(
+                        row.dueDateController.text.trim().isNotEmpty
+                            ? row.dueDateController.text.trim()
+                            : (computedEnd != null
+                                ? _formatDate(computedEnd)
+                                : '-'),
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    TextField(
+                      controller: row.hoursController,
+                      onChanged: (_) => onChanged(),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    TextField(
+                      controller: row.milestoneController,
+                      onChanged: (_) => onChanged(),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  _cell(
+                    IconButton(
+                      onPressed: () => onDelete(row.id),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),
     );
   }
+
+  TableRow _headerRow() {
+    TextStyle style = const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF4B5563),
+    );
+
+    Widget label(String text) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Text(text, style: style),
+        );
+
+    return TableRow(
+      decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
+      children: [
+        label('Task Name'),
+        label('WBS ID'),
+        label('Duration'),
+        label('Predecessor'),
+        label('Status'),
+        label('Priority'),
+        label('Assignee'),
+        label('Discipline'),
+        label('Progress'),
+        label('Start Date'),
+        label('Due Date'),
+        label('Est. Hours'),
+        label('Milestone'),
+        label(''),
+      ],
+    );
+  }
+
+  Widget _cell(Widget child) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: child,
+    );
+  }
 }
 
-class _TimelineBoardColumn extends StatelessWidget {
-  const _TimelineBoardColumn(
-      {required this.title, required this.items, required this.background});
+class _TimelineBoard extends StatelessWidget {
+  const _TimelineBoard({
+    required this.rows,
+    required this.computed,
+    required this.onMoveTaskToStatus,
+    required this.onEditTask,
+    required this.onDeleteTask,
+  });
 
-  final String title;
-  final List<_TimelineItem> items;
-  final Color background;
+  final List<_ScheduleRow> rows;
+  final _ComputedSchedule computed;
+  final void Function(String taskId, String targetStatus) onMoveTaskToStatus;
+  final ValueChanged<String> onEditTask;
+  final ValueChanged<String> onDeleteTask;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 260,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
+    final computedById = {
+      for (final item in computed.items) item.id: item,
+    };
+
+    final now = DateTime.now();
+    final toDo = <_ScheduleRow>[];
+    final inProgress = <_ScheduleRow>[];
+    final done = <_ScheduleRow>[];
+    final overdue = <_ScheduleRow>[];
+
+    for (final row in rows) {
+      final normalized = row.status.toLowerCase();
+      final due = _parseDate(row.dueDateController.text) ??
+          computedById[row.id]?.endDate;
+      final isOverdue =
+          due != null && due.isBefore(now) && normalized != 'completed';
+
+      if (normalized == 'completed') {
+        done.add(row);
+      } else if (isOverdue || normalized == 'overdue') {
+        overdue.add(row);
+      } else if (normalized == 'in_progress') {
+        inProgress.add(row);
+      } else {
+        toDo.add(row);
+      }
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111827)),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  items.length.toString(),
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF6B7280)),
-                ),
-              ),
-            ],
+          _BoardColumn(
+            title: 'To Do',
+            color: const Color(0xFFF3F4F6),
+            statusValue: 'pending',
+            rows: toDo,
+            computedById: computedById,
+            onMoveTaskToStatus: onMoveTaskToStatus,
+            onEditTask: onEditTask,
+            onDeleteTask: onDeleteTask,
           ),
-          const SizedBox(height: 12),
-          if (items.isEmpty)
-            const Text('No items',
-                style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))
-          else
-            ...items.map((item) => _TimelineBoardCard(item: item)),
+          const SizedBox(width: 12),
+          _BoardColumn(
+            title: 'In Progress',
+            color: const Color(0xFFEAF4FF),
+            statusValue: 'in_progress',
+            rows: inProgress,
+            computedById: computedById,
+            onMoveTaskToStatus: onMoveTaskToStatus,
+            onEditTask: onEditTask,
+            onDeleteTask: onDeleteTask,
+          ),
+          const SizedBox(width: 12),
+          _BoardColumn(
+            title: 'Done',
+            color: const Color(0xFFEAFBF1),
+            statusValue: 'completed',
+            rows: done,
+            computedById: computedById,
+            onMoveTaskToStatus: onMoveTaskToStatus,
+            onEditTask: onEditTask,
+            onDeleteTask: onDeleteTask,
+          ),
+          const SizedBox(width: 12),
+          _BoardColumn(
+            title: 'Overdue',
+            color: const Color(0xFFFDECEE),
+            statusValue: 'overdue',
+            rows: overdue,
+            computedById: computedById,
+            onMoveTaskToStatus: onMoveTaskToStatus,
+            onEditTask: onEditTask,
+            onDeleteTask: onDeleteTask,
+          ),
         ],
       ),
     );
   }
 }
 
-class _TimelineBoardCard extends StatelessWidget {
-  const _TimelineBoardCard({required this.item});
+class _BoardColumn extends StatelessWidget {
+  const _BoardColumn({
+    required this.title,
+    required this.color,
+    required this.statusValue,
+    required this.rows,
+    required this.computedById,
+    required this.onMoveTaskToStatus,
+    required this.onEditTask,
+    required this.onDeleteTask,
+  });
 
-  final _TimelineItem item;
+  final String title;
+  final Color color;
+  final String statusValue;
+  final List<_ScheduleRow> rows;
+  final Map<String, _ComputedItem> computedById;
+  final void Function(String taskId, String targetStatus) onMoveTaskToStatus;
+  final ValueChanged<String> onEditTask;
+  final ValueChanged<String> onDeleteTask;
 
   @override
   Widget build(BuildContext context) {
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => details.data.trim().isNotEmpty,
+      onAcceptWithDetails: (details) {
+        onMoveTaskToStatus(details.data, statusValue);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isActive = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: 280,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(12),
+            border: isActive
+                ? Border.all(color: const Color(0xFF3B82F6), width: 2)
+                : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      rows.length.toString(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (rows.isEmpty)
+                Text(
+                  isActive ? 'Drop task here' : 'No tasks',
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                )
+              else
+                ...rows.map((row) {
+                  final computed = computedById[row.id];
+                  return Draggable<String>(
+                    data: row.id,
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: SizedBox(
+                        width: 260,
+                        child: _BoardTaskCard(
+                          row: row,
+                          computed: computed,
+                          onEdit: () => onEditTask(row.id),
+                          onDelete: () => onDeleteTask(row.id),
+                        ),
+                      ),
+                    ),
+                    childWhenDragging: Opacity(
+                      opacity: 0.45,
+                      child: _BoardTaskCard(
+                        row: row,
+                        computed: computed,
+                        onEdit: () => onEditTask(row.id),
+                        onDelete: () => onDeleteTask(row.id),
+                      ),
+                    ),
+                    child: _BoardTaskCard(
+                      row: row,
+                      computed: computed,
+                      onEdit: () => onEditTask(row.id),
+                      onDelete: () => onDeleteTask(row.id),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BoardTaskCard extends StatelessWidget {
+  const _BoardTaskCard({
+    required this.row,
+    required this.computed,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final _ScheduleRow row;
+  final _ComputedItem? computed;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (double.tryParse(row.progressController.text.trim()) ?? 0)
+        .clamp(0, 100);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppSemanticColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2378,42 +2684,62 @@ class _TimelineBoardCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  item.label,
+                  row.titleController.text.trim().isEmpty
+                      ? 'Untitled task'
+                      : row.titleController.text.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827)),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
                 ),
               ),
-              if (item.isCritical)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text(
-                    'Critical',
-                    style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFDC2626)),
-                  ),
-                ),
+              PopupMenuButton<String>(
+                iconSize: 16,
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    onEdit();
+                  } else if (value == 'delete') {
+                    onDelete();
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 8),
+          if (row.wbsId.trim().isNotEmpty)
+            Text(
+              'WBS ${row.wbsId}',
+              style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+            ),
+          const SizedBox(height: 6),
           Text(
-            'Start Week ${item.startWeek} • ${item.durationWeeks}w',
+            row.assigneeController.text.trim().isEmpty
+                ? 'Unassigned'
+                : row.assigneeController.text.trim(),
             style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
           ),
-          const SizedBox(height: 10),
-          LinearProgressIndicator(
-            value: item.isMilestone ? 0 : item.progress,
-            minHeight: 6,
-            color: item.color,
-            backgroundColor: const Color(0xFFE5E7EB),
+          const SizedBox(height: 4),
+          Text(
+            'Due ${row.dueDateController.text.trim().isNotEmpty ? row.dueDateController.text.trim() : (computed != null ? _formatDate(computed!.endDate) : '-')}',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress / 100,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFE5E7EB),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF3B82F6),
+              ),
+            ),
           ),
         ],
       ),
@@ -2421,263 +2747,307 @@ class _TimelineBoardCard extends StatelessWidget {
   }
 }
 
-class _TimelineRow extends StatelessWidget {
-  const _TimelineRow({
-    required this.item,
-    required this.index,
-    required this.weekWidth,
-    required this.timelineWidth,
-    required this.rowHeight,
-    required this.topOffset,
+class _TaskDraft {
+  const _TaskDraft({
+    required this.title,
+    required this.wbsId,
+    required this.durationDays,
+    required this.predecessorId,
+    required this.isMilestone,
+    required this.status,
+    required this.priority,
+    required this.assignee,
+    required this.discipline,
+    required this.progressPercent,
+    required this.startDate,
+    required this.dueDate,
+    required this.estimatedHours,
+    required this.milestone,
   });
 
-  final _TimelineItem item;
-  final int index;
-  final double weekWidth;
-  final double timelineWidth;
-  final double rowHeight;
-  final double topOffset;
+  final String title;
+  final String wbsId;
+  final int durationDays;
+  final String? predecessorId;
+  final bool isMilestone;
+  final String status;
+  final String priority;
+  final String assignee;
+  final String discipline;
+  final double progressPercent;
+  final String startDate;
+  final String dueDate;
+  final double estimatedHours;
+  final String milestone;
+}
 
-  @override
-  Widget build(BuildContext context) {
-    final double top = topOffset + (index * rowHeight);
-    final double left = (item.startWeek - 1) * weekWidth;
-    final double width = item.durationWeeks * weekWidth;
-
-    if (item.isMilestone) {
-      return Positioned(
-        top: top + (rowHeight / 2) - 4,
-        left: left.clamp(0.0, timelineWidth - 12),
-        child: Column(
-          children: [
-            Transform.rotate(
-              angle: 0.785398, // 45 degrees in radians
-              child: Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: item.color,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-                boxShadow: const [
-                  BoxShadow(
-                      color: Color(0x1A000000),
-                      blurRadius: 12,
-                      offset: Offset(0, 6)),
-                ],
-              ),
-              child: Text(
-                item.label,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827)),
-              ),
-            ),
-          ],
+class _ScheduleRow {
+  _ScheduleRow({
+    required this.id,
+    this.wbsId = '',
+    String title = '',
+    int durationDays = 5,
+    this.predecessorId,
+    this.isMilestone = false,
+    String status = 'pending',
+    String priority = 'medium',
+    String assignee = '',
+    String discipline = '',
+    double progressPercent = 0,
+    String startDate = '',
+    String dueDate = '',
+    double estimatedHours = 0,
+    String milestone = '',
+    this.onChanged,
+  })  : status = _normalizeScheduleStatus(status),
+        priority = _normalizeSchedulePriority(priority),
+        titleController = TextEditingController(text: title),
+        durationController =
+            TextEditingController(text: durationDays.toString()),
+        assigneeController = TextEditingController(text: assignee),
+        disciplineController = TextEditingController(text: discipline),
+        progressController = TextEditingController(
+          text: ((progressPercent * 100).clamp(0, 100)).round().toString(),
         ),
+        startDateController = TextEditingController(text: startDate),
+        dueDateController = TextEditingController(text: dueDate),
+        hoursController = TextEditingController(
+          text: estimatedHours == 0 ? '' : estimatedHours.toStringAsFixed(1),
+        ),
+        milestoneController = TextEditingController(text: milestone) {
+    if (onChanged != null) {
+      titleController.addListener(onChanged!);
+      durationController.addListener(onChanged!);
+      assigneeController.addListener(onChanged!);
+      disciplineController.addListener(onChanged!);
+      progressController.addListener(onChanged!);
+      startDateController.addListener(onChanged!);
+      dueDateController.addListener(onChanged!);
+      hoursController.addListener(onChanged!);
+      milestoneController.addListener(onChanged!);
+    }
+  }
+
+  final String id;
+  String wbsId;
+  final TextEditingController titleController;
+  final TextEditingController durationController;
+  final TextEditingController assigneeController;
+  final TextEditingController disciplineController;
+  final TextEditingController progressController;
+  final TextEditingController startDateController;
+  final TextEditingController dueDateController;
+  final TextEditingController hoursController;
+  final TextEditingController milestoneController;
+  String? predecessorId;
+  bool isMilestone;
+  String status;
+  String priority;
+  final VoidCallback? onChanged;
+
+  factory _ScheduleRow.fromActivity(
+    ScheduleActivity activity, {
+    String? idOverride,
+    VoidCallback? onChanged,
+  }) {
+    return _ScheduleRow(
+      id: idOverride ??
+          (activity.wbsId.isNotEmpty ? activity.wbsId : activity.id),
+      wbsId: activity.wbsId,
+      title: activity.title,
+      durationDays: activity.durationDays,
+      predecessorId: activity.predecessorIds.isEmpty
+          ? null
+          : activity.predecessorIds.first,
+      isMilestone: activity.isMilestone,
+      status: activity.status,
+      priority: activity.priority,
+      assignee: activity.assignee,
+      discipline: activity.discipline,
+      progressPercent: activity.progress,
+      startDate: activity.startDate,
+      dueDate: activity.dueDate,
+      estimatedHours: activity.estimatedHours,
+      milestone: activity.milestone,
+      onChanged: onChanged,
+    );
+  }
+
+  void dispose() {
+    titleController.dispose();
+    durationController.dispose();
+    assigneeController.dispose();
+    disciplineController.dispose();
+    progressController.dispose();
+    startDateController.dispose();
+    dueDateController.dispose();
+    hoursController.dispose();
+    milestoneController.dispose();
+  }
+}
+
+class _ComputedSchedule {
+  const _ComputedSchedule({
+    required this.items,
+    required this.totalDurationDays,
+    required this.minDate,
+    required this.maxDate,
+  });
+
+  final List<_ComputedItem> items;
+  final int totalDurationDays;
+  final DateTime? minDate;
+  final DateTime? maxDate;
+}
+
+class _ComputedItem {
+  const _ComputedItem({
+    required this.id,
+    required this.title,
+    required this.startDate,
+    required this.endDate,
+    required this.durationDays,
+    required this.startOffsetDays,
+    required this.isCritical,
+    required this.progress,
+    required this.predecessorIds,
+  });
+
+  final String id;
+  final String title;
+  final DateTime startDate;
+  final DateTime endDate;
+  final int durationDays;
+  final int startOffsetDays;
+  final bool isCritical;
+  final double progress;
+  final List<String> predecessorIds;
+}
+
+_ComputedSchedule _computeSchedule(List<_ScheduleRow> rows, DateTime start) {
+  final byId = {for (final row in rows) row.id: row};
+  final resolved = <String, _ComputedItem>{};
+  int maxEndOffset = 0;
+
+  int durationFor(_ScheduleRow row) {
+    if (row.isMilestone) return 0;
+    return int.tryParse(row.durationController.text.trim()) ?? 5;
+  }
+
+  _ComputedItem compute(String id, [Set<String>? visiting]) {
+    if (resolved.containsKey(id)) return resolved[id]!;
+    final row = byId[id]!;
+    visiting ??= <String>{};
+
+    if (visiting.contains(id)) {
+      return _ComputedItem(
+        id: id,
+        title: row.titleController.text.trim(),
+        startDate: start,
+        endDate: start,
+        durationDays: durationFor(row),
+        startOffsetDays: 0,
+        isCritical: false,
+        progress: (double.tryParse(row.progressController.text.trim()) ?? 0)
+                .clamp(0, 100) /
+            100,
+        predecessorIds: row.predecessorId == null ? [] : [row.predecessorId!],
       );
     }
 
-    return Positioned(
-      top: top + 8,
-      left: left.clamp(0.0, timelineWidth - 40),
-      child: Container(
-        width: width.clamp(60.0, timelineWidth),
-        height: rowHeight - 16,
-        decoration: BoxDecoration(
-          color: item.color,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: item.color.withValues(alpha: 0.18),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
-          border: item.isCritical
-              ? Border.all(color: const Color(0xFFFFD700), width: 2)
-              : null,
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.18),
-                      Colors.white.withValues(alpha: 0.05),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      item.progressLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white),
-                    ),
-                    Container(
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: item.progress.clamp(0.0, 1.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    visiting.add(id);
+
+    int startOffset = 0;
+    if (row.predecessorId != null && byId.containsKey(row.predecessorId)) {
+      final predecessor = compute(row.predecessorId!, visiting);
+      startOffset = predecessor.startOffsetDays + predecessor.durationDays;
+    }
+
+    final duration = durationFor(row);
+    final explicitStart = _parseDate(row.startDateController.text);
+    final explicitDue = _parseDate(row.dueDateController.text);
+
+    final startDate = explicitStart ?? start.add(Duration(days: startOffset));
+    final fallbackEnd =
+        startDate.add(Duration(days: duration == 0 ? 0 : duration - 1));
+    final endDate = explicitDue ?? fallbackEnd;
+
+    final item = _ComputedItem(
+      id: id,
+      title: row.titleController.text.trim().isEmpty
+          ? 'Untitled task'
+          : row.titleController.text.trim(),
+      startDate: startDate,
+      endDate: endDate,
+      durationDays: duration,
+      startOffsetDays: startOffset,
+      isCritical: false,
+      progress: (double.tryParse(row.progressController.text.trim()) ?? 0)
+              .clamp(0, 100) /
+          100,
+      predecessorIds: row.predecessorId == null ? [] : [row.predecessorId!],
     );
-  }
-}
 
-class _TimelineGridPainter extends CustomPainter {
-  const _TimelineGridPainter({
-    required this.totalWeeks,
-    required this.weekWidth,
-    required this.rowHeight,
-    required this.itemCount,
-  });
+    resolved[id] = item;
 
-  final int totalWeeks;
-  final double weekWidth;
-  final double rowHeight;
-  final int itemCount;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint verticalPaint = Paint()
-      ..color = const Color(0xFFE5E7EB)
-      ..strokeWidth = 1;
-    for (int week = 0; week <= totalWeeks; week++) {
-      final double x = 80 + (week * weekWidth);
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), verticalPaint);
+    final endOffset = item.startDate.difference(start).inDays +
+        (item.durationDays == 0 ? 1 : item.durationDays);
+    if (endOffset > maxEndOffset) {
+      maxEndOffset = endOffset;
     }
 
-    final Paint horizontalPaint = Paint()
-      ..color = const Color(0xFFF3F4F6)
-      ..strokeWidth = 1;
-    for (int row = 0; row <= itemCount; row++) {
-      final double y = _TimelineGanttView._chartPaddingTop + (row * rowHeight);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), horizontalPaint);
+    visiting.remove(id);
+    return item;
+  }
+
+  for (final row in rows) {
+    compute(row.id);
+  }
+
+  final longest = maxEndOffset;
+  final criticalIds = <String>{};
+
+  for (final item in resolved.values) {
+    final end = item.startDate.difference(start).inDays + item.durationDays;
+    if (end == longest) {
+      criticalIds.add(item.id);
     }
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
+  final items = resolved.values
+      .map(
+        (item) => _ComputedItem(
+          id: item.id,
+          title: item.title,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          durationDays: item.durationDays,
+          startOffsetDays: item.startOffsetDays,
+          isCritical: criticalIds.contains(item.id),
+          progress: item.progress,
+          predecessorIds: item.predecessorIds,
+        ),
+      )
+      .toList()
+    ..sort((a, b) => a.startDate.compareTo(b.startDate));
 
-class _ScheduleMetric {
-  const _ScheduleMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.caption,
-  });
+  DateTime? minDate;
+  DateTime? maxDate;
+  for (final item in items) {
+    if (minDate == null || item.startDate.isBefore(minDate)) {
+      minDate = item.startDate;
+    }
+    if (maxDate == null || item.endDate.isAfter(maxDate)) {
+      maxDate = item.endDate;
+    }
+  }
 
-  final IconData icon;
-  final String label;
-  final String value;
-  final String caption;
-}
-
-class _TeamUtilization {
-  const _TeamUtilization(
-      {required this.label, required this.percent, required this.color});
-
-  final String label;
-  final double percent;
-  final Color color;
-}
-
-class _BadgeStyle {
-  const _BadgeStyle({
-    required this.label,
-    required this.textColor,
-    required this.backgroundColor,
-  }) : borderColor = Colors.transparent;
-
-  final String label;
-  final Color textColor;
-  final Color backgroundColor;
-  final Color borderColor;
-}
-
-class _WbsNode {
-  const _WbsNode({
-    required this.title,
-  })  : duration = null,
-        badges = const [],
-        children = const [],
-        highlight = false;
-
-  final String title;
-  final String? duration;
-  final List<_BadgeStyle> badges;
-  final List<_WbsNode> children;
-  final bool highlight;
-}
-
-class _TimelineItem {
-  const _TimelineItem({
-    required this.label,
-    required this.progressLabel,
-    required this.startWeek,
-    required this.durationWeeks,
-    required this.color,
-  })  : progress = 0,
-        isCritical = false,
-        isMilestone = false;
-
-  final String label;
-  final String progressLabel;
-  final int startWeek;
-  final int durationWeeks;
-  final Color color;
-  final double progress;
-  final bool isCritical;
-  final bool isMilestone;
+  return _ComputedSchedule(
+    items: items,
+    totalDurationDays: longest,
+    minDate: minDate,
+    maxDate: maxDate,
+  );
 }
 
 class _TimelineSegment {
@@ -2688,53 +3058,42 @@ class _TimelineSegment {
 }
 
 List<_TimelineSegment> _generateMonthSegments(DateTime start, DateTime end) {
-  final List<_TimelineSegment> segments = <_TimelineSegment>[];
-  final DateTime inclusiveEnd = DateTime(end.year, end.month, end.day);
+  final segments = <_TimelineSegment>[];
+  final inclusiveEnd = DateTime(end.year, end.month, end.day);
   DateTime cursor = DateTime(start.year, start.month, 1);
 
   while (!cursor.isAfter(inclusiveEnd)) {
-    final DateTime bucketStart = cursor.isBefore(start) ? start : cursor;
-    final DateTime nextMonth = DateTime(cursor.year, cursor.month + 1, 1);
-    final DateTime bucketEnd = nextMonth.subtract(const Duration(days: 1));
-    final DateTime actualEnd =
+    final bucketStart = cursor.isBefore(start) ? start : cursor;
+    final nextMonth = DateTime(cursor.year, cursor.month + 1, 1);
+    final bucketEnd = nextMonth.subtract(const Duration(days: 1));
+    final actualEnd =
         bucketEnd.isAfter(inclusiveEnd) ? inclusiveEnd : bucketEnd;
-    final int dayCount = actualEnd.difference(bucketStart).inDays + 1;
-    segments
-        .add(_TimelineSegment(label: _formatMonth(cursor), dayCount: dayCount));
+    final dayCount = actualEnd.difference(bucketStart).inDays + 1;
+
+    segments.add(
+      _TimelineSegment(label: _formatMonth(cursor), dayCount: dayCount),
+    );
     cursor = nextMonth;
   }
 
   return segments;
 }
 
-List<_TimelineSegment> _generateWeekSegments(DateTime start, DateTime end) {
-  final List<_TimelineSegment> segments = <_TimelineSegment>[];
-  final DateTime inclusiveEnd = DateTime(end.year, end.month, end.day);
-  DateTime cursor = start;
-
-  int weekNumber = 1;
-  while (!cursor.isAfter(inclusiveEnd)) {
-    final DateTime potentialEnd = cursor.add(const Duration(days: 6));
-    final DateTime actualEnd =
-        potentialEnd.isAfter(inclusiveEnd) ? inclusiveEnd : potentialEnd;
-    final int dayCount = actualEnd.difference(cursor).inDays + 1;
-    segments.add(_TimelineSegment(label: '$weekNumber', dayCount: dayCount));
-    weekNumber++;
-    cursor = actualEnd.add(const Duration(days: 1));
-  }
-
-  return segments;
+DateTime? _parseDate(String raw) {
+  final value = raw.trim();
+  if (value.isEmpty) return null;
+  return DateTime.tryParse(value);
 }
 
 String _formatDate(DateTime date) {
-  final y = date.year.toString().padLeft(4, '0');
-  final m = date.month.toString().padLeft(2, '0');
-  final d = date.day.toString().padLeft(2, '0');
-  return '$y-$m-$d';
+  final year = date.year.toString().padLeft(4, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
 }
 
 String _formatMonth(DateTime date) {
-  const List<String> months = [
+  const months = [
     'Jan',
     'Feb',
     'Mar',
@@ -2748,5 +3107,25 @@ String _formatMonth(DateTime date) {
     'Nov',
     'Dec',
   ];
-  return months[date.month - 1];
+  return '${months[date.month - 1]} ${date.year}';
+}
+
+String _titleCase(String value) {
+  final words = value.split('_');
+  return words.map((word) {
+    if (word.isEmpty) return word;
+    return '${word[0].toUpperCase()}${word.substring(1)}';
+  }).join(' ');
+}
+
+String _normalizeScheduleStatus(String raw) {
+  final value = raw.trim().toLowerCase().replaceAll(' ', '_');
+  const allowed = {'pending', 'in_progress', 'completed', 'overdue'};
+  return allowed.contains(value) ? value : 'pending';
+}
+
+String _normalizeSchedulePriority(String raw) {
+  final value = raw.trim().toLowerCase();
+  const allowed = {'low', 'medium', 'high', 'critical'};
+  return allowed.contains(value) ? value : 'medium';
 }

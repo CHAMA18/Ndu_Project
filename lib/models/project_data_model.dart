@@ -174,6 +174,7 @@ class ProjectDataModel {
   Map<String, int> aiUsageCounts;
 
   List<Map<String, dynamic>> aiIntegrations;
+  List<Map<String, dynamic>> externalIntegrations;
   List<Map<String, dynamic>> aiRecommendations;
   String? projectId;
   DateTime? createdAt;
@@ -259,6 +260,7 @@ class ProjectDataModel {
     this.isBasicPlanProject = false,
     Map<String, int>? aiUsageCounts,
     List<Map<String, dynamic>>? aiIntegrations,
+    List<Map<String, dynamic>>? externalIntegrations,
     List<Map<String, dynamic>>? aiRecommendations,
     List<StakeholderEntry>? stakeholderEntries,
     List<EngagementPlanEntry>? engagementPlanEntries,
@@ -314,6 +316,7 @@ class ProjectDataModel {
         trainingActivities = trainingActivities ?? [],
         aiUsageCounts = aiUsageCounts ?? {},
         aiIntegrations = aiIntegrations ?? [],
+        externalIntegrations = externalIntegrations ?? [],
         aiRecommendations = aiRecommendations ?? [],
         stakeholderEntries = stakeholderEntries ?? [],
         engagementPlanEntries = engagementPlanEntries ?? [],
@@ -410,6 +413,7 @@ class ProjectDataModel {
     bool? isBasicPlanProject,
     Map<String, int>? aiUsageCounts,
     List<Map<String, dynamic>>? aiIntegrations,
+    List<Map<String, dynamic>>? externalIntegrations,
     List<Map<String, dynamic>>? aiRecommendations,
     String? projectId,
     DateTime? createdAt,
@@ -533,6 +537,7 @@ class ProjectDataModel {
       isBasicPlanProject: isBasicPlanProject ?? this.isBasicPlanProject,
       aiUsageCounts: aiUsageCounts ?? this.aiUsageCounts,
       aiIntegrations: aiIntegrations ?? this.aiIntegrations,
+      externalIntegrations: externalIntegrations ?? this.externalIntegrations,
       aiRecommendations: aiRecommendations ?? this.aiRecommendations,
       projectId: projectId ?? this.projectId,
       createdAt: createdAt ?? this.createdAt,
@@ -669,6 +674,7 @@ class ProjectDataModel {
       'aiUsageCounts': aiUsageCounts,
 
       'aiIntegrations': aiIntegrations,
+      'externalIntegrations': externalIntegrations,
       'aiRecommendations': aiRecommendations,
       'projectId': projectId,
       'createdAt': createdAt?.toIso8601String(),
@@ -933,6 +939,19 @@ class ProjectDataModel {
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
+      externalIntegrations: () {
+        final external = (json['externalIntegrations'] as List?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [];
+        if (external.isNotEmpty) return external;
+        // Backward-compatibility fallback for older records where external
+        // integrations were incorrectly persisted in aiIntegrations.
+        return (json['aiIntegrations'] as List?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [];
+      }(),
       aiRecommendations: (json['aiRecommendations'] as List?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
@@ -1358,6 +1377,15 @@ class ScheduleActivity {
   int durationDays;
   List<String> predecessorIds;
   bool isMilestone;
+  String status;
+  String priority;
+  String assignee;
+  String discipline;
+  double progress;
+  String startDate;
+  String dueDate;
+  double estimatedHours;
+  String milestone;
 
   ScheduleActivity({
     String? id,
@@ -1366,6 +1394,15 @@ class ScheduleActivity {
     this.durationDays = 5,
     List<String>? predecessorIds,
     this.isMilestone = false,
+    this.status = 'pending',
+    this.priority = 'medium',
+    this.assignee = '',
+    this.discipline = '',
+    this.progress = 0,
+    this.startDate = '',
+    this.dueDate = '',
+    this.estimatedHours = 0,
+    this.milestone = '',
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         predecessorIds = predecessorIds ?? [];
 
@@ -1376,6 +1413,15 @@ class ScheduleActivity {
         'durationDays': durationDays,
         'predecessorIds': predecessorIds,
         'isMilestone': isMilestone,
+        'status': status,
+        'priority': priority,
+        'assignee': assignee,
+        'discipline': discipline,
+        'progress': progress,
+        'startDate': startDate,
+        'dueDate': dueDate,
+        'estimatedHours': estimatedHours,
+        'milestone': milestone,
       };
 
   factory ScheduleActivity.fromJson(Map<String, dynamic> json) {
@@ -1391,6 +1437,23 @@ class ScheduleActivity {
               .toList() ??
           [],
       isMilestone: json['isMilestone'] == true,
+      status: json['status']?.toString().trim().isNotEmpty == true
+          ? json['status'].toString()
+          : 'pending',
+      priority: json['priority']?.toString().trim().isNotEmpty == true
+          ? json['priority'].toString()
+          : 'medium',
+      assignee: json['assignee']?.toString() ?? '',
+      discipline: json['discipline']?.toString() ?? '',
+      progress: json['progress'] is num
+          ? (json['progress'] as num).toDouble()
+          : double.tryParse(json['progress']?.toString() ?? '') ?? 0,
+      startDate: json['startDate']?.toString() ?? '',
+      dueDate: json['dueDate']?.toString() ?? '',
+      estimatedHours: json['estimatedHours'] is num
+          ? (json['estimatedHours'] as num).toDouble()
+          : double.tryParse(json['estimatedHours']?.toString() ?? '') ?? 0,
+      milestone: json['milestone']?.toString() ?? '',
     );
   }
 }
@@ -2348,6 +2411,8 @@ class LessonRecord {
   String status;
   String submittedBy;
   String notes;
+  String impact;
+  bool highlight;
   DateTime? dateSubmitted;
 
   LessonRecord({
@@ -2359,6 +2424,8 @@ class LessonRecord {
     this.status = '',
     this.submittedBy = '',
     this.notes = '',
+    this.impact = 'Medium',
+    this.highlight = false,
     this.dateSubmitted,
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
@@ -2371,6 +2438,8 @@ class LessonRecord {
         'status': status,
         'submittedBy': submittedBy,
         'notes': notes,
+        'impact': impact,
+        'highlight': highlight,
         'dateSubmitted': dateSubmitted?.toIso8601String(),
       };
 
@@ -2390,6 +2459,8 @@ class LessonRecord {
       status: json['status'] ?? '',
       submittedBy: json['submittedBy'] ?? '',
       notes: json['notes'] ?? '',
+      impact: json['impact'] ?? 'Medium',
+      highlight: json['highlight'] == true,
       dateSubmitted: parsed,
     );
   }
