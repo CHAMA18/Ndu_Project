@@ -13,8 +13,6 @@ import 'package:ndu_project/screens/planning_procurement_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/contract_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
-import 'package:go_router/go_router.dart';
-import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 
@@ -209,6 +207,7 @@ class _FrontEndPlanningContractsScreenState
         );
       }
 
+      if (!mounted) return;
       await ProjectDataHelper.updateAndSave(
         context: context,
         checkpoint: 'contracts',
@@ -7421,7 +7420,7 @@ class _ExecutionTimelineRow extends StatelessWidget {
                 if (data.highlightAction) ...[
                   const SizedBox(height: 12),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () => PlanningProcurementScreen.open(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _kFabYellow,
                       foregroundColor: _kFabOnYellow,

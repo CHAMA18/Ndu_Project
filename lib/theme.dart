@@ -213,10 +213,27 @@ ThemeData get lightTheme => ThemeData(
         iconColor: Color(0xFF64748B),
       ),
       dataTableTheme: const DataTableThemeData(
-        headingRowColor: WidgetStatePropertyAll(Color(0xFFF8FAFC)),
+        headingRowColor: WidgetStatePropertyAll(Color(0xFFF5F8FC)),
         dataRowColor: WidgetStatePropertyAll(Colors.white),
+        headingTextStyle: TextStyle(
+          fontFamily: _appFontFamily,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF334155),
+          letterSpacing: 0.2,
+        ),
+        dataTextStyle: TextStyle(
+          fontFamily: _appFontFamily,
+          fontSize: 13,
+          color: Color(0xFF0F172A),
+          height: 1.35,
+        ),
         dividerThickness: 0.8,
-        columnSpacing: 18,
+        columnSpacing: 20,
+        horizontalMargin: 16,
+        headingRowHeight: 56,
+        dataRowMinHeight: 56,
+        dataRowMaxHeight: 120,
       ),
       textTheme: TextTheme(
         displayLarge: const TextStyle(
@@ -420,10 +437,27 @@ ThemeData get darkTheme => ThemeData(
       ),
       dataTableTheme: DataTableThemeData(
         headingRowColor:
-            WidgetStatePropertyAll(Colors.white.withValues(alpha: 0.04)),
+            WidgetStatePropertyAll(Colors.white.withValues(alpha: 0.06)),
         dataRowColor: const WidgetStatePropertyAll(Color(0xFF111318)),
+        headingTextStyle: const TextStyle(
+          fontFamily: _appFontFamily,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFFE2E8F0),
+          letterSpacing: 0.2,
+        ),
+        dataTextStyle: const TextStyle(
+          fontFamily: _appFontFamily,
+          fontSize: 13,
+          color: Color(0xFFCBD5E1),
+          height: 1.35,
+        ),
         dividerThickness: 0.8,
-        columnSpacing: 18,
+        columnSpacing: 20,
+        horizontalMargin: 16,
+        headingRowHeight: 56,
+        dataRowMinHeight: 56,
+        dataRowMaxHeight: 120,
       ),
       textTheme: TextTheme(
         displayLarge: const TextStyle(

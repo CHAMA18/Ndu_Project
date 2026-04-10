@@ -283,6 +283,177 @@ class _RecurringRowWidgetState extends State<_RecurringRowWidget> {
     widget.onChanged(updated);
   }
 
+  Future<void> _showEditDialog() async {
+    final titleController = TextEditingController(text: _item.title);
+    final descriptionController = TextEditingController(text: _item.description);
+    final ownerController = TextEditingController(text: _item.owner);
+    final notesController = TextEditingController(text: _item.notes);
+    var selectedFrequency = _item.frequency;
+    var selectedStatus = _item.status;
+    DateTime? nextOccurrence = _item.nextOccurrence;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              return AlertDialog(
+                title: const Text('Edit Recurring Deliverable'),
+                content: SizedBox(
+                  width: 560,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: titleController,
+                          decoration: const InputDecoration(
+                            labelText: 'Title',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: descriptionController,
+                          minLines: 3,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            labelText: 'Description',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedFrequency,
+                          decoration: const InputDecoration(
+                            labelText: 'Frequency',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Daily', child: Text('Daily')),
+                            DropdownMenuItem(
+                                value: 'Weekly', child: Text('Weekly')),
+                            DropdownMenuItem(
+                                value: 'Bi-Weekly', child: Text('Bi-Weekly')),
+                            DropdownMenuItem(
+                                value: 'Monthly', child: Text('Monthly')),
+                            DropdownMenuItem(
+                                value: 'Quarterly', child: Text('Quarterly')),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() => selectedFrequency = value);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedStatus,
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Active', child: Text('Active')),
+                            DropdownMenuItem(
+                                value: 'Paused', child: Text('Paused')),
+                            DropdownMenuItem(
+                                value: 'Completed', child: Text('Completed')),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() => selectedStatus = value);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: ownerController,
+                          decoration: const InputDecoration(
+                            labelText: 'Owner',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: notesController,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Notes',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                nextOccurrence == null
+                                    ? 'Next Occurrence: Not set'
+                                    : 'Next Occurrence: ${DateFormat('MMM d, yyyy').format(nextOccurrence!)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF374151),
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                final picked = await showDatePicker(
+                                  context: dialogContext,
+                                  initialDate: nextOccurrence ?? DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (picked == null) return;
+                                setDialogState(() => nextOccurrence = picked);
+                              },
+                              child: const Text('Select Date'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final updated = _item.copyWith(
+                        title: titleController.text.trim(),
+                        description: descriptionController.text.trim(),
+                        frequency: selectedFrequency,
+                        status: selectedStatus,
+                        owner: ownerController.text.trim(),
+                        notes: notesController.text.trim(),
+                        nextOccurrence: nextOccurrence,
+                      );
+                      _update(updated);
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      titleController.dispose();
+      descriptionController.dispose();
+      ownerController.dispose();
+      notesController.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -383,9 +554,7 @@ class _RecurringRowWidgetState extends State<_RecurringRowWidget> {
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined,
                                       size: 16, color: Color(0xFF64748B)),
-                                  onPressed: () {
-                                    // TODO: Show edit dialog
-                                  },
+                                  onPressed: _showEditDialog,
                                   tooltip: 'Edit',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(

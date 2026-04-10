@@ -215,6 +215,48 @@ class _ScheduleToolbar extends StatelessWidget {
 
   final bool isMobile;
 
+  Future<void> _showCreateTaskDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    try {
+      final created = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Create Task'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Task title',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isEmpty) return;
+                Navigator.of(dialogContext).pop(value);
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+      if (created == null || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Task "$created" added to board queue.'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -244,7 +286,7 @@ class _ScheduleToolbar extends StatelessWidget {
         _ToolbarButton(icon: Icons.speed, label: 'Estimates'),
         _ToolbarButton(icon: Icons.cloud_download_outlined, label: 'Import'),
         FilledButton.icon(
-          onPressed: () {},
+          onPressed: () => _showCreateTaskDialog(context),
           icon: const Icon(Icons.add),
           label: const Text('New Task'),
           style: FilledButton.styleFrom(
@@ -676,6 +718,50 @@ class _BoardFooter extends StatelessWidget {
 
   final bool isMobile;
 
+  Future<void> _showAddNoteDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    try {
+      final note = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Add Note'),
+          content: TextField(
+            controller: controller,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Write a schedule note...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isEmpty) return;
+                Navigator.of(dialogContext).pop(value);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      );
+      if (note == null || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Note added.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final legendItems = const [
@@ -689,7 +775,7 @@ class _BoardFooter extends StatelessWidget {
       spacing: 12,
       runSpacing: 12,
       children: [
-        OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.note_add_outlined), label: const Text('Add Note')),
+        OutlinedButton.icon(onPressed: () => _showAddNoteDialog(context), icon: const Icon(Icons.note_add_outlined), label: const Text('Add Note')),
         OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.report_problem_outlined), label: const Text('Review Required')),
         FilledButton.icon(onPressed: () {}, icon: const Icon(Icons.verified_user_outlined), label: const Text('Approve Baseline')),
       ],

@@ -794,28 +794,10 @@ class _SsherStackedScreenState extends State<SsherStackedScreen> {
             child: LaunchPhaseNavigation(
               backLabel: 'Back',
               nextLabel: 'Next',
-              onBack: () {
-                final navIndex = PlanningPhaseNavigation.getPageIndex('ssher');
-                if (navIndex > 0) {
-                  final prevPage = PlanningPhaseNavigation.pages[navIndex - 1];
-                  Navigator.pushReplacement(
-                      context, MaterialPageRoute(builder: prevPage.builder));
-                } else {
-                  Navigator.maybePop(context);
-                }
-              },
-              onNext: () {
-                final navIndex = PlanningPhaseNavigation.getPageIndex('ssher');
-                if (navIndex != -1 &&
-                    navIndex < PlanningPhaseNavigation.pages.length - 1) {
-                  final nextPage = PlanningPhaseNavigation.pages[navIndex + 1];
-                  Navigator.pushReplacement(
-                      context, MaterialPageRoute(builder: nextPage.builder));
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('No next screen available')));
-                }
-              },
+              onBack: () =>
+                  PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
+              onNext: () =>
+                  PlanningPhaseNavigation.goToNext(context, 'ssher'),
             ),
           ),
         ],

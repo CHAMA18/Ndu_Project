@@ -5,8 +5,9 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
+import 'package:ndu_project/screens/specialized_design_screen.dart';
+import 'package:ndu_project/screens/staff_team_screen.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -456,8 +457,12 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
               children: [
                 PlanningPhaseHeader(
                   title: 'Design Deliverables',
-                  onBack: () => Navigator.maybePop(context),
-                  onForward: () => DesignPhaseScreen.open(context),
+                  onBack: () => Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const SpecializedDesignScreen(),
+                    ),
+                  ),
+                  onForward: () => StaffTeamScreen.open(context),
                   showImportButton: false,
                   showContentButton: false,
                 ),
@@ -522,7 +527,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
-                    onPressed: () => DesignPhaseScreen.open(context),
+                    onPressed: () => StaffTeamScreen.open(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFD700),
                       foregroundColor: const Color(0xFF111827),

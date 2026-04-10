@@ -14,6 +14,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/services/project_route_registry.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 const Color _kSurfaceBackground = Color(0xFFF7F8FC);
@@ -1658,20 +1659,10 @@ class _WorkBreakdownStructureBodyState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: () {
-                            final navIndex = PlanningPhaseNavigation.getPageIndex(
-                                'work_breakdown_structure');
-                            if (navIndex > 0) {
-                              final prevPage =
-                                  PlanningPhaseNavigation.pages[navIndex - 1];
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: prevPage.builder),
-                              );
-                            } else {
-                              Navigator.maybePop(context);
-                            }
-                          },
+                          onPressed: () => PlanningPhaseNavigation.goToPrevious(
+                            context,
+                            'work_breakdown_structure',
+                          ),
                           icon: const Icon(Icons.arrow_back, size: 16),
                           label: const Text('Back'),
                           style: ElevatedButton.styleFrom(
@@ -1687,27 +1678,23 @@ class _WorkBreakdownStructureBodyState
                         ),
                         ElevatedButton.icon(
                           onPressed: () async {
-                            final navIndex =
-                                PlanningPhaseNavigation.getPageIndex(
-                                    'work_breakdown_structure');
-                            if (navIndex != -1 &&
-                                navIndex <
-                                    PlanningPhaseNavigation.pages.length - 1) {
-                              final nextPage =
-                                  PlanningPhaseNavigation.pages[navIndex + 1];
+                            final nextScreen =
+                                PlanningPhaseNavigation.resolveNextScreen(
+                                      context,
+                                      'work_breakdown_structure',
+                                    ) ??
+                                    const ProjectFrameworkNextScreen();
 
-                              await ProjectDataHelper.saveAndNavigate(
-                                context: context,
-                                checkpoint: 'work_breakdown_structure',
-                                saveInBackground: true,
-                                nextScreenBuilder: () =>
-                                    nextPage.builder(context),
-                                dataUpdater: (data) => data.copyWith(
-                                  wbsCriteriaA: _selectedCriteriaA,
-                                  wbsTree: _wbsItems,
-                                ),
-                              );
-                            }
+                            await ProjectDataHelper.saveAndNavigate(
+                              context: context,
+                              checkpoint: 'work_breakdown_structure',
+                              saveInBackground: true,
+                              nextScreenBuilder: () => nextScreen,
+                              dataUpdater: (data) => data.copyWith(
+                                wbsCriteriaA: _selectedCriteriaA,
+                                wbsTree: _wbsItems,
+                              ),
+                            );
                           },
                           icon: const Icon(Icons.arrow_forward, size: 16),
                           label: const Text('Next'),

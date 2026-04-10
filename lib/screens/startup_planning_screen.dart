@@ -51,7 +51,11 @@ class StartUpPlanningScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _TopHeader(
-                                onBack: () => Navigator.maybePop(context)),
+                              onBack: () => PlanningPhaseNavigation.goToPrevious(
+                                context,
+                                'startup_planning',
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             const Text(
                               'Plan readiness, go-live criteria, and transition activities.',

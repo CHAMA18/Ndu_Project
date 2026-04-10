@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/form_validation_engine.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -1276,7 +1277,7 @@ class _FrontEndPlanningRisksScreenState
         validation,
         title: 'Risk Requirements Missing',
         intro:
-            'Project Opportunities is blocked until the following risk fields are completed.',
+            'The following risk fields are still missing. You can complete them now, auto-fill with AI, or continue and return later.',
         manualActionLabel: 'Add Risk Details',
         showAutoFillAction: true,
         autoFillActionLabel: 'Auto-fill with AI',
@@ -1521,7 +1522,10 @@ class _FrontEndPlanningRisksScreenState
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.maybePop(context),
+                    onPressed: () => FrontEndPlanningNavigation.goToPrevious(
+                      context,
+                      'fep_risks',
+                    ),
                     icon:
                         const Icon(Icons.arrow_back_ios_new_rounded, size: 17),
                     visualDensity: VisualDensity.compact,

@@ -4,6 +4,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
@@ -122,17 +123,28 @@ class _FrontEndPlanningAllowanceScreenState
     try {
       final data = ProjectDataHelper.getData(context);
       final sb = StringBuffer();
-      sb.writeln('Project: ${data.projectName}');
-      sb.writeln('Description: ${data.solutionDescription}');
-      if (data.projectGoals.isNotEmpty) {
-        sb.writeln('Goals: ${data.projectGoals.join(", ")}');
-      }
-      if (data.frontEndPlanning.requirements.isNotEmpty) {
-        sb.writeln('Requirements:\n${data.frontEndPlanning.requirements}');
-      }
-      if (data.frontEndPlanning.risks.isNotEmpty) {
-        sb.writeln('Risks:\n${data.frontEndPlanning.risks}');
-      }
+      sb
+        ..writeln(
+          ProjectDataHelper.buildFepContext(
+            data,
+            sectionLabel: 'Allowance',
+          ),
+        )
+        ..writeln()
+        ..writeln(
+          ProjectDataHelper.buildProjectContextScan(
+            data,
+            sectionLabel: 'Allowance Planning',
+          ),
+        )
+        ..writeln()
+        ..writeln('Section-specific guidance:')
+        ..writeln(
+          '- Generate allowances that reflect this project type, phase risks, and procurement realities.',
+        )
+        ..writeln(
+          '- Include realistic contingency items for schedule, commercial, operational, and compliance exposure.',
+        );
 
       final newItems =
           await _openAi.generateAllowancesFromContext(sb.toString());
@@ -183,6 +195,72 @@ class _FrontEndPlanningAllowanceScreenState
       _allowanceItems.removeWhere((item) => item.id == id);
     });
     _syncItemsToProvider();
+  }
+
+  String _nextFlowDestinationLabel() {
+    final rawLabel =
+        FrontEndPlanningNavigation.nextLabel(context, 'fep_allowance').trim();
+    if (rawLabel.startsWith('Next:')) {
+      final parsed = rawLabel.substring('Next:'.length).trim();
+      if (parsed.isNotEmpty && parsed.toLowerCase() != 'next') {
+        return parsed;
+      }
+    }
+    return 'Project Charter';
+  }
+
+  Future<bool> _confirmProceedWithoutAllowances() async {
+    if (_allowanceItems.isNotEmpty) return true;
+    final destination = _nextFlowDestinationLabel();
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('No Allowance Items Added'),
+        content: Text(
+          'You have no allowance items yet. Continue to $destination without adding contingency allowances?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Add Allowance Items'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    return shouldProceed ?? false;
+  }
+
+  void _goToPreviousStep() {
+    FrontEndPlanningNavigation.goToPrevious(context, 'fep_allowance');
+  }
+
+  Future<void> _saveAndNavigateToNextStep() async {
+    final shouldProceed = await _confirmProceedWithoutAllowances();
+    if (!shouldProceed || !mounted) return;
+
+    final nextCheckpoint =
+        FrontEndPlanningNavigation.nextCheckpoint(context, 'fep_allowance') ??
+            'project_charter';
+    final nextScreen =
+        FrontEndPlanningNavigation.resolveScreen(context, nextCheckpoint) ??
+            const ProjectCharterScreen();
+
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'fep_allowance',
+      nextScreenBuilder: () => nextScreen,
+      dataUpdater: (data) => data.copyWith(
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          allowance: _notes.text,
+          allowanceItems: _allowanceItems,
+        ),
+      ),
+    );
   }
 
   Future<void> _showItemDialog({AllowanceItem? item}) async {
@@ -826,22 +904,12 @@ class _FrontEndPlanningAllowanceScreenState
                       ),
                     ],
                   ),
-                  _BottomOverlay(onNext: () {
-                    // Save is automatic via list methods, but we trigger standard save & navigate
-                    ProjectDataHelper.saveAndNavigate(
-                      context: context,
-                      checkpoint: 'fep_allowance',
-                      nextScreenBuilder: () =>
-                          const ProjectCharterScreen(), // Usually next is charter or similar
-                      dataUpdater: (data) => data.copyWith(
-                        frontEndPlanning: ProjectDataHelper.updateFEPField(
-                          current: data.frontEndPlanning,
-                          allowance: _notes.text, // Sync final text
-                          allowanceItems: _allowanceItems, // Sync items
-                        ),
-                      ),
-                    );
-                  }),
+                  _BottomOverlay(
+                    onBack: _goToPreviousStep,
+                    onNext: () {
+                      _saveAndNavigateToNextStep();
+                    },
+                  ),
                   const KazAiChatBubble(),
                 ],
               ),
@@ -939,9 +1007,10 @@ class _CostMetaItem extends StatelessWidget {
 }
 
 class _BottomOverlay extends StatelessWidget {
+  final VoidCallback onBack;
   final VoidCallback onNext;
 
-  const _BottomOverlay({required this.onNext});
+  const _BottomOverlay({required this.onBack, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
@@ -997,6 +1066,23 @@ class _BottomOverlay extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 16),
+                    OutlinedButton(
+                      onPressed: onBack,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF374151),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 22, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(22)),
+                      ),
+                      child: const Text(
+                        'Back',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: onNext,
                       style: ElevatedButton.styleFrom(

@@ -19,6 +19,8 @@ import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 
 class ProjectFrameworkScreen extends StatefulWidget {
   const ProjectFrameworkScreen({super.key});
@@ -36,6 +38,7 @@ class ProjectFrameworkScreen extends StatefulWidget {
 }
 
 class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
+  final ScrollController _mainContentScrollController = ScrollController();
   String? _selectedOverallFramework;
   final List<_Goal> _goals = [_Goal(id: 1, name: 'Goal 1', framework: null)];
   late TextEditingController _projectNameController;
@@ -47,6 +50,7 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
   bool _objectiveGenerationAttempted = false;
   bool _isGeneratingGoals = false;
   bool _goalsGenerationAttempted = false;
+  bool _reviewConfirmed = false;
 
   @override
   void initState() {
@@ -342,6 +346,7 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
 
   @override
   void dispose() {
+    _mainContentScrollController.dispose();
     _projectNameController.dispose();
     _projectObjectiveController.dispose();
     _projectNameFocus.dispose();
@@ -496,12 +501,15 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                     children: [
                       const FrontEndPlanningHeader(title: 'Project Details'),
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 40, vertical: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                        child: ScrollIndicatorOverlay(
+                          controller: _mainContentScrollController,
+                          child: SingleChildScrollView(
+                            controller: _mainContentScrollController,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 40, vertical: 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                               const PlanningAiNotesCard(
                                 title: 'Notes',
                                 sectionLabel: 'Project Details',
@@ -554,20 +562,29 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                                   });
                                 },
                               ),
-                              const SizedBox(height: 24),
-                              LaunchPhaseNavigation(
-                                backLabel: PlanningPhaseNavigation.backLabel(
-                                    'project_framework'),
-                                nextLabel: PlanningPhaseNavigation.nextLabel(
-                                    'project_framework'),
-                                onBack: () =>
-                                    PlanningPhaseNavigation.goToPrevious(
-                                        context, 'project_framework'),
-                                onNext: () => PlanningPhaseNavigation.goToNext(
-                                    context, 'project_framework'),
-                              ),
-                              const SizedBox(height: 40),
-                            ],
+                                const SizedBox(height: 24),
+                                ProceedConfirmationGate(
+                                  value: _reviewConfirmed,
+                                  onChanged: (value) {
+                                    setState(() => _reviewConfirmed = value);
+                                  },
+                                  scrollController: _mainContentScrollController,
+                                ),
+                                const SizedBox(height: 16),
+                                LaunchPhaseNavigation(
+                                  backLabel: PlanningPhaseNavigation.backLabel(
+                                      'project_framework'),
+                                  nextLabel: PlanningPhaseNavigation.nextLabel(
+                                      'project_framework'),
+                                  onBack: () =>
+                                      PlanningPhaseNavigation.goToPrevious(
+                                          context, 'project_framework'),
+                                  onNext: () => _handleNextPressed(),
+                                  nextEnabled: _reviewConfirmed,
+                                ),
+                                const SizedBox(height: 40),
+                              ],
+                            ),
                           ),
                         ),
                       ),

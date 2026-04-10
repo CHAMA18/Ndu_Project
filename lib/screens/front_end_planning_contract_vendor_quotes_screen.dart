@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 
 import 'package:ndu_project/services/openai_service_secure.dart';
@@ -16,6 +17,7 @@ import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/widgets/procurement_tables.dart';
 import 'package:ndu_project/widgets/procurement_dialogs.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 // Layout Imports
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -2659,6 +2661,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           Future.value(const <VendorModel>[]));
       final candidates = _collectApprovedContractors(const [], scopes, vendors);
       final controller = TextEditingController();
+      if (!mounted) return;
       final picked = await showDialog<String>(
             context: context,
             builder: (dialogContext) => AlertDialog(
@@ -2669,7 +2672,8 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: candidates.isNotEmpty ? candidates.first : null,
+                      initialValue:
+                          candidates.isNotEmpty ? candidates.first : null,
                       items: candidates
                           .map((name) => DropdownMenuItem<String>(
                                 value: name,
@@ -2715,6 +2719,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     if (selectedContractor.isEmpty) return;
 
     final selected = <String>{};
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => StatefulBuilder(
@@ -2976,7 +2981,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                 SizedBox(
                   width: 220,
                   child: DropdownButtonFormField<String>(
-                    value: (notes[_trackingKeyForScope(item.id)] ?? '')
+                    initialValue: (notes[_trackingKeyForScope(item.id)] ?? '')
                             .toString()
                             .trim()
                             .isEmpty
@@ -3454,6 +3459,12 @@ class _FrontEndPlanningContractVendorQuotesScreenState
         : data.solutionDescription.trim().isEmpty
             ? 'Project delivery'
             : data.solutionDescription.trim();
+    final fullContext =
+        ProjectDataHelper.buildFepContext(data, sectionLabel: 'Contracting');
+    final contextScan = ProjectDataHelper.buildProjectContextScan(
+      data,
+      sectionLabel: 'Contracting',
+    );
 
     final categories = <String>{
       if (item.category == 'Lump Sum') 'Construction Services',
@@ -3472,8 +3483,11 @@ class _FrontEndPlanningContractVendorQuotesScreenState
         projectName: projectName,
         solutionTitle: solutionTitle,
         category: category,
-        contextNotes:
-            'Scope: ${item.name}. ${item.description}. Contract type: ${item.category}. Start stage: ${_normalizeStartStage(item.projectPhase)}.',
+        contextNotes: [
+          'Scope: ${item.name}. ${item.description}. Contract type: ${item.category}. Start stage: ${_normalizeStartStage(item.projectPhase)}.',
+          if (fullContext.isNotEmpty) fullContext,
+          if (contextScan.isNotEmpty) contextScan,
+        ].join('\n\n'),
       );
       final name = _normalizeField(suggested['name']);
       if (name.isNotEmpty) candidates.add(name);
@@ -4032,7 +4046,6 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'fep_contract_vendor_quotes',
-      destinationCheckpoint: null,
       saveInBackground: true,
       nextScreenBuilder: () => const FrontEndPlanningProcurementScreen(),
       dataUpdater: (data) => data.copyWith(
@@ -4041,6 +4054,13 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           contractVendorQuotes: data.frontEndPlanning.contractVendorQuotes,
         ),
       ),
+    );
+  }
+
+  void _goToPreviousSection() {
+    FrontEndPlanningNavigation.goToPrevious(
+      context,
+      'fep_contract_vendor_quotes',
     );
   }
 
@@ -4338,9 +4358,9 @@ class _FrontEndPlanningContractVendorQuotesScreenState
             children: [
               Expanded(
                 child: TextButton(
-                  onPressed: _navigateToProcurement,
+                  onPressed: _goToPreviousSection,
                   child: const Text(
-                    'Skip',
+                    'Back',
                     style: TextStyle(
                         fontWeight: FontWeight.w700, color: Color(0xFF6B7280)),
                   ),
@@ -4476,8 +4496,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _ContractingTopBar(
-                                  onBack: () =>
-                                      Navigator.of(context).maybePop(),
+                                  onBack: _goToPreviousSection,
                                   onForward: _navigateToProcurement,
                                 ),
                                 const SizedBox(height: 24),
@@ -5886,19 +5905,10 @@ class _ContractingScopeTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFAFAFA),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: const Text(
-          'No contracting scope items added yet. Use AI regenerate or Add Scope to start.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF6B7280)),
-        ),
+      return buildNduTableEmptyState(
+        context,
+        message:
+            'No contracting scope items added yet. Use AI regenerate or click Add Scope to get started.',
       );
     }
 
@@ -5908,186 +5918,169 @@ class _ContractingScopeTable extends StatelessWidget {
       builder: (context, constraints) {
         final minWidth =
             constraints.maxWidth > 1500 ? constraints.maxWidth : 1500.0;
-        return Scrollbar(
-          thumbVisibility: true,
-          scrollbarOrientation: ScrollbarOrientation.bottom,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: minWidth),
-              child: DataTable(
-                columnSpacing: 16,
-                horizontalMargin: 12,
-                headingRowColor:
-                    WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                border: TableBorder.all(
-                  color: const Color(0xFFE5E7EB),
-                  width: 0.7,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                columns: const [
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'No',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Contract Scope',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Description',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Potential Contractors',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Contract Type',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Estimated Duration',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Estimated Value',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Bidding Required',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  DataColumn(label: Center(child: Text(''))),
-                ],
-                rows: items.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final item = entry.value;
-                  final actionItems = <PopupMenuEntry<String>>[];
-                  if (onEdit != null) {
-                    actionItems.add(
-                      const PopupMenuItem<String>(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, size: 16),
-                            SizedBox(width: 8),
-                            Text('Edit scope'),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  if (onDelete != null) {
-                    actionItems.add(
-                      const PopupMenuItem<String>(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline,
-                                size: 16, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  return DataRow(
-                    cells: [
-                      DataCell(Text('${index + 1}')),
-                      DataCell(_cellText(item.name, width: 170, bold: true)),
-                      DataCell(_cellText(item.description, width: 220)),
-                      DataCell(_cellText(item.notes, width: 190)),
-                      DataCell(_cellText(item.category, width: 120)),
-                      DataCell(_cellText(item.comments, width: 150)),
-                      DataCell(
-                          _cellText(_formatCurrency(item.budget), width: 130)),
-                      DataCell(_cellText(
-                        item.responsibleMember.trim().isEmpty
-                            ? 'Not Sure'
-                            : item.responsibleMember.trim(),
-                        width: 130,
-                      )),
-                      DataCell(
-                        hasActions
-                            ? PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_horiz,
-                                    color: Colors.grey),
-                                itemBuilder: (_) => actionItems,
-                                onSelected: (value) {
-                                  if (value == 'edit' && onEdit != null) {
-                                    onEdit!(item);
-                                  } else if (value == 'delete' &&
-                                      onDelete != null) {
-                                    onDelete!(item);
-                                  }
-                                },
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+        return ResponsiveDataTableWrapper(
+          minWidth: minWidth,
+          maxHeight: 560,
+          child: buildNduDataTable(
+            context: context,
+            columnSpacing: 16,
+            horizontalMargin: 12,
+            border: TableBorder.all(
+              color: const Color(0xFFE5E7EB),
+              width: 0.7,
+              borderRadius: BorderRadius.circular(10),
             ),
+            columns: const [
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'No',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Contract Scope',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Description',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Potential Contractors',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Contract Type',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Estimated Duration',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Estimated Value',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Bidding Required',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+              DataColumn(label: Center(child: Text(''))),
+            ],
+            rows: items.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              final actionItems = <PopupMenuEntry<String>>[];
+              if (onEdit != null) {
+                actionItems.add(
+                  const PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 16),
+                        SizedBox(width: 8),
+                        Text('Edit scope'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              if (onDelete != null) {
+                actionItems.add(
+                  const PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Delete', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return DataRow(
+                cells: [
+                  DataCell(Text('${index + 1}')),
+                  DataCell(_cellText(item.name, width: 170, bold: true)),
+                  DataCell(_cellText(item.description, width: 220)),
+                  DataCell(_cellText(item.notes, width: 190)),
+                  DataCell(_cellText(item.category, width: 120)),
+                  DataCell(_cellText(item.comments, width: 150)),
+                  DataCell(_cellText(_formatCurrency(item.budget), width: 130)),
+                  DataCell(_cellText(
+                    item.responsibleMember.trim().isEmpty
+                        ? 'Not Sure'
+                        : item.responsibleMember.trim(),
+                    width: 130,
+                  )),
+                  DataCell(
+                    hasActions
+                        ? PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_horiz,
+                                color: Colors.grey),
+                            itemBuilder: (_) => actionItems,
+                            onSelected: (value) {
+                              if (value == 'edit' && onEdit != null) {
+                                onEdit!(item);
+                              } else if (value == 'delete' &&
+                                  onDelete != null) {
+                                onDelete!(item);
+                              }
+                            },
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         );
       },

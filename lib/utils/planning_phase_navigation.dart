@@ -29,6 +29,10 @@ import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
+import 'package:ndu_project/utils/navigation_route_resolver.dart';
+import 'package:ndu_project/utils/phase_transition_helper.dart';
 
 class PlanningPhaseNavigation {
   static final List<PlanningPage> pages = [
@@ -228,6 +232,50 @@ class PlanningPhaseNavigation {
     return pages.indexWhere((p) => p.id == id);
   }
 
+  static bool _usesSidebarOrder(String id) {
+    return SidebarNavigationService.instance.findItemByCheckpoint(id) != null;
+  }
+
+  static SidebarItem? _nextSidebarItem(BuildContext context, String currentId) {
+    final isBasicPlan =
+        ProjectDataInherited.maybeOf(context)?.projectData.isBasicPlanProject ??
+            false;
+    return SidebarNavigationService.instance
+        .getNextAccessibleItem(currentId, isBasicPlan);
+  }
+
+  static SidebarItem? _previousSidebarItem(String currentId) {
+    return SidebarNavigationService.instance.getPreviousItem(currentId);
+  }
+
+  static Widget? resolvePreviousScreen(BuildContext context, String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      final prev = _previousSidebarItem(currentId);
+      if (prev == null) return null;
+      return NavigationRouteResolver.resolveCheckpointToScreen(
+        prev.checkpoint,
+        context,
+      );
+    }
+
+    final prev = previousPage(currentId);
+    return prev == null ? null : prev.builder(context);
+  }
+
+  static Widget? resolveNextScreen(BuildContext context, String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      final next = _nextSidebarItem(context, currentId);
+      if (next == null) return null;
+      return NavigationRouteResolver.resolveCheckpointToScreen(
+        next.checkpoint,
+        context,
+      );
+    }
+
+    final next = nextPage(currentId);
+    return next == null ? null : next.builder(context);
+  }
+
   static PlanningPage? previousPage(String currentId) {
     final index = getPageIndex(currentId);
     if (index > 0) return pages[index - 1];
@@ -243,16 +291,44 @@ class PlanningPhaseNavigation {
   }
 
   static String backLabel(String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      final prev = _previousSidebarItem(currentId);
+      return prev == null ? 'Back' : 'Back: ${prev.label}';
+    }
     final prev = previousPage(currentId);
     return prev == null ? 'Back' : 'Back: ${prev.title}';
   }
 
   static String nextLabel(String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      final next = SidebarNavigationService.instance.getNextItem(currentId);
+      return next == null ? 'Next' : 'Next: ${next.label}';
+    }
     final next = nextPage(currentId);
     return next == null ? 'Next' : 'Next: ${next.title}';
   }
 
   static void goToPrevious(BuildContext context, String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      final prev = _previousSidebarItem(currentId);
+      if (prev != null) {
+        final screen = resolvePreviousScreen(context, currentId);
+        if (screen != null) {
+          Navigator.of(context).push(
+            PhaseTransitionHelper.buildRoute(
+              context: context,
+              builder: (_) => screen,
+              destinationCheckpoint: prev.checkpoint,
+              sourceCheckpoint: currentId,
+            ),
+          );
+          return;
+        }
+      }
+      Navigator.of(context).maybePop();
+      return;
+    }
+
     final prev = previousPage(currentId);
     if (prev != null) {
       Navigator.of(context).push(MaterialPageRoute(builder: prev.builder));
@@ -262,6 +338,28 @@ class PlanningPhaseNavigation {
   }
 
   static void goToNext(BuildContext context, String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      final next = _nextSidebarItem(context, currentId);
+      if (next != null) {
+        final screen = resolveNextScreen(context, currentId);
+        if (screen != null) {
+          Navigator.of(context).push(
+            PhaseTransitionHelper.buildRoute(
+              context: context,
+              builder: (_) => screen,
+              destinationCheckpoint: next.checkpoint,
+              sourceCheckpoint: currentId,
+            ),
+          );
+          return;
+        }
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('End of Planning Phase navigation path.')),
+      );
+      return;
+    }
+
     final next = nextPage(currentId);
     if (next != null) {
       Navigator.of(context).push(MaterialPageRoute(builder: next.builder));
@@ -273,6 +371,11 @@ class PlanningPhaseNavigation {
   }
 
   static void navigateToNext(BuildContext context, String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      goToNext(context, currentId);
+      return;
+    }
+
     int index = getPageIndex(currentId);
     if (index != -1 && index < pages.length - 1) {
       final nextPage = pages[index + 1];
@@ -288,6 +391,11 @@ class PlanningPhaseNavigation {
   }
 
   static void navigateToPrevious(BuildContext context, String currentId) {
+    if (_usesSidebarOrder(currentId)) {
+      goToPrevious(context, currentId);
+      return;
+    }
+
     // Usually handled by Navigator.pop, but if we need explicit back flow:
     int index = getPageIndex(currentId);
     if (index > 0) {

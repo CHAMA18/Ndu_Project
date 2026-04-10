@@ -30,6 +30,7 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
@@ -60,6 +61,7 @@ class CoreStakeholdersScreen extends StatefulWidget {
 
 class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _reviewScrollController = ScrollController();
   late final TextEditingController _notesController;
   late List<TextEditingController>
       _internalStakeholderControllers; // Made mutable for dynamic addition
@@ -73,6 +75,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   bool _businessCaseExpanded = true;
   bool _isAdmin = false;
   bool _didInitFromProvider = false;
+  bool _reviewConfirmed = false;
   bool get _canUseAdminControls =>
       _isAdmin && AccessPolicy.isRestrictedAdminHost();
 
@@ -682,9 +685,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return ScrollIndicatorOverlay(
+      controller: _reviewScrollController,
+      child: SingleChildScrollView(
+        controller: _reviewScrollController,
+        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Expanded(
             child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -934,12 +940,20 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         const SizedBox(height: 24),
 
         // Navigation Buttons
-        BusinessCaseNavigationButtons(
-          currentScreen: 'Core Stakeholders',
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-          onNext: _handleNextPressed,
-        ),
-      ]),
+          BusinessCaseNavigationButtons(
+            currentScreen: 'Core Stakeholders',
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            onNext: _handleNextPressed,
+            isNextEnabled: _reviewConfirmed,
+            showReviewGate: true,
+            reviewConfirmed: _reviewConfirmed,
+            onReviewChanged: (value) {
+              setState(() => _reviewConfirmed = value);
+            },
+            reviewScrollController: _reviewScrollController,
+          ),
+        ]),
+      ),
     );
   }
 
@@ -1766,6 +1780,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   @override
   void dispose() {
+    _reviewScrollController.dispose();
     _notesController.dispose();
     for (final c in _internalStakeholderControllers) {
       c.dispose();

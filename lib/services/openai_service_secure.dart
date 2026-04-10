@@ -9,7 +9,52 @@ import 'package:ndu_project/models/design_phase_models.dart';
 // Remove markdown bold markers commonly produced by the model (e.g. *text* or **text**)
 String _stripAsterisks(String s) => s.replaceAll('*', '');
 
-enum _AiProjectType { physical, digital, hybrid, unknown }
+enum _AiProjectType { physical, digital, hybrid, service, unknown }
+
+String _nduProjectSystemPrompt({
+  required String specialistRole,
+  String? extraRules,
+  bool strictJson = false,
+}) {
+  final strictJsonRule = strictJson
+      ? 'Return strict JSON only and match the requested schema exactly.'
+      : 'Return only the content requested for the task.';
+  final extra = (extraRules ?? '').trim();
+
+  return '''
+You are an expert project manager assistant integrated into a project management platform called NDU Project. Your role is to generate accurate, relevant, and actionable project management content based on the project's name, description, scope, and any previously entered information.
+
+Before generating content, classify BOTH:
+1) Project type:
+- PHYSICAL / INFRASTRUCTURE: projects that require real-world construction, procurement of materials, equipment, or physical setup.
+- DIGITAL / TECHNOLOGY: projects that are primarily software, platform, or system based.
+- HYBRID: projects that require both physical setup and digital systems.
+- SERVICE / OPERATIONAL: projects focused on launching or improving a service, process, or organisation.
+2) Delivery starting point:
+- GREENFIELD (from scratch): assume this by default when context is unclear.
+- BROWNFIELD (existing physical operation/site): use when context clearly indicates existing assets/facilities/processes.
+- DIGITAL ENHANCEMENT ONLY: use when context explicitly says physical setup already exists and the request is mostly digital/system improvement.
+
+Rules for every response:
+1. Default to GREENFIELD/from scratch unless the context clearly indicates otherwise.
+2. If the context clearly states an existing operation/facility and asks mainly for digital enablement, avoid unnecessary physical setup recommendations.
+3. If the project is HYBRID, sequence recommendations realistically (physical readiness + permits/procurement where needed, then digital integration/deployment).
+4. Generate practical, specific, and actionable content that reflects real-world best practices for the detected project type and starting point.
+5. For physical projects, include materials, permits, site readiness, equipment, staffing, and operational setup when relevant.
+6. For digital projects, include technology stack, security, hosting, requirements, testing, integration, and deployment when relevant.
+7. For hybrid and service projects, cover both operational and technical realities proportionally.
+8. Do not suggest IT infrastructure for a purely physical project unless the context genuinely requires it.
+9. Do not suggest construction materials or physical installation steps for a purely digital project.
+10. Use up-to-date, non-deprecated practices and avoid generic filler.
+11. If exact product/version currency is uncertain, prefer widely adopted latest-stable practices rather than outdated or end-of-life specifics.
+12. Calibrate scope, timeline, and cost realism to project scale and context.
+13. Make assumptions explicit when context is incomplete.
+
+Your current specialist role: $specialistRole.
+$strictJsonRule
+${extra.isEmpty ? '' : extra}
+''';
+}
 
 class AiSolutionItem {
   final String title;
@@ -368,7 +413,15 @@ class OpenAiServiceSecure {
         'temperature': temperature,
         'max_tokens': maxTokens,
         'messages': [
-          {'role': 'system', 'content': 'Return only the response text.'},
+          {
+            'role': 'system',
+            'content': _nduProjectSystemPrompt(
+              specialistRole:
+                  'project planning assistant producing concise text output',
+              extraRules:
+                  'Follow the user request exactly and keep wording practical and specific.',
+            ),
+          },
           {'role': 'user', 'content': trimmedPrompt},
         ],
       });
@@ -418,8 +471,11 @@ class OpenAiServiceSecure {
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a senior delivery planner. For the requested section, draft a crisp, actionable write-up. Always return only a JSON object.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'senior delivery planner drafting crisp, actionable section write-ups',
+            strictJson: true,
+          ),
         },
         {
           'role': 'user',
@@ -1184,8 +1240,13 @@ Rules:
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a project planning assistant. Return only a JSON object.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'project planning analyst generating scope and planning entries',
+            strictJson: true,
+            extraRules:
+                'Return only a JSON object that matches the requested schema.',
+          ),
         },
         {'role': 'user', 'content': prompt}
       ],
@@ -2110,8 +2171,13 @@ Return JSON with:
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a program manager. From prior project inputs, draft tangible project opportunities. Always return a JSON object only.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'program manager drafting tangible project opportunities from prior project context',
+            strictJson: true,
+            extraRules:
+                'Draft practical, specific opportunities that fit the project type and current project context. Avoid generic business platitudes and include ownership, phase, and implementation detail when the context supports it.',
+          )
         },
         {
           'role': 'user',
@@ -2678,8 +2744,13 @@ Estimation mode: "$mode"
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a financial program manager. Suggest realistic allowance and contingency items for a project. Return strict JSON.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'financial program manager proposing realistic allowance and contingency items',
+            strictJson: true,
+            extraRules:
+                'Calibrate amounts and risk categories to the project scale and type in the provided context.',
+          ),
         },
         {
           'role': 'user',
@@ -2841,13 +2912,18 @@ $c
 
   // SOLUTIONS
   Future<List<AiSolutionItem>> generateSolutionsFromBusinessCase(
-      String businessCase) async {
+    String businessCase, {
+    String contextNotes = '',
+  }) async {
     if (businessCase.trim().isEmpty) throw Exception('Business case is empty');
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        final solutions = await _attemptSolutionsApiCall(businessCase);
+        final solutions = await _attemptSolutionsApiCall(
+          businessCase,
+          contextNotes: contextNotes,
+        );
         if (solutions.isNotEmpty) return solutions;
       } catch (e) {
         if (attempt < maxRetries - 1) await Future.delayed(retryDelay);
@@ -2858,7 +2934,9 @@ $c
   }
 
   Future<List<AiSolutionItem>> _attemptSolutionsApiCall(
-      String businessCase) async {
+    String businessCase, {
+    String contextNotes = '',
+  }) async {
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
@@ -2872,10 +2950,21 @@ $c
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a project initiation assistant. You write concise, business-friendly solution options. Always return strict JSON that matches the required schema.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'project initiation assistant creating concise, business-friendly solution options',
+            strictJson: true,
+            extraRules:
+                'When generating Potential Solutions, provide 2-3 genuinely distinct high-level approaches, not minor variations of the same idea. Prefer a greenfield/from-scratch setup for physical projects unless context clearly indicates an existing operation with digital-only enhancement needs.',
+          )
         },
-        {'role': 'user', 'content': _solutionsPrompt(businessCase)},
+        {
+          'role': 'user',
+          'content': _solutionsPrompt(
+            businessCase,
+            contextNotes: contextNotes,
+          )
+        },
       ],
     });
 
@@ -2925,8 +3014,13 @@ $c
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a risk analyst. For each provided solution, list three crisp, non-overlapping delivery risks. Be detailed and specific: do not use "etc.", "and similar", or vague groupings. State each risk explicitly in full. Return strict JSON only.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'risk analyst listing crisp, non-overlapping delivery risks per solution',
+            strictJson: true,
+            extraRules:
+                'For each provided solution, list three explicit risks. Do not use vague categories, filler text, or duplicate the same concern across solutions.',
+          )
         },
         {'role': 'user', 'content': _risksPrompt(solutions, contextNotes)},
       ],
@@ -3049,8 +3143,13 @@ $c
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a business analyst expert. Generate project requirements from business cases. Each requirement should be clear, specific, assigned, and categorized by type and implementation phase. Always return strict JSON that matches the required schema.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'business analyst generating requirements from project context',
+            strictJson: true,
+            extraRules:
+                'Each requirement should be clear, specific, assigned where possible, and categorized by requirement type and implementation phase.',
+          )
         },
         {'role': 'user', 'content': _requirementsPrompt(businessCase)},
       ],
@@ -3151,8 +3250,13 @@ $c
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a solutions architect. For each solution, list 3-6 core technologies, frameworks, services, or tools needed to implement it. Be concrete and vendor-agnostic where reasonable. Be detailed and specific: do not use "etc.", "and similar", or vague groupings. State each item explicitly. Return strict JSON only.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'solutions architect identifying the core technologies or tools each solution genuinely needs',
+            strictJson: true,
+            extraRules:
+                'For each solution, list 3-6 concrete technologies, frameworks, services, or tools. If a solution is primarily physical and does not genuinely need a digital stack, return an empty list for that solution instead of generic IT filler.',
+          )
         },
         {
           'role': 'user',
@@ -3237,10 +3341,13 @@ $c
       'messages': [
         {
           'role': 'system',
-          'content': 'You are a cost analyst. For each solution, produce a detailed cost breakdown with context-aware estimates. Return strict JSON only. '
-              'Each solution must be distinct, non-generic, and grounded in the provided scope. '
-              'Do not use placeholder round values unless explicitly supported by quantities. '
-              'If a solution is physical/infrastructure, avoid software lifecycle phases such as Discovery and Planning, MVP Build, Integration, or Data.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'cost analyst producing distinct, context-aware solution cost breakdowns',
+            strictJson: true,
+            extraRules:
+                'Each solution must be distinct, grounded in its own scope, and should not reuse the same item list or the same costs across tabs. Do not use placeholder round values unless supported by quantities. If a solution is physical or infrastructure-led, avoid software lifecycle phases such as Discovery and Planning, MVP Build, Integration, or Data unless the context clearly requires them.',
+          )
         },
         {
           'role': 'user',
@@ -3612,6 +3719,51 @@ $c
             'roi': 14.1
           },
         ];
+      case _AiProjectType.service:
+        return const [
+          {
+            'item': 'Service design and operating model definition',
+            'description':
+                'Service blueprinting, target operating model decisions, and launch planning.',
+            'cost': 38400,
+            'roi': 13.8
+          },
+          {
+            'item': 'Regulatory, policy, and compliance setup',
+            'description':
+                'Policy drafting, licensing readiness, compliance controls, and approvals.',
+            'cost': 29600,
+            'roi': 11.7
+          },
+          {
+            'item': 'Staffing, onboarding, and capability development',
+            'description':
+                'Hiring, training, role definition, and workforce readiness activities.',
+            'cost': 61200,
+            'roi': 15.2
+          },
+          {
+            'item': 'Service delivery tooling and process enablement',
+            'description':
+                'Operational workflows, customer handling processes, and support tooling.',
+            'cost': 54800,
+            'roi': 14.9
+          },
+          {
+            'item': 'Launch communications and stakeholder onboarding',
+            'description':
+                'Awareness campaigns, partner coordination, and end-user onboarding support.',
+            'cost': 27300,
+            'roi': 12.6
+          },
+          {
+            'item': 'Performance monitoring and service stabilization',
+            'description':
+                'Early-stage KPI tracking, issue resolution, and process optimization after launch.',
+            'cost': 24100,
+            'roi': 13.5
+          },
+        ];
       case _AiProjectType.unknown:
         return const [
           {
@@ -3704,6 +3856,8 @@ Context notes (optional): $safeNotes
         return 'digital';
       case _AiProjectType.hybrid:
         return 'hybrid';
+      case _AiProjectType.service:
+        return 'service';
       case _AiProjectType.unknown:
         return 'unknown';
     }
@@ -3715,6 +3869,7 @@ Context notes (optional): $safeNotes
 
     int physicalScore = 0;
     int digitalScore = 0;
+    int serviceScore = 0;
 
     bool hasAny(List<String> terms) =>
         terms.any((term) => _containsKeyword(normalized, term));
@@ -3770,14 +3925,48 @@ Context notes (optional): $safeNotes
       digitalScore += 2;
     }
 
+    if (hasAny([
+      'service',
+      'operations',
+      'operational',
+      'training programme',
+      'training program',
+      'consulting',
+      'non-profit',
+      'nonprofit',
+      'customer support',
+      'call center',
+      'help desk',
+      'programme',
+      'program',
+      'process improvement',
+      'service delivery',
+      'service launch',
+      'coaching',
+      'advisory',
+    ])) {
+      serviceScore += 4;
+    }
+
     if (physicalScore >= 4 && digitalScore >= 4) {
       return _AiProjectType.hybrid;
+    }
+    if (serviceScore >= 4 && physicalScore == 0 && digitalScore == 0) {
+      return _AiProjectType.service;
+    }
+    if (serviceScore >= 4 &&
+        ((physicalScore > 0 && digitalScore == 0) ||
+            (digitalScore > 0 && physicalScore == 0))) {
+      return _AiProjectType.service;
     }
     if (physicalScore >= digitalScore + 2 && physicalScore >= 3) {
       return _AiProjectType.physical;
     }
     if (digitalScore >= physicalScore + 2 && digitalScore >= 3) {
       return _AiProjectType.digital;
+    }
+    if (serviceScore > 0 && physicalScore == 0 && digitalScore == 0) {
+      return _AiProjectType.service;
     }
     if (physicalScore > 0 && digitalScore == 0) return _AiProjectType.physical;
     if (digitalScore > 0 && physicalScore == 0) return _AiProjectType.digital;
@@ -3986,8 +4175,13 @@ Context notes (optional): $safeNotes
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a financial analyst helping to prepare a cost-benefit analysis. Your primary focus is: "What direct financial value does this project bring to the company?" Analyze direct financial impact including ROI, cost savings, revenue potential, and quantifiable monetary benefits. While strategic and operational value are important, prioritize direct financial metrics and measurable monetary outcomes. Provide quantifiable insights when possible. Return strict JSON only.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'financial analyst preparing a solution-specific cost-benefit analysis',
+            strictJson: true,
+            extraRules:
+                'Focus on the exact solution context provided in the request and estimate direct financial value, ROI, cost savings, revenue potential, and quantifiable benefits for that solution only.',
+          )
         },
         {
           'role': 'user',
@@ -4476,8 +4670,13 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a cloud and infrastructure architect. For each solution, list the major infrastructure considerations required to operate it reliably and securely (e.g., environments, networking, security, observability, scaling, data, resiliency). Be detailed and specific: do not use "etc.", "and similar", or vague groupings. State each item explicitly. Return strict JSON only.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'cloud and infrastructure architect identifying the infrastructure considerations each solution genuinely needs',
+            strictJson: true,
+            extraRules:
+                'For each solution, list the environments, facilities, utilities, networking, hosting, resiliency, observability, security, or operational infrastructure that solution specifically requires. If a solution has little or no infrastructure footprint in one dimension, do not fill it with generic placeholders.',
+          )
         },
         {
           'role': 'user',
@@ -4877,8 +5076,11 @@ Context notes (optional): $notes
     for (var i = 0; i < items.length && normalized.length < 5; i++) {
       normalized.add(items[i]);
     }
-    // Ensure we always return exactly 5 solutions for consistency
-    while (normalized.length < 5) {
+    // Keep strong AI outputs intact; only fall back when none are usable.
+    if (normalized.isNotEmpty) {
+      return normalized;
+    }
+    while (normalized.length < 3) {
       normalized.add(AiSolutionItem(
         title: 'Solution Option ${normalized.length + 1}',
         description:
@@ -4888,8 +5090,12 @@ Context notes (optional): $notes
     return normalized;
   }
 
-  String _solutionsPrompt(String businessCase) => '''
-Generate exactly 5 concrete solution options for this business case. Each solution should be practical, achievable, and directly address the project needs.
+  String _solutionsPrompt(
+    String businessCase, {
+    String contextNotes = '',
+  }) =>
+      '''
+Generate 2-3 concrete, genuinely distinct solution options for this business case. Each solution should be practical, achievable, and directly address the project needs without being a minor variation of another option.
 
 Return ONLY valid JSON in this exact structure:
 {
@@ -4898,8 +5104,21 @@ Return ONLY valid JSON in this exact structure:
   ]
 }
 
+Decision rules you MUST follow:
+- Determine project type and starting point from the context.
+- If context is ambiguous, assume a from-scratch (greenfield) starting point.
+- If context clearly states existing operations/infrastructure and asks mainly for digital enablement, focus on digital enhancement rather than full physical setup.
+- For physical or hybrid projects that are from-scratch, include foundational real-world setup logic in descriptions (site/readiness, permits/compliance, procurement/equipment, staffing/operations).
+- For digital-focused enhancements on existing operations, emphasize integration, data migration, cybersecurity, rollout, and change management.
+- Do not include outdated, deprecated, or irrelevant practices.
+- Each option must be genuinely different in delivery strategy (not wording variants).
+- In each description, explicitly indicate the assumed starting point (from-scratch vs existing operation enhancement) and first key workstreams.
+
 Project Context:
 $businessCase
+
+Additional Cross-Page Context:
+${contextNotes.trim().isEmpty ? 'None provided.' : contextNotes}
 ''';
 
   String _normalizeRequirementPhase(dynamic rawValue) {
@@ -5276,8 +5495,13 @@ $escaped
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a launch-phase analyst. Generate concise, realistic table entries for each section key provided. Always return ONLY valid JSON matching the requested schema.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'launch-phase analyst generating concise and realistic table entries',
+            strictJson: true,
+            extraRules:
+                'Return only valid JSON matching the requested schema for each section key.',
+          ),
         },
         {
           'role': 'user',
@@ -5345,8 +5569,13 @@ $escaped
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a staffing specialist. Generate $maxSuggestions relevant staffing role suggestions based on the project context and preferred solution. Return ONLY valid JSON with a "roles" array of role name strings. Each role should be specific and relevant to the project domain (e.g., "Health Data Privacy Expert" for healthcare projects, "UI/UX Designer" for app projects).'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'staffing specialist proposing role profiles for project delivery',
+            strictJson: true,
+            extraRules:
+                'Return only valid JSON with a "roles" array and keep roles domain-specific to the project context.',
+          ),
         },
         {
           'role': 'user',
@@ -6817,8 +7046,13 @@ Context notes (optional): $notes
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a risk analyst. Generate realistic project risks based on the preferred solution and project context. Use project-type and location cues from context (e.g., regulatory, permitting, weather, labor, utilities, site constraints) and avoid generic filler. For each risk, provide Title, Category, Probability (Low/Medium/High), Impact (Low/Medium/High), Mitigation Strategy, Discipline, and Project Role. Return strict JSON only.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'risk analyst generating realistic front-end planning risks from preferred-solution context',
+            strictJson: true,
+            extraRules:
+                'Use project type and location cues from context, including regulatory, permitting, weather, labor, utilities, site, operational, service, or technology constraints as relevant. For each risk, provide title, category, probability, impact, mitigation strategy, discipline, and project role. Avoid generic filler and duplicate risks.',
+          )
         },
         {
           'role': 'user',
@@ -7200,8 +7434,13 @@ $escaped
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a procurement specialist. Generate realistic vendor suggestions based on project context. Return a JSON object with: name (vendor company name), category (matching the requested category), rating (1-5 integer), approved (boolean), preferred (boolean).'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'procurement specialist proposing realistic vendors for project procurement needs',
+            strictJson: true,
+            extraRules:
+                'Return a JSON object with keys: name, category, rating, approved, preferred.',
+          ),
         },
         {
           'role': 'user',
@@ -7340,8 +7579,13 @@ Return ONLY valid JSON.
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a procurement specialist. Generate realistic procurement item suggestions tailored to project type, region, and scope context. Prioritize long-lead and schedule-critical items when relevant. Return JSON with: name (item name), description (brief description), category (matching requested), budget (estimated cost as integer), priority (one of: critical, high, medium, low), estimatedDeliveryDays (days from now as integer, typically 30-180).'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'procurement planner generating realistic procurement item suggestions',
+            strictJson: true,
+            extraRules:
+                'Prioritize long-lead and schedule-critical items when relevant and return keys: name, description, category, budget, priority, estimatedDeliveryDays.',
+          ),
         },
         {
           'role': 'user',
@@ -7517,8 +7761,13 @@ Return ONLY valid JSON.
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a senior contracts strategist. Build contract scope packages tailored to the exact project type and location context. Use patterns from similar projects globally, but localize for regional regulations, labor availability, logistics, permitting, and market conditions. Return strict JSON only.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'senior contracts strategist building context-aware contract scope packages',
+            strictJson: true,
+            extraRules:
+                'Localize outputs for regional regulations, labor availability, logistics, permitting, and market conditions.',
+          ),
         },
         {
           'role': 'user',
@@ -8001,8 +8250,13 @@ Return ONLY valid JSON in this exact structure:
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a procurement specialist. Return strict JSON with an "items" array for RFQs.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'procurement specialist drafting context-aware RFQ entries',
+            strictJson: true,
+            extraRules:
+                'Return strict JSON with an "items" array for RFQs only.',
+          ),
         },
         {
           'role': 'user',
@@ -8054,8 +8308,13 @@ Return ONLY JSON: {"items":[...]}'''
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a procurement specialist. Return strict JSON with a "items" array for purchase orders.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'procurement specialist drafting context-aware purchase order entries',
+            strictJson: true,
+            extraRules:
+                'Return strict JSON with an "items" array for purchase orders only.',
+          ),
         },
         {
           'role': 'user',
@@ -8107,8 +8366,12 @@ Return ONLY JSON: {"items":[...]}'''
       'messages': [
         {
           'role': 'system',
-          'content':
-              'You are a procurement specialist. Return strict JSON with "items" for tracking.'
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'procurement tracking analyst generating shipment and status tracking entries',
+            strictJson: true,
+            extraRules: 'Return strict JSON with an "items" array only.',
+          ),
         },
         {
           'role': 'user',

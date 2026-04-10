@@ -31,6 +31,7 @@ import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
@@ -59,6 +60,7 @@ class ITConsiderationsScreen extends StatefulWidget {
 
 class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _reviewScrollController = ScrollController();
   late final TextEditingController _notesController;
   late List<TextEditingController>
       _techControllers; // one per solution (now mutable)
@@ -71,6 +73,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   bool _frontEndExpanded = true;
   bool _isAdmin = false;
   bool _didInitFromProvider = false;
+  bool _reviewConfirmed = false;
 
   // ignore: unused_element
   void _addNewItem() {
@@ -1430,9 +1433,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return ScrollIndicatorOverlay(
+      controller: _reviewScrollController,
+      child: SingleChildScrollView(
+        controller: _reviewScrollController,
+        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           const EditableContentText(
               contentKey: 'it_considerations_heading',
@@ -1567,12 +1573,20 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         const SizedBox(height: 24),
 
         // Navigation Buttons
-        BusinessCaseNavigationButtons(
-          currentScreen: 'IT Considerations',
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-          onNext: _openInfrastructureConsiderations,
-        ),
-      ]),
+          BusinessCaseNavigationButtons(
+            currentScreen: 'IT Considerations',
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            onNext: _openInfrastructureConsiderations,
+            isNextEnabled: _reviewConfirmed,
+            showReviewGate: true,
+            reviewConfirmed: _reviewConfirmed,
+            onReviewChanged: (value) {
+              setState(() => _reviewConfirmed = value);
+            },
+            reviewScrollController: _reviewScrollController,
+          ),
+        ]),
+      ),
     );
   }
 
@@ -1802,6 +1816,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   @override
   void dispose() {
+    _reviewScrollController.dispose();
     _notesController.dispose();
     for (final c in _techControllers) {
       c.dispose();

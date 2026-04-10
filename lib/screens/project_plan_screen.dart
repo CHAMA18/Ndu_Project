@@ -135,6 +135,62 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
     super.dispose();
   }
 
+  Future<void> _openEditPlanShortcuts() async {
+    if (!mounted) return;
+    final selection = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text(
+                'Edit Plan Section',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_outlined),
+              title: const Text('Overview'),
+              onTap: () => Navigator.of(sheetContext).pop(0),
+            ),
+            ListTile(
+              leading: const Icon(Icons.people_outline),
+              title: const Text('Resources'),
+              onTap: () => Navigator.of(sheetContext).pop(1),
+            ),
+            ListTile(
+              leading: const Icon(Icons.task_alt_outlined),
+              title: const Text('Tasks'),
+              onTap: () => Navigator.of(sheetContext).pop(2),
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined),
+              title: const Text('Budget'),
+              onTap: () => Navigator.of(sheetContext).pop(3),
+            ),
+            ListTile(
+              leading: const Icon(Icons.warning_amber_outlined),
+              title: const Text('Risks'),
+              onTap: () => Navigator.of(sheetContext).pop(4),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || selection == null) return;
+    _tabController.animateTo(selection);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Section opened. Edit fields inline to update the plan.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isMobile = AppBreakpoints.isMobile(context);
@@ -329,7 +385,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
 
   Widget _buildEditPlanButton() {
     return ElevatedButton.icon(
-      onPressed: () {},
+      onPressed: _openEditPlanShortcuts,
       icon: const Icon(Icons.edit_outlined, size: 18),
       label: const Text('Edit Plan'),
       style: ElevatedButton.styleFrom(

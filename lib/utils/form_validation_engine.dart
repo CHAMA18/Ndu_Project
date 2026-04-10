@@ -183,10 +183,10 @@ class FormValidationEngine {
     FormValidationResult result, {
     String title = 'Missing Required Information',
     String intro =
-        'Please complete the following required fields before continuing.',
-    String manualActionLabel = 'Add Missing Info',
+        'The following fields are recommended before continuing. You can still proceed and complete them later.',
+    String manualActionLabel = 'Edit on Page',
     String autoFillActionLabel = 'Auto-fill with AI',
-    String skipActionLabel = 'Skip for now',
+    String skipActionLabel = 'Continue Anyway',
     bool showAutoFillAction = false,
     int maxItems = 6,
     int dialogWidth = 560,
@@ -209,7 +209,7 @@ class FormValidationEngine {
       builder: (dialogContext) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Color(0xFFB45309)),
+            const Icon(Icons.info_outline_rounded, color: Color(0xFFB45309)),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
@@ -252,36 +252,31 @@ class FormValidationEngine {
                     color: Color(0xFF374151),
                   ),
                 ),
-              const SizedBox(height: 12),
-              const Text(
-                'Choose one option:',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF6B7280),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(MissingRequirementsAction.skip),
-            child: Text(skipActionLabel),
-          ),
-          OutlinedButton(
-            onPressed: () => Navigator.of(dialogContext)
-                .pop(MissingRequirementsAction.manual),
-            child: Text(manualActionLabel),
-          ),
           if (showAutoFillAction)
-            ElevatedButton.icon(
+            TextButton.icon(
               onPressed: () => Navigator.of(dialogContext)
                   .pop(MissingRequirementsAction.autoFill),
               icon: const Icon(Icons.auto_awesome, size: 16),
               label: Text(autoFillActionLabel),
             ),
+          OutlinedButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(MissingRequirementsAction.manual),
+            child: Text(manualActionLabel),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(MissingRequirementsAction.skip),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+            ),
+            child: Text(skipActionLabel),
+          ),
         ],
       ),
     );

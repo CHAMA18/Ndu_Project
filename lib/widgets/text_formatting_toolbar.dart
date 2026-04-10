@@ -25,6 +25,8 @@ class _TextFormattingToolbarState extends State<TextFormattingToolbar> {
   final List<String> _undoHistory = [];
   static const int _maxUndoHistory = 50;
   bool _isUndoAvailable = false;
+  bool _isExpanded = false;
+  bool _manuallyExpanded = false;
 
   bool get _showHeadingButtons =>
       widget.controller is! AutoBulletTextController;
@@ -33,16 +35,20 @@ class _TextFormattingToolbarState extends State<TextFormattingToolbar> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onTextChanged);
+    FocusManager.instance.addListener(_handleFocusChange);
     _saveToHistory();
+    _syncToolbarVisibility();
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
+    FocusManager.instance.removeListener(_handleFocusChange);
     super.dispose();
   }
 
   void _onTextChanged() {
+    _syncToolbarVisibility();
     // Save to history on significant changes (debounced)
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted &&
@@ -51,6 +57,30 @@ class _TextFormattingToolbarState extends State<TextFormattingToolbar> {
         _saveToHistory();
       }
     });
+  }
+
+  void _handleFocusChange() {
+    _syncToolbarVisibility();
+  }
+
+  bool get _hasActiveSelection {
+    final selection = widget.controller.selection;
+    return selection.baseOffset >= 0 && selection.extentOffset >= 0;
+  }
+
+  void _syncToolbarVisibility() {
+    if (!mounted) return;
+
+    if (_manuallyExpanded && !_hasActiveSelection) {
+      _manuallyExpanded = false;
+    }
+    final shouldExpand = _hasActiveSelection || _manuallyExpanded;
+
+    if (_isExpanded != shouldExpand) {
+      setState(() {
+        _isExpanded = shouldExpand;
+      });
+    }
   }
 
   void _saveToHistory() {
@@ -174,6 +204,46 @@ class _TextFormattingToolbarState extends State<TextFormattingToolbar> {
   Widget build(BuildContext context) {
     if (!widget.enabled) return const SizedBox.shrink();
 
+    if (!_isExpanded) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Tooltip(
+          message: 'Show formatting tools',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () {
+              setState(() {
+                _manuallyExpanded = true;
+                _isExpanded = true;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.edit_note_rounded, size: 18),
+                  SizedBox(width: 6),
+                  Text(
+                    'Format',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -220,6 +290,17 @@ class _TextFormattingToolbarState extends State<TextFormattingToolbar> {
               tooltip: 'Undo',
               onPressed: _isUndoAvailable ? _undo : null,
               isDisabled: !_isUndoAvailable,
+            ),
+            const VerticalDivider(width: 1, thickness: 1),
+            _ToolbarButton(
+              icon: Icons.close_rounded,
+              tooltip: 'Hide formatting tools',
+              onPressed: () {
+                setState(() {
+                  _manuallyExpanded = false;
+                  _isExpanded = false;
+                });
+              },
             ),
           ],
         ),

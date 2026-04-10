@@ -10,6 +10,7 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
@@ -211,7 +212,7 @@ class _FrontEndPlanningMilestoneScreenState
     return FormValidationEngine.validateForm(rules);
   }
 
-  Future<void> _saveAndClose({bool skippedValidation = false}) async {
+  Future<void> _saveAndNavigate({bool skippedValidation = false}) async {
     if (skippedValidation && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -224,9 +225,8 @@ class _FrontEndPlanningMilestoneScreenState
     }
     await ProjectDataHelper.getProvider(context)
         .saveToFirebase(checkpoint: 'fep_milestone');
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
+    if (!mounted) return;
+    FrontEndPlanningNavigation.goToNext(context, 'fep_milestone');
   }
 
   Future<void> _autoFillMilestoneRequirements(
@@ -261,7 +261,7 @@ class _FrontEndPlanningMilestoneScreenState
         validation,
         title: 'Milestone Requirements Missing',
         intro:
-            'Please complete the following milestone fields before continuing.',
+            'Please complete the following milestone fields before continuing, or choose Skip for now.',
         manualActionLabel: 'Add Milestone Details',
         showAutoFillAction: true,
         autoFillActionLabel: 'Auto-fill with AI',
@@ -272,7 +272,7 @@ class _FrontEndPlanningMilestoneScreenState
         if (_validationErrors.isNotEmpty) {
           setState(() => _validationErrors = const {});
         }
-        await _saveAndClose(skippedValidation: true);
+        await _saveAndNavigate(skippedValidation: true);
         return;
       }
 
@@ -293,14 +293,8 @@ class _FrontEndPlanningMilestoneScreenState
           return;
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Continuing with incomplete milestone details. You can complete them later or auto-fill them later.',
-            ),
-          ),
-        );
-        await _saveAndClose(skippedValidation: true);
+        FormValidationEngine.showValidationSnackBar(context, validation);
+        await FormValidationEngine.scrollToFirstIssue(validation);
         return;
       }
     }
@@ -309,7 +303,7 @@ class _FrontEndPlanningMilestoneScreenState
       setState(() => _validationErrors = const {});
     }
 
-    await _saveAndClose();
+    await _saveAndNavigate();
   }
 
   DateTime? _parseDate(String dateStr) {
@@ -1021,7 +1015,10 @@ Consider typical project timelines and ensure end date is after start date.''';
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => FrontEndPlanningNavigation.goToPrevious(
+                  context,
+                  'fep_milestone',
+                ),
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('Back'),
                 style: OutlinedButton.styleFrom(

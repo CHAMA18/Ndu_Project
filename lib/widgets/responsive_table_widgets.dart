@@ -218,3 +218,117 @@ class TruncatedTableCell extends StatelessWidget {
         : textWidget;
   }
 }
+
+List<DataRow> nduZebraRows(
+  BuildContext context,
+  List<DataRow> rows, {
+  Color? oddRowColor,
+  Color? evenRowColor,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final resolvedEven =
+      evenRowColor ?? (isDark ? const Color(0xFF151922) : Colors.white);
+  final resolvedOdd = oddRowColor ??
+      (isDark ? const Color(0xFF10151D) : const Color(0xFFFAFCFF));
+
+  return rows.asMap().entries.map((entry) {
+    final index = entry.key;
+    final row = entry.value;
+    return DataRow.byIndex(
+      index: index,
+      selected: row.selected,
+      onSelectChanged: row.onSelectChanged,
+      onLongPress: row.onLongPress,
+      mouseCursor: row.mouseCursor,
+      color: row.color ??
+          WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return isDark ? const Color(0xFF1F2937) : const Color(0xFFEFF6FF);
+            }
+            return index.isOdd ? resolvedOdd : resolvedEven;
+          }),
+      cells: row.cells,
+    );
+  }).toList(growable: false);
+}
+
+DataTable buildNduDataTable({
+  required BuildContext context,
+  required List<DataColumn> columns,
+  required List<DataRow> rows,
+  double columnSpacing = 20,
+  double horizontalMargin = 16,
+  double headingRowHeight = 56,
+  double dataRowMinHeight = 56,
+  double dataRowMaxHeight = 120,
+  TableBorder? border,
+  bool zebra = true,
+  Color? headingRowColor,
+  bool showCheckboxColumn = false,
+  TextStyle? headingTextStyle,
+  TextStyle? dataTextStyle,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final resolvedHeadingColor = headingRowColor ??
+      (isDark ? const Color(0xFF1F2937) : const Color(0xFFF5F8FC));
+  final normalizedRows = zebra ? nduZebraRows(context, rows) : rows;
+
+  final resolvedHeadingTextStyle = headingTextStyle ??
+      TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+        letterSpacing: 0.2,
+      );
+  final resolvedDataTextStyle = dataTextStyle ??
+      TextStyle(
+        fontSize: 13,
+        height: 1.35,
+        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A),
+      );
+
+  return DataTable(
+    showCheckboxColumn: showCheckboxColumn,
+    headingRowColor: WidgetStatePropertyAll(resolvedHeadingColor),
+    headingTextStyle: resolvedHeadingTextStyle,
+    dataTextStyle: resolvedDataTextStyle,
+    dividerThickness: 0.7,
+    columnSpacing: columnSpacing,
+    horizontalMargin: horizontalMargin,
+    headingRowHeight: headingRowHeight,
+    dataRowMinHeight: dataRowMinHeight,
+    dataRowMaxHeight: dataRowMaxHeight,
+    border: border,
+    columns: columns,
+    rows: normalizedRows,
+  );
+}
+
+Widget buildNduTableEmptyState(
+  BuildContext context, {
+  required String message,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
+    decoration: BoxDecoration(
+      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+      ),
+    ),
+    child: Center(
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+        ),
+      ),
+    ),
+  );
+}

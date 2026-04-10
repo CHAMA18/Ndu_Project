@@ -40,6 +40,88 @@ class _FrontEndPlanningPersonnelScreenState
     super.dispose();
   }
 
+  Future<void> _handleAddRolePressed() async {
+    final roleController = TextEditingController();
+    final definitionController = TextEditingController();
+    try {
+      final payload = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Add Role and Description'),
+            content: SizedBox(
+              width: 520,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: roleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Role',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: definitionController,
+                    minLines: 3,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      labelText: 'Definition',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final role = roleController.text.trim();
+                  final definition = definitionController.text.trim();
+                  if (role.isEmpty || definition.isEmpty) {
+                    return;
+                  }
+                  Navigator.of(dialogContext).pop({
+                    'role': role,
+                    'definition': definition,
+                  });
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          );
+        },
+      );
+      if (!mounted || payload == null) return;
+
+      final role = payload['role'] ?? '';
+      final definition = payload['definition'] ?? '';
+      if (role.isEmpty || definition.isEmpty) return;
+
+      final existing = _notes.text.trim();
+      final roleLine = 'Role: $role — $definition';
+      final nextText = existing.isEmpty ? roleLine : '$existing\n$roleLine';
+      setState(() {
+        _notes.text = nextText;
+        _notes.selection = TextSelection.collapsed(offset: _notes.text.length);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Role entry added to notes.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      roleController.dispose();
+      definitionController.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ProgramWorkspaceScaffold(
@@ -63,10 +145,10 @@ class _FrontEndPlanningPersonnelScreenState
                       const SizedBox(height: 22),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
-                        children: const [
-                          Expanded(child: _SectionTitle()),
-                          SizedBox(width: 12),
-                          _AddRoleButton(),
+                        children: [
+                          const Expanded(child: _SectionTitle()),
+                          const SizedBox(width: 12),
+                          _AddRoleButton(onPressed: _handleAddRolePressed),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -121,14 +203,16 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _AddRoleButton extends StatelessWidget {
-  const _AddRoleButton();
+  const _AddRoleButton({required this.onPressed});
+
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 44,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: const Color(0xFFF2F4F7),
           foregroundColor: const Color(0xFF111827),

@@ -14,6 +14,8 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 /// Front End Planning – Details (Scope, Assumptions, Constraints)
@@ -61,6 +63,7 @@ class FrontEndPlanningWorkspaceScreen extends StatefulWidget {
 class _FrontEndPlanningWorkspaceScreenState
     extends State<FrontEndPlanningWorkspaceScreen> {
   // We keep local controllers/lists to manage state before sync
+  final ScrollController _contentScrollController = ScrollController();
   final TextEditingController _notesController = RichTextEditingController();
 
   // Note: We are migrating away from a big "Summary" text block to structured fields.
@@ -78,6 +81,7 @@ class _FrontEndPlanningWorkspaceScreenState
   // AI Service
   final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
   bool _isGenerating = false;
+  bool _reviewConfirmed = false;
   final Map<String, List<List<String>>> _listUndoHistory =
       <String, List<List<String>>>{};
   static const int _maxUndoSnapshotsPerList = 20;
@@ -165,6 +169,35 @@ class _FrontEndPlanningWorkspaceScreenState
     );
   }
 
+  Future<void> _handleNextPressed() async {
+    if (!_reviewConfirmed) {
+      final continueAnyway = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Some Information Is Still Missing',
+        message:
+            'You have not confirmed this page yet. You can continue now and return later to complete details, or stay and update information now.',
+      );
+      if (!continueAnyway || !mounted) return;
+    }
+
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'fep_details_complete',
+      saveInBackground: true,
+      nextScreenBuilder: () => const FrontEndPlanningRequirementsScreen(),
+      dataUpdater: (data) => data.copyWith(
+        withinScope: _withinScope,
+        outOfScope: _outOfScope,
+        assumptions: _assumptions,
+        constraints: _constraints,
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          summary: _summaryController.text,
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -219,6 +252,7 @@ class _FrontEndPlanningWorkspaceScreenState
 
   @override
   void dispose() {
+    _contentScrollController.dispose();
     _notesController.dispose();
     _summaryController.dispose();
     super.dispose();
@@ -384,184 +418,195 @@ class _FrontEndPlanningWorkspaceScreenState
                       const InitiationLikeSidebar(activeItemLabel: 'Details'),
                 ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const FrontEndPlanningHeader(),
-                        const SizedBox(height: 24),
+                  child: ScrollIndicatorOverlay(
+                    controller: _contentScrollController,
+                    child: SingleChildScrollView(
+                      controller: _contentScrollController,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const FrontEndPlanningHeader(),
+                          const SizedBox(height: 24),
 
-                        // Structured Cards Grid/Column
-                        // We use a column of full-width cards or wrapped cards
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _ListEditorCard(
-                                title: 'Within Project Scope',
-                                items: _withinScope,
-                                icon: Icons.check_circle_outline,
-                                color: Colors.green,
-                                onGenerate: () =>
-                                    _generateList('scope', 'Within Scope'),
-                                onUndo: () => _undoListChange('scope'),
-                                canUndo: _canUndo('scope'),
-                                onItemAdded: (val) => _updateList(
-                                    'scope', [..._withinScope, val]),
-                                onItemDeleted: (index) {
-                                  if (index < 0 ||
-                                      index >= _withinScope.length) {
-                                    return;
-                                  }
-                                  final l = [..._withinScope];
-                                  l.removeAt(index);
-                                  _updateList('scope', l);
-                                },
-                                onItemEdited: (index, val) {
-                                  final l = [..._withinScope];
-                                  l[index] = val;
-                                  _updateList('scope', l);
-                                },
+                          // Structured Cards Grid/Column
+                          // We use a column of full-width cards or wrapped cards
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _ListEditorCard(
+                                  title: 'Within Project Scope',
+                                  items: _withinScope,
+                                  icon: Icons.check_circle_outline,
+                                  color: Colors.green,
+                                  onGenerate: () =>
+                                      _generateList('scope', 'Within Scope'),
+                                  onUndo: () => _undoListChange('scope'),
+                                  canUndo: _canUndo('scope'),
+                                  onItemAdded: (val) => _updateList(
+                                      'scope', [..._withinScope, val]),
+                                  onItemDeleted: (index) {
+                                    if (index < 0 ||
+                                        index >= _withinScope.length) {
+                                      return;
+                                    }
+                                    final l = [..._withinScope];
+                                    l.removeAt(index);
+                                    _updateList('scope', l);
+                                  },
+                                  onItemEdited: (index, val) {
+                                    final l = [..._withinScope];
+                                    l[index] = val;
+                                    _updateList('scope', l);
+                                  },
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _ListEditorCard(
-                                title: 'Out of Project Scope',
-                                items: _outOfScope,
-                                icon: Icons.cancel_presentation_outlined,
-                                color: Colors.red,
-                                onGenerate: () =>
-                                    _generateList('out', 'Out of Scope'),
-                                onUndo: () => _undoListChange('out'),
-                                canUndo: _canUndo('out'),
-                                onItemAdded: (val) =>
-                                    _updateList('out', [..._outOfScope, val]),
-                                onItemDeleted: (index) {
-                                  if (index < 0 ||
-                                      index >= _outOfScope.length) {
-                                    return;
-                                  }
-                                  final l = [..._outOfScope];
-                                  l.removeAt(index);
-                                  _updateList('out', l);
-                                },
-                                onItemEdited: (index, val) {
-                                  final l = [..._outOfScope];
-                                  l[index] = val;
-                                  _updateList('out', l);
-                                },
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: _ListEditorCard(
+                                  title: 'Out of Project Scope',
+                                  items: _outOfScope,
+                                  icon: Icons.cancel_presentation_outlined,
+                                  color: Colors.red,
+                                  onGenerate: () =>
+                                      _generateList('out', 'Out of Scope'),
+                                  onUndo: () => _undoListChange('out'),
+                                  canUndo: _canUndo('out'),
+                                  onItemAdded: (val) =>
+                                      _updateList('out', [..._outOfScope, val]),
+                                  onItemDeleted: (index) {
+                                    if (index < 0 ||
+                                        index >= _outOfScope.length) {
+                                      return;
+                                    }
+                                    final l = [..._outOfScope];
+                                    l.removeAt(index);
+                                    _updateList('out', l);
+                                  },
+                                  onItemEdited: (index, val) {
+                                    final l = [..._outOfScope];
+                                    l[index] = val;
+                                    _updateList('out', l);
+                                  },
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _ListEditorCard(
-                                title: 'Project Assumptions',
-                                items: _assumptions,
-                                icon: Icons.lightbulb_outline,
-                                color: Colors.amber,
-                                onGenerate: () =>
-                                    _generateList('assumptions', 'Assumptions'),
-                                onUndo: () => _undoListChange('assumptions'),
-                                canUndo: _canUndo('assumptions'),
-                                onItemAdded: (val) => _updateList(
-                                    'assumptions', [..._assumptions, val]),
-                                onItemDeleted: (index) {
-                                  if (index < 0 ||
-                                      index >= _assumptions.length) {
-                                    return;
-                                  }
-                                  final l = [..._assumptions];
-                                  l.removeAt(index);
-                                  _updateList('assumptions', l);
-                                },
-                                onItemEdited: (index, val) {
-                                  final l = [..._assumptions];
-                                  l[index] = val;
-                                  _updateList('assumptions', l);
-                                },
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _ListEditorCard(
+                                  title: 'Project Assumptions',
+                                  items: _assumptions,
+                                  icon: Icons.lightbulb_outline,
+                                  color: Colors.amber,
+                                  onGenerate: () => _generateList(
+                                      'assumptions', 'Assumptions'),
+                                  onUndo: () => _undoListChange('assumptions'),
+                                  canUndo: _canUndo('assumptions'),
+                                  onItemAdded: (val) => _updateList(
+                                      'assumptions', [..._assumptions, val]),
+                                  onItemDeleted: (index) {
+                                    if (index < 0 ||
+                                        index >= _assumptions.length) {
+                                      return;
+                                    }
+                                    final l = [..._assumptions];
+                                    l.removeAt(index);
+                                    _updateList('assumptions', l);
+                                  },
+                                  onItemEdited: (index, val) {
+                                    final l = [..._assumptions];
+                                    l[index] = val;
+                                    _updateList('assumptions', l);
+                                  },
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _ListEditorCard(
-                                title: 'Project Constraints',
-                                items: _constraints,
-                                icon: Icons.gavel_outlined,
-                                color: Colors.orange,
-                                onGenerate: () =>
-                                    _generateList('constraints', 'Constraints'),
-                                onUndo: () => _undoListChange('constraints'),
-                                canUndo: _canUndo('constraints'),
-                                onItemAdded: (val) => _updateList(
-                                    'constraints', [..._constraints, val]),
-                                onItemDeleted: (index) {
-                                  if (index < 0 ||
-                                      index >= _constraints.length) {
-                                    return;
-                                  }
-                                  final l = [..._constraints];
-                                  l.removeAt(index);
-                                  _updateList('constraints', l);
-                                },
-                                onItemEdited: (index, val) {
-                                  final l = [..._constraints];
-                                  l[index] = val;
-                                  _updateList('constraints', l);
-                                },
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: _ListEditorCard(
+                                  title: 'Project Constraints',
+                                  items: _constraints,
+                                  icon: Icons.gavel_outlined,
+                                  color: Colors.orange,
+                                  onGenerate: () => _generateList(
+                                      'constraints', 'Constraints'),
+                                  onUndo: () => _undoListChange('constraints'),
+                                  canUndo: _canUndo('constraints'),
+                                  onItemAdded: (val) => _updateList(
+                                      'constraints', [..._constraints, val]),
+                                  onItemDeleted: (index) {
+                                    if (index < 0 ||
+                                        index >= _constraints.length) {
+                                      return;
+                                    }
+                                    final l = [..._constraints];
+                                    l.removeAt(index);
+                                    _updateList('constraints', l);
+                                  },
+                                  onItemEdited: (index, val) {
+                                    final l = [..._constraints];
+                                    l[index] = val;
+                                    _updateList('constraints', l);
+                                  },
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
 
-                        const SizedBox(height: 32),
-                        const Divider(),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 32),
+                          const Divider(),
+                          const SizedBox(height: 24),
 
-                        // Executive Summary Section (Legacy/Fallback)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: const [
-                            EditableContentText(
-                              contentKey: 'fep_workspace_summary_title',
-                              fallback: 'Executive Summary',
-                              category: 'front_end_planning',
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87),
-                            ),
-                            SizedBox(width: 8),
-                            EditableContentText(
-                              contentKey: 'fep_workspace_summary_subtitle',
-                              fallback:
-                                  '(Brief high-level overview not captured above)',
-                              category: 'front_end_planning',
-                              style: TextStyle(
-                                  fontSize: 13, color: Color(0xFF6B7280)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _roundedField(
-                          context,
-                          controller: _summaryController,
-                          hint: 'Enter executive summary...',
-                          minLines: 6,
-                          onChanged: (_) {
-                            // Debounce save logic could be added here
-                          },
-                        ),
-
-                        const SizedBox(height: 120),
-                      ],
+                          // Executive Summary Section (Legacy/Fallback)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: const [
+                              EditableContentText(
+                                contentKey: 'fep_workspace_summary_title',
+                                fallback: 'Executive Summary',
+                                category: 'front_end_planning',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87),
+                              ),
+                              SizedBox(width: 8),
+                              EditableContentText(
+                                contentKey: 'fep_workspace_summary_subtitle',
+                                fallback:
+                                    '(Brief high-level overview not captured above)',
+                                category: 'front_end_planning',
+                                style: TextStyle(
+                                    fontSize: 13, color: Color(0xFF6B7280)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _roundedField(
+                            context,
+                            controller: _summaryController,
+                            hint: 'Enter executive summary...',
+                            minLines: 6,
+                            onChanged: (_) {
+                              // Debounce save logic could be added here
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          ProceedConfirmationGate(
+                            value: _reviewConfirmed,
+                            onChanged: (value) {
+                              setState(() => _reviewConfirmed = value);
+                            },
+                            scrollController: _contentScrollController,
+                          ),
+                          const SizedBox(height: 120),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -577,25 +622,7 @@ class _FrontEndPlanningWorkspaceScreenState
                 const KazAiChatBubble(positioned: false),
                 const SizedBox(width: 16),
                 ElevatedButton(
-                  onPressed: () {
-                    ProjectDataHelper.saveAndNavigate(
-                      context: context,
-                      checkpoint: 'fep_details_complete',
-                      saveInBackground: true,
-                      nextScreenBuilder: () =>
-                          const FrontEndPlanningRequirementsScreen(),
-                      dataUpdater: (data) => data.copyWith(
-                        withinScope: _withinScope,
-                        outOfScope: _outOfScope,
-                        assumptions: _assumptions,
-                        constraints: _constraints,
-                        frontEndPlanning: ProjectDataHelper.updateFEPField(
-                          current: data.frontEndPlanning,
-                          summary: _summaryController.text,
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: _handleNextPressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC812),
                     foregroundColor: const Color(0xFF111827),

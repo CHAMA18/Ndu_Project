@@ -30,6 +30,7 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
@@ -60,6 +61,7 @@ class InfrastructureConsiderationsScreen extends StatefulWidget {
 class _InfrastructureConsiderationsScreenState
     extends State<InfrastructureConsiderationsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _reviewScrollController = ScrollController();
   late final TextEditingController _notesController;
   late List<TextEditingController>
       _infraControllers; // Made mutable for dynamic addition
@@ -71,6 +73,7 @@ class _InfrastructureConsiderationsScreenState
       _isAdmin && AccessPolicy.isRestrictedAdminHost();
   final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
   bool _isGeneratingInfra = false;
+  bool _reviewConfirmed = false;
 
   void _addNewItem() {
     if (!_canUseAdminControls) return;
@@ -266,6 +269,7 @@ class _InfrastructureConsiderationsScreenState
 
   @override
   void dispose() {
+    _reviewScrollController.dispose();
     _notesController.dispose();
     for (final controller in _infraControllers) {
       controller.dispose();
@@ -1086,9 +1090,12 @@ class _InfrastructureConsiderationsScreenState
 
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return ScrollIndicatorOverlay(
+      controller: _reviewScrollController,
+      child: SingleChildScrollView(
+        controller: _reviewScrollController,
+        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           const EditableContentText(
               contentKey: 'infrastructure_considerations_heading',
@@ -1227,12 +1234,20 @@ class _InfrastructureConsiderationsScreenState
         ],
 
         // Navigation Buttons
-        BusinessCaseNavigationButtons(
-          currentScreen: 'Infrastructure Considerations',
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-          onNext: _handleNextPressed,
-        ),
-      ]),
+          BusinessCaseNavigationButtons(
+            currentScreen: 'Infrastructure Considerations',
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            onNext: _handleNextPressed,
+            isNextEnabled: _reviewConfirmed,
+            showReviewGate: true,
+            reviewConfirmed: _reviewConfirmed,
+            onReviewChanged: (value) {
+              setState(() => _reviewConfirmed = value);
+            },
+            reviewScrollController: _reviewScrollController,
+          ),
+        ]),
+      ),
     );
   }
 

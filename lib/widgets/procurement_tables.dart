@@ -57,10 +57,10 @@ class _ContractsTableState extends State<ContractsTable> {
             ResponsiveDataTableWrapper(
               minWidth: constraints.maxWidth,
               maxHeight: 560,
-              child: DataTable(
+              child: buildNduDataTable(
+                context: context,
                 columnSpacing: 24,
                 horizontalMargin: 16,
-                headingRowColor: WidgetStateProperty.all(Colors.grey[50]),
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 72,
                 border: TableBorder(
@@ -304,10 +304,10 @@ class _ProcurementTableState extends State<ProcurementTable> {
             ResponsiveDataTableWrapper(
               minWidth: constraints.maxWidth,
               maxHeight: 560,
-              child: DataTable(
+              child: buildNduDataTable(
+                context: context,
                 columnSpacing: 24,
                 horizontalMargin: 12,
-                headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
                 border: TableBorder.all(
                     color: Colors.grey[300]!,
                     width: 0.5,
@@ -514,20 +514,9 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Center(
-        child: Text(
-          'No $label added yet.',
-          style: TextStyle(color: Colors.grey[500]),
-        ),
-      ),
+    return buildNduTableEmptyState(
+      context,
+      message: 'No $label added yet. Click + Add to get started.',
     );
   }
 }
@@ -707,12 +696,15 @@ class _TextCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 180),
+      constraints: const BoxConstraints(maxWidth: 220),
       child: Text(
         text,
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-        style: bold ? const TextStyle(fontWeight: FontWeight.w600) : null,
+        textAlign: TextAlign.left,
+        softWrap: true,
+        maxLines: 3,
+        overflow: TextOverflow.fade,
+        style: (bold ? const TextStyle(fontWeight: FontWeight.w600) : null)
+            ?.copyWith(height: 1.3),
       ),
     );
   }

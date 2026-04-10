@@ -11,6 +11,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 class TeamManagementScreen extends StatefulWidget {
   const TeamManagementScreen({super.key});
@@ -286,10 +287,19 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                           children: [
                             _CircleIconButton(
                               icon: Icons.arrow_back_ios_new_rounded,
-                              onTap: () => Navigator.maybePop(context),
+                              onTap: () => PlanningPhaseNavigation.goToPrevious(
+                                context,
+                                'team_management',
+                              ),
                             ),
                             const SizedBox(width: 12),
-                            const _CircleIconButton(icon: Icons.arrow_forward_ios_rounded),
+                            _CircleIconButton(
+                              icon: Icons.arrow_forward_ios_rounded,
+                              onTap: () => PlanningPhaseNavigation.goToNext(
+                                context,
+                                'team_management',
+                              ),
+                            ),
                             const SizedBox(width: 16),
                             const Text(
                               'Team Management',
