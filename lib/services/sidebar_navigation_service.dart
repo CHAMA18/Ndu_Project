@@ -116,6 +116,7 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'fep_contract_vendor_quotes', label: 'Contracting'),
     SidebarItem(checkpoint: 'fep_procurement', label: 'Procurement'),
     SidebarItem(checkpoint: 'fep_security', label: 'Security'),
+    SidebarItem(checkpoint: 'fep_milestone', label: 'Milestone'),
     SidebarItem(checkpoint: 'fep_allowance', label: 'Allowance'),
     SidebarItem(checkpoint: 'project_charter', label: 'Project Charter'),
     SidebarItem(

@@ -37,6 +37,7 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 class CostAnalysisScreen extends StatefulWidget {
@@ -97,6 +98,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   bool _businessCaseExpanded = true;
   final GlobalKey _tablesSectionKey = GlobalKey();
   int _currentStepIndex = 0;
+  bool _reviewConfirmed = false;
   bool _hasUnsavedChanges = false;
   bool _suppressDirtyTracking = false;
   bool _syncingProjectValueEditors = false;
@@ -1961,47 +1963,78 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return Padding(
       padding: EdgeInsets.fromLTRB(
           horizontalPadding, 12, horizontalPadding, horizontalPadding),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextButton.icon(
-            onPressed: isFirst ? null : _handlePreviousStep,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
-            label: const Text('Previous'),
+          ProceedConfirmationGate(
+            value: _reviewConfirmed,
+            onChanged: (value) {
+              setState(() => _reviewConfirmed = value);
+            },
+            scrollController: _mainScrollController,
+            padding: const EdgeInsets.only(bottom: 16),
           ),
-          const SizedBox(width: 16),
-          Text(
-            stepStatus,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800]),
-          ),
-          const Spacer(),
-          OutlinedButton.icon(
-            onPressed: _handleSave,
-            icon: const Icon(Icons.save_outlined, size: 16),
-            label: const Text('Save'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.grey[800],
-              side: BorderSide(color: Colors.grey.shade300),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            onPressed: isLast ? _openPreferredSolution : _handleNextStep,
-            icon: Icon(primaryIcon, size: 16),
-            label: Text(primaryLabel),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: isFirst ? null : _handlePreviousStep,
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                label: const Text('Previous'),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                stepStatus,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800]),
+              ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: _handleSave,
+                icon: const Icon(Icons.save_outlined, size: 16),
+                label: const Text('Save'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey[800],
+                  side: BorderSide(color: Colors.grey.shade300),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (!_reviewConfirmed) {
+                    final continueAnyway = await showProceedWithoutReviewDialog(
+                      context,
+                      title: 'Some Information Is Still Missing',
+                      message:
+                          'You have not confirmed this tab yet. You can continue now and come back to complete it, or stay and update it now.',
+                    );
+                    if (!continueAnyway || !mounted) return;
+                  }
+
+                  if (isLast) {
+                    await _openPreferredSolution();
+                  } else {
+                    await _handleNextStep();
+                  }
+                },
+                icon: Icon(primaryIcon, size: 16),
+                label: Text(primaryLabel),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFD700),
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -2044,7 +2077,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     if (!mounted || index == _currentStepIndex) return;
     if (index < 0 || index >= _stepDefinitions.length) return;
     FocusScope.of(context).unfocus();
-    setState(() => _currentStepIndex = index);
+    setState(() {
+      _currentStepIndex = index;
+      _reviewConfirmed = false;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (_mainScrollController.hasClients) {
@@ -7503,10 +7539,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       _error = null;
     });
     try {
+      final scopedSolutions = targetSolution == null
+          ? widget.solutions
+          : <AiSolutionItem>[
+              if (_solutionAt(targetSolution) != null)
+                _solutionAt(targetSolution)!,
+            ];
       final map = await _openAi.generateCostBreakdownForSolutions(
-        widget.solutions,
+        scopedSolutions,
         contextNotes: _buildUnifiedAiContext(
           sectionLabel: 'Cost Benefit Analysis - Initial Cost Estimate',
+          forSolution: targetSolution,
         ),
         currency: _currency,
       );

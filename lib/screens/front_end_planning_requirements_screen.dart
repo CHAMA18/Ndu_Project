@@ -18,6 +18,7 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
@@ -48,6 +49,7 @@ class _FrontEndPlanningRequirementsScreenState
     extends State<FrontEndPlanningRequirementsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _notesController = RichTextEditingController();
+  final ScrollController _mainContentScrollController = ScrollController();
   final ScrollController _requirementsHorizontalController = ScrollController();
   final ScrollController _requirementsVerticalController = ScrollController();
   bool _isGeneratingRequirements = false;
@@ -59,6 +61,7 @@ class _FrontEndPlanningRequirementsScreenState
   bool _didInitialGenerationCheck = false;
   bool _showInitialGenerationSpinner = false;
   String? _initialGenerationError;
+  bool _showProceedConfirmation = false;
   bool _showHorizontalScrollHint = false;
   bool _showVerticalScrollHint = false;
   List<_AssignableMember> _memberOptions = const <_AssignableMember>[];
@@ -77,6 +80,7 @@ class _FrontEndPlanningRequirementsScreenState
     super.initState();
     // Ensure OpenAI key/env is loaded for per-row regenerate.
     ApiKeyManager.initializeApiKey();
+    _mainContentScrollController.addListener(_updateProceedConfirmationState);
     _requirementsHorizontalController.addListener(_updateScrollHints);
     _requirementsVerticalController.addListener(_updateScrollHints);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -86,12 +90,17 @@ class _FrontEndPlanningRequirementsScreenState
       _notesController.addListener(_handleNotesChanged);
       _loadSavedRequirements(projectData);
       unawaited(_initializeMemberContext(projectData));
+      _updateProceedConfirmationState();
       if (mounted) setState(() {});
     });
   }
 
-  _RequirementRow _createRow(int number) {
-    return _RequirementRow(number: number, onChanged: _scheduleAutoSave);
+  _RequirementRow _createRow(int number, {bool expanded = false}) {
+    return _RequirementRow(
+      number: number,
+      onChanged: _scheduleAutoSave,
+      isExpanded: expanded,
+    );
   }
 
   Future<void> _initializeMemberContext(ProjectDataModel data) async {
@@ -184,7 +193,7 @@ class _FrontEndPlanningRequirementsScreenState
 
     if (_hasAnySavedRequirements(data)) {
       if (_rows.isEmpty) {
-        setState(() => _rows.add(_createRow(1)));
+        setState(() => _rows.add(_createRow(1, expanded: true)));
       }
       return;
     }
@@ -214,7 +223,7 @@ class _FrontEndPlanningRequirementsScreenState
       _initialGenerationError =
           'Could not auto-generate requirements. You can retry manually.';
       if (_rows.isEmpty) {
-        _rows.add(_createRow(1));
+        _rows.add(_createRow(1, expanded: true));
       }
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -243,6 +252,18 @@ class _FrontEndPlanningRequirementsScreenState
     setState(() {
       _showHorizontalScrollHint = showHorizontal;
       _showVerticalScrollHint = showVertical;
+    });
+  }
+
+  void _updateProceedConfirmationState() {
+    if (!mounted) return;
+    final shouldShowConfirmation = !_mainContentScrollController.hasClients ||
+        _mainContentScrollController.position.maxScrollExtent <= 0 ||
+        _mainContentScrollController.position.pixels >=
+            _mainContentScrollController.position.maxScrollExtent - 8;
+    if (shouldShowConfirmation == _showProceedConfirmation) return;
+    setState(() {
+      _showProceedConfirmation = shouldShowConfirmation;
     });
   }
 
@@ -558,6 +579,8 @@ class _FrontEndPlanningRequirementsScreenState
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
+    _mainContentScrollController.removeListener(_updateProceedConfirmationState);
+    _mainContentScrollController.dispose();
     _requirementsHorizontalController.removeListener(_updateScrollHints);
     _requirementsVerticalController.removeListener(_updateScrollHints);
     _requirementsHorizontalController.dispose();
@@ -602,6 +625,7 @@ class _FrontEndPlanningRequirementsScreenState
                           children: [
                             Expanded(
                               child: SingleChildScrollView(
+                                controller: _mainContentScrollController,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 32, vertical: 24),
                                 child: Column(
@@ -697,6 +721,8 @@ class _FrontEndPlanningRequirementsScreenState
   }
 
   Widget _buildDesktopFooter(BuildContext context) {
+    final canProceed =
+        _showProceedConfirmation && _stakeholderAlignmentConfirmed;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -709,7 +735,10 @@ class _FrontEndPlanningRequirementsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OutlinedButton(
-            onPressed: () => Navigator.maybePop(context),
+            onPressed: () => FrontEndPlanningNavigation.goToPrevious(
+              context,
+              'fep_requirements',
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF374151),
               side: const BorderSide(color: Color(0xFFD1D5DB)),
@@ -721,34 +750,37 @@ class _FrontEndPlanningRequirementsScreenState
             child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
           ),
           const SizedBox(width: 16),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Checkbox(
-                  value: _stakeholderAlignmentConfirmed,
-                  onChanged: (value) {
-                    setState(() {
-                      _stakeholderAlignmentConfirmed = value ?? false;
-                    });
-                  },
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Check this box to confirm that all relevant stakeholders and subject matter experts are aligned with the documented requirements.',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF374151),
+          if (_showProceedConfirmation)
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: _stakeholderAlignmentConfirmed,
+                    onChanged: (value) {
+                      setState(() {
+                        _stakeholderAlignmentConfirmed = value ?? false;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'I confirm that I have reviewed all information on this page before proceeding.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF374151),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            )
+          else
+            const Expanded(child: SizedBox.shrink()),
           const SizedBox(width: 16),
           ElevatedButton(
-            onPressed: _stakeholderAlignmentConfirmed ? _handleSubmit : null,
+            onPressed: canProceed ? _handleSubmit : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFFD700),
               foregroundColor: Colors.black,
@@ -771,9 +803,6 @@ class _FrontEndPlanningRequirementsScreenState
   }
 
   Widget _buildRequirementsTable(BuildContext context) {
-    final headerStyle = const TextStyle(
-        fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563));
-    final border = const BorderSide(color: Color(0xFFE5E7EB));
     final hasAnyRowData = _rows.any((row) {
       return row.descriptionController.text.trim().isNotEmpty ||
           row.commentsController.text.trim().isNotEmpty ||
@@ -807,191 +836,61 @@ class _FrontEndPlanningRequirementsScreenState
     }
 
     if ((_initialGenerationError ?? '').isNotEmpty && !hasAnyRowData) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              _initialGenerationError!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFB91C1C),
-              ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _isGeneratingRequirements
-                  ? null
-                  : () async {
-                      final generated =
-                          await _generateRequirementsFromContext();
-                      if (!mounted) return;
-                      setState(() {
-                        _initialGenerationError =
-                            generated ? null : _initialGenerationError;
-                      });
-                    },
-              icon: const Icon(Icons.auto_awesome_outlined, size: 16),
-              label: const Text('Generate with AI'),
-            ),
-          ],
-        ),
+      return _buildRequirementsEmptyState(
+        context,
+        message: _initialGenerationError!,
+        actionLabel: 'Generate with AI',
+        onAction: _isGeneratingRequirements
+            ? null
+            : () async {
+                final generated = await _generateRequirementsFromContext();
+                if (!mounted) return;
+                setState(() {
+                  _initialGenerationError = generated ? null : _initialGenerationError;
+                });
+              },
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final minTableWidth =
-              constraints.maxWidth > 2360 ? constraints.maxWidth : 2360.0;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _updateScrollHints();
-          });
-
-          return Stack(
-            children: [
-              SizedBox(
-                height: 460,
-                child: Scrollbar(
-                  controller: _requirementsHorizontalController,
-                  thumbVisibility: true,
-                  child: SingleChildScrollView(
-                    controller: _requirementsHorizontalController,
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minWidth: minTableWidth),
-                      child: Scrollbar(
-                        controller: _requirementsVerticalController,
-                        thumbVisibility: true,
-                        child: SingleChildScrollView(
-                          controller: _requirementsVerticalController,
-                          child: Table(
-                            columnWidths: const {
-                              0: FixedColumnWidth(64),
-                              1: FlexColumnWidth(3.4),
-                              2: FixedColumnWidth(190),
-                              3: FixedColumnWidth(180),
-                              4: FixedColumnWidth(190),
-                              5: FixedColumnWidth(190),
-                              6: FixedColumnWidth(150),
-                              7: FixedColumnWidth(260),
-                              8: FlexColumnWidth(2.6),
-                              9: FixedColumnWidth(56),
-                            },
-                            border: TableBorder(
-                              horizontalInside: border,
-                              verticalInside: border,
-                              top: border,
-                              bottom: border,
-                              left: border,
-                              right: border,
-                            ),
-                            defaultVerticalAlignment:
-                                TableCellVerticalAlignment.middle,
-                            children: [
-                              TableRow(
-                                decoration: const BoxDecoration(
-                                    color: Color(0xFFF9FAFB)),
-                                children: [
-                                  _th('No', headerStyle),
-                                  _th('Requirement', headerStyle),
-                                  _th('Requirement type', headerStyle),
-                                  _th('Discipline', headerStyle),
-                                  _th('Role', headerStyle),
-                                  _th('Person', headerStyle),
-                                  _th('Phase', headerStyle),
-                                  _th('Requirement source', headerStyle),
-                                  _th('Comments and Requirement Source Links',
-                                      headerStyle),
-                                  _th('', headerStyle),
-                                ],
-                              ),
-                              ..._rows.asMap().entries.map((entry) {
-                                final index = entry.key;
-                                final row = entry.value;
-                                final isRowLoading = _isRegeneratingRow &&
-                                    _regeneratingRowIndex == index;
-                                return row.buildRow(
-                                  context,
-                                  index,
-                                  _deleteRow,
-                                  personOptions: _memberOptions,
-                                  isRegenerating: isRowLoading,
-                                  onRegenerate: () =>
-                                      _regenerateRequirementRow(index),
-                                  onUndo: () async =>
-                                      await _undoRequirementRow(index),
-                                );
-                              }),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (_showHorizontalScrollHint)
-                Positioned(
-                  top: 1,
-                  right: 1,
-                  bottom: _showVerticalScrollHint ? 22 : 1,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 30,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.0),
-                            Colors.white.withValues(alpha: 0.92),
-                            Colors.white,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              if (_showVerticalScrollHint)
-                Positioned(
-                  left: 1,
-                  right: 1,
-                  bottom: 1,
-                  child: IgnorePointer(
-                    child: Container(
-                      height: 22,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.0),
-                            Colors.white.withValues(alpha: 0.88),
-                            Colors.white,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          );
+    if (_rows.isEmpty) {
+      return _buildRequirementsEmptyState(
+        context,
+        message: 'Add your first requirement to get started.',
+        actionLabel: 'Add requirement',
+        onAction: () {
+          setState(() => _rows.add(_createRow(1, expanded: true)));
+          _scheduleAutoSave(showSnack: false);
         },
-      ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ..._rows.asMap().entries.map((entry) {
+          final index = entry.key;
+          final row = entry.value;
+          final isRowLoading = _isRegeneratingRow &&
+              _regeneratingRowIndex == index;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _RequirementCard(
+              row: row,
+              index: index,
+              isRegenerating: isRowLoading,
+              onToggleExpanded: () {
+                setState(() {
+                  row.isExpanded = !row.isExpanded;
+                });
+              },
+              onDelete: () => _deleteRow(index),
+              onRegenerate: () => _regenerateRequirementRow(index),
+              onUndo: () async => _undoRequirementRow(index),
+              personOptions: _memberOptions,
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -1018,7 +917,10 @@ class _FrontEndPlanningRequirementsScreenState
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.maybePop(context),
+                    onPressed: () => FrontEndPlanningNavigation.goToPrevious(
+                      context,
+                      'fep_requirements',
+                    ),
                     icon:
                         const Icon(Icons.arrow_back_ios_new_rounded, size: 17),
                     visualDensity: VisualDensity.compact,
@@ -1054,6 +956,7 @@ class _FrontEndPlanningRequirementsScreenState
             ),
             Expanded(
               child: SingleChildScrollView(
+                controller: _mainContentScrollController,
                 padding: const EdgeInsets.fromLTRB(12, 2, 12, 110),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1204,7 +1107,9 @@ class _FrontEndPlanningRequirementsScreenState
                     ],
                     OutlinedButton.icon(
                       onPressed: () {
-                        setState(() => _rows.add(_createRow(_rows.length + 1)));
+                        setState(() => _rows.add(
+                              _createRow(_rows.length + 1, expanded: true),
+                            ));
                         _scheduleAutoSave(showSnack: false);
                       },
                       icon: const Icon(Icons.add, size: 18),
@@ -1233,22 +1138,25 @@ class _FrontEndPlanningRequirementsScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CheckboxListTile(
-                value: _stakeholderAlignmentConfirmed,
-                onChanged: (value) {
-                  setState(() {
-                    _stakeholderAlignmentConfirmed = value ?? false;
-                  });
-                },
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                title: const Text(
-                  'Check this box to confirm that all relevant stakeholders and subject matter experts are aligned with the documented requirements.',
-                  style: TextStyle(fontSize: 11.5, color: Color(0xFF374151)),
+              if (_showProceedConfirmation) ...[
+                CheckboxListTile(
+                  value: _stakeholderAlignmentConfirmed,
+                  onChanged: (value) {
+                    setState(() {
+                      _stakeholderAlignmentConfirmed = value ?? false;
+                    });
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: const Text(
+                    'I confirm that I have reviewed all information on this page before proceeding.',
+                    style:
+                        TextStyle(fontSize: 11.5, color: Color(0xFF374151)),
+                  ),
+                  controlAffinity: ListTileControlAffinity.leading,
                 ),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              const SizedBox(height: 6),
+                const SizedBox(height: 6),
+              ],
               Row(
                 children: [
                   Expanded(
@@ -1280,7 +1188,10 @@ class _FrontEndPlanningRequirementsScreenState
                   Expanded(
                     child: ElevatedButton(
                       onPressed:
-                          _stakeholderAlignmentConfirmed ? _handleSubmit : null,
+                          (_showProceedConfirmation &&
+                                  _stakeholderAlignmentConfirmed)
+                              ? _handleSubmit
+                              : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF4B400),
                         foregroundColor: Colors.black,
@@ -1709,12 +1620,12 @@ class _FrontEndPlanningRequirementsScreenState
         SizedBox(
           height: 44,
           child: OutlinedButton(
-            onPressed: () {
-              setState(() {
-                _rows.add(_createRow(_rows.length + 1));
-              });
-              _scheduleAutoSave(showSnack: false);
-            },
+          onPressed: () {
+            setState(() {
+                _rows.add(_createRow(_rows.length + 1, expanded: true));
+            });
+            _scheduleAutoSave(showSnack: false);
+          },
             style: OutlinedButton.styleFrom(
               backgroundColor: const Color(0xFFF2F4F7),
               foregroundColor: const Color(0xFF111827),
@@ -1723,11 +1634,61 @@ class _FrontEndPlanningRequirementsScreenState
                   borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             ),
-            child: const Text('Add another',
+            child: const Text('Add requirement',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRequirementsEmptyState(
+    BuildContext context, {
+    required String message,
+    required String actionLabel,
+    required VoidCallback? onAction,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.assignment_outlined,
+              size: 34, color: Color(0xFF9CA3AF)),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onAction,
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(actionLabel),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF111827),
+              side: const BorderSide(color: Color(0xFFD1D5DB)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2350,13 +2311,18 @@ class _RequirementRow {
     'ALL',
   ];
 
-  _RequirementRow({required this.number, this.onChanged})
+  _RequirementRow({
+    required this.number,
+    this.onChanged,
+    bool isExpanded = false,
+  })
       : descriptionController = TextEditingController(),
         commentsController = TextEditingController(),
         roleController = TextEditingController(),
         personController = TextEditingController(),
         sourceController = TextEditingController(),
-        descriptionFocusNode = FocusNode() {
+        descriptionFocusNode = FocusNode(),
+        isExpanded = isExpanded {
     descriptionFocusNode.addListener(_handleDescriptionFocusChange);
   }
 
@@ -2368,6 +2334,7 @@ class _RequirementRow {
   final TextEditingController personController;
   final TextEditingController sourceController;
   final FocusNode descriptionFocusNode;
+  bool isExpanded;
   String? selectedType;
   String? selectedDiscipline;
   String? selectedPhase = 'Planning';
@@ -2414,6 +2381,34 @@ class _RequirementRow {
     manualUndoText = null;
     _descriptionValueAtFocusStart = descriptionController.text;
     _focusSessionUndoCandidate = descriptionController.text;
+  }
+
+  String get summaryDescription {
+    final value = descriptionController.text.trim();
+    if (value.isEmpty) return 'Tap to add a requirement description.';
+    return value;
+  }
+
+  String get summaryType {
+    final value = selectedType?.trim() ?? '';
+    return value.isEmpty ? 'Unclassified' : value;
+  }
+
+  String get summaryDiscipline {
+    final value = selectedDiscipline?.trim() ?? '';
+    return value.isEmpty ? 'Unassigned' : value;
+  }
+
+  String get summaryOwner {
+    final person = personController.text.trim();
+    if (person.isNotEmpty) return person;
+    final role = roleController.text.trim();
+    if (role.isNotEmpty) return role;
+    return 'Role not assigned';
+  }
+
+  String get summarySource {
+    return sourceController.text.trim();
   }
 
   void dispose() {
@@ -2606,6 +2601,459 @@ class _RequirementRow {
             tooltip: 'Delete requirement',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RequirementCard extends StatelessWidget {
+  const _RequirementCard({
+    required this.row,
+    required this.index,
+    required this.isRegenerating,
+    required this.onToggleExpanded,
+    required this.onDelete,
+    required this.onRegenerate,
+    required this.onUndo,
+    required this.personOptions,
+  });
+
+  final _RequirementRow row;
+  final int index;
+  final bool isRegenerating;
+  final VoidCallback onToggleExpanded;
+  final VoidCallback onDelete;
+  final VoidCallback onRegenerate;
+  final Future<void> Function() onUndo;
+  final List<_AssignableMember> personOptions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: onToggleExpanded,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${row.number}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF4338CA),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              row.summaryDescription,
+                              maxLines: row.isExpanded ? null : 2,
+                              overflow: row.isExpanded
+                                  ? TextOverflow.visible
+                                  : TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF111827),
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _RequirementSummaryChip(
+                                  label: row.summaryType,
+                                  backgroundColor: const Color(0xFFECFDF5),
+                                  textColor: const Color(0xFF047857),
+                                ),
+                                _RequirementSummaryChip(
+                                  label: row.summaryDiscipline,
+                                  backgroundColor: const Color(0xFFEFF6FF),
+                                  textColor: const Color(0xFF1D4ED8),
+                                ),
+                                _RequirementSummaryChip(
+                                  label: row.summaryOwner,
+                                  backgroundColor: const Color(0xFFFFF7ED),
+                                  textColor: const Color(0xFFC2410C),
+                                  icon: Icons.person_outline_rounded,
+                                ),
+                                if (row.summarySource.isNotEmpty)
+                                  _RequirementSummaryChip(
+                                    label: row.summarySource,
+                                    backgroundColor: const Color(0xFFF8FAFC),
+                                    textColor: const Color(0xFF475569),
+                                    icon: Icons.link_rounded,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        children: [
+                          IconButton(
+                            onPressed: isRegenerating ? null : onRegenerate,
+                            tooltip: 'Regenerate requirement',
+                            icon: isRegenerating
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.auto_awesome_rounded,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                          ),
+                          IconButton(
+                            onPressed: onUndo,
+                            tooltip: 'Undo last requirement change',
+                            icon: const Icon(
+                              Icons.undo_rounded,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: onDelete,
+                            tooltip: 'Delete requirement',
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Color(0xFFDC2626),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Icon(
+                        row.isExpanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 180),
+            crossFadeState: row.isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox.shrink(),
+            secondChild: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Color(0xFFE5E7EB)),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  _RequirementFieldLabel('Requirement description'),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextField(
+                      controller: row.descriptionController,
+                      focusNode: row.descriptionFocusNode,
+                      minLines: 3,
+                      maxLines: null,
+                      onChanged: row.handleDescriptionChanged,
+                      decoration: const InputDecoration(
+                        hintText: 'Describe the requirement',
+                        hintStyle: TextStyle(color: Color(0xFF94A3B8)),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(14),
+                      ),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF111827),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _RequirementLabeledControl(
+                          label: 'Requirement type',
+                          child: _TypeDropdown(
+                            value: row.selectedType,
+                            onChanged: (value) {
+                              row.selectedType = value;
+                              row.onChanged?.call();
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _RequirementLabeledControl(
+                          label: 'Discipline',
+                          child: _DisciplineDropdown(
+                            value: row.selectedDiscipline,
+                            onChanged: (value) {
+                              row.selectedDiscipline = value;
+                              row.onChanged?.call();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _RequirementTextFieldBlock(
+                          label: 'Role',
+                          controller: row.roleController,
+                          hintText: 'Project role',
+                          onChanged: (_) => row.onChanged?.call(),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _RequirementLabeledControl(
+                          label: 'Person',
+                          child: _PersonDropdownField(
+                            value: row.personController.text,
+                            options: personOptions,
+                            hint: 'Select person',
+                            dense: false,
+                            onChanged: (value) {
+                              row.personController.text = value;
+                              row.onChanged?.call();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _RequirementLabeledControl(
+                          label: 'Phase',
+                          child: _PhaseDropdown(
+                            value: row.selectedPhase,
+                            onChanged: (value) {
+                              row.selectedPhase = value;
+                              row.onChanged?.call();
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _RequirementTextFieldBlock(
+                          label: 'Requirement source',
+                          controller: row.sourceController,
+                          hintText: 'Contract, brief, regulation, workshop...',
+                          onChanged: (_) => row.onChanged?.call(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _RequirementTextFieldBlock(
+                    label: 'Comments / source links',
+                    controller: row.commentsController,
+                    hintText: 'Additional notes, assumptions, or links',
+                    minLines: 2,
+                    onChanged: (_) => row.onChanged?.call(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequirementSummaryChip extends StatelessWidget {
+  const _RequirementSummaryChip({
+    required this.label,
+    required this.backgroundColor,
+    required this.textColor,
+    this.icon,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color textColor;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: textColor),
+            const SizedBox(width: 6),
+          ],
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 260),
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequirementFieldLabel extends StatelessWidget {
+  const _RequirementFieldLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF475569),
+      ),
+    );
+  }
+}
+
+class _RequirementLabeledControl extends StatelessWidget {
+  const _RequirementLabeledControl({
+    required this.label,
+    required this.child,
+  });
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RequirementFieldLabel(label),
+        const SizedBox(height: 8),
+        child,
+      ],
+    );
+  }
+}
+
+class _RequirementTextFieldBlock extends StatelessWidget {
+  const _RequirementTextFieldBlock({
+    required this.label,
+    required this.controller,
+    required this.hintText,
+    required this.onChanged,
+    this.minLines = 1,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+  final int minLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RequirementFieldLabel(label),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: TextField(
+            controller: controller,
+            minLines: minLines,
+            maxLines: minLines == 1 ? 1 : null,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.all(14),
+            ),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF111827),
+            ),
           ),
         ),
       ],

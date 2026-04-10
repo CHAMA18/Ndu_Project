@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
 /// Shared navigation footer used across the Launch Phase pages.
 class LaunchPhaseNavigation extends StatelessWidget {
@@ -7,6 +8,7 @@ class LaunchPhaseNavigation extends StatelessWidget {
     required this.nextLabel,
     required this.onBack,
     required this.onNext,
+    this.nextEnabled = true,
     super.key,
   });
 
@@ -14,8 +16,22 @@ class LaunchPhaseNavigation extends StatelessWidget {
   final String nextLabel;
   final VoidCallback onBack;
   final VoidCallback onNext;
+  final bool nextEnabled;
 
   static const _kAccentColor = Color(0xFFFFC812);
+
+  Future<void> _handleNextTap(BuildContext context) async {
+    if (!nextEnabled) {
+      final continueAnyway = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Some Information Is Still Missing',
+        message:
+            'You have not confirmed this page yet. You can continue now and return to update missing information later, or stay and complete it now.',
+      );
+      if (!continueAnyway) return;
+    }
+    onNext();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +42,8 @@ class LaunchPhaseNavigation extends StatelessWidget {
       icon: const Icon(Icons.arrow_back, size: 18, color: _kAccentColor),
       label: Text(
         backLabel,
-        style: const TextStyle(fontWeight: FontWeight.w600, color: _kAccentColor),
+        style:
+            const TextStyle(fontWeight: FontWeight.w600, color: _kAccentColor),
       ),
       style: OutlinedButton.styleFrom(
         side: const BorderSide(color: _kAccentColor),
@@ -36,7 +53,9 @@ class LaunchPhaseNavigation extends StatelessWidget {
     );
 
     final nextButton = ElevatedButton.icon(
-      onPressed: onNext,
+      onPressed: () {
+        _handleNextTap(context);
+      },
       icon: const Icon(Icons.arrow_forward, size: 18),
       label: Text(
         nextLabel,

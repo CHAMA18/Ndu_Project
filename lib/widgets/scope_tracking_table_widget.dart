@@ -27,12 +27,9 @@ class ScopeTrackingTableWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text('No scope items found. Add a new item to get started.',
-              style: TextStyle(color: Color(0xFF64748B))),
-        ),
+      return buildNduTableEmptyState(
+        context,
+        message: 'No items added yet. Click + Add to get started.',
       );
     }
 
@@ -48,9 +45,8 @@ class ScopeTrackingTableWidget extends StatelessWidget {
           child: ResponsiveDataTableWrapper(
             minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 1000,
             maxHeight: 560,
-            child: DataTable(
-              headingRowColor:
-                  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+            child: buildNduDataTable(
+              context: context,
               columnSpacing: 20,
               horizontalMargin: 16,
               headingRowHeight: 56,

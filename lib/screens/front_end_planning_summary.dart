@@ -19,6 +19,8 @@ import 'package:provider/provider.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 
 /// Front End Planning – Summary screen
 /// Mirrors the provided layout with shared workspace chrome,
@@ -43,9 +45,11 @@ class _FrontEndPlanningSummaryScreenState
     extends State<FrontEndPlanningSummaryScreen> {
   final GlobalKey<ScaffoldState> _mobileScaffoldKey =
       GlobalKey<ScaffoldState>();
+  final ScrollController _contentScrollController = ScrollController();
   final TextEditingController _notes = RichTextEditingController();
   final TextEditingController _summaryNotes = RichTextEditingController();
   bool _isSyncReady = false;
+  bool _reviewConfirmed = false;
 
   @override
   void initState() {
@@ -126,9 +130,25 @@ class _FrontEndPlanningSummaryScreenState
       _summaryNotes.removeListener(_syncSummaryToProvider);
       _notes.removeListener(_syncNotesToProvider);
     }
+    _contentScrollController.dispose();
     _notes.dispose();
     _summaryNotes.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleNext() async {
+    await ProjectDataHelper.saveAndNavigate(
+      context: context,
+      checkpoint: 'fep_summary',
+      nextScreenBuilder: () => const FrontEndPlanningRequirementsScreen(),
+      dataUpdater: (data) => data.copyWith(
+        frontEndPlanning: ProjectDataHelper.updateFEPField(
+          current: data.frontEndPlanning,
+          summary: _summaryNotes.text.trim(),
+          requirementsNotes: _notes.text.trim(),
+        ),
+      ),
+    );
   }
 
   void _syncSummaryToProvider() {
@@ -175,31 +195,47 @@ class _FrontEndPlanningSummaryScreenState
             children: [
               const FrontEndPlanningHeader(),
               Expanded(
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _formattedNotesEditor(
-                          controller: _notes,
-                          hint: 'Input your notes here...',
-                          minLines: 3,
-                          maxLines: 5),
-                      const SizedBox(height: 24),
-                      const _SectionTitle(),
-                      const SizedBox(height: 18),
-                      _SummaryPanel(controller: _summaryNotes),
-                      const SizedBox(height: 24),
-                      const _PlanningCardsSection(),
-                      const SizedBox(height: 140),
-                    ],
+                child: ScrollIndicatorOverlay(
+                  controller: _contentScrollController,
+                  child: SingleChildScrollView(
+                    controller: _contentScrollController,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _formattedNotesEditor(
+                            controller: _notes,
+                            hint: 'Input your notes here...',
+                            minLines: 3,
+                            maxLines: 5),
+                        const SizedBox(height: 24),
+                        const _SectionTitle(),
+                        const SizedBox(height: 18),
+                        _SummaryPanel(controller: _summaryNotes),
+                        const SizedBox(height: 24),
+                        const _PlanningCardsSection(),
+                        const SizedBox(height: 24),
+                        ProceedConfirmationGate(
+                          value: _reviewConfirmed,
+                          onChanged: (value) {
+                            setState(() => _reviewConfirmed = value);
+                          },
+                          scrollController: _contentScrollController,
+                        ),
+                        const SizedBox(height: 140),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          _BottomOverlay(summaryController: _summaryNotes),
+          _BottomOverlay(
+            summaryController: _summaryNotes,
+            onNext: _handleNext,
+            nextEnabled: _reviewConfirmed,
+          ),
         ],
       ),
     );
@@ -1493,9 +1529,15 @@ class _GoalsCard extends StatelessWidget {
 }
 
 class _BottomOverlay extends StatelessWidget {
-  const _BottomOverlay({required this.summaryController});
+  const _BottomOverlay({
+    required this.summaryController,
+    required this.onNext,
+    required this.nextEnabled,
+  });
 
   final TextEditingController summaryController;
+  final Future<void> Function() onNext;
+  final bool nextEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -1550,18 +1592,17 @@ class _BottomOverlay extends StatelessWidget {
                   const SizedBox(width: 16),
                   ElevatedButton(
                     onPressed: () async {
-                      await ProjectDataHelper.saveAndNavigate(
-                        context: context,
-                        checkpoint: 'fep_summary',
-                        nextScreenBuilder: () =>
-                            const FrontEndPlanningRequirementsScreen(),
-                        dataUpdater: (data) => data.copyWith(
-                          frontEndPlanning: ProjectDataHelper.updateFEPField(
-                            current: data.frontEndPlanning,
-                            summary: summaryController.text.trim(),
-                          ),
-                        ),
-                      );
+                      if (!nextEnabled) {
+                        final continueAnyway =
+                            await showProceedWithoutReviewDialog(
+                          context,
+                          title: 'Some Information Is Still Missing',
+                          message:
+                              'You have not confirmed this page yet. You can continue now and return later to complete details, or stay and update information now.',
+                        );
+                        if (!continueAnyway || !context.mounted) return;
+                      }
+                      await onNext();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFC812),

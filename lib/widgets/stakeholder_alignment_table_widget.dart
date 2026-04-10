@@ -25,13 +25,9 @@ class StakeholderAlignmentTableWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-              'No stakeholders found. Add a new stakeholder to get started.',
-              style: TextStyle(color: Color(0xFF64748B))),
-        ),
+      return buildNduTableEmptyState(
+        context,
+        message: 'No items added yet. Click + Add to get started.',
       );
     }
 
@@ -47,8 +43,8 @@ class StakeholderAlignmentTableWidget extends StatelessWidget {
           child: ResponsiveDataTableWrapper(
             minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
             maxHeight: 560,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+            child: buildNduDataTable(
+              context: context,
               columnSpacing: 24,
               horizontalMargin: 20,
               headingRowHeight: 56,

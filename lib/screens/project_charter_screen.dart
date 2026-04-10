@@ -7,6 +7,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
@@ -318,7 +319,10 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                   LaunchPhaseNavigation(
                     backLabel: 'Back',
                     nextLabel: 'Next',
-                    onBack: () => Navigator.pop(context),
+                    onBack: () => FrontEndPlanningNavigation.goToPrevious(
+                      context,
+                      'project_charter',
+                    ),
                     onNext: () => ProjectFrameworkScreen.open(context),
                   ),
                 ],

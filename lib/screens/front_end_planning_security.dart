@@ -11,8 +11,10 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 /// Front End Planning – Security screen
@@ -35,6 +37,7 @@ class FrontEndPlanningSecurityScreen extends StatefulWidget {
 class _FrontEndPlanningSecurityScreenState
     extends State<FrontEndPlanningSecurityScreen> {
   final GlobalKey _securityFieldKey = GlobalKey();
+  final ScrollController _contentScrollController = ScrollController();
   final TextEditingController _notes = RichTextEditingController();
   final TextEditingController _securityNotes = RichTextEditingController();
   bool _isSyncReady = false;
@@ -190,6 +193,7 @@ Security Training:
     if (_isSyncReady) {
       _securityNotes.removeListener(_syncSecurityToProvider);
     }
+    _contentScrollController.dispose();
     _notes.dispose();
     _securityNotes.dispose();
     super.dispose();
@@ -229,26 +233,49 @@ Security Training:
     ]);
   }
 
+  String _nextFlowDestinationLabel() {
+    final rawLabel =
+        FrontEndPlanningNavigation.nextLabel(context, 'fep_security').trim();
+    if (rawLabel.startsWith('Next:')) {
+      final parsed = rawLabel.substring('Next:'.length).trim();
+      if (parsed.isNotEmpty && parsed.toLowerCase() != 'next') {
+        return parsed;
+      }
+    }
+    return 'Milestone';
+  }
+
   Future<void> _saveAndNavigateToAllowance({
     bool skippedValidation = false,
   }) async {
     if (!mounted) return;
+    final destinationLabel = _nextFlowDestinationLabel();
     if (skippedValidation) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Continuing to Allowance. You can complete Security details later.',
+            'Continuing to $destinationLabel. You can complete Security details later.',
           ),
           duration: Duration(seconds: 3),
         ),
       );
     }
 
+    final nextCheckpoint =
+        FrontEndPlanningNavigation.nextCheckpoint(context, 'fep_security') ??
+            'fep_milestone';
+    final fallbackScreen =
+        FrontEndPlanningNavigation.resolveScreen(context, 'fep_milestone') ??
+            const FrontEndPlanningAllowanceScreen();
+    final nextScreen =
+        FrontEndPlanningNavigation.resolveScreen(context, nextCheckpoint) ??
+            fallbackScreen;
+
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: 'fep_security',
       saveInBackground: true,
-      nextScreenBuilder: () => const FrontEndPlanningAllowanceScreen(),
+      nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(
         frontEndPlanning: ProjectDataHelper.updateFEPField(
           current: data.frontEndPlanning,
@@ -273,7 +300,7 @@ Security Training:
         validation,
         title: 'Security Requirements Missing',
         intro:
-            'Allowance is blocked until the following Security fields are completed.',
+            'You still have missing security details. You can add them now, auto-fill them, or continue and update later.',
         manualActionLabel: 'Add Security Details',
         showAutoFillAction: true,
         autoFillActionLabel: 'Auto-fill with AI',
@@ -340,12 +367,15 @@ Security Training:
                     children: [
                       const FrontEndPlanningHeader(),
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 32, vertical: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                        child: ScrollIndicatorOverlay(
+                          controller: _contentScrollController,
+                          child: SingleChildScrollView(
+                            controller: _contentScrollController,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 32, vertical: 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                               _roundedField(
                                   controller: _notes,
                                   hint: 'Input your notes here...',
@@ -393,20 +423,23 @@ Security Training:
                                 ],
                               ),
                               const SizedBox(height: 18),
-                              _SecurityPanel(
-                                fieldKey: _securityFieldKey,
-                                controller: _securityNotes,
-                                errorText:
-                                    _validationErrors['security_requirements'],
-                              ),
-                              const SizedBox(height: 140),
-                            ],
+                                _SecurityPanel(
+                                  fieldKey: _securityFieldKey,
+                                  controller: _securityNotes,
+                                  errorText: _validationErrors[
+                                      'security_requirements'],
+                                ),
+                                const SizedBox(height: 140),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  _BottomOverlay(onNext: _handleNextPressed),
+                  _BottomOverlay(
+                    onNext: _handleNextPressed,
+                  ),
                   const KazAiChatBubble(),
                 ],
               ),

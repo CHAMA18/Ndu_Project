@@ -28,6 +28,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
@@ -61,6 +62,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   ];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _notesController = RichTextEditingController();
+  final ScrollController _reviewScrollController = ScrollController();
   late final String _incomingBusinessCase;
   late final TextEditingController _projectNameController;
   final List<SolutionRow> _solutions = [];
@@ -75,6 +77,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   bool _initiationExpanded = true;
   bool _businessCaseExpanded = true;
   bool _frontEndExpanded = true;
+  bool _reviewConfirmed = false;
 
   bool get _isAdminHost => AccessPolicy.isRestrictedAdminHost();
 
@@ -235,6 +238,10 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     }
 
     final provider = ProjectDataHelper.getProvider(context);
+    final contextScan = ProjectDataHelper.buildProjectContextScan(
+      provider.projectData,
+      sectionLabel: 'Potential Solutions Notes',
+    );
     provider.addFieldToHistory(
       _notesFieldKey,
       _notesController.text,
@@ -252,6 +259,9 @@ ${_incomingBusinessCase.trim()}
 
 Current notes:
 ${_notesController.text.trim().isEmpty ? 'None' : _notesController.text.trim()}
+
+Project context:
+${contextScan.trim().isEmpty ? 'No additional project context available.' : contextScan}
 ''',
         maxTokens: 320,
         temperature: 0.5,
@@ -290,13 +300,24 @@ ${_notesController.text.trim().isEmpty ? 'None' : _notesController.text.trim()}
     }
 
     try {
-      final aiSolutions = await _openAiService
-          .generateSolutionsFromBusinessCase(_incomingBusinessCase);
+      final aiSolutions =
+          await _openAiService.generateSolutionsFromBusinessCase(
+        _incomingBusinessCase,
+        contextNotes: _buildPotentialSolutionsContext(),
+      );
       _applySolutions(aiSolutions);
     } catch (e) {
       debugPrint('Error generating solutions: $e');
       _applyFallback(e.toString());
     }
+  }
+
+  String _buildPotentialSolutionsContext() {
+    final data = ProjectDataHelper.getData(context);
+    return ProjectDataHelper.buildProjectContextScan(
+      data,
+      sectionLabel: 'Potential Solutions',
+    );
   }
 
   void _applySolutions(List<AiSolutionItem> aiSolutions) {
@@ -1262,139 +1283,151 @@ ${_notesController.text.trim().isEmpty ? 'None' : _notesController.text.trim()}
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(pagePadding),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const EditableContentText(
-                  contentKey: 'potential_solutions_phase_title',
-                  fallback: 'Initiation Phase',
-                  category: 'business_case',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 30),
-                const EditableContentText(
-                  contentKey: 'potential_solutions_notes_heading',
-                  fallback: 'Notes',
-                  category: 'business_case',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormattingToolbar(
-                  controller: _notesController,
-                  onBeforeUndo: () {
-                    _saveSolutions();
-                  },
-                ),
-                const SizedBox(height: 8),
-                HoverableFieldControls(
-                  isAiGenerated: true,
-                  isLoading: false,
-                  canUndo: canUndoNotes,
-                  canRedo: canRedoNotes,
-                  onUndo: _undoNotesField,
-                  onRedo: _redoNotesField,
-                  onRegenerate: _regenerateNotesField,
-                  child: Container(
-                    width: double.infinity,
-                    constraints: const BoxConstraints(minHeight: 120),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
+        return ScrollIndicatorOverlay(
+          controller: _reviewScrollController,
+          child: SingleChildScrollView(
+            controller: _reviewScrollController,
+            padding: EdgeInsets.all(pagePadding),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const EditableContentText(
+                    contentKey: 'potential_solutions_phase_title',
+                    fallback: 'Initiation Phase',
+                    category: 'business_case',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: TextField(
-                      controller: _notesController,
-                      keyboardType: TextInputType.multiline,
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: 'Input your notes here...',
+                  ),
+                  const SizedBox(height: 30),
+                  const EditableContentText(
+                    contentKey: 'potential_solutions_notes_heading',
+                    fallback: 'Notes',
+                    category: 'business_case',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormattingToolbar(
+                    controller: _notesController,
+                    onBeforeUndo: () {
+                      _saveSolutions();
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  HoverableFieldControls(
+                    isAiGenerated: true,
+                    isLoading: false,
+                    canUndo: canUndoNotes,
+                    canRedo: canRedoNotes,
+                    onUndo: _undoNotesField,
+                    onRedo: _redoNotesField,
+                    onRegenerate: _regenerateNotesField,
+                    child: Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(minHeight: 120),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                      minLines: 5,
-                      maxLines: null,
-                      onChanged: _recordNotesEdit,
-                    ),
-                  ),
-                ),
-                SizedBox(height: sectionGap),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    EditableContentText(
-                      contentKey: 'potential_solutions_heading',
-                      fallback: 'Potential Solution(s) ',
-                      category: 'business_case',
-                      key: _solutionsSectionKey,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Expanded(
-                      child: EditableContentText(
-                        contentKey: 'potential_solutions_description',
-                        fallback: AccessPolicy.isRestrictedAdminHost()
-                            ? '(5 KAZ AI-generated solutions)'
-                            : '(Maximum 3 solutions)',
-                        category: 'business_case',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                      child: TextField(
+                        controller: _notesController,
+                        keyboardType: TextInputType.multiline,
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.grey),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                          hintText: 'Input your notes here...',
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        minLines: 5,
+                        maxLines: null,
+                        onChanged: _recordNotesEdit,
                       ),
                     ),
-                    // Page-level Regenerate All button
-                    IconButton(
-                      icon: const Icon(Icons.refresh,
-                          size: 20, color: Color(0xFF2563EB)),
-                      tooltip: 'Regenerate all solutions',
-                      onPressed:
-                          _isLoadingSolutions ? null : _confirmRegenerateAll,
-                      padding: EdgeInsets.zero,
-                      constraints:
-                          const BoxConstraints(minWidth: 40, minHeight: 40),
+                  ),
+                  SizedBox(height: sectionGap),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      EditableContentText(
+                        contentKey: 'potential_solutions_heading',
+                        fallback: 'Potential Solution(s) ',
+                        category: 'business_case',
+                        key: _solutionsSectionKey,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Expanded(
+                        child: EditableContentText(
+                          contentKey: 'potential_solutions_description',
+                          fallback: AccessPolicy.isRestrictedAdminHost()
+                              ? '(5 KAZ AI-generated solutions)'
+                              : '(Maximum 3 solutions)',
+                          category: 'business_case',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Page-level Regenerate All button
+                      IconButton(
+                        icon: const Icon(Icons.refresh,
+                            size: 20, color: Color(0xFF2563EB)),
+                        tooltip: 'Regenerate all solutions',
+                        onPressed:
+                            _isLoadingSolutions ? null : _confirmRegenerateAll,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 40, minHeight: 40),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: fieldGap),
+                  _buildSolutionsSection(),
+                  if (_solutions.length < 3) ...[
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: OutlinedButton.icon(
+                        onPressed:
+                            _isLoadingSolutions ? null : _addManualSolution,
+                        icon: const Icon(Icons.add),
+                        label: Text('Add Solution (${_solutions.length}/3)'),
+                      ),
                     ),
                   ],
-                ),
-                SizedBox(height: fieldGap),
-                _buildSolutionsSection(),
-                if (_solutions.length < 3) ...[
-                  const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed:
-                          _isLoadingSolutions ? null : _addManualSolution,
-                      icon: const Icon(Icons.add),
-                      label: Text('Add Solution (${_solutions.length}/3)'),
-                    ),
+                  const SizedBox(height: 20),
+                  // Navigation Buttons
+                  BusinessCaseNavigationButtons(
+                    currentScreen: 'Potential Solutions',
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                    onNext: _handleNextPressed,
+                    isNextEnabled: _reviewConfirmed,
+                    showReviewGate: true,
+                    reviewConfirmed: _reviewConfirmed,
+                    onReviewChanged: (value) {
+                      setState(() => _reviewConfirmed = value);
+                    },
+                    reviewScrollController: _reviewScrollController,
                   ),
                 ],
-                const SizedBox(height: 20),
-                // Navigation Buttons
-                BusinessCaseNavigationButtons(
-                  currentScreen: 'Potential Solutions',
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-                  onNext: _handleNextPressed,
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -1838,6 +1871,7 @@ ${_notesController.text.trim().isEmpty ? 'None' : _notesController.text.trim()}
   @override
   void dispose() {
     _notesController.dispose();
+    _reviewScrollController.dispose();
     _projectNameController.dispose();
     for (var solution in _solutions) {
       solution.titleController.dispose();
@@ -1953,8 +1987,11 @@ ${_notesController.text.trim().isEmpty ? 'None' : _notesController.text.trim()}
     setState(() => _isLoadingSolutions = true);
 
     try {
-      final aiSolutions = await _openAiService
-          .generateSolutionsFromBusinessCase(_incomingBusinessCase);
+      final aiSolutions =
+          await _openAiService.generateSolutionsFromBusinessCase(
+        _incomingBusinessCase,
+        contextNotes: _buildPotentialSolutionsContext(),
+      );
       final targetCount = _isAdminHost ? 5 : 3;
 
       setState(() {
@@ -2007,8 +2044,10 @@ ${_notesController.text.trim().isEmpty ? 'None' : _notesController.text.trim()}
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      final generated = await _openAiService
-          .generateSolutionsFromBusinessCase(_incomingBusinessCase);
+      final generated = await _openAiService.generateSolutionsFromBusinessCase(
+        _incomingBusinessCase,
+        contextNotes: _buildPotentialSolutionsContext(),
+      );
       final rowIndex = _solutions.indexOf(solution);
       if (generated.isEmpty || rowIndex < 0) return;
       final source =

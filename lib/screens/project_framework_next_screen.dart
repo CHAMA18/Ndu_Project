@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
@@ -299,12 +300,11 @@ class _ProjectFrameworkNextScreenState
       context: context,
       checkpoint: 'project_goals_milestones',
       saveInBackground: true,
-      nextScreenBuilder: () {
-        final nextIdx =
-            PlanningPhaseNavigation.getPageIndex('project_goals_milestones') +
-                1;
-        return PlanningPhaseNavigation.pages[nextIdx].builder(context);
-      },
+      nextScreenBuilder: () => PlanningPhaseNavigation.resolveNextScreen(
+            context,
+            'project_goals_milestones',
+          ) ??
+          const PlanningRequirementsScreen(),
       dataUpdater: (data) => data.copyWith(planningGoals: planningGoals),
     );
   }
@@ -329,7 +329,7 @@ class _ProjectFrameworkNextScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _HeaderRow(),
+                    _HeaderRow(onNext: _navigateToNext),
                     const SizedBox(height: 32),
                     const PlanningAiNotesCard(
                       title: 'Notes',
@@ -407,7 +407,9 @@ class _ProjectFrameworkNextScreenState
 }
 
 class _HeaderRow extends StatelessWidget {
-  const _HeaderRow();
+  const _HeaderRow({required this.onNext});
+
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -423,30 +425,13 @@ class _HeaderRow extends StatelessWidget {
       children: [
         _circleIconButton(
             icon: Icons.arrow_back_ios_new_rounded,
-            onTap: () {
-              final idx = PlanningPhaseNavigation.getPageIndex(
-                  'project_goals_milestones');
-              if (idx > 0) {
-                final prevPage = PlanningPhaseNavigation.pages[idx - 1];
-                Navigator.pushReplacement(
-                    context, MaterialPageRoute(builder: prevPage.builder));
-              } else {
-                Navigator.maybePop(context);
-              }
-            }),
+            onTap: () => PlanningPhaseNavigation.goToPrevious(
+                context, 'project_goals_milestones')),
         const SizedBox(width: 12),
         _circleIconButton(
             icon: Icons.arrow_forward_ios_rounded,
             backgroundColor: _kAccentColor,
-            onTap: () {
-              final idx = PlanningPhaseNavigation.getPageIndex(
-                  'project_goals_milestones');
-              if (idx < PlanningPhaseNavigation.pages.length - 1) {
-                final nextPage = PlanningPhaseNavigation.pages[idx + 1];
-                Navigator.pushReplacement(
-                    context, MaterialPageRoute(builder: nextPage.builder));
-              }
-            }),
+            onTap: onNext),
         const SizedBox(width: 16),
         const Text(
           'Planning Phase',

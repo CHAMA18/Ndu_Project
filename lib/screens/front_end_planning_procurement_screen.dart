@@ -24,7 +24,9 @@ import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/services/vendor_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/procurement_dialogs.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
+import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 enum ProcurementScreenMode { fep, planning }
@@ -2343,6 +2345,18 @@ class _FrontEndPlanningProcurementScreenState
   String get _checkpointId =>
       _isPlanningMode ? 'procurement' : 'fep_procurement';
 
+  String _nextFlowDestinationLabel() {
+    if (!_isPlanningMode) return 'Security';
+    final rawLabel = PlanningPhaseNavigation.nextLabel('procurement').trim();
+    if (rawLabel.startsWith('Next:')) {
+      final parsed = rawLabel.substring('Next:'.length).trim();
+      if (parsed.isNotEmpty && parsed.toLowerCase() != 'next') {
+        return parsed;
+      }
+    }
+    return 'the next planning step';
+  }
+
   Future<void> _seedFromInitiationIfNeeded(
       String projectId, ProjectDataModel data) async {
     if (_isSeedingFromInitiation) return;
@@ -2683,11 +2697,19 @@ class _FrontEndPlanningProcurementScreenState
     final notes = _currentProcurementNotes(data);
     final scopeSignals = _scopeSignalContext(data);
     final focus = focusCategory.trim();
+    final fullContext =
+        ProjectDataHelper.buildFepContext(data, sectionLabel: 'Procurement');
+    final contextScan = ProjectDataHelper.buildProjectContextScan(
+      data,
+      sectionLabel: 'Procurement',
+    );
 
     return [
       if (focus.isNotEmpty) 'Focus category: $focus',
       'Project type: ${_projectTypeContext(data)}',
       'Region and local context: ${_regionContext(data)}',
+      if (fullContext.isNotEmpty) fullContext,
+      if (contextScan.isNotEmpty) contextScan,
       if (notes.isNotEmpty) 'Procurement notes: $notes',
       if (scopeSignals.isNotEmpty) scopeSignals,
       'Guidance: prioritize long-lead and schedule-critical items first.',
@@ -2978,7 +3000,6 @@ class _FrontEndPlanningProcurementScreenState
     }
   }
 
-  // ignore: unused_element
   Future<_MissingProcurementAction?> _showMissingRequirementsDialog(
     FormValidationResult validation,
   ) {
@@ -3003,7 +3024,7 @@ class _FrontEndPlanningProcurementScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Security is blocked until the following procurement fields are completed.',
+                'You still have missing procurement details. You can add them now, auto-fill them, or continue and update later.',
                 style: TextStyle(fontSize: 13, height: 1.35),
               ),
               const SizedBox(height: 10),
@@ -3062,7 +3083,6 @@ class _FrontEndPlanningProcurementScreenState
     );
   }
 
-  // ignore: unused_element
   Future<void> _openManualCompletionForIssues(
     FormValidationResult validation,
   ) async {
@@ -3289,7 +3309,6 @@ class _FrontEndPlanningProcurementScreenState
 
   Future<void> _saveAndNavigateToSecurity({
     bool skippedValidation = false,
-    bool bypassDestinationLock = false,
   }) async {
     final provider = ProjectDataHelper.getProvider(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -3300,13 +3319,12 @@ class _FrontEndPlanningProcurementScreenState
       if (mounted) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Error saving data. Please try again.'),
-            backgroundColor: Colors.red,
+            content: Text(
+              'Could not fully save right now. Continuing and you can save again on the next page.',
+            ),
+            backgroundColor: Colors.orange,
           ),
         );
-      }
-      if (!bypassDestinationLock) {
-        return;
       }
     }
 
@@ -3314,9 +3332,9 @@ class _FrontEndPlanningProcurementScreenState
 
     if (skippedValidation) {
       messenger.showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Continuing to Security. You can complete remaining procurement fields later.',
+            'Continuing to ${_nextFlowDestinationLabel()}. You can complete remaining procurement fields later.',
           ),
           duration: Duration(seconds: 3),
         ),
@@ -3340,43 +3358,18 @@ class _FrontEndPlanningProcurementScreenState
       return;
     }
 
-    if (bypassDestinationLock) {
-      await ProjectDataHelper.updateAndSave(
-        context: context,
-        checkpoint: _checkpointId,
-        dataUpdater: (data) => data.copyWith(
-          frontEndPlanning: ProjectDataHelper.updateFEPField(
-            current: data.frontEndPlanning,
-            procurement: _currentProcurementNotes(data),
-          ),
-        ),
-        showSnackbar: false,
-      );
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const FrontEndPlanningSecurityScreen(),
-        ),
-      );
-      return;
-    }
-
-    // Check if destination is locked (FEP flow)
-    if (ProjectDataHelper.isDestinationLocked(context, 'fep_security')) {
-      ProjectDataHelper.showLockedDestinationMessage(
-        context,
-        'Security',
-      );
-      return;
-    }
+    final nextCheckpoint =
+        FrontEndPlanningNavigation.nextCheckpoint(context, _checkpointId) ??
+            'fep_security';
+    final nextScreen =
+        FrontEndPlanningNavigation.resolveScreen(context, nextCheckpoint) ??
+            const FrontEndPlanningSecurityScreen();
 
     await ProjectDataHelper.saveAndNavigate(
       context: context,
       checkpoint: _checkpointId,
       saveInBackground: true,
-      destinationCheckpoint: 'fep_security',
-      destinationName: 'Security',
-      nextScreenBuilder: () => const FrontEndPlanningSecurityScreen(),
+      nextScreenBuilder: () => nextScreen,
       dataUpdater: (data) => data.copyWith(
         frontEndPlanning: ProjectDataHelper.updateFEPField(
           current: data.frontEndPlanning,
@@ -3390,7 +3383,6 @@ class _FrontEndPlanningProcurementScreenState
     _clearNavigationValidationState();
     await _saveAndNavigateToSecurity(
       skippedValidation: true,
-      bypassDestinationLock: true,
     );
   }
 
@@ -3403,12 +3395,82 @@ class _FrontEndPlanningProcurementScreenState
       }
       return;
     }
-    _clearNavigationValidationState();
     await _ensurePurchaseOrdersSeeded();
-    await _saveAndNavigateToSecurity(
-      skippedValidation: true,
-      bypassDestinationLock: true,
-    );
+
+    final validation = _validateProcurementForNavigation();
+    if (!validation.isValid) {
+      final tabErrors = validation.issues
+          .map((issue) => _tabForFieldId(issue.id))
+          .whereType<_ProcurementTab>()
+          .toSet();
+      if (mounted) {
+        setState(() {
+          _validationErrors = validation.errorByFieldId;
+          _tabsWithErrors
+            ..clear()
+            ..addAll(tabErrors);
+          _pendingSecurityIssues = validation.issues;
+          _showPendingSecurityPrompt = true;
+        });
+      }
+      final action = await _showMissingRequirementsDialog(validation);
+      if (!mounted || action == null) return;
+
+      if (action == _MissingProcurementAction.skip) {
+        await _skipMissingDataAndContinue();
+        return;
+      }
+
+      if (action == _MissingProcurementAction.autoFill) {
+        await _autoFillMissingProcurementFields(validation);
+        if (!mounted) return;
+        final postAutoValidation = _validateProcurementForNavigation();
+        if (!postAutoValidation.isValid) {
+          final postTabErrors = postAutoValidation.issues
+              .map((issue) => _tabForFieldId(issue.id))
+              .whereType<_ProcurementTab>()
+              .toSet();
+          setState(() {
+            _validationErrors = postAutoValidation.errorByFieldId;
+            _tabsWithErrors
+              ..clear()
+              ..addAll(postTabErrors);
+            _pendingSecurityIssues = postAutoValidation.issues;
+            _showPendingSecurityPrompt = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Some fields are still missing after auto-fill. Continuing so you can update them later.',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          await _saveAndNavigateToSecurity(
+            skippedValidation: true,
+          );
+          return;
+        }
+        _clearNavigationValidationState();
+        await _saveAndNavigateToSecurity();
+        return;
+      }
+
+      await _openManualCompletionForIssues(validation);
+      return;
+    }
+
+    _clearNavigationValidationState();
+    await _saveAndNavigateToSecurity();
+  }
+
+  void _goToPreviousSection() {
+    _clearNavigationValidationState();
+    if (_isPlanningMode) {
+      PlanningPhaseNavigation.navigateToPrevious(context, 'procurement');
+      return;
+    }
+    FrontEndPlanningNavigation.goToPrevious(context, _checkpointId);
   }
 
   Widget _buildTabContent() {
@@ -3719,7 +3781,7 @@ class _FrontEndPlanningProcurementScreenState
 
     return _PendingSecurityPromptBar(
       message:
-          'Please complete the current requirements before accessing Security.',
+          'We recommend completing the current requirements before continuing to ${_nextFlowDestinationLabel()}.',
       pendingText: pendingText,
       onAcknowledge: _dismissPendingSecurityPrompt,
       onSkip: () {
@@ -5073,7 +5135,7 @@ class _FrontEndPlanningProcurementScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _ProcurementTopBar(
-                        onBack: () => Navigator.of(context).maybePop(),
+                        onBack: _goToPreviousSection,
                         onForward: _goToNextSection,
                       ),
                       const SizedBox(height: 12),
@@ -7759,7 +7821,8 @@ class _VendorDataTable extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: DataTable(
+                child: buildNduDataTable(
+                  context: context,
                   columnSpacing: 18,
                   horizontalMargin: 24,
                   headingTextStyle: const TextStyle(
@@ -7768,6 +7831,7 @@ class _VendorDataTable extends StatelessWidget {
                       color: Color(0xFF475569)),
                   dataTextStyle:
                       const TextStyle(fontSize: 14, color: Color(0xFF111827)),
+                  showCheckboxColumn: false,
                   columns: const [
                     DataColumn(label: Center(child: SizedBox(width: 24))),
                     DataColumn(label: Center(child: Text('Vendor Name'))),

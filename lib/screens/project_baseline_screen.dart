@@ -41,6 +41,129 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
     });
   }
 
+  Future<void> _handleUpdateBaseline() async {
+    final approvedByController = TextEditingController();
+    final descriptionController = TextEditingController();
+    try {
+      final payload = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Update Baseline'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: approvedByController,
+                  decoration: const InputDecoration(
+                    labelText: 'Approved By',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  minLines: 3,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    labelText: 'Baseline Update Description',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final approvedBy = approvedByController.text.trim();
+                final description = descriptionController.text.trim();
+                if (approvedBy.isEmpty || description.isEmpty) return;
+                Navigator.of(dialogContext).pop({
+                  'approvedBy': approvedBy,
+                  'description': description,
+                });
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted || payload == null) return;
+      final approvedBy = payload['approvedBy'] ?? '';
+      final description = payload['description'] ?? '';
+      if (approvedBy.isEmpty || description.isEmpty) return;
+
+      final now = DateTime.now();
+      final version = 'v${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch % 1000}';
+
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'project_baseline',
+        showSnackbar: false,
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            'project_baseline_last_version': version,
+            'project_baseline_last_approved_by': approvedBy,
+            'project_baseline_last_description': description,
+            'project_baseline_last_updated_at': now.toIso8601String(),
+          },
+        ),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Baseline update saved.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to save baseline update right now.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      approvedByController.dispose();
+      descriptionController.dispose();
+    }
+  }
+
+  void _showBaselineHistoryEntry(_BaselineHistoryEntry entry) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Baseline ${entry.version}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Date: ${entry.date}'),
+            const SizedBox(height: 8),
+            Text('Approved By: ${entry.approvedBy}'),
+            const SizedBox(height: 8),
+            Text('Description: ${entry.description}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isMobile = AppBreakpoints.isMobile(context);
@@ -149,7 +272,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
               runSpacing: 12,
               children: [
                 FilledButton.icon(
-                  onPressed: () {},
+                  onPressed: _handleUpdateBaseline,
                   icon: const Icon(Icons.update, size: 18),
                   label: const Text('Update Baseline'),
                   style: FilledButton.styleFrom(
@@ -718,7 +841,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
             width: 48,
             child: IconButton(
               tooltip: 'View baseline',
-              onPressed: () {},
+              onPressed: () => _showBaselineHistoryEntry(entry),
               icon: const Icon(Icons.remove_red_eye_outlined,
                   size: 20, color: Color(0xFF2563EB)),
             ),

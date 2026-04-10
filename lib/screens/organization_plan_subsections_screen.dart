@@ -5,6 +5,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/screens/team_training_building_screen.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -486,44 +487,28 @@ class _OrganizationStaffingPlanScreenState
                           children: [
                             _CircleIconButton(
                               icon: Icons.arrow_back_ios_new_rounded,
-                              onTap: () {
-                                final navIdx =
-                                    PlanningPhaseNavigation.getPageIndex(
-                                        'organization_staffing_plan');
-                                if (navIdx > 0) {
-                                  final prevPage =
-                                      PlanningPhaseNavigation.pages[navIdx - 1];
-                                  Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: prevPage.builder));
-                                } else {
-                                  Navigator.maybePop(context);
-                                }
-                              },
+                              onTap: () => PlanningPhaseNavigation.goToPrevious(
+                                context,
+                                'organization_staffing_plan',
+                              ),
                             ),
                             const SizedBox(width: 12),
                             _CircleIconButton(
                               icon: Icons.arrow_forward_ios_rounded,
                               onTap: () async {
-                                final navIndex =
-                                    PlanningPhaseNavigation.getPageIndex(
-                                        'organization_staffing_plan');
-                                if (navIndex != -1 &&
-                                    navIndex <
-                                        PlanningPhaseNavigation.pages.length -
-                                            1) {
-                                  final nextPage = PlanningPhaseNavigation
-                                      .pages[navIndex + 1];
-                                  await ProjectDataHelper.saveAndNavigate(
-                                    context: context,
-                                    checkpoint: 'organization_staffing_plan',
-                                    saveInBackground: true,
-                                    nextScreenBuilder: () =>
-                                        nextPage.builder(context),
-                                    dataUpdater: (d) => d,
-                                  );
-                                }
+                                final nextScreen =
+                                    PlanningPhaseNavigation.resolveNextScreen(
+                                          context,
+                                          'organization_staffing_plan',
+                                        ) ??
+                                        const TeamTrainingAndBuildingScreen();
+                                await ProjectDataHelper.saveAndNavigate(
+                                  context: context,
+                                  checkpoint: 'organization_staffing_plan',
+                                  saveInBackground: true,
+                                  nextScreenBuilder: () => nextScreen,
+                                  dataUpdater: (d) => d,
+                                );
                               },
                             ),
                             const SizedBox(width: 16),

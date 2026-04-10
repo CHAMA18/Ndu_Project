@@ -6,7 +6,6 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
@@ -399,33 +398,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       children: [
                         PlanningPhaseHeader(
                           title: 'Schedule',
-                          onBack: () {
-                            final idx = PlanningPhaseNavigation.getPageIndex(
-                                'schedule');
-                            if (idx > 0) {
-                              final prev =
-                                  PlanningPhaseNavigation.pages[idx - 1];
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: prev.builder),
-                              );
-                            } else {
-                              Navigator.maybePop(context);
-                            }
-                          },
-                          onForward: () {
-                            final idx = PlanningPhaseNavigation.getPageIndex(
-                                'schedule');
-                            if (idx <
-                                PlanningPhaseNavigation.pages.length - 1) {
-                              final next =
-                                  PlanningPhaseNavigation.pages[idx + 1];
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: next.builder),
-                              );
-                            }
-                          },
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
+                            context,
+                            'schedule',
+                          ),
+                          onForward: () => PlanningPhaseNavigation.goToNext(
+                            context,
+                            'schedule',
+                          ),
                           showImportButton: false,
                           showContentButton: false,
                         ),
@@ -1391,7 +1371,16 @@ class _ScheduleActions extends StatelessWidget {
           ),
         ),
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Use "Add activity" in Schedule Builder to create a new task.',
+                ),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
           icon: const Icon(Icons.add_rounded, size: 18),
           label: const Text('New Task'),
           style: ElevatedButton.styleFrom(

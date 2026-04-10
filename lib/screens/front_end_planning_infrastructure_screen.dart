@@ -183,6 +183,28 @@ class _FrontEndPlanningInfrastructureScreenState
     );
   }
 
+  Future<void> _handleAddItemsPressed() async {
+    final result = await _showInfrastructureDialog();
+    if (!mounted || result == null) return;
+    final trimmed = result.trim();
+    if (trimmed.isEmpty) return;
+
+    final existing = _notes.text.trim();
+    final nextText = existing.isEmpty
+        ? 'Infrastructure Items:\n- $trimmed'
+        : '$existing\n- $trimmed';
+    setState(() {
+      _notes.text = nextText;
+      _notes.selection = TextSelection.collapsed(offset: _notes.text.length);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Infrastructure item added to notes.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _infrastructurePromptTimer?.cancel();
@@ -267,9 +289,7 @@ class _FrontEndPlanningInfrastructureScreenState
                   ),
                   _BottomOverlays(
                     nextLabel: 'Next',
-                    onAddItems: () {
-                      // TODO: Implement add items dialog
-                    },
+                    onAddItems: _handleAddItemsPressed,
                   ),
                   const KazAiChatBubble(),
                 ],

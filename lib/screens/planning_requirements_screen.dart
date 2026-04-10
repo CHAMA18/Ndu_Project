@@ -8,6 +8,7 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -929,10 +930,9 @@ $requirementsList
       context: context,
       checkpoint: 'requirements',
       saveInBackground: true,
-      nextScreenBuilder: () {
-        final idx = PlanningPhaseNavigation.getPageIndex('requirements');
-        return PlanningPhaseNavigation.pages[idx + 1].builder(context);
-      },
+      nextScreenBuilder: () =>
+          PlanningPhaseNavigation.resolveNextScreen(context, 'requirements') ??
+          const SsherStackedScreen(),
       dataUpdater: (data) => data.copyWith(
         frontEndPlanning: ProjectDataHelper.updateFEPField(
           current: data.frontEndPlanning,
@@ -1277,31 +1277,13 @@ $requirementsList
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back_ios, size: 16),
-            onPressed: () {
-              final idx = PlanningPhaseNavigation.getPageIndex('requirements');
-              if (idx > 0) {
-                final prev = PlanningPhaseNavigation.pages[idx - 1];
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: prev.builder),
-                );
-              } else {
-                Navigator.pop(context);
-              }
-            },
+            onPressed: () =>
+                PlanningPhaseNavigation.goToPrevious(context, 'requirements'),
           ),
           IconButton(
             icon: const Icon(Icons.arrow_forward_ios, size: 16),
-            onPressed: () {
-              final idx = PlanningPhaseNavigation.getPageIndex('requirements');
-              if (idx < PlanningPhaseNavigation.pages.length - 1) {
-                final next = PlanningPhaseNavigation.pages[idx + 1];
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: next.builder),
-                );
-              }
-            },
+            onPressed: () =>
+                PlanningPhaseNavigation.goToNext(context, 'requirements'),
           ),
           const Spacer(),
           const Text(
@@ -1468,18 +1450,8 @@ $requirementsList
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OutlinedButton(
-            onPressed: () {
-              final idx = PlanningPhaseNavigation.getPageIndex('requirements');
-              if (idx > 0) {
-                final prev = PlanningPhaseNavigation.pages[idx - 1];
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: prev.builder),
-                );
-              } else {
-                Navigator.maybePop(context);
-              }
-            },
+            onPressed: () =>
+                PlanningPhaseNavigation.goToPrevious(context, 'requirements'),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF374151),
               side: const BorderSide(color: Color(0xFFD1D5DB)),

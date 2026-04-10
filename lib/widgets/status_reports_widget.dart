@@ -281,6 +281,204 @@ class _StatusReportRowWidgetState extends State<_StatusReportRowWidget> {
     widget.onChanged(updated);
   }
 
+  Future<void> _showEditDialog() async {
+    final reportTypeController =
+        TextEditingController(text: _report.reportType);
+    final stakeholderController =
+        TextEditingController(text: _report.stakeholder);
+    final summaryController = TextEditingController(text: _report.summary);
+    final keyWinsController = TextEditingController(text: _report.keyWins);
+    final blockersController = TextEditingController(text: _report.blockers);
+    final asksController = TextEditingController(text: _report.asks);
+    final followUpsController = TextEditingController(text: _report.followUps);
+    final notesController = TextEditingController(text: _report.notes);
+    DateTime selectedDate = _report.reportDate;
+    var selectedStatus = _report.status;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              return AlertDialog(
+                title: const Text('Edit Status Report'),
+                content: SizedBox(
+                  width: 620,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: reportTypeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Report Type',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: stakeholderController,
+                          decoration: const InputDecoration(
+                            labelText: 'Stakeholder',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Report Date: ${DateFormat('MMM d, yyyy').format(selectedDate)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF374151),
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                final picked = await showDatePicker(
+                                  context: dialogContext,
+                                  initialDate: selectedDate,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (picked == null) return;
+                                setDialogState(() => selectedDate = picked);
+                              },
+                              child: const Text('Select Date'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedStatus,
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Draft', child: Text('Draft')),
+                            DropdownMenuItem(
+                                value: 'Sent', child: Text('Sent')),
+                            DropdownMenuItem(
+                                value: 'Acknowledged',
+                                child: Text('Acknowledged')),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() => selectedStatus = value);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: summaryController,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Summary',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: keyWinsController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Key Wins',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: blockersController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Blockers',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: asksController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Asks',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: followUpsController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Follow-ups',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: notesController,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Notes',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final updated = _report.copyWith(
+                        reportType: reportTypeController.text.trim(),
+                        stakeholder: stakeholderController.text.trim(),
+                        reportDate: selectedDate,
+                        status: selectedStatus,
+                        summary: summaryController.text.trim(),
+                        keyWins: keyWinsController.text.trim(),
+                        blockers: blockersController.text.trim(),
+                        asks: asksController.text.trim(),
+                        followUps: followUpsController.text.trim(),
+                        notes: notesController.text.trim(),
+                      );
+                      _update(updated);
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      reportTypeController.dispose();
+      stakeholderController.dispose();
+      summaryController.dispose();
+      keyWinsController.dispose();
+      blockersController.dispose();
+      asksController.dispose();
+      followUpsController.dispose();
+      notesController.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -369,9 +567,7 @@ class _StatusReportRowWidgetState extends State<_StatusReportRowWidget> {
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined,
                                       size: 16, color: Color(0xFF64748B)),
-                                  onPressed: () {
-                                    // TODO: Show edit dialog
-                                  },
+                                  onPressed: _showEditDialog,
                                   tooltip: 'Edit',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(

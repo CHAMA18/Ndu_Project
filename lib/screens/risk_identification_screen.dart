@@ -33,6 +33,7 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 class RiskIdentificationScreen extends StatefulWidget {
@@ -53,6 +54,7 @@ class RiskIdentificationScreen extends StatefulWidget {
 
 class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _reviewScrollController = ScrollController();
   late final TextEditingController _notesController;
   // Maintain local solutions so we can bootstrap from the business case when needed.
   List<AiSolutionItem> _solutions = const <AiSolutionItem>[];
@@ -73,6 +75,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   bool _isSaving = false;
   bool _hasUnsavedChanges = false;
   DateTime? _lastSavedAt;
+  bool _reviewConfirmed = false;
 
   // Admin status
   bool _isAdmin = false;
@@ -226,8 +229,13 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       _error = null;
     });
     try {
-      final generated =
-          await _openAi.generateSolutionsFromBusinessCase(widget.businessCase);
+      final generated = await _openAi.generateSolutionsFromBusinessCase(
+        widget.businessCase,
+        contextNotes: ProjectDataHelper.buildProjectContextScan(
+          ProjectDataHelper.getData(context),
+          sectionLabel: 'Risk Identification Bootstrap',
+        ),
+      );
       if (!mounted) return;
       setState(() {
         _solutions = List<AiSolutionItem>.from(generated);
@@ -1120,213 +1128,228 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
 
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Notes label + input
-        const EditableContentText(
-          contentKey: 'risk_identification_notes_heading',
-          fallback: 'Notes',
-          category: 'business_case',
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.3))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormattingToolbar(controller: _notesController),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _notesController,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                decoration: InputDecoration(
-                    hintText: 'Input your notes here...',
-                    hintStyle: TextStyle(color: Colors.grey[400]),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero),
-                minLines: 1,
-                maxLines: null,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        // Title
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const EditableContentText(
-                      contentKey: 'risk_identification_heading',
-                      fallback: 'Risk Identification ',
-                      category: 'business_case',
-                      style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black)),
-                  EditableContentText(
-                      contentKey: 'risk_identification_description',
-                      fallback:
-                          '(Identify up to 3 risks for each potential solution here)',
-                      category: 'business_case',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-                ],
-              ),
-            ),
-            // Page-level Regenerate All button
-            PageRegenerateAllButton(
-              onRegenerateAll: () async {
-                final confirmed = await showRegenerateAllConfirmation(context);
-                if (confirmed && mounted) {
-                  await _regenerateAllRisks();
-                }
-              },
-              isLoading: _isGenerating,
-              tooltip: 'Regenerate all risks',
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        if (_error != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.3))),
-            child: Row(children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: Text(_error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis)),
-              TextButton(
-                  onPressed: _isGenerating ? null : _generateRisks,
-                  child: const Text('Retry')),
-            ]),
-          ),
-
-        if (!isMobile) ...[
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: const Row(children: [
-              Expanded(
-                  child: Center(
-                      child: EditableContentText(
-                          contentKey: 'risk_table_header_solution',
-                          fallback: 'Potential Solution',
-                          category: 'business_case',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-              Expanded(
-                  child: Center(
-                      child: EditableContentText(
-                          contentKey: 'risk_table_header_risk1',
-                          fallback: 'Risk 1',
-                          category: 'business_case',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-              Expanded(
-                  child: Center(
-                      child: EditableContentText(
-                          contentKey: 'risk_table_header_risk2',
-                          fallback: 'Risk 2',
-                          category: 'business_case',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-              Expanded(
-                  child: Center(
-                      child: EditableContentText(
-                          contentKey: 'risk_table_header_risk3',
-                          fallback: 'Risk 3',
-                          category: 'business_case',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-            ]),
+    return ScrollIndicatorOverlay(
+      controller: _reviewScrollController,
+      child: SingleChildScrollView(
+        controller: _reviewScrollController,
+        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Notes label + input
+          const EditableContentText(
+            contentKey: 'risk_identification_notes_heading',
+            fallback: 'Notes',
+            category: 'business_case',
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
           ),
           const SizedBox(height: 8),
           Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.3))),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormattingToolbar(controller: _notesController),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _notesController,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  decoration: InputDecoration(
+                      hintText: 'Input your notes here...',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero),
+                  minLines: 1,
+                  maxLines: null,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Title
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const EditableContentText(
+                        contentKey: 'risk_identification_heading',
+                        fallback: 'Risk Identification ',
+                        category: 'business_case',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black)),
+                    EditableContentText(
+                        contentKey: 'risk_identification_description',
+                        fallback:
+                            '(Identify up to 3 risks for each potential solution here)',
+                        category: 'business_case',
+                        style:
+                            TextStyle(fontSize: 14, color: Colors.grey[600])),
+                  ],
+                ),
+              ),
+              // Page-level Regenerate All button
+              PageRegenerateAllButton(
+                onRegenerateAll: () async {
+                  final confirmed =
+                      await showRegenerateAllConfirmation(context);
+                  if (confirmed && mounted) {
+                    await _regenerateAllRisks();
+                  }
+                },
+                isLoading: _isGenerating,
+                tooltip: 'Regenerate all risks',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (_error != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3))),
+              child: Row(children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(_error!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis)),
+                TextButton(
+                    onPressed: _isGenerating ? null : _generateRisks,
+                    child: const Text('Retry')),
+              ]),
+            ),
+
+          if (!isMobile) ...[
+            // Table header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(6),
+                  border:
+                      Border.all(color: Colors.grey.withValues(alpha: 0.35))),
+              child: const Row(children: [
+                Expanded(
+                    child: Center(
+                        child: EditableContentText(
+                            contentKey: 'risk_table_header_solution',
+                            fallback: 'Potential Solution',
+                            category: 'business_case',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)))),
+                Expanded(
+                    child: Center(
+                        child: EditableContentText(
+                            contentKey: 'risk_table_header_risk1',
+                            fallback: 'Risk 1',
+                            category: 'business_case',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)))),
+                Expanded(
+                    child: Center(
+                        child: EditableContentText(
+                            contentKey: 'risk_table_header_risk2',
+                            fallback: 'Risk 2',
+                            category: 'business_case',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)))),
+                Expanded(
+                    child: Center(
+                        child: EditableContentText(
+                            contentKey: 'risk_table_header_risk3',
+                            fallback: 'Risk 3',
+                            category: 'business_case',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)))),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border:
+                      Border.all(color: Colors.grey.withValues(alpha: 0.35))),
+              child: Column(
+                  children: List.generate(
+                      _isAdmin
+                          ? _solutions.length
+                          : (_solutions.length > 3 ? 3 : _solutions.length),
+                      (i) => _riskRow(i))),
+            ),
+          ] else ...[
+            // Mobile stacked rows - limit to 3 for non-admins
+            Column(
                 children: List.generate(
                     _isAdmin
                         ? _solutions.length
                         : (_solutions.length > 3 ? 3 : _solutions.length),
                     (i) => _riskRow(i))),
-          ),
-        ] else ...[
-          // Mobile stacked rows - limit to 3 for non-admins
-          Column(
-              children: List.generate(
-                  _isAdmin
-                      ? _solutions.length
-                      : (_solutions.length > 3 ? 3 : _solutions.length),
-                  (i) => _riskRow(i))),
-        ],
-        const SizedBox(height: 24),
+          ],
+          const SizedBox(height: 24),
 
-        // Auto-save status indicator
-        _buildAutoSaveIndicator(),
-        const SizedBox(height: 16),
+          // Auto-save status indicator
+          _buildAutoSaveIndicator(),
+          const SizedBox(height: 16),
 
-        // Info + Add Risk (admin-host only)
-        if (_canUseAdminControls)
-          Row(children: [
-            Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                    color: Color(0xFFB3D9FF), shape: BoxShape.circle),
-                child: const Icon(Icons.info_outline, color: Colors.white)),
-            const SizedBox(width: 24),
-            ElevatedButton.icon(
-              onPressed: _addNewRisk,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Risk'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+          // Info + Add Risk (admin-host only)
+          if (_canUseAdminControls)
+            Row(children: [
+              Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFFB3D9FF), shape: BoxShape.circle),
+                  child: const Icon(Icons.info_outline, color: Colors.white)),
+              const SizedBox(width: 24),
+              ElevatedButton.icon(
+                onPressed: _addNewRisk,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Risk'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFD700),
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
               ),
-            ),
-          ]),
-        const SizedBox(height: 24),
+            ]),
+          const SizedBox(height: 24),
 
-        // Navigation Buttons
-        BusinessCaseNavigationButtons(
-          currentScreen: 'Risk Identification',
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-          onNext: _handleNextPressed,
-        ),
-      ]),
+          // Navigation Buttons
+          BusinessCaseNavigationButtons(
+            currentScreen: 'Risk Identification',
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+            onNext: _handleNextPressed,
+            isNextEnabled: _reviewConfirmed,
+            showReviewGate: true,
+            reviewConfirmed: _reviewConfirmed,
+            onReviewChanged: (value) {
+              setState(() => _reviewConfirmed = value);
+            },
+            reviewScrollController: _reviewScrollController,
+          ),
+        ]),
+      ),
     );
   }
 
@@ -1839,6 +1862,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     if (_hasUnsavedChanges) {
       _autoSave();
     }
+    _reviewScrollController.dispose();
     _notesController.removeListener(_onDataChanged);
     _notesController.dispose();
     _disposeRiskControllers();

@@ -35,6 +35,7 @@ import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
+import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 
 class InitiationPhaseScreen extends StatefulWidget {
   final bool scrollToBusinessCase;
@@ -46,6 +47,7 @@ class InitiationPhaseScreen extends StatefulWidget {
 
 class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _reviewScrollController = ScrollController();
   final TextEditingController _notesController = RichTextEditingController();
   final TextEditingController _businessCaseController =
       RichTextEditingController();
@@ -54,26 +56,47 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   // Anchor key for sidebar navigation
   final GlobalKey _businessCaseSectionKey = GlobalKey();
   bool _initiationExpanded = true;
+  bool _reviewConfirmed = false;
 
   bool get _isBusinessCaseValid =>
       _meetsBusinessMinimum(_businessCaseController.text.trim());
 
   void _requireBusinessCaseBefore(
-      String destinationName, VoidCallback proceed) {
-    // Blocks navigation to later sections until Business Case has content
+      String destinationName, VoidCallback proceed) async {
     if (_isBusinessCaseValid) {
       proceed();
       return;
     }
-    setState(() => _businessInvalid = true);
-    _scrollToBusinessCase();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+    final business = _businessCaseController.text.trim();
+    final wordCount =
+        business.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final shouldContinue = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Business Case Incomplete'),
         content: Text(
-          'Please complete the Business Case (min $_businessWordMinimum words) before opening $destinationName.',
+          wordCount == 0
+              ? 'No Business Case has been entered yet. It is recommended to complete at least $_businessWordMinimum words before continuing to $destinationName.\n\nYou can add or edit the Business Case right here:'
+              : 'The Business Case currently has $wordCount words (minimum $_businessWordMinimum recommended) before continuing to $destinationName.\n\nYou can add more content right here:',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Go Back & Edit'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Continue Anyway'),
+          ),
+        ],
       ),
     );
+    if (shouldContinue == true) {
+      proceed();
+    } else {
+      setState(() => _businessInvalid = true);
+      _scrollToBusinessCase();
+    }
   }
 
   void _openPotentialSolutions() async {
@@ -458,28 +481,41 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   Future<void> _handleNextPressed() async {
     final notes = _notesController.text.trim();
     final business = _businessCaseController.text.trim();
-    // Notes are optional; no minimum word requirement.
     const notesValid = true;
     final businessValid = _meetsBusinessMinimum(business);
 
     if (!notesValid || !businessValid) {
       setState(() {
-        // Ensure Notes never shows as invalid since it's optional.
         _notesInvalid = false;
         _businessInvalid = !businessValid;
       });
-      final messageParts = <String>[
-        if (!businessValid)
-          'Business Case must include at least $_businessWordMinimum words.',
-      ];
-      if (messageParts.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(messageParts.join(' '))),
-        );
-      }
-      return;
+      final wordCount =
+          business.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+      final shouldContinue = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Business Case Incomplete'),
+          content: Text(
+            wordCount == 0
+                ? 'No Business Case has been entered yet. It is recommended to add at least $_businessWordMinimum words.\n\nYou can continue anyway and complete this later.'
+                : 'The Business Case currently has $wordCount words (minimum $_businessWordMinimum recommended).\n\nYou can continue anyway and complete this later.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Go Back & Edit'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Continue Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (shouldContinue != true) return;
     }
 
+    if (!mounted) return;
     FocusScope.of(context).unfocus();
 
     // Save data to provider before navigation
@@ -1958,183 +1994,194 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Notes section
-          const EditableContentText(
-            contentKey: 'business_case_notes_heading',
-            fallback: 'Notes',
-            category: 'business_case',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
+    return ScrollIndicatorOverlay(
+      controller: _reviewScrollController,
+      child: SingleChildScrollView(
+        controller: _reviewScrollController,
+        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Notes section
+            const EditableContentText(
+              contentKey: 'business_case_notes_heading',
+              fallback: 'Notes',
+              category: 'business_case',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          TextFormattingToolbar(
-            controller: _notesController,
-            onBeforeUndo: _saveBeforeUndo,
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: _notesInvalid
-                      ? Colors.red
-                      : Colors.grey.withValues(alpha: 0.3)),
-            ),
-            child: TextField(
+            const SizedBox(height: 8),
+            TextFormattingToolbar(
               controller: _notesController,
-              focusNode: _notesFocusNode,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              decoration: InputDecoration(
-                hintText: 'Input your notes here...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              // Auto-expand as the user types; no internal scroll
-              minLines: 1,
-              maxLines: null,
-              onChanged: _onNotesChanged,
+              onBeforeUndo: _saveBeforeUndo,
             ),
-          ),
-          if (_notesInvalid)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'Please enter at least 5 words for Notes.',
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: _notesInvalid
+                        ? Colors.red
+                        : Colors.grey.withValues(alpha: 0.3)),
+              ),
+              child: TextField(
+                controller: _notesController,
+                focusNode: _notesFocusNode,
                 style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.red,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: Colors.grey[600],
                 ),
+                decoration: InputDecoration(
+                  hintText: 'Input your notes here...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                // Auto-expand as the user types; no internal scroll
+                minLines: 1,
+                maxLines: null,
+                onChanged: _onNotesChanged,
               ),
             ),
-          const SizedBox(height: 8),
-          SizedBox(height: AppBreakpoints.sectionGap(context)),
-          // Business Case section
-          EditableContentText(
-            contentKey: 'business_case_heading',
-            fallback: 'Scope Statement',
-            category: 'business_case',
-            key: _businessCaseSectionKey,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
+            if (_notesInvalid)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Please enter at least 5 words for Notes.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.red,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            SizedBox(height: AppBreakpoints.sectionGap(context)),
+            // Business Case section
+            EditableContentText(
+              contentKey: 'business_case_heading',
+              fallback: 'Scope Statement',
+              category: 'business_case',
+              key: _businessCaseSectionKey,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          EditableContentText(
-            contentKey: 'business_case_description',
-            fallback: '(Describe the aim of this project)',
-            category: 'business_case',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          SizedBox(height: AppBreakpoints.fieldGap(context)),
-          TextFormattingToolbar(
-            controller: _businessCaseController,
-            onBeforeUndo: _saveBeforeUndo,
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: _businessInvalid
-                      ? Colors.red
-                      : Colors.grey.withValues(alpha: 0.3)),
-            ),
-            child: TextField(
-              controller: _businessCaseController,
-              focusNode: _businessFocusNode,
+            const SizedBox(height: 8),
+            EditableContentText(
+              contentKey: 'business_case_description',
+              fallback: '(Describe the aim of this project)',
+              category: 'business_case',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 color: Colors.grey[600],
               ),
-              decoration: InputDecoration(
-                hintText: '(Describe the aim of this project)',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              // Start tall, then grow with content; no internal scroll
-              minLines: isMobile ? 6 : 10,
-              maxLines: null,
-              onChanged: _onBusinessChanged,
             ),
-          ),
-          if (_businessInvalid)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Please enter at least $_businessWordMinimum words for the Business Case.',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Colors.red,
-                  fontWeight: FontWeight.w500,
+            SizedBox(height: AppBreakpoints.fieldGap(context)),
+            TextFormattingToolbar(
+              controller: _businessCaseController,
+              onBeforeUndo: _saveBeforeUndo,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: _businessInvalid
+                        ? Colors.red
+                        : Colors.grey.withValues(alpha: 0.3)),
+              ),
+              child: TextField(
+                controller: _businessCaseController,
+                focusNode: _businessFocusNode,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+                decoration: InputDecoration(
+                  hintText: '(Describe the aim of this project)',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                // Start tall, then grow with content; no internal scroll
+                minLines: isMobile ? 6 : 10,
+                maxLines: null,
+                onChanged: _onBusinessChanged,
+              ),
+            ),
+            if (_businessInvalid)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Please enter at least $_businessWordMinimum words for the Business Case.',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.red,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: _buildSuggestionPanel(
-              show: _businessFocusNode.hasFocus ||
-                  _businessSuggestLoading ||
-                  _businessSuggestions.isNotEmpty ||
-                  (_businessSuggestionError?.trim().isNotEmpty ?? false),
-              loading: _businessSuggestLoading,
-              suggestions: _businessSuggestions,
-              error: _businessSuggestionError,
-              label: 'AI suggestions for the business case',
-              onRefresh: _retryBusinessSuggestions,
-              onUndo: _businessUndoStack.isEmpty
-                  ? null
-                  : () => _undoSuggestion(
-                        _businessCaseController,
-                        isNotes: false,
-                      ),
-              canUndo: _businessUndoStack.isNotEmpty,
-              onSelect: (value) => _applySuggestion(
-                _businessCaseController,
-                value,
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: _buildSuggestionPanel(
+                show: _businessFocusNode.hasFocus ||
+                    _businessSuggestLoading ||
+                    _businessSuggestions.isNotEmpty ||
+                    (_businessSuggestionError?.trim().isNotEmpty ?? false),
+                loading: _businessSuggestLoading,
+                suggestions: _businessSuggestions,
+                error: _businessSuggestionError,
+                label: 'AI suggestions for the business case',
+                onRefresh: _retryBusinessSuggestions,
+                onUndo: _businessUndoStack.isEmpty
+                    ? null
+                    : () => _undoSuggestion(
+                          _businessCaseController,
+                          isNotes: false,
+                        ),
+                canUndo: _businessUndoStack.isNotEmpty,
+                onSelect: (value) => _applySuggestion(
+                  _businessCaseController,
+                  value,
+                ),
+                onInsert: (value) => _insertSuggestion(
+                  _businessCaseController,
+                  value,
+                ),
+                onCopy: _copySuggestion,
               ),
-              onInsert: (value) => _insertSuggestion(
-                _businessCaseController,
-                value,
-              ),
-              onCopy: _copySuggestion,
             ),
-          ),
-          SizedBox(height: AppBreakpoints.sectionGap(context)),
-          // Navigation Buttons
-          BusinessCaseNavigationButtons(
-            currentScreen: 'Business Case',
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-            onNext: _handleNextPressed,
-            onSkip: _handleSkipPressed,
-            skipLabel: 'Skip',
-          ),
-        ],
+            SizedBox(height: AppBreakpoints.sectionGap(context)),
+            // Navigation Buttons
+            BusinessCaseNavigationButtons(
+              currentScreen: 'Business Case',
+              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+              onNext: _handleNextPressed,
+              onSkip: _handleSkipPressed,
+              skipLabel: 'Skip',
+              isNextEnabled: _reviewConfirmed,
+              showReviewGate: true,
+              reviewConfirmed: _reviewConfirmed,
+              onReviewChanged: (value) {
+                setState(() => _reviewConfirmed = value);
+              },
+              reviewScrollController: _reviewScrollController,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2143,6 +2190,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   void dispose() {
     _notesDebounce?.cancel();
     _businessDebounce?.cancel();
+    _reviewScrollController.dispose();
     _notesFocusNode
       ..removeListener(_handleNotesFocusChange)
       ..dispose();

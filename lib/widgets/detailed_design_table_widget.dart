@@ -24,12 +24,9 @@ class DetailedDesignTableWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (components.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text('No design components found.',
-              style: TextStyle(color: Color(0xFF64748B))),
-        ),
+      return buildNduTableEmptyState(
+        context,
+        message: 'No design components added yet. Click + Add to get started.',
       );
     }
 
@@ -45,9 +42,8 @@ class DetailedDesignTableWidget extends StatelessWidget {
           child: ResponsiveDataTableWrapper(
             minWidth: constraints.maxWidth > 0 ? constraints.maxWidth : 900,
             maxHeight: 560,
-            child: DataTable(
-              headingRowColor:
-                  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+            child: buildNduDataTable(
+              context: context,
               columnSpacing: 24,
               horizontalMargin: 20,
               headingRowHeight: 56,
