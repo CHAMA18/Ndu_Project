@@ -448,6 +448,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
       subtitle:
           'Capture the intent, scope, and success criteria for this plan.',
       isLoading: _loadingOverview,
+      onImport: _importOverview,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -540,6 +541,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
       subtitle:
           'Plan staffing, vendors, and tooling required to deliver the plan.',
       isLoading: _loadingResources,
+      onImport: _importResources,
       child: Column(
         children: [
           _SectionTableCard(
@@ -572,6 +574,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
       title: 'Tasks',
       subtitle: 'Break down the work into clear deliverables and owners.',
       isLoading: _loadingTasks,
+      onImport: _importTasks,
       child: _SectionTableCard(
         title: 'Work plan',
         subtitle: 'Track tasks, dependencies, and delivery status.',
@@ -586,6 +589,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
       title: 'Budget',
       subtitle: 'Document the financial plan, approvals, and tracking.',
       isLoading: _loadingBudget,
+      onImport: _importBudget,
       child: Column(
         children: [
           _SectionCard(
@@ -679,6 +683,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
       title: 'Risks',
       subtitle: 'Identify, score, and mitigate delivery risks.',
       isLoading: _loadingRisks,
+      onImport: _importRisks,
       child: _SectionTableCard(
         title: 'Risk register',
         subtitle: 'Monitor probability, impact, mitigation, and ownership.',
@@ -689,6 +694,457 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
   }
 
   String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  ProjectDataModel get _data => ProjectDataHelper.getData(context);
+
+  void _importOverview() {
+    final data = _data;
+    _suspendOverviewSave = true;
+
+    final summary = _overviewSummaryController.text.trim();
+    if (summary.isEmpty) {
+      final parts = <String>[];
+      if (data.businessCase.trim().isNotEmpty) {
+        parts.add(data.businessCase.trim());
+      }
+      if (data.projectObjective.trim().isNotEmpty) {
+        parts.add(data.projectObjective.trim());
+      }
+      if (parts.isNotEmpty) {
+        _overviewSummaryController.text = parts.join('\n\n');
+      }
+    }
+
+    if (_overviewObjectives.isEmpty) {
+      final entries = <_ListEntry>[];
+      for (final goal in data.projectGoals) {
+        final desc = goal.description.trim();
+        if (desc.isNotEmpty) {
+          entries.add(_ListEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            text: desc,
+          ));
+        }
+      }
+      for (final pg in data.planningGoals) {
+        final desc = pg.description.trim();
+        if (desc.isNotEmpty) {
+          entries.add(_ListEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            text: desc,
+          ));
+        }
+      }
+      setState(() => _overviewObjectives.addAll(entries));
+    }
+
+    if (_overviewScope.isEmpty) {
+      final entries = <_ListEntry>[];
+      for (final item in data.withinScopeItems) {
+        final desc = item.description.trim();
+        if (desc.isNotEmpty) {
+          entries.add(_ListEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            text: desc,
+          ));
+        }
+      }
+      for (final item in data.outOfScopeItems) {
+        final desc = item.description.trim();
+        if (desc.isNotEmpty) {
+          entries.add(_ListEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            text: 'Out of scope: $desc',
+          ));
+        }
+      }
+      setState(() => _overviewScope.addAll(entries));
+    }
+
+    if (_overviewAssumptions.isEmpty) {
+      final entries = <_ListEntry>[];
+      for (final item in data.assumptionItems) {
+        final desc = item.description.trim();
+        if (desc.isNotEmpty) {
+          entries.add(_ListEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            text: desc,
+          ));
+        }
+      }
+      for (final item in data.constraintItems) {
+        final desc = item.description.trim();
+        if (desc.isNotEmpty) {
+          entries.add(_ListEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            text: 'Constraint: $desc',
+          ));
+        }
+      }
+      setState(() => _overviewAssumptions.addAll(entries));
+    }
+
+    if (_overviewMilestones.isEmpty) {
+      final entries = <_MilestoneEntry>[];
+      for (final m in data.keyMilestones) {
+        if (m.name.trim().isEmpty) continue;
+        entries.add(_MilestoneEntry(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          title: m.name.trim(),
+          targetDate: m.dueDate.trim(),
+          owner: m.discipline.trim(),
+          status: 'Planned',
+          notes: m.comments.trim(),
+        ));
+      }
+      for (final pg in data.planningGoals) {
+        for (final pm in pg.milestones) {
+          if (pm.title.trim().isEmpty) continue;
+          entries.add(_MilestoneEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            title: pm.title.trim(),
+            targetDate: pm.deadline.trim(),
+            owner: '',
+            status: _mapMilestoneStatus(pm.status),
+            notes: '',
+          ));
+        }
+      }
+      setState(() => _overviewMilestones.addAll(entries));
+    }
+
+    _suspendOverviewSave = false;
+    _scheduleOverviewSave();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Overview imported from prior sections.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importResources() async {
+    final data = _data;
+
+    if (_resourcePlan.isEmpty) {
+      final entries = <_ResourceEntry>[];
+      for (final member in data.teamMembers) {
+        if (member.name.trim().isEmpty) continue;
+        entries.add(_ResourceEntry(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          role: '${member.name.trim()} — ${member.role.trim()}',
+          allocation: '',
+          startDate: '',
+          endDate: '',
+          owner: member.email.trim(),
+          notes: member.responsibilities.trim(),
+        ));
+      }
+      setState(() => _resourcePlan.addAll(entries));
+    }
+
+    if (_vendors.isEmpty) {
+      final entries = <_VendorEntry>[];
+      for (final c in data.contractors) {
+        if (c.name.trim().isEmpty) continue;
+        entries.add(_VendorEntry(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          name: c.name.trim(),
+          service: c.service.trim(),
+          contact: '',
+          status: c.status.trim().isEmpty ? 'Planned' : c.status.trim(),
+          notes: c.notes.trim(),
+        ));
+      }
+      for (final v in data.vendors) {
+        if (v.name.trim().isEmpty) continue;
+        entries.add(_VendorEntry(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          name: v.name.trim(),
+          service: v.equipmentOrService.trim(),
+          contact: '',
+          status: v.status.trim().isEmpty ? 'Planned' : v.status.trim(),
+          notes: v.notes.trim(),
+        ));
+      }
+
+      final projectId = _projectId();
+      if (projectId != null && projectId.isNotEmpty) {
+        try {
+          final contractSnap = await FirebaseFirestore.instance
+              .collection('projects')
+              .doc(projectId)
+              .collection('contracting')
+              .get();
+          for (final doc in contractSnap.docs) {
+            final d = doc.data();
+            final name =
+                (d['contractorName'] ?? d['name'] ?? '').toString().trim();
+            if (name.isEmpty) continue;
+            entries.add(_VendorEntry(
+              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              name: name,
+              service: (d['scope'] ?? d['description'] ?? '').toString().trim(),
+              contact: (d['owner'] ?? '').toString().trim(),
+              status: (d['status'] ?? 'Planned').toString().trim(),
+              notes: (d['notes'] ?? '').toString().trim(),
+            ));
+          }
+        } catch (_) {}
+
+        try {
+          final vendorSnap = await FirebaseFirestore.instance
+              .collection('projects')
+              .doc(projectId)
+              .collection('vendors')
+              .get();
+          for (final doc in vendorSnap.docs) {
+            final d = doc.data();
+            final name = (d['name'] ?? '').toString().trim();
+            if (name.isEmpty) continue;
+            entries.add(_VendorEntry(
+              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              name: name,
+              service: (d['category'] ?? '').toString().trim(),
+              contact: '',
+              status: (d['status'] ?? 'Active').toString().trim(),
+              notes: (d['notes'] ?? '').toString().trim(),
+            ));
+          }
+        } catch (_) {}
+      }
+
+      setState(() => _vendors.addAll(entries));
+    }
+
+    _scheduleResourcesSave();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Resources imported from prior sections.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _importTasks() {
+    final data = _data;
+    if (data.wbsTree.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No WBS items found to import.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final entries = <_TaskEntry>[];
+    void flatten(List<WorkItem> items) {
+      for (final item in items) {
+        if (item.title.trim().isNotEmpty) {
+          entries.add(_TaskEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            title: item.title.trim(),
+            owner: '',
+            startDate: '',
+            dueDate: '',
+            status: _mapWbsStatus(item.status),
+            dependency: item.dependencies.join(', '),
+            notes: item.description.trim(),
+          ));
+        }
+        if (item.children.isNotEmpty) {
+          flatten(item.children);
+        }
+      }
+    }
+
+    flatten(data.wbsTree);
+    setState(() => _tasks.addAll(entries));
+    _scheduleTasksSave();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Imported ${entries.length} tasks from WBS.'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _importBudget() {
+    final data = _data;
+    if (data.costEstimateItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No cost estimate items found to import.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _suspendBudgetSave = true;
+
+    if (_budgetTotalController.text.trim().isEmpty) {
+      final total =
+          data.costEstimateItems.fold<double>(0, (acc, i) => acc + i.amount);
+      if (total > 0) {
+        _budgetTotalController.text = total.toStringAsFixed(2);
+      }
+    }
+
+    final currency = data.costBenefitCurrency.trim();
+    if (currency.isNotEmpty && _currencyOptions.contains(currency)) {
+      _budgetCurrency = currency;
+    }
+
+    if (_budgetBreakdown.isEmpty) {
+      final entries = <_BudgetEntry>[];
+      for (final item in data.costEstimateItems) {
+        if (item.title.trim().isEmpty && item.amount <= 0) continue;
+        entries.add(_BudgetEntry(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          category: item.title.trim(),
+          estimate: item.amount > 0 ? item.amount.toStringAsFixed(2) : '',
+          actual: '',
+          variance: '',
+          notes: item.notes.trim(),
+        ));
+      }
+      setState(() => _budgetBreakdown.addAll(entries));
+    }
+
+    _suspendBudgetSave = false;
+    _scheduleBudgetSave();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Budget imported from cost estimates.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _importRisks() {
+    final data = _data;
+    final entries = <_RiskEntry>[];
+    final seen = <String>{};
+
+    for (final r in data.frontEndPlanning.riskRegisterItems) {
+      if (r.riskName.trim().isEmpty) continue;
+      final key = r.riskName.trim().toLowerCase();
+      if (!seen.add(key)) continue;
+      entries.add(_RiskEntry(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: r.riskName.trim(),
+        impact: _normalizeImpact(r.impactLevel),
+        probability: _normalizeProbability(r.likelihood),
+        mitigation: r.mitigationStrategy.trim(),
+        owner: r.owner.trim(),
+        status: r.status.trim().isEmpty ? 'Open' : r.status.trim(),
+        targetDate: '',
+      ));
+    }
+
+    for (final e in data.ssherData.entries) {
+      if (e.concern.trim().isEmpty) continue;
+      final key = e.concern.trim().toLowerCase();
+      if (!seen.add(key)) continue;
+      entries.add(_RiskEntry(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: e.concern.trim(),
+        impact: _normalizeImpact(e.riskLevel),
+        probability: 'Medium',
+        mitigation: e.mitigation.trim(),
+        owner: e.teamMember.trim(),
+        status: 'Open',
+        targetDate: '',
+      ));
+    }
+
+    for (final i in data.issueLogItems) {
+      if (i.title.trim().isEmpty) continue;
+      final lower = i.status.toLowerCase();
+      if (lower == 'resolved' || lower == 'closed') continue;
+      final key = i.title.trim().toLowerCase();
+      if (!seen.add(key)) continue;
+      entries.add(_RiskEntry(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: i.title.trim(),
+        impact: _normalizeSeverity(i.severity),
+        probability: 'Medium',
+        mitigation: i.description.trim(),
+        owner: i.assignee.trim(),
+        status: _mapIssueStatus(i.status),
+        targetDate: i.dueDate.trim(),
+      ));
+    }
+
+    if (entries.isNotEmpty) {
+      setState(() => _risks.addAll(entries));
+      _scheduleRisksSave();
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Imported ${entries.length} risks from prior sections.'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  String _mapMilestoneStatus(String status) {
+    final s = status.trim().toLowerCase();
+    if (s.contains('complete') || s.contains('done')) return 'Complete';
+    if (s.contains('progress') || s.contains('active')) return 'In progress';
+    if (s.contains('at risk') || s.contains('risk')) return 'At risk';
+    return 'Planned';
+  }
+
+  String _mapWbsStatus(String status) {
+    final s = status.trim().toLowerCase();
+    if (s == 'completed' || s == 'complete') return 'Complete';
+    if (s == 'in_progress') return 'In progress';
+    return 'Not started';
+  }
+
+  String _normalizeImpact(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.contains('high') || s.contains('critical')) return 'High';
+    if (s.contains('low')) return 'Low';
+    return 'Medium';
+  }
+
+  String _normalizeProbability(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.contains('high') || s.contains('likely') || s.contains('certain')) {
+      return 'High';
+    }
+    if (s.contains('low') || s.contains('unlikely')) return 'Low';
+    return 'Medium';
+  }
+
+  String _normalizeSeverity(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.contains('critical') || s.contains('high')) return 'High';
+    if (s.contains('low')) return 'Low';
+    return 'Medium';
+  }
+
+  String _mapIssueStatus(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.contains('progress')) return 'Mitigating';
+    if (s.contains('resolved') || s.contains('closed')) return 'Closed';
+    return 'Open';
+  }
 
   void _scheduleOverviewSave() {
     _overviewSaveDebounce.run(_persistOverview);
@@ -745,6 +1201,14 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..clear()
           ..addAll(milestones);
       });
+      final allEmpty = summary.isEmpty &&
+          objectives.isEmpty &&
+          scope.isEmpty &&
+          assumptions.isEmpty &&
+          milestones.isEmpty;
+      if (allEmpty) {
+        _importOverview();
+      }
     } catch (error) {
       debugPrint('Failed to load project plan overview: $error');
     } finally {
@@ -779,6 +1243,9 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..clear()
           ..addAll(tools);
       });
+      if (resources.isEmpty && vendors.isEmpty && tools.isEmpty) {
+        _importResources();
+      }
     } catch (error) {
       debugPrint('Failed to load project plan resources: $error');
     } finally {
@@ -805,6 +1272,9 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..clear()
           ..addAll(tasks);
       });
+      if (tasks.isEmpty) {
+        _importTasks();
+      }
     } catch (error) {
       debugPrint('Failed to load project plan tasks: $error');
     } finally {
@@ -843,6 +1313,9 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..clear()
           ..addAll(breakdown);
       });
+      if (breakdown.isEmpty && totalBudget.isEmpty) {
+        _importBudget();
+      }
     } catch (error) {
       debugPrint('Failed to load project plan budget: $error');
     } finally {
@@ -869,6 +1342,9 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..clear()
           ..addAll(risks);
       });
+      if (risks.isEmpty) {
+        _importRisks();
+      }
     } catch (error) {
       debugPrint('Failed to load project plan risks: $error');
     } finally {
@@ -1678,10 +2154,18 @@ class _CommunicationPlan {
   final String purpose;
 }
 
-class _ProjectPlanOverviewCard extends StatelessWidget {
+class _ProjectPlanOverviewCard extends StatefulWidget {
   const _ProjectPlanOverviewCard({required this.isMobile});
 
   final bool isMobile;
+
+  @override
+  State<_ProjectPlanOverviewCard> createState() =>
+      _ProjectPlanOverviewCardState();
+}
+
+class _ProjectPlanOverviewCardState extends State<_ProjectPlanOverviewCard> {
+  bool _isExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -1700,7 +2184,7 @@ class _ProjectPlanOverviewCard extends StatelessWidget {
       );
     }
     return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 28),
+      padding: EdgeInsets.all(widget.isMobile ? 20 : 28),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1709,36 +2193,67 @@ class _ProjectPlanOverviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Project Plan Overview',
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 24),
-          isMobile
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProjectDetails(context),
-                    const SizedBox(height: 24),
-                    _buildProjectObjectives(objectives),
-                    const SizedBox(height: 24),
-                    _buildProjectScope(scopes),
-                  ],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 2, child: _buildProjectDetails(context)),
-                    const SizedBox(width: 32),
-                    Expanded(
-                        flex: 2, child: _buildProjectObjectives(objectives)),
-                    const SizedBox(width: 32),
-                    Expanded(flex: 2, child: _buildProjectScope(scopes)),
-                  ],
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                const Text(
+                  'Project Plan Overview',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827)),
                 ),
+                const SizedBox(width: 12),
+                Icon(
+                  _isExpanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 24,
+                  color: const Color(0xFF6B7280),
+                ),
+              ],
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                widget.isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildProjectDetails(context),
+                          const SizedBox(height: 24),
+                          _buildProjectObjectives(objectives),
+                          const SizedBox(height: 24),
+                          _buildProjectScope(scopes),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                              flex: 2, child: _buildProjectDetails(context)),
+                          const SizedBox(width: 32),
+                          Expanded(
+                              flex: 2,
+                              child: _buildProjectObjectives(objectives)),
+                          const SizedBox(width: 32),
+                          Expanded(flex: 2, child: _buildProjectScope(scopes)),
+                        ],
+                      ),
+              ],
+            ),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
+          ),
         ],
       ),
     );
@@ -1748,11 +2263,23 @@ class _ProjectPlanOverviewCard extends StatelessWidget {
     final data = ProjectDataHelper.getData(context);
     final projectName =
         data.projectName.trim().isEmpty ? '—' : data.projectName.trim();
-    final manager = _firstTeamMemberName(data, keyword: 'manager') ?? '—';
-    final sponsor = _firstTeamMemberName(data, keyword: 'sponsor') ?? '—';
-    const methodology = '—';
-    const startDate = '—';
-    const endDate = '—';
+    final manager = _firstTeamMemberName(data, keyword: 'manager') ??
+        (data.charterProjectManagerName.trim().isEmpty
+            ? '—'
+            : data.charterProjectManagerName.trim());
+    final sponsor = _firstTeamMemberName(data, keyword: 'sponsor') ??
+        (data.charterProjectSponsorName.trim().isEmpty
+            ? '—'
+            : data.charterProjectSponsorName.trim());
+    final methodology = data.overallFramework?.trim().isEmpty ?? true
+        ? '—'
+        : data.overallFramework!.trim();
+    final startDate = data.frontEndPlanning.milestoneStartDate.trim().isEmpty
+        ? '—'
+        : data.frontEndPlanning.milestoneStartDate.trim();
+    final endDate = data.frontEndPlanning.milestoneEndDate.trim().isEmpty
+        ? '—'
+        : data.frontEndPlanning.milestoneEndDate.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2226,12 +2753,14 @@ class _TabSectionCard extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.isLoading = false,
+    this.onImport,
   });
 
   final String title;
   final String subtitle;
   final Widget child;
   final bool isLoading;
+  final VoidCallback? onImport;
 
   @override
   Widget build(BuildContext context) {
@@ -2249,14 +2778,39 @@ class _TabSectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827))),
-          const SizedBox(height: 6),
-          Text(subtitle,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF111827))),
+                    const SizedBox(height: 6),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 13, color: Color(0xFF6B7280))),
+                  ],
+                ),
+              ),
+              if (onImport != null)
+                TextButton.icon(
+                  onPressed: onImport,
+                  icon: const Icon(Icons.download_outlined, size: 18),
+                  label: const Text('Import from prior sections'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 16),
           if (isLoading) const LinearProgressIndicator(minHeight: 2),
           if (isLoading) const SizedBox(height: 16),

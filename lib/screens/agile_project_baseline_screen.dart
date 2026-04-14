@@ -1,16 +1,35 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:ndu_project/models/agile_project_baseline.dart';
+import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/models/roadmap_deliverable.dart';
+import 'package:ndu_project/models/roadmap_sprint.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/services/agile_project_baseline_service.dart';
+import 'package:ndu_project/services/firebase_auth_service.dart';
+import 'package:ndu_project/services/roadmap_service.dart';
+import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
-class AgileProjectBaselineScreen extends StatelessWidget {
+const Color _kBackground = Color(0xFFF9FAFC);
+const Color _kBorder = Color(0xFFE5E7EB);
+const Color _kMuted = Color(0xFF6B7280);
+const Color _kHeadline = Color(0xFF111827);
+
+class AgileProjectBaselineScreen extends StatefulWidget {
   const AgileProjectBaselineScreen({super.key});
 
   static void open(BuildContext context) {
@@ -20,12 +39,564 @@ class AgileProjectBaselineScreen extends StatelessWidget {
   }
 
   @override
+  State<AgileProjectBaselineScreen> createState() =>
+      _AgileProjectBaselineScreenState();
+}
+
+class _AgileProjectBaselineScreenState
+    extends State<AgileProjectBaselineScreen> {
+  static const List<String> _statusOptions = ['Draft', 'Ready', 'Approved'];
+  static const List<String> _impactOptions = ['High', 'Medium', 'Low'];
+  static const List<String> _assumptionCategories = [
+    'Team',
+    'Schedule',
+    'Vendor',
+    'Technical',
+    'Business',
+    'Compliance',
+    'Other',
+  ];
+
+  final TextEditingController _releaseLabelController = TextEditingController();
+  final TextEditingController _capacityController = TextEditingController();
+  final TextEditingController _approverSearchController =
+      TextEditingController();
+  final FocusNode _approverFocusNode = FocusNode();
+  final TextEditingController _approvalNotesController =
+      RichTextEditingController();
+  final TextEditingController _definitionOfDoneController =
+      RichTextEditingController();
+  final TextEditingController _changeControlController =
+      RichTextEditingController();
+  final List<_AssumptionRowState> _assumptionRows = [];
+  final _Debouncer _saveDebouncer = _Debouncer();
+
+  List<RoadmapSprint> _sprints = <RoadmapSprint>[];
+  List<RoadmapDeliverable> _deliverables = <RoadmapDeliverable>[];
+  List<_ApproverOption> _approverOptions = <_ApproverOption>[];
+  String _selectedStatus = 'Draft';
+  String? _selectedApproverId;
+  DateTime? _selectedReleaseDate;
+  DateTime? _selectedApprovalDate;
+  int _formalRiskCount = 0;
+  int _highRiskCount = 0;
+  bool _isLoading = true;
+  bool _isHydrating = true;
+  bool _isSaving = false;
+  DateTime? _lastSavedAt;
+
+  String? get _projectId {
+    try {
+      return ProjectDataInherited.maybeOf(context)?.projectData.projectId;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ProjectDataModel get _projectData => ProjectDataHelper.getData(context);
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in _allControllers) {
+      controller.addListener(_scheduleSave);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  List<TextEditingController> get _allControllers => [
+        _releaseLabelController,
+        _capacityController,
+        _approverSearchController,
+        _approvalNotesController,
+        _definitionOfDoneController,
+        _changeControlController,
+      ];
+
+  @override
+  void dispose() {
+    _saveDebouncer.dispose();
+    _approverFocusNode.dispose();
+    for (final controller in _allControllers) {
+      controller.dispose();
+    }
+    for (final row in _assumptionRows) {
+      row.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.isEmpty) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    final results = await Future.wait<dynamic>([
+      AgileProjectBaselineService.load(projectId),
+      RoadmapService.loadAll(projectId: projectId),
+      _loadApproverOptions(_projectData),
+      _loadRiskSummary(projectId),
+    ]);
+
+    if (!mounted) return;
+
+    final baseline = results[0] as AgileProjectBaseline;
+    final roadmap = results[1] as ({
+      List<RoadmapSprint> sprints,
+      List<RoadmapDeliverable> deliverables
+    });
+    final approvers = results[2] as List<_ApproverOption>;
+    final risk = results[3] as _RiskSummary;
+
+    _sprints = roadmap.sprints;
+    _deliverables = roadmap.deliverables;
+    _approverOptions = approvers;
+    _formalRiskCount = risk.totalCount;
+    _highRiskCount = risk.highCount;
+    _hydrateFromBaseline(baseline);
+
+    setState(() {
+      _isHydrating = false;
+      _isLoading = false;
+    });
+  }
+
+  void _hydrateFromBaseline(AgileProjectBaseline baseline) {
+    _selectedStatus = _statusOptions.contains(baseline.status)
+        ? baseline.status
+        : _statusOptions.first;
+    _selectedApproverId =
+        baseline.approverUserId.isEmpty ? null : baseline.approverUserId;
+    _selectedReleaseDate = baseline.targetReleaseDate;
+    _selectedApprovalDate = baseline.approvalDate;
+    _releaseLabelController.text = baseline.targetReleaseLabel;
+    _capacityController.text = baseline.capacityThresholdPointsPerSprint == null
+        ? ''
+        : baseline.capacityThresholdPointsPerSprint.toString();
+    if (baseline.approverUserId.isNotEmpty) {
+      final match =
+          _approverOptions.where((o) => o.id == baseline.approverUserId);
+      _approverSearchController.text =
+          match.isNotEmpty ? match.first.displayLabel : baseline.approverName;
+    } else if (baseline.approverFallbackName.isNotEmpty) {
+      _approverSearchController.text = baseline.approverFallbackName;
+    }
+    _approvalNotesController.text = baseline.approvalNotes;
+    _definitionOfDoneController.text = baseline.definitionOfDone;
+    _changeControlController.text = baseline.changeControl;
+
+    for (final row in _assumptionRows) {
+      row.dispose();
+    }
+    _assumptionRows
+      ..clear()
+      ..addAll(
+        (baseline.assumptions.isEmpty
+                ? [AgileBaselineAssumption()]
+                : baseline.assumptions)
+            .map((item) => _AssumptionRowState(
+                  category: item.category,
+                  impact: item.impact,
+                  text: item.text,
+                  onChanged: _scheduleSave,
+                )),
+      );
+  }
+
+  Future<List<_ApproverOption>> _loadApproverOptions(
+      ProjectDataModel data) async {
+    final seen = <String>{};
+    final options = <_ApproverOption>[];
+
+    void addOption({
+      required String id,
+      required String name,
+      required String email,
+      required String role,
+      required String source,
+    }) {
+      final key = id.trim().isNotEmpty
+          ? 'id:${id.trim()}'
+          : email.trim().isNotEmpty
+              ? 'email:${email.trim().toLowerCase()}'
+              : 'name:${name.trim().toLowerCase()}';
+      if (name.trim().isEmpty && email.trim().isEmpty) return;
+      if (!seen.add(key)) return;
+      options.add(
+        _ApproverOption(
+          id: id.trim(),
+          name: name.trim(),
+          email: email.trim(),
+          role: role.trim(),
+          source: source,
+        ),
+      );
+    }
+
+    for (final member in data.teamMembers) {
+      addOption(
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        role: member.role,
+        source: 'Project Team',
+      );
+    }
+
+    try {
+      final users = await UserService.searchUsers('');
+      for (final user in users) {
+        addOption(
+          id: user.uid,
+          name: user.displayName,
+          email: user.email,
+          role: user.isAdmin ? 'Admin' : 'Member',
+          source: 'Company Members',
+        );
+      }
+    } catch (_) {}
+
+    options.sort((a, b) =>
+        a.displayLabel.toLowerCase().compareTo(b.displayLabel.toLowerCase()));
+    return options;
+  }
+
+  Future<_RiskSummary> _loadRiskSummary(String projectId) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('risk_assessment_entries')
+          .get();
+      var total = 0;
+      var high = 0;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        if (status == 'closed') continue;
+        total += 1;
+        final probability =
+            (data['probability'] ?? '').toString().toLowerCase();
+        final impact = (data['impact'] ?? '').toString().toLowerCase();
+        final score = (data['score'] ?? '').toString().toLowerCase();
+        if (probability == 'high' || impact == 'high' || score == 'high') {
+          high += 1;
+        }
+      }
+      return _RiskSummary(totalCount: total, highCount: high);
+    } catch (_) {
+      return const _RiskSummary(totalCount: 0, highCount: 0);
+    }
+  }
+
+  void _scheduleSave() {
+    if (_isHydrating) return;
+    _saveDebouncer.run(_save);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _save() async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.isEmpty) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    final searchTrimmed = _approverSearchController.text.trim();
+
+    final selectedApprover = _approverOptions
+        .where((option) {
+          return option.id == _selectedApproverId;
+        })
+        .cast<_ApproverOption?>()
+        .firstWhere(
+          (option) => option != null,
+          orElse: () => null,
+        );
+
+    final isFallback = selectedApprover == null && searchTrimmed.isNotEmpty;
+
+    final baseline = AgileProjectBaseline(
+      status: _selectedStatus,
+      targetReleaseLabel: _releaseLabelController.text.trim(),
+      targetReleaseDate: _selectedReleaseDate,
+      approverUserId: _selectedApproverId ?? '',
+      approverName: selectedApprover?.name ?? '',
+      approverFallbackName: isFallback ? searchTrimmed : '',
+      approvalDate: _selectedApprovalDate,
+      approvalNotes: _approvalNotesController.text.trim(),
+      capacityThresholdPointsPerSprint:
+          int.tryParse(_capacityController.text.trim()),
+      definitionOfDone: _definitionOfDoneController.text.trim(),
+      changeControl: _changeControlController.text.trim(),
+      assumptions: _assumptionRows
+          .map((row) => row.toAssumption())
+          .where((item) =>
+              item.category.trim().isNotEmpty || item.text.trim().isNotEmpty)
+          .toList(),
+    );
+
+    if (baseline.status == 'Approved' && baseline.approvalDate == null) {
+      baseline.approvalDate = DateTime.now();
+      _selectedApprovalDate = baseline.approvalDate;
+    }
+
+    if (mounted) setState(() => _isSaving = true);
+    try {
+      await AgileProjectBaselineService.save(
+        projectId: projectId,
+        baseline: baseline,
+        updatedBy: user?.uid ?? '',
+      );
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+        _lastSavedAt = DateTime.now();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+    }
+  }
+
+  Map<String, int> get _pointsBySprint {
+    final map = <String, int>{};
+    for (final deliverable in _deliverables) {
+      if (deliverable.sprintId.trim().isEmpty) continue;
+      map.update(
+        deliverable.sprintId,
+        (value) => value + deliverable.storyPoints,
+        ifAbsent: () => deliverable.storyPoints,
+      );
+    }
+    return map;
+  }
+
+  int get _totalPlannedPoints =>
+      _deliverables.fold<int>(0, (total, item) => total + item.storyPoints);
+
+  double get _averagePlannedVelocity {
+    final values = _pointsBySprint.values.where((value) => value > 0).toList();
+    if (values.isEmpty) return 0;
+    final total = values.fold<int>(0, (acc, value) => acc + value);
+    return total / values.length;
+  }
+
+  int get _highestSprintLoad {
+    if (_pointsBySprint.isEmpty) return 0;
+    return _pointsBySprint.values.reduce((a, b) => a > b ? a : b);
+  }
+
+  int get _blockedDeliverablesCount => _deliverables
+      .where((item) => item.status == RoadmapDeliverableStatus.blocked)
+      .length;
+
+  int get _deliverablesWithoutSprintCount =>
+      _deliverables.where((item) => item.sprintId.trim().isEmpty).length;
+
+  int get _deliverablesWithoutEstimateCount =>
+      _deliverables.where((item) => item.storyPoints <= 0).length;
+
+  int get _dependencyCount => _deliverables.fold<int>(
+      0, (total, item) => total + item.dependencies.length);
+
+  int get _blockedDependencyCount {
+    var count = 0;
+    for (final item in _deliverables) {
+      for (final depId in item.dependencies) {
+        final dependency = _deliverables.cast<RoadmapDeliverable?>().firstWhere(
+              (candidate) => candidate?.id == depId,
+              orElse: () => null,
+            );
+        final unresolved = dependency == null ||
+            dependency.status != RoadmapDeliverableStatus.completed;
+        if (unresolved) count += 1;
+      }
+    }
+    return count;
+  }
+
+  List<_SprintLoad> get _overCapacitySprints {
+    final threshold = int.tryParse(_capacityController.text.trim());
+    if (threshold == null || threshold <= 0) return <_SprintLoad>[];
+    return _sprints
+        .map((sprint) => _SprintLoad(
+              sprint: sprint,
+              points: _pointsBySprint[sprint.id] ?? 0,
+            ))
+        .where((item) => item.points > threshold)
+        .toList();
+  }
+
+  List<_BaselineWarning> get _warnings {
+    final items = <_BaselineWarning>[];
+
+    void add(String title, String detail, Color color) {
+      items.add(_BaselineWarning(title: title, detail: detail, color: color));
+    }
+
+    if (_releaseLabelController.text.trim().isEmpty) {
+      add(
+        'Release target missing',
+        'Add a release label so the baseline has a named delivery target.',
+        const Color(0xFFB45309),
+      );
+    }
+    if ((_selectedApproverId ?? '').isEmpty &&
+        _approverSearchController.text.trim().isEmpty) {
+      add(
+        'Approver missing',
+        'Choose an approver from the user list or type a fallback name.',
+        const Color(0xFFB45309),
+      );
+    }
+    if (_definitionOfDoneController.text.trim().isEmpty) {
+      add(
+        'Definition of Done missing',
+        'Document the project-specific quality gate for the baseline.',
+        const Color(0xFFB45309),
+      );
+    }
+    if (_changeControlController.text.trim().isEmpty) {
+      add(
+        'Change control missing',
+        'Describe how scope and baseline changes are handled.',
+        const Color(0xFFB45309),
+      );
+    }
+    if (_assumptionRows.every((row) => row.isEmpty)) {
+      add(
+        'Assumptions missing',
+        'Add structured assumptions with category and impact.',
+        const Color(0xFFB45309),
+      );
+    }
+    if (_deliverablesWithoutSprintCount > 0) {
+      add(
+        'Unscheduled deliverables',
+        '$_deliverablesWithoutSprintCount deliverable(s) are not assigned to a sprint.',
+        const Color(0xFFDC2626),
+      );
+    }
+    if (_deliverablesWithoutEstimateCount > 0) {
+      add(
+        'Missing estimates',
+        '$_deliverablesWithoutEstimateCount deliverable(s) have missing story points.',
+        const Color(0xFFDC2626),
+      );
+    }
+    if (_blockedDeliverablesCount > 0) {
+      add(
+        'Blocked work present',
+        '$_blockedDeliverablesCount deliverable(s) are blocked in the roadmap.',
+        const Color(0xFFDC2626),
+      );
+    }
+    if (_overCapacitySprints.isNotEmpty) {
+      add(
+        'Over-capacity sprints',
+        '${_overCapacitySprints.length} sprint(s) exceed the manual threshold.',
+        const Color(0xFFDC2626),
+      );
+    }
+    if (_formalRiskCount == 0) {
+      add(
+        'No formal risk register entries',
+        'The risk register is empty, so only inferred risk is available.',
+        const Color(0xFF2563EB),
+      );
+    }
+    return items;
+  }
+
+  String get _riskSummaryText {
+    final parts = <String>[];
+    if (_blockedDeliverablesCount > 0) parts.add('blocked delivery risk');
+    if (_overCapacitySprints.isNotEmpty) parts.add('capacity risk');
+    if (_deliverablesWithoutEstimateCount > 0 ||
+        _deliverablesWithoutSprintCount > 0) {
+      parts.add('planning hygiene risk');
+    }
+    if (_highRiskCount > 0) parts.add('formal high-risk items');
+    if (parts.isEmpty) {
+      return 'Low inferred risk. No blocked work, no over-capacity sprint, and no active high-risk signal were detected.';
+    }
+    return 'Risk signals detected: ${parts.join(', ')}.';
+  }
+
+  Future<void> _pickReleaseDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedReleaseDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    setState(() => _selectedReleaseDate = picked);
+    _scheduleSave();
+  }
+
+  Future<void> _pickApprovalDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedApprovalDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    setState(() => _selectedApprovalDate = picked);
+    _scheduleSave();
+  }
+
+  void _clearReleaseDate() {
+    setState(() => _selectedReleaseDate = null);
+    _scheduleSave();
+  }
+
+  void _addAssumption() {
+    setState(() {
+      _assumptionRows.add(
+        _AssumptionRowState(
+          category: '',
+          impact: 'Medium',
+          text: '',
+          onChanged: _scheduleSave,
+        ),
+      );
+    });
+    _scheduleSave();
+  }
+
+  void _removeAssumption(_AssumptionRowState row) {
+    if (_assumptionRows.length == 1) {
+      row.clear();
+      _scheduleSave();
+      return;
+    }
+    setState(() {
+      row.dispose();
+      _assumptionRows.remove(row);
+    });
+    _scheduleSave();
+  }
+
+  String _describeSprintCadence() {
+    final durations = _sprints
+        .where((sprint) => sprint.startDate != null && sprint.endDate != null)
+        .map((sprint) => sprint.durationInDays)
+        .toList();
+    if (durations.isEmpty) return 'Sprint dates not fully defined';
+    final avg = durations.reduce((a, b) => a + b) / durations.length;
+    return '${avg.toStringAsFixed(0)} day average sprint length';
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final horizontalPadding = isMobile ? 20.0 : 32.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: _kBackground,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,24 +604,30 @@ class AgileProjectBaselineScreen extends StatelessWidget {
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
               child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Agile Project Baseline'),
+                activeItemLabel: 'Agile Project Baseline',
+              ),
             ),
             Expanded(
               child: Stack(
                 children: [
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
-                        horizontal: horizontalPadding, vertical: 24),
+                      horizontal: horizontalPadding,
+                      vertical: 24,
+                    ),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final width = constraints.maxWidth;
-                        final gap = 24.0;
+                        const gap = 24.0;
                         final twoCol = width >= 980;
                         final halfWidth = twoCol ? (width - gap) / 2 : width;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _TopHeader(
+                              status: _selectedStatus,
+                              isSaving: _isSaving,
+                              lastSavedAt: _lastSavedAt,
                               onBack: () =>
                                   PlanningPhaseNavigation.goToPrevious(
                                       context, 'agile_project_baseline'),
@@ -59,9 +636,8 @@ class AgileProjectBaselineScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             const Text(
-                              'Manage roles and responsibilities',
-                              style: TextStyle(
-                                  fontSize: 14, color: Color(0xFF6B7280)),
+                              'Approve and tune the live agile baseline using roadmap scope, sprint loads, and delivery risk.',
+                              style: TextStyle(fontSize: 14, color: _kMuted),
                             ),
                             const SizedBox(height: 20),
                             const PlanningAiNotesCard(
@@ -70,40 +646,82 @@ class AgileProjectBaselineScreen extends StatelessWidget {
                               noteKey: 'planning_agile_project_baseline_notes',
                               checkpoint: 'agile_project_baseline',
                               description:
-                                  'Capture baseline scope, delivery cadence, and key assumptions.',
+                                  'Capture baseline context, approval rationale, and live roadmap decisions.',
                             ),
                             const SizedBox(height: 24),
-                            _MetricsRow(isMobile: isMobile),
-                            const SizedBox(height: 24),
-                            Wrap(
-                              spacing: gap,
-                              runSpacing: gap,
-                              children: [
-                                SizedBox(
+                            if (_isLoading)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 80),
+                                child:
+                                    Center(child: CircularProgressIndicator()),
+                              )
+                            else ...[
+                              _MetricsRow(
+                                averageVelocity: _averagePlannedVelocity,
+                                capacityThreshold: int.tryParse(
+                                    _capacityController.text.trim()),
+                                totalPoints: _totalPlannedPoints,
+                                sprintCount: _sprints.length,
+                                highestSprintLoad: _highestSprintLoad,
+                              ),
+                              const SizedBox(height: 24),
+                              Wrap(
+                                spacing: gap,
+                                runSpacing: gap,
+                                children: [
+                                  SizedBox(
                                     width: halfWidth,
-                                    child: const _BaselineScopeCard()),
-                                SizedBox(
+                                    child: _buildApprovalForm(),
+                                  ),
+                                  SizedBox(
                                     width: halfWidth,
-                                    child: const _DefinitionOfDoneCard()),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            const _SprintCadenceCard(),
-                            const SizedBox(height: 24),
-                            Wrap(
-                              spacing: gap,
-                              runSpacing: gap,
-                              children: [
-                                SizedBox(
+                                    child: _buildWarningsCard(),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              Wrap(
+                                spacing: gap,
+                                runSpacing: gap,
+                                children: [
+                                  SizedBox(
                                     width: halfWidth,
-                                    child: const _AssumptionsCard()),
-                                SizedBox(
+                                    child: _RichTextCard(
+                                      title: 'Definition of Done',
+                                      subtitle:
+                                          'Custom baseline quality gates for this project.',
+                                      controller: _definitionOfDoneController,
+                                    ),
+                                  ),
+                                  SizedBox(
                                     width: halfWidth,
-                                    child: const _ChangeControlCard()),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            _RiskSnapshotRow(isMobile: isMobile),
+                                    child: _RichTextCard(
+                                      title: 'Change Control',
+                                      subtitle:
+                                          'Custom workflow for evaluating changes to the live baseline.',
+                                      controller: _changeControlController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              _buildAssumptionsCard(),
+                              const SizedBox(height: 24),
+                              Wrap(
+                                spacing: gap,
+                                runSpacing: gap,
+                                children: [
+                                  SizedBox(
+                                    width: halfWidth,
+                                    child: _buildScopeCard(),
+                                  ),
+                                  SizedBox(
+                                    width: halfWidth,
+                                    child: _buildRiskCard(),
+                                  ),
+                                ],
+                              ),
+                            ],
                             const SizedBox(height: 28),
                             LaunchPhaseNavigation(
                               backLabel: PlanningPhaseNavigation.backLabel(
@@ -123,9 +741,10 @@ class AgileProjectBaselineScreen extends StatelessWidget {
                     ),
                   ),
                   const Positioned(
-                      right: 24,
-                      bottom: 24,
-                      child: KazAiChatBubble(positioned: false)),
+                    right: 24,
+                    bottom: 24,
+                    child: KazAiChatBubble(positioned: false),
+                  ),
                 ],
               ),
             ),
@@ -134,32 +753,420 @@ class AgileProjectBaselineScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildApprovalForm() {
+    final releaseDateText = _selectedReleaseDate == null
+        ? 'Optional date'
+        : DateFormat('dd MMM yyyy').format(_selectedReleaseDate!);
+    final approvalDateText = _selectedApprovalDate == null
+        ? 'Set approval date'
+        : 'Approval Date: ${DateFormat('dd MMM yyyy').format(_selectedApprovalDate!)}';
+
+    return _SectionCard(
+      title: 'Baseline Approval Form',
+      subtitle:
+          'Edit release target, approver, approval state, and capacity policy.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              SizedBox(
+                width: 220,
+                child: _DropdownField<String>(
+                  label: 'Status',
+                  value: _selectedStatus,
+                  items: _statusOptions,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedStatus = value;
+                      if (value == 'Approved' &&
+                          _selectedApprovalDate == null) {
+                        _selectedApprovalDate = DateTime.now();
+                      }
+                    });
+                    _scheduleSave();
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: _releaseLabelController,
+                  decoration: const InputDecoration(
+                    labelText: 'Release Label',
+                    hintText: 'Pilot Release / R1 / Wave 2',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: _capacityController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Capacity Threshold',
+                    hintText: 'Points per sprint',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: 360,
+            child: _ApproverAutocomplete(
+              controller: _approverSearchController,
+              focusNode: _approverFocusNode,
+              options: _approverOptions,
+              onSelectedOption: (option) {
+                setState(() => _selectedApproverId = option.id);
+                _scheduleSave();
+              },
+              onSubmittedFallback: (text) {
+                setState(() => _selectedApproverId = null);
+                _scheduleSave();
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _pickReleaseDate,
+                icon: const Icon(Icons.event_outlined, size: 18),
+                label: Text('Release Date: $releaseDateText'),
+              ),
+              if (_selectedReleaseDate != null)
+                TextButton(
+                  onPressed: _clearReleaseDate,
+                  child: const Text('Clear release date'),
+                ),
+              OutlinedButton.icon(
+                onPressed: _pickApprovalDate,
+                icon: const Icon(Icons.verified_user_outlined, size: 18),
+                label: Text(approvalDateText),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Approval Notes',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: _kHeadline,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormattingToolbar(controller: _approvalNotesController),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _approvalNotesController,
+            minLines: 4,
+            maxLines: 8,
+            decoration: const InputDecoration(
+              hintText:
+                  'Record approval rationale, exceptions, or reviewer notes.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarningsCard() {
+    final warnings = _warnings;
+    return _SectionCard(
+      title: 'Warnings & Checks',
+      subtitle: 'Warnings stay visible, but they do not block approval.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _MiniPill(
+                label: '${warnings.length} warnings',
+                color: warnings.isEmpty
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFF59E0B),
+              ),
+              _MiniPill(
+                label: '${_overCapacitySprints.length} over capacity',
+                color: _overCapacitySprints.isEmpty
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444),
+              ),
+              _MiniPill(
+                label: '$_blockedDeliverablesCount blocked',
+                color: _blockedDeliverablesCount == 0
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (warnings.isEmpty)
+            const Text(
+              'No active baseline warnings.',
+              style: TextStyle(color: _kMuted),
+            )
+          else
+            ...warnings.map(
+              (warning) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _WarningTile(warning: warning),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssumptionsCard() {
+    return _SectionCard(
+      title: 'Structured Assumptions',
+      subtitle:
+          'Assumptions remain editable on the baseline with category and impact.',
+      child: Column(
+        children: [
+          for (final row in _assumptionRows) ...[
+            _AssumptionEditor(
+              row: row,
+              categories: _assumptionCategories,
+              impacts: _impactOptions,
+              onRemove: () => _removeAssumption(row),
+              onChanged: _scheduleSave,
+            ),
+            const SizedBox(height: 12),
+          ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _addAssumption,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add assumption'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScopeCard() {
+    return _SectionCard(
+      title: 'Live Scope & Cadence',
+      subtitle:
+          'All roadmap deliverables are auto-included in this baseline summary.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SummaryLine(label: 'Project', value: _projectData.projectName),
+          _SummaryLine(
+            label: 'Objective',
+            value: _projectData.projectObjective.trim().isEmpty
+                ? 'Not set'
+                : _projectData.projectObjective.trim(),
+          ),
+          _SummaryLine(
+            label: 'Release Target',
+            value: _releaseLabelController.text.trim().isEmpty
+                ? 'Not set'
+                : _releaseLabelController.text.trim(),
+          ),
+          _SummaryLine(
+            label: 'Sprint Cadence',
+            value: _sprints.isEmpty
+                ? 'No sprints defined'
+                : _describeSprintCadence(),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Included Deliverables',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: _kHeadline,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_deliverables.isEmpty)
+            const Text(
+              'No roadmap deliverables yet.',
+              style: TextStyle(color: _kMuted),
+            )
+          else
+            ..._deliverables.take(8).map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '${item.title} • ${item.storyPoints} pts${item.sprintId.trim().isEmpty ? ' • Unscheduled' : ''}',
+                      style: const TextStyle(fontSize: 13, color: _kHeadline),
+                    ),
+                  ),
+                ),
+          if (_deliverables.length > 8)
+            Text(
+              '+ ${_deliverables.length - 8} more deliverable(s)',
+              style: const TextStyle(color: _kMuted),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiskCard() {
+    return _SectionCard(
+      title: 'Risk Synthesis',
+      subtitle:
+          'Formal risk register plus inferred delivery risk from the live roadmap.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _MiniPill(
+                label: '$_formalRiskCount formal risks',
+                color: const Color(0xFF2563EB),
+              ),
+              _MiniPill(
+                label: '$_highRiskCount high formal risks',
+                color: _highRiskCount == 0
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444),
+              ),
+              _MiniPill(
+                label: '$_dependencyCount dependencies',
+                color: const Color(0xFF8B5CF6),
+              ),
+              _MiniPill(
+                label: '$_blockedDependencyCount unresolved deps',
+                color: _blockedDependencyCount == 0
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFF59E0B),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _riskSummaryText,
+            style: const TextStyle(
+              fontSize: 13,
+              color: _kHeadline,
+              height: 1.5,
+            ),
+          ),
+          if (_overCapacitySprints.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Over-Capacity Sprints',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _kHeadline,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._overCapacitySprints.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '${item.sprint.name} • ${item.points} pts planned',
+                  style: const TextStyle(fontSize: 13, color: _kHeadline),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _TopHeader extends StatelessWidget {
-  const _TopHeader({required this.onBack, required this.onForward});
+  const _TopHeader({
+    required this.onBack,
+    required this.onForward,
+    required this.status,
+    required this.isSaving,
+    required this.lastSavedAt,
+  });
 
   final VoidCallback onBack;
   final VoidCallback onForward;
+  final String status;
+  final bool isSaving;
+  final DateTime? lastSavedAt;
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = switch (status) {
+      'Approved' => const Color(0xFF10B981),
+      'Ready' => const Color(0xFF2563EB),
+      _ => const Color(0xFFF59E0B),
+    };
+
+    final saveLabel = isSaving
+        ? 'Saving...'
+        : lastSavedAt == null
+            ? 'Not saved yet'
+            : 'Saved ${DateFormat('HH:mm').format(lastSavedAt!)}';
+
     return Row(
       children: [
         _CircleIconButton(
-            icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
+          icon: Icons.arrow_back_ios_new_rounded,
+          onTap: onBack,
+        ),
         const SizedBox(width: 12),
         _CircleIconButton(
-            icon: Icons.arrow_forward_ios_rounded, onTap: onForward),
+          icon: Icons.arrow_forward_ios_rounded,
+          onTap: onForward,
+        ),
         const SizedBox(width: 16),
-        const Text(
-          'Agile Project Baseline',
-          style: TextStyle(
+        const Expanded(
+          child: Text(
+            'Agile Project Baseline',
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF111827)),
+              color: _kHeadline,
+            ),
+          ),
         ),
-        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            status,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: statusColor,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          saveLabel,
+          style: const TextStyle(fontSize: 12, color: _kMuted),
+        ),
+        const SizedBox(width: 16),
         const _UserChip(),
       ],
     );
@@ -183,9 +1190,9 @@ class _CircleIconButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: _kBorder),
         ),
-        child: Icon(icon, size: 16, color: const Color(0xFF6B7280)),
+        child: Icon(icon, size: 16, color: _kMuted),
       ),
     );
   }
@@ -212,7 +1219,7 @@ class _UserChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: _kBorder),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -229,9 +1236,10 @@ class _UserChip extends StatelessWidget {
                             ? displayName[0].toUpperCase()
                             : 'U',
                         style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF374151)),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF374151),
+                        ),
                       )
                     : null,
               ),
@@ -240,17 +1248,19 @@ class _UserChip extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(displayName,
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
-                  Text(role,
-                      style: const TextStyle(
-                          fontSize: 10, color: Color(0xFF6B7280))),
+                  Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    role,
+                    style: const TextStyle(fontSize: 10, color: _kMuted),
+                  ),
                 ],
               ),
-              const SizedBox(width: 6),
-              const Icon(Icons.keyboard_arrow_down,
-                  size: 18, color: Color(0xFF9CA3AF)),
             ],
           ),
         );
@@ -260,39 +1270,65 @@ class _UserChip extends StatelessWidget {
 }
 
 class _MetricsRow extends StatelessWidget {
-  const _MetricsRow({required this.isMobile});
+  const _MetricsRow({
+    required this.averageVelocity,
+    required this.capacityThreshold,
+    required this.totalPoints,
+    required this.sprintCount,
+    required this.highestSprintLoad,
+  });
 
-  final bool isMobile;
+  final double averageVelocity;
+  final int? capacityThreshold;
+  final int totalPoints;
+  final int sprintCount;
+  final int highestSprintLoad;
 
   @override
   Widget build(BuildContext context) {
-    final gap = 16.0;
     return Wrap(
-      spacing: gap,
-      runSpacing: gap,
-      children: const [
+      spacing: 16,
+      runSpacing: 16,
+      children: [
         _MetricCard(
-            label: 'Sprint Length',
-            value: '2 weeks',
-            accent: Color(0xFF2563EB)),
+          label: 'Avg Planned Velocity',
+          value: averageVelocity == 0
+              ? '0 pts'
+              : '${averageVelocity.toStringAsFixed(1)} pts',
+          accent: const Color(0xFF10B981),
+        ),
         _MetricCard(
-            label: 'Baseline Velocity',
-            value: '42 pts',
-            accent: Color(0xFF10B981)),
+          label: 'Capacity Threshold',
+          value:
+              capacityThreshold == null ? 'Not set' : '$capacityThreshold pts',
+          accent: const Color(0xFF2563EB),
+        ),
         _MetricCard(
-            label: 'Committed Epics', value: '6', accent: Color(0xFFF59E0B)),
+          label: 'Total Planned Points',
+          value: '$totalPoints',
+          accent: const Color(0xFFF59E0B),
+        ),
         _MetricCard(
-            label: 'Target Release',
-            value: 'Aug 2025',
-            accent: Color(0xFF8B5CF6)),
+          label: 'Sprint Count',
+          value: '$sprintCount',
+          accent: const Color(0xFF8B5CF6),
+        ),
+        _MetricCard(
+          label: 'Highest Sprint Load',
+          value: '$highestSprintLoad pts',
+          accent: const Color(0xFFEF4444),
+        ),
       ],
     );
   }
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard(
-      {required this.label, required this.value, required this.accent});
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
 
   final String label;
   final String value;
@@ -301,215 +1337,34 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 200,
+      width: 190,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: _kBorder),
         boxShadow: const [
           BoxShadow(
-              color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 6)),
+            color: Color(0x0A000000),
+            blurRadius: 10,
+            offset: Offset(0, 6),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: _kMuted),
+          ),
           const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w700, color: accent),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BaselineScopeCard extends StatelessWidget {
-  const _BaselineScopeCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Baseline Scope',
-      subtitle: 'Committed epic outcomes for the baseline release.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _ScopeChip(text: 'User onboarding & profile flows'),
-          _ScopeChip(text: 'Real-time trip tracking'),
-          _ScopeChip(text: 'Vendor procurement workflow'),
-          _ScopeChip(text: 'Analytics & reporting dashboard'),
-          _ScopeChip(text: 'Security hardening & access rules'),
-        ],
-      ),
-    );
-  }
-}
-
-class _DefinitionOfDoneCard extends StatelessWidget {
-  const _DefinitionOfDoneCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Definition of Done',
-      subtitle: 'Baseline quality gates applied to every sprint.',
-      child: Column(
-        children: const [
-          _ChecklistRow(
-              text: 'Acceptance criteria validated with stakeholders'),
-          _ChecklistRow(text: 'Automated tests passing at 90% coverage'),
-          _ChecklistRow(text: 'Performance budget met (<= 2s page load)'),
-          _ChecklistRow(text: 'Security review signed off'),
-        ],
-      ),
-    );
-  }
-}
-
-class _SprintCadenceCard extends StatelessWidget {
-  const _SprintCadenceCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Sprint Cadence & Release Baseline',
-      subtitle: 'Baseline schedule for the next four sprints.',
-      child: Column(
-        children: const [
-          _SprintRow(
-              sprint: 'Sprint 1',
-              dates: 'May 6 - May 17',
-              goal: 'Core flows + baseline QA'),
-          _SprintRow(
-              sprint: 'Sprint 2',
-              dates: 'May 20 - May 31',
-              goal: 'Vendor workflows + APIs'),
-          _SprintRow(
-              sprint: 'Sprint 3',
-              dates: 'Jun 3 - Jun 14',
-              goal: 'Analytics + reporting'),
-          _SprintRow(
-              sprint: 'Sprint 4',
-              dates: 'Jun 17 - Jun 28',
-              goal: 'Security + release hardening'),
-        ],
-      ),
-    );
-  }
-}
-
-class _AssumptionsCard extends StatelessWidget {
-  const _AssumptionsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Baseline Assumptions',
-      subtitle: 'Guardrails that keep delivery aligned to plan.',
-      child: Column(
-        children: const [
-          _BulletRow(
-              text:
-                  'Team capacity stays at 7 FTE with two dedicated QA resources.'),
-          _BulletRow(
-              text:
-                  'Vendor onboarding completes by Sprint 2 to unblock integrations.'),
-          _BulletRow(
-              text: 'No additional scope added without Change Control review.'),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChangeControlCard extends StatelessWidget {
-  const _ChangeControlCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Change Control',
-      subtitle: 'How baseline scope changes are evaluated.',
-      child: Column(
-        children: const [
-          _StepRow(
-              step: '1', text: 'Change request logged with impact summary'),
-          _StepRow(
-              step: '2', text: 'Product + Delivery review within 48 hours'),
-          _StepRow(
-              step: '3',
-              text: 'Baseline updated if approved by Steering Committee'),
-        ],
-      ),
-    );
-  }
-}
-
-class _RiskSnapshotRow extends StatelessWidget {
-  const _RiskSnapshotRow({required this.isMobile});
-
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    final gap = 16.0;
-    return Wrap(
-      spacing: gap,
-      runSpacing: gap,
-      children: const [
-        _MiniCard(
-            title: 'Capacity Risk', value: 'Medium', color: Color(0xFFF59E0B)),
-        _MiniCard(
-            title: 'Vendor Dependency',
-            value: 'High',
-            color: Color(0xFFEF4444)),
-        _MiniCard(
-            title: 'Scope Volatility', value: 'Low', color: Color(0xFF10B981)),
-      ],
-    );
-  }
-}
-
-class _MiniCard extends StatelessWidget {
-  const _MiniCard(
-      {required this.title, required this.value, required this.color});
-
-  final String title;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              value,
-              style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700, color: color),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: accent,
             ),
           ),
         ],
@@ -519,8 +1374,11 @@ class _MiniCard extends StatelessWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard(
-      {required this.title, required this.subtitle, required this.child});
+  const _SectionCard({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
 
   final String title;
   final String subtitle;
@@ -532,26 +1390,33 @@ class _SectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kBorder),
         boxShadow: const [
           BoxShadow(
-              color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 6)),
+            color: Color(0x08000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827))),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: _kHeadline,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text(subtitle,
-              style: const TextStyle(
-                  fontSize: 12, color: Color(0xFF6B7280), height: 1.4)),
-          const SizedBox(height: 16),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 13, color: _kMuted, height: 1.5),
+          ),
+          const SizedBox(height: 18),
           child,
         ],
       ),
@@ -559,28 +1424,33 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _ScopeChip extends StatelessWidget {
-  const _ScopeChip({required this.text});
+class _RichTextCard extends StatelessWidget {
+  const _RichTextCard({
+    required this.title,
+    required this.subtitle,
+    required this.controller,
+  });
 
-  final String text;
+  final String title;
+  final String subtitle;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
+    return _SectionCard(
+      title: title,
+      subtitle: subtitle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, size: 16, color: Color(0xFF10B981)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+          TextFormattingToolbar(controller: controller),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            minLines: 8,
+            maxLines: 12,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
             ),
           ),
         ],
@@ -589,124 +1459,471 @@ class _ScopeChip extends StatelessWidget {
   }
 }
 
-class _ChecklistRow extends StatelessWidget {
-  const _ChecklistRow({required this.text});
+class _DropdownField<T> extends StatelessWidget {
+  const _DropdownField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
 
-  final String text;
+  final String label;
+  final T? value;
+  final List<T> items;
+  final ValueChanged<T?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline,
-              size: 16, color: Color(0xFF10B981)),
-          const SizedBox(width: 8),
-          Expanded(
-              child: Text(text,
-                  style:
-                      const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
-        ],
+    return DropdownButtonFormField<T>(
+      initialValue: items.contains(value) ? value : null,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
       ),
+      items: items
+          .map(
+            (item) => DropdownMenuItem<T>(
+              value: item,
+              child: Text(item.toString()),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
     );
   }
 }
 
-class _SprintRow extends StatelessWidget {
-  const _SprintRow(
-      {required this.sprint, required this.dates, required this.goal});
+class _MiniPill extends StatelessWidget {
+  const _MiniPill({required this.label, required this.color});
 
-  final String sprint;
-  final String dates;
-  final String goal;
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-              width: 90,
-              child: Text(sprint,
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600))),
-          SizedBox(
-              width: 140,
-              child: Text(dates,
-                  style:
-                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
-          Expanded(
-              child: Text(goal,
-                  style:
-                      const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
 }
 
-class _BulletRow extends StatelessWidget {
-  const _BulletRow({required this.text});
+class _WarningTile extends StatelessWidget {
+  const _WarningTile({required this.warning});
 
-  final String text;
+  final _BaselineWarning warning;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: warning.color.withValues(alpha: 0.3)),
+        color: warning.color.withValues(alpha: 0.08),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.circle, size: 8, color: Color(0xFF9CA3AF)),
+          Icon(Icons.warning_amber_rounded, color: warning.color, size: 18),
           const SizedBox(width: 10),
           Expanded(
-              child: Text(text,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  warning.title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: warning.color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  warning.detail,
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF374151), height: 1.4))),
+                    fontSize: 12,
+                    color: _kHeadline,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _StepRow extends StatelessWidget {
-  const _StepRow({required this.step, required this.text});
+class _SummaryLine extends StatelessWidget {
+  const _SummaryLine({required this.label, required this.value});
 
-  final String step;
-  final String text;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF4CC),
-              borderRadius: BorderRadius.circular(8),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 13, color: _kHeadline),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            alignment: Alignment.center,
-            child: Text(step,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF92400E))),
+            TextSpan(text: value.isEmpty ? 'Not set' : value),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AssumptionEditor extends StatelessWidget {
+  const _AssumptionEditor({
+    required this.row,
+    required this.categories,
+    required this.impacts,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  final _AssumptionRowState row;
+  final List<String> categories;
+  final List<String> impacts;
+  final VoidCallback onRemove;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+        color: const Color(0xFFFDFEFE),
+      ),
+      child: Column(
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              SizedBox(
+                width: 190,
+                child: _DropdownField<String>(
+                  label: 'Category',
+                  value: row.category,
+                  items: categories,
+                  onChanged: (value) {
+                    row.category = value ?? '';
+                    onChanged();
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 170,
+                child: _DropdownField<String>(
+                  label: 'Impact',
+                  value: row.impact,
+                  items: impacts,
+                  onChanged: (value) {
+                    row.impact = value ?? 'Medium';
+                    onChanged();
+                  },
+                ),
+              ),
+              IconButton(
+                onPressed: onRemove,
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Remove assumption',
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-              child: Text(text,
-                  style:
-                      const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
+          const SizedBox(height: 12),
+          TextField(
+            controller: row.textController,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Assumption',
+              hintText: 'Describe the assumption and why it matters.',
+              border: OutlineInputBorder(),
+            ),
+          ),
         ],
       ),
     );
+  }
+}
+
+class _ApproverAutocomplete extends StatelessWidget {
+  const _ApproverAutocomplete({
+    required this.controller,
+    required this.focusNode,
+    required this.options,
+    required this.onSelectedOption,
+    required this.onSubmittedFallback,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final List<_ApproverOption> options;
+  final ValueChanged<_ApproverOption> onSelectedOption;
+  final ValueChanged<String> onSubmittedFallback;
+
+  static const String _createToken = 'CREATE:';
+
+  Iterable<String> _buildOptions(String query) {
+    final q = query.toLowerCase().trim();
+    if (q.isEmpty) {
+      return options.map((o) => o.displayLabel);
+    }
+    final filtered = options
+        .where((o) => o.displayLabel.toLowerCase().contains(q))
+        .map((o) => o.displayLabel)
+        .toList();
+    final exactMatch = filtered.any((l) => l.toLowerCase() == q);
+    if (!exactMatch && q.isNotEmpty) {
+      filtered.insert(0, '$_createToken$q');
+    }
+    return filtered;
+  }
+
+  String _displayLabel(String option) {
+    if (!option.startsWith(_createToken)) return option;
+    return option.substring(_createToken.length);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RawAutocomplete<String>(
+      textEditingController: controller,
+      focusNode: focusNode,
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        return _buildOptions(textEditingValue.text);
+      },
+      displayStringForOption: _displayLabel,
+      onSelected: (selected) {
+        if (selected.startsWith(_createToken)) {
+          final name = selected.substring(_createToken.length);
+          controller.text = name;
+          onSubmittedFallback(name);
+          return;
+        }
+        final match = options.where((o) => o.displayLabel == selected);
+        if (match.isNotEmpty) {
+          controller.text = selected;
+          onSelectedOption(match.first);
+        }
+      },
+      fieldViewBuilder: (context, ctrl, fNode, onSubmitted) {
+        return TextFormField(
+          controller: ctrl,
+          focusNode: fNode,
+          decoration: const InputDecoration(
+            labelText: 'Approver',
+            hintText: 'Search team members or type a name',
+            border: OutlineInputBorder(),
+            suffixIcon: Icon(Icons.search, size: 20),
+          ),
+          onFieldSubmitted: (raw) {
+            final value = raw.trim();
+            if (value.isEmpty) return;
+            final match = options.where(
+                (o) => o.displayLabel.toLowerCase() == value.toLowerCase());
+            if (match.isNotEmpty) {
+              onSelectedOption(match.first);
+            } else {
+              onSubmittedFallback(value);
+            }
+            onSubmitted();
+          },
+        );
+      },
+      optionsViewBuilder: (context, onSelected, opts) {
+        final list = opts.toList(growable: false);
+        if (list.isEmpty) return const SizedBox.shrink();
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 8,
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: 240,
+                minWidth: 260,
+                maxWidth: 440,
+              ),
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                shrinkWrap: true,
+                itemCount: list.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: _kBorder),
+                itemBuilder: (context, index) {
+                  final option = list[index];
+                  final isCreate = option.startsWith(_createToken);
+                  return InkWell(
+                    onTap: () => onSelected(option),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isCreate ? Icons.add_circle : Icons.person,
+                            size: 18,
+                            color: isCreate ? Colors.blue : _kMuted,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isCreate
+                                  ? 'Create "${option.substring(_createToken.length)}"'
+                                  : option,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isCreate ? Colors.blue : _kHeadline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ApproverOption {
+  const _ApproverOption({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.source,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+  final String source;
+
+  String get displayLabel {
+    final parts = <String>[];
+    if (name.isNotEmpty) {
+      parts.add(name);
+    } else if (email.isNotEmpty) {
+      parts.add(email);
+    }
+    if (role.isNotEmpty) parts.add(role);
+    if (source.isNotEmpty) parts.add(source);
+    return parts.join(' • ');
+  }
+}
+
+class _AssumptionRowState {
+  _AssumptionRowState({
+    required this.category,
+    required this.impact,
+    required String text,
+    required VoidCallback onChanged,
+  }) : textController = TextEditingController(text: text) {
+    textController.addListener(onChanged);
+    _listener = onChanged;
+  }
+
+  String category;
+  String impact;
+  final TextEditingController textController;
+  late final VoidCallback _listener;
+
+  bool get isEmpty =>
+      category.trim().isEmpty && textController.text.trim().isEmpty;
+
+  AgileBaselineAssumption toAssumption() {
+    return AgileBaselineAssumption(
+      category: category.trim(),
+      impact: impact.trim().isEmpty ? 'Medium' : impact.trim(),
+      text: textController.text.trim(),
+    );
+  }
+
+  void clear() {
+    category = '';
+    impact = 'Medium';
+    textController.clear();
+  }
+
+  void dispose() {
+    textController.removeListener(_listener);
+    textController.dispose();
+  }
+}
+
+class _SprintLoad {
+  const _SprintLoad({required this.sprint, required this.points});
+
+  final RoadmapSprint sprint;
+  final int points;
+}
+
+class _BaselineWarning {
+  const _BaselineWarning({
+    required this.title,
+    required this.detail,
+    required this.color,
+  });
+
+  final String title;
+  final String detail;
+  final Color color;
+}
+
+class _RiskSummary {
+  const _RiskSummary({required this.totalCount, required this.highCount});
+
+  final int totalCount;
+  final int highCount;
+}
+
+class _Debouncer {
+  static const Duration _duration = Duration(milliseconds: 700);
+
+  Timer? _timer;
+
+  void run(Future<void> Function() action) {
+    _timer?.cancel();
+    _timer = Timer(_duration, () => action());
+  }
+
+  void dispose() {
+    _timer?.cancel();
   }
 }

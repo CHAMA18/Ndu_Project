@@ -141,6 +141,15 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'procurement', label: 'Procurement'),
     // Project Plan sub-items
     SidebarItem(checkpoint: 'project_plan', label: 'Project Plan Overview'),
+    SidebarItem(
+        checkpoint: 'project_plan_level1_schedule',
+        label: 'Level 1 - Project Schedule'),
+    SidebarItem(
+        checkpoint: 'project_plan_detailed_schedule',
+        label: 'Detailed Project Schedule'),
+    SidebarItem(
+        checkpoint: 'project_plan_condensed_summary',
+        label: 'Condensed Project Summary'),
     // Execution Plan sub-items
     SidebarItem(checkpoint: 'execution_plan', label: 'Execution Plan'),
     SidebarItem(checkpoint: 'schedule', label: 'Schedule'),
