@@ -188,6 +188,9 @@ service cloud.firestore {
       match /startup_planning_sections/{docId} {
         allow read, write: if isProjectMember();
       }
+      match /startup_planning/{docId} {
+        allow read, write: if isProjectMember();
+      }
       match /risk_assessment_entries/{docId} {
         allow read, write: if isProjectMember();
       }

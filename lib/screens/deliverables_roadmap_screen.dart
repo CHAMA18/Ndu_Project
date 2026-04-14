@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/roadmap_deliverable.dart';
+import '../models/roadmap_sprint.dart';
+import '../services/roadmap_service.dart';
+import '../providers/project_data_provider.dart';
 import '../widgets/initiation_like_sidebar.dart';
 import '../widgets/draggable_sidebar.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../widgets/responsive.dart';
 import '../widgets/planning_ai_notes_card.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import '../widgets/launch_phase_navigation.dart';
+import '../utils/planning_phase_navigation.dart';
 
 const Color _kBackground = Color(0xFFF7F8FC);
 const Color _kAccent = Color(0xFFFFC812);
 const Color _kHeadline = Color(0xFF1A1D1F);
 const Color _kMuted = Color(0xFF6B7280);
 const Color _kCardBorder = Color(0xFFE4E7EC);
-const double _kColumnGap = 22;
+const double _kColumnMinWidth = 270.0;
 
 class DeliverablesRoadmapScreen extends StatelessWidget {
   const DeliverablesRoadmapScreen({super.key});
@@ -59,641 +63,263 @@ class _DeliverablesRoadmapBody extends StatefulWidget {
       _DeliverablesRoadmapBodyState();
 }
 
-enum _DeliverableStatus { completed, inProgress, planned, notStarted }
-
-class _DeliverableItem {
-  const _DeliverableItem({
-    required this.title,
-    required this.description,
-    required this.assignedTo,
-    required this.dueDate,
-    required this.status,
-  });
-
-  final String title;
-  final String description;
-  final String assignedTo;
-  final String dueDate;
-  final _DeliverableStatus status;
-}
-
-class _SprintConfig {
-  const _SprintConfig({
-    required this.heading,
-    required this.summaryLabel,
-    required this.summaryColor,
-  }) : allowAdd = false;
-
-  final String heading;
-  final String summaryLabel;
-  final Color summaryColor;
-  final bool allowAdd;
-}
-
 class _DeliverablesRoadmapBodyState extends State<_DeliverablesRoadmapBody> {
-  late final Map<int, List<_DeliverableItem>> _sprintItems = {};
+  List<RoadmapSprint> _sprints = [];
+  List<RoadmapDeliverable> _deliverables = [];
+  bool _isLoading = false;
+  bool _hasLoaded = false;
+  String? _filterStatus;
 
-  final List<_SprintConfig> _sprints = const [];
-
-  Color _statusColor(_DeliverableStatus status) {
-    switch (status) {
-      case _DeliverableStatus.completed:
-        return const Color(0xFF34D399);
-      case _DeliverableStatus.inProgress:
-        return const Color(0xFFF97316);
-      case _DeliverableStatus.planned:
-        return const Color(0xFF6B7280);
-      case _DeliverableStatus.notStarted:
-        return const Color(0xFFEF4444);
+  String? get _projectId {
+    try {
+      return ProjectDataInherited.maybeOf(context)?.projectData.projectId;
+    } catch (e) {
+      return null;
     }
   }
 
-  String _statusLabel(_DeliverableStatus status) {
-    switch (status) {
-      case _DeliverableStatus.completed:
-        return 'Completed';
-      case _DeliverableStatus.inProgress:
-        return 'In Progress';
-      case _DeliverableStatus.planned:
-        return 'Planned';
-      case _DeliverableStatus.notStarted:
-        return 'Not Started';
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasLoaded) {
+      _loadData();
     }
   }
 
-  Widget _buildArrowButton(
-      {required IconData icon,
-      required Color background,
-      required Color borderColor,
-      Color? iconColor}) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: background,
-        shape: BoxShape.circle,
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          if (background == Colors.white)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: Icon(icon, size: 20, color: iconColor ?? _kHeadline),
+  Future<void> _loadData() async {
+    final projectId = _projectId;
+    if (projectId == null) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+      final retryId = _projectId;
+      if (retryId == null) return;
+      return _loadDataWithId(retryId);
+    }
+    return _loadDataWithId(projectId);
+  }
+
+  Future<void> _loadDataWithId(String projectId) async {
+    if (_hasLoaded) return;
+    setState(() => _isLoading = true);
+    try {
+      final result = await RoadmapService.loadAll(projectId: projectId);
+      if (mounted) {
+        setState(() {
+          _sprints = result.sprints;
+          _deliverables = result.deliverables;
+          _isLoading = false;
+          _hasLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading roadmap: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveAll() async {
+    final projectId = _projectId;
+    if (projectId == null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    try {
+      await RoadmapService.saveAll(
+        projectId: projectId,
+        sprints: _sprints,
+        deliverables: _deliverables,
+        userId: uid,
+      );
+    } catch (e) {
+      debugPrint('Error saving roadmap: $e');
+    }
+  }
+
+  List<RoadmapDeliverable> _filteredForSprint(String sprintId) {
+    var items = _deliverables.where((d) => d.sprintId == sprintId).toList();
+    if (_filterStatus != null) {
+      items = items.where((d) => d.statusLabel == _filterStatus).toList();
+    }
+    items.sort((a, b) => a.order.compareTo(b.order));
+    return items;
+  }
+
+  int get _totalCount => _deliverables.length;
+  int get _completedCount => _deliverables
+      .where((d) => d.status == RoadmapDeliverableStatus.completed)
+      .length;
+  int get _inProgressCount => _deliverables
+      .where((d) => d.status == RoadmapDeliverableStatus.inProgress)
+      .length;
+  int get _atRiskCount => _deliverables
+      .where((d) =>
+          d.status == RoadmapDeliverableStatus.atRisk ||
+          d.status == RoadmapDeliverableStatus.blocked)
+      .length;
+
+  void _handleAddSprint() async {
+    final result = await _showSprintDialog(context);
+    if (result == null) return;
+    setState(() {
+      _sprints.add(RoadmapSprint(
+        name: result['name'] ?? '',
+        startDate: result['startDate'] as DateTime?,
+        endDate: result['endDate'] as DateTime?,
+        goal: result['goal'] ?? '',
+        order: _sprints.length,
+        createdById: FirebaseAuth.instance.currentUser?.uid ?? '',
+        createdByEmail: FirebaseAuth.instance.currentUser?.email ?? '',
+        createdByName: FirebaseAuth.instance.currentUser?.displayName ?? '',
+      ));
+    });
+    await _saveAll();
+  }
+
+  void _handleEditSprint(int index) async {
+    if (index < 0 || index >= _sprints.length) return;
+    final sprint = _sprints[index];
+    final result = await _showSprintDialog(context, existing: sprint);
+    if (result == null) return;
+    setState(() {
+      _sprints[index] = sprint.copyWith(
+        name: result['name'],
+        startDate: result['startDate'] as DateTime?,
+        endDate: result['endDate'] as DateTime?,
+        goal: result['goal'],
+      );
+    });
+    await _saveAll();
+  }
+
+  void _handleDeleteSprint(int index) async {
+    final sprint = _sprints[index];
+    final hasItems = _deliverables.any((d) => d.sprintId == sprint.id);
+    final confirmed = await _showConfirmDialog(
+      'Delete Sprint',
+      hasItems
+          ? '${sprint.name} has deliverables. Deleting will unassign them. Continue?'
+          : 'Delete ${sprint.name}?',
     );
+    if (confirmed != true) return;
+    setState(() {
+      for (var i = 0; i < _deliverables.length; i++) {
+        if (_deliverables[i].sprintId == sprint.id) {
+          _deliverables[i] = _deliverables[i].copyWith(sprintId: '');
+        }
+      }
+      _sprints.removeAt(index);
+      for (var i = 0; i < _sprints.length; i++) {
+        _sprints[i] = _sprints[i].copyWith(order: i);
+      }
+    });
+    await _saveAll();
   }
 
-  Widget _buildHeader(BuildContext context) {
+  void _handleAddDeliverable(String sprintId) async {
+    final result = await _showDeliverableDialog(
+      context,
+      sprints: _sprints,
+      selectedSprintId: sprintId,
+      allDeliverables: _deliverables,
+    );
+    if (result == null) return;
+    setState(() {
+      _deliverables.add(RoadmapDeliverable(
+        title: result['title'] ?? '',
+        description: result['description'] ?? '',
+        sprintId: result['sprintId'] ?? sprintId,
+        assignee: result['assignee'] ?? '',
+        dueDate: result['dueDate'] as DateTime?,
+        status: result['status'] as RoadmapDeliverableStatus? ??
+            RoadmapDeliverableStatus.notStarted,
+        priority: result['priority'] as RoadmapDeliverablePriority? ??
+            RoadmapDeliverablePriority.medium,
+        storyPoints: result['storyPoints'] as int? ?? 1,
+        dependencies: result['dependencies'] as List<String>? ?? [],
+        blockers: result['blockers'] ?? '',
+        acceptanceCriteria: result['acceptanceCriteria'] ?? '',
+        notes: result['notes'] ?? '',
+        order: _deliverables.length,
+        createdById: FirebaseAuth.instance.currentUser?.uid ?? '',
+        createdByEmail: FirebaseAuth.instance.currentUser?.email ?? '',
+        createdByName: FirebaseAuth.instance.currentUser?.displayName ?? '',
+      ));
+    });
+    await _saveAll();
+  }
+
+  void _handleEditDeliverable(int index) async {
+    if (index < 0 || index >= _deliverables.length) return;
+    final item = _deliverables[index];
+    final result = await _showDeliverableDialog(
+      context,
+      sprints: _sprints,
+      selectedSprintId: item.sprintId,
+      existing: item,
+      allDeliverables: _deliverables,
+    );
+    if (result == null) return;
+    setState(() {
+      _deliverables[index] = item.copyWith(
+        title: result['title'],
+        description: result['description'],
+        sprintId: result['sprintId'],
+        assignee: result['assignee'],
+        dueDate: result['dueDate'] as DateTime?,
+        status: result['status'] as RoadmapDeliverableStatus?,
+        priority: result['priority'] as RoadmapDeliverablePriority?,
+        storyPoints: result['storyPoints'] as int?,
+        dependencies: result['dependencies'] as List<String>?,
+        blockers: result['blockers'],
+        acceptanceCriteria: result['acceptanceCriteria'],
+        notes: result['notes'],
+      );
+    });
+    await _saveAll();
+  }
+
+  void _handleDeleteDeliverable(int index) async {
+    final item = _deliverables[index];
+    final confirmed = await _showConfirmDialog(
+      'Delete Deliverable',
+      'Delete "${item.title}"?',
+    );
+    if (confirmed != true) return;
+    setState(() => _deliverables.removeAt(index));
+    await _saveAll();
+  }
+
+  void _handleMoveDeliverable(int deliverableIndex, String newSprintId) async {
+    setState(() {
+      _deliverables[deliverableIndex] =
+          _deliverables[deliverableIndex].copyWith(sprintId: newSprintId);
+    });
+    await _saveAll();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final displayName = _displayName(user);
     final subtitle = _displaySubtitle(user);
     final initials = _initialsFor(displayName);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _buildArrowButton(
-          icon: Icons.arrow_back_ios_new,
-          background: Colors.white,
-          borderColor: _kCardBorder,
-        ),
-        const SizedBox(width: 10),
-        _buildArrowButton(
-          icon: Icons.autorenew,
-          background: _kAccent.withValues(alpha: 0.2),
-          borderColor: _kAccent,
-          iconColor: const Color(0xFFD97706),
-        ),
-        const SizedBox(width: 24),
-        const Expanded(
-          child: Center(
-            child: Text(
-              'Deliverables Roadmap',
-              style: TextStyle(
-                  fontSize: 24, fontWeight: FontWeight.w800, color: _kHeadline),
-            ),
-          ),
-        ),
-        Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _kCardBorder),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: _kAccent,
-                child: Text(initials,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800, color: _kHeadline)),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(displayName,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: _kHeadline)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _kMuted)),
-                ],
-              ),
-              const SizedBox(width: 12),
-              const Icon(Icons.keyboard_arrow_down_rounded, color: _kMuted),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatusLabel(String label, Color color) {
-    return Text(
-      label,
-      style: TextStyle(
-        color: color,
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(_DeliverableStatus status) {
-    final color = _statusColor(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        _statusLabel(status),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDeliverableCard(_DeliverableItem item) {
-    final assignedLabel =
-        item.assignedTo.isNotEmpty ? 'Tasked: ${item.assignedTo}' : 'Tasked: -';
-    final dueLabel = item.dueDate.isNotEmpty ? item.dueDate : 'No due date';
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 240;
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: 10,
-                      decoration: BoxDecoration(
-                        color: _statusColor(item.status),
-                        borderRadius: const BorderRadius.horizontal(
-                            left: Radius.circular(24)),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isCompact)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: _kHeadline),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildStatusChip(item.status),
-                        ],
-                      )
-                    else
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.title,
-                              style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: _kHeadline),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          _buildStatusChip(item.status),
-                        ],
-                      ),
-                    const SizedBox(height: 10),
-                    Text(
-                      item.description,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _kMuted),
-                    ),
-                    const SizedBox(height: 20),
-                    if (isCompact)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            assignedLabel,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _kMuted),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            dueLabel,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _kMuted),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      )
-                    else
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              assignedLabel,
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _kMuted),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            dueLabel,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _kMuted),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  String _displayName(User? user) {
-    final name = user?.displayName?.trim();
-    if (name != null && name.isNotEmpty) return name;
-    final email = user?.email?.trim();
-    if (email != null && email.isNotEmpty) return email;
-    return 'Guest';
-  }
-
-  String _displaySubtitle(User? user) {
-    final email = user?.email?.trim();
-    if (email != null && email.isNotEmpty) return email;
-    return 'Signed in';
-  }
-
-  String _initialsFor(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return 'U';
-    final parts = trimmed.split(RegExp(r'\\s+'));
-    if (parts.length == 1) {
-      return parts.first.characters.first.toUpperCase();
-    }
-    final first = parts.first.characters.first.toUpperCase();
-    final last = parts.last.characters.first.toUpperCase();
-    return '$first$last';
-  }
-
-  Widget _buildHeading(String heading) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(
-            fontSize: 16, fontWeight: FontWeight.w800, color: _kHeadline),
-        children: [
-          TextSpan(text: heading.split('(').first),
-          if (heading.contains('('))
-            TextSpan(
-              text: heading.substring(heading.indexOf('(')),
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: _kMuted),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildColumn(int index) {
-    final config = _sprints[index];
-    final items = _sprintItems[index] ?? <_DeliverableItem>[];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F4FA),
-        borderRadius: BorderRadius.circular(26),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(child: _buildHeading(config.heading)),
-              if (config.allowAdd)
-                GestureDetector(
-                  onTap: () => _handleAddDeliverable(index),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: _kCardBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.add, size: 18, color: _kHeadline),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildStatusLabel(config.summaryLabel, config.summaryColor),
-          const SizedBox(height: 20),
-          for (final item in items) _buildDeliverableCard(item),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildColumns(double maxWidth) {
-    final columnCount = _sprints.length;
-    final totalGap = _kColumnGap * (columnCount - 1);
-    final computedWidth = (maxWidth - totalGap) / columnCount;
-    final needsHorizontalScroll = computedWidth < 230;
-    final resolvedWidth = needsHorizontalScroll ? 230.0 : computedWidth;
-
-    List<Widget> buildRowChildren() {
-      return [
-        for (var i = 0; i < columnCount; i++) ...[
-          SizedBox(width: resolvedWidth, child: _buildColumn(i)),
-          if (i != columnCount - 1) const SizedBox(width: _kColumnGap),
-        ],
-      ];
-    }
-
-    if (needsHorizontalScroll) {
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: buildRowChildren(),
-        ),
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: buildRowChildren(),
-    );
-  }
-
-  Future<void> _handleAddDeliverable(int index) async {
-    final newItem = await _openAddDeliverableDialog(context);
-    if (newItem == null) {
-      return;
-    }
-
-    setState(() {
-      _sprintItems[index]?.add(newItem);
-    });
-  }
-
-  Future<_DeliverableItem?> _openAddDeliverableDialog(
-      BuildContext context) async {
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final assignedController = TextEditingController();
-    final dueDateController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    var selectedStatus = _DeliverableStatus.inProgress;
-
-    _DeliverableItem? result;
-
-    await showDialog<_DeliverableItem>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          title: const Text(
-            'Create Deliverable',
-            style: TextStyle(fontWeight: FontWeight.w800, color: _kHeadline),
-          ),
-          content: StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextFormField(
-                        controller: titleController,
-                        decoration: const InputDecoration(
-                            labelText: 'Deliverable Title'),
-                        textCapitalization: TextCapitalization.sentences,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a title';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: descriptionController,
-                        decoration:
-                            const InputDecoration(labelText: 'Description'),
-                        minLines: 2,
-                        maxLines: 4,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a description';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: assignedController,
-                        decoration:
-                            const InputDecoration(labelText: 'Assigned To'),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please specify who is assigned';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: dueDateController,
-                        decoration:
-                            const InputDecoration(labelText: 'Due Date'),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please set a due date';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<_DeliverableStatus>(
-                        initialValue: selectedStatus,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: _DeliverableStatus.values
-                            .map(
-                              (status) => DropdownMenuItem(
-                                value: status,
-                                child: Text(_statusLabel(status)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setStateDialog(() {
-                            selectedStatus = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          actionsPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (!(formKey.currentState?.validate() ?? false)) {
-                  return;
-                }
-                result = _DeliverableItem(
-                  title: titleController.text.trim(),
-                  description: descriptionController.text.trim(),
-                  assignedTo: assignedController.text.trim(),
-                  dueDate: dueDateController.text.trim(),
-                  status: selectedStatus,
-                );
-                Navigator.of(dialogContext).pop(result);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _kAccent,
-                foregroundColor: _kHeadline,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
-    );
-
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 36),
       color: _kBackground,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(context),
-          const SizedBox(height: 32),
+          _buildHeader(context, displayName, subtitle, initials),
+          const SizedBox(height: 24),
+          _buildStatsRow(),
+          const SizedBox(height: 16),
+          _buildFilterBar(),
+          const SizedBox(height: 20),
           const PlanningAiNotesCard(
             title: 'Notes',
             sectionLabel: 'Deliverable Roadmap',
@@ -702,22 +328,11 @@ class _DeliverablesRoadmapBodyState extends State<_DeliverablesRoadmapBody> {
             description:
                 'Summarize roadmap milestones, delivery pacing, and risk flags.',
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  child: _sprints.isEmpty
-                      ? const _EmptyStateCard(
-                          title: 'No sprint roadmap yet',
-                          message:
-                              'Add roadmap deliverables to visualize sprint pacing.',
-                          icon: Icons.view_week_outlined,
-                        )
-                      : _buildColumns(constraints.maxWidth),
-                );
-              },
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildKanbanBoard(),
           ),
           const SizedBox(height: 28),
           LaunchPhaseNavigation(
@@ -732,21 +347,65 @@ class _DeliverablesRoadmapBodyState extends State<_DeliverablesRoadmapBody> {
       ),
     );
   }
-}
 
-class _EmptyStateCard extends StatelessWidget {
-  const _EmptyStateCard(
-      {required this.title, required this.message, required this.icon});
+  Widget _buildHeader(
+      BuildContext context, String name, String subtitle, String initials) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildCircleButton(
+          icon: Icons.arrow_back_ios_new,
+          onTap: () => PlanningPhaseNavigation.goToPrevious(
+              context, 'deliverable_roadmap'),
+        ),
+        const SizedBox(width: 10),
+        _buildCircleButton(
+          icon: Icons.arrow_forward_ios,
+          onTap: () =>
+              PlanningPhaseNavigation.goToNext(context, 'deliverable_roadmap'),
+        ),
+        const SizedBox(width: 24),
+        const Expanded(
+          child: Center(
+            child: Text(
+              'Deliverables Roadmap',
+              style: TextStyle(
+                  fontSize: 24, fontWeight: FontWeight.w800, color: _kHeadline),
+            ),
+          ),
+        ),
+        _buildUserChip(initials, name, subtitle),
+      ],
+    );
+  }
 
-  final String title;
-  final String message;
-  final IconData icon;
+  Widget _buildCircleButton({required IconData icon, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: _kCardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(icon, size: 20, color: _kHeadline),
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildUserChip(String initials, String name, String subtitle) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -754,28 +413,567 @@ class _EmptyStateCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: const Color(0xFFF59E0B)),
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: _kAccent,
+            child: Text(initials,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800, color: _kHeadline)),
           ),
-          const SizedBox(width: 14),
-          Expanded(
+          const SizedBox(width: 12),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _kHeadline)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _kMuted)),
+            ],
+          ),
+          const SizedBox(width: 12),
+          const Icon(Icons.keyboard_arrow_down_rounded, color: _kMuted),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsRow() {
+    return Wrap(
+      spacing: 14,
+      runSpacing: 14,
+      children: [
+        _StatCard(
+          label: 'Total Deliverables',
+          value: '$_totalCount',
+          accent: const Color(0xFF2563EB),
+        ),
+        _StatCard(
+          label: 'Completed',
+          value: '$_completedCount',
+          accent: const Color(0xFF10B981),
+        ),
+        _StatCard(
+          label: 'In Progress',
+          value: '$_inProgressCount',
+          accent: const Color(0xFFF97316),
+        ),
+        _StatCard(
+          label: 'At Risk / Blocked',
+          value: '$_atRiskCount',
+          accent: const Color(0xFFEF4444),
+        ),
+        _StatCard(
+          label: 'Sprints',
+          value: '${_sprints.length}',
+          accent: const Color(0xFF8B5CF6),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Row(
+      children: [
+        const Text(
+          'Filter by status:',
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600, color: _kMuted),
+        ),
+        const SizedBox(width: 10),
+        _FilterChip(
+          label: 'All',
+          selected: _filterStatus == null,
+          onTap: () => setState(() => _filterStatus = null),
+        ),
+        ...RoadmapDeliverableStatus.values.map((status) {
+          final label = _statusLabel(status);
+          return Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: _FilterChip(
+              label: label,
+              selected: _filterStatus == label,
+              onTap: () => setState(() => _filterStatus = label),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildKanbanBoard() {
+    if (_sprints.isEmpty) {
+      return _EmptyState(
+        title: 'No sprint roadmap yet',
+        message: 'Create sprints to organize your deliverables.',
+        icon: Icons.view_week_outlined,
+        actionLabel: 'Add Sprint',
+        onAction: _handleAddSprint,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalGap = 18.0 * (_sprints.length);
+        final available = constraints.maxWidth - totalGap;
+        final colWidth = available / (_sprints.length + 1);
+        final needsHScroll = colWidth < _kColumnMinWidth ||
+            (_sprints.length + 1) * _kColumnMinWidth + totalGap >
+                constraints.maxWidth;
+        final resolvedWidth = needsHScroll ? _kColumnMinWidth : colWidth;
+
+        List<Widget> columns() {
+          return [
+            for (var i = 0; i < _sprints.length; i++) ...[
+              SizedBox(
+                width: resolvedWidth,
+                child: _buildSprintColumn(i),
+              ),
+              const SizedBox(width: 18),
+            ],
+            SizedBox(
+              width: resolvedWidth,
+              child: _buildAddSprintCard(),
+            ),
+          ];
+        }
+
+        Widget board = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: columns(),
+        );
+
+        if (needsHScroll) {
+          board = SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: board,
+          );
+        }
+
+        return SingleChildScrollView(child: board);
+      },
+    );
+  }
+
+  Widget _buildSprintColumn(int sprintIndex) {
+    final sprint = _sprints[sprintIndex];
+    final items = _filteredForSprint(sprint.id);
+    final totalPoints = items.fold<int>(0, (sum, d) => sum + d.storyPoints);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4FA),
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sprint.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: _kHeadline,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (sprint.dateRangeLabel.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        sprint.dateRangeLabel,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _kMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              _SprintMenu(
+                onEdit: () => _handleEditSprint(sprintIndex),
+                onDelete: () => _handleDeleteSprint(sprintIndex),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$totalPoints pts · ${items.length} items',
+            style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted),
+          ),
+          if (sprint.goal.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              sprint.goal,
+              style: const TextStyle(fontSize: 11, color: _kMuted, height: 1.3),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 14),
+          for (final item in items)
+            _DeliverableCard(
+              item: item,
+              sprints: _sprints,
+              allDeliverables: _deliverables,
+              onEdit: () {
+                final idx = _deliverables.indexWhere((d) => d.id == item.id);
+                if (idx >= 0) _handleEditDeliverable(idx);
+              },
+              onDelete: () {
+                final idx = _deliverables.indexWhere((d) => d.id == item.id);
+                if (idx >= 0) _handleDeleteDeliverable(idx);
+              },
+              onMove: (newSprintId) {
+                final idx = _deliverables.indexWhere((d) => d.id == item.id);
+                if (idx >= 0) _handleMoveDeliverable(idx, newSprintId);
+              },
+            ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => _handleAddDeliverable(sprint.id),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: _kAccent.withValues(alpha: 0.4),
+                    style: BorderStyle.solid),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add, size: 16, color: Color(0xFFD97706)),
+                  SizedBox(width: 6),
+                  Text(
+                    'Add Deliverable',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFD97706),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddSprintCard() {
+    return GestureDetector(
+      onTap: _handleAddSprint,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(
+              color: _kAccent.withValues(alpha: 0.3), style: BorderStyle.solid),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(height: 24),
+            Icon(Icons.add_circle_outline, size: 36, color: Color(0xFFD97706)),
+            SizedBox(height: 10),
+            Text(
+              'Add Sprint',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFD97706),
+              ),
+            ),
+            SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard(
+      {required this.label, required this.value, required this.accent});
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 170,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kCardBorder),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 6)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: _kMuted)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w700, color: accent),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip(
+      {required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? _kAccent.withValues(alpha: 0.15) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: selected ? _kAccent : _kCardBorder),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: selected ? const Color(0xFFD97706) : _kMuted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SprintMenu extends StatelessWidget {
+  const _SprintMenu({required this.onEdit, required this.onDelete});
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      onSelected: (v) {
+        if (v == 'edit') onEdit();
+        if (v == 'delete') onDelete();
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'edit', child: Text('Edit Sprint')),
+        const PopupMenuItem(
+            value: 'delete',
+            child: Text('Delete Sprint',
+                style: TextStyle(color: Color(0xFFEF4444)))),
+      ],
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _kCardBorder),
+        ),
+        child: const Icon(Icons.more_horiz, size: 16, color: _kMuted),
+      ),
+    );
+  }
+}
+
+class _DeliverableCard extends StatelessWidget {
+  const _DeliverableCard({
+    required this.item,
+    required this.sprints,
+    required this.allDeliverables,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onMove,
+  });
+
+  final RoadmapDeliverable item;
+  final List<RoadmapSprint> sprints;
+  final List<RoadmapDeliverable> allDeliverables;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final void Function(String newSprintId) onMove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 6,
+                  decoration: BoxDecoration(
+                    color: _statusColor(item.status),
+                    borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(18)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 16, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: _kHeadline)),
-                const SizedBox(height: 6),
-                Text(message,
-                    style: const TextStyle(fontSize: 12, color: _kMuted)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: _kHeadline),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _PopupMenu(
+                      sprints: sprints,
+                      currentSprintId: item.sprintId,
+                      onEdit: onEdit,
+                      onDelete: onDelete,
+                      onMove: onMove,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _StatusChip(status: item.status),
+                    const SizedBox(width: 6),
+                    _PriorityDot(priority: item.priority),
+                    const Spacer(),
+                    Text(
+                      '${item.storyPoints} pts',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _kMuted),
+                    ),
+                  ],
+                ),
+                if (item.assignee.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline,
+                          size: 12, color: _kMuted),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          item.assignee,
+                          style: const TextStyle(fontSize: 11, color: _kMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (item.dueDate != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today_outlined,
+                          size: 11,
+                          color: item.isOverdue
+                              ? const Color(0xFFEF4444)
+                              : _kMuted),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${item.dueDate!.month}/${item.dueDate!.day}/${item.dueDate!.year}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: item.isOverdue
+                              ? const Color(0xFFEF4444)
+                              : _kMuted,
+                        ),
+                      ),
+                      if (item.isOverdue) ...[
+                        const SizedBox(width: 4),
+                        const Text('OVERDUE',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFEF4444),
+                            )),
+                      ],
+                    ],
+                  ),
+                ],
+                if (item.dependencies.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.link, size: 11, color: _kMuted),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${item.dependencies.length} dependenc${item.dependencies.length == 1 ? 'y' : 'ies'}',
+                        style: const TextStyle(fontSize: 11, color: _kMuted),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -783,4 +981,693 @@ class _EmptyStateCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PopupMenu extends StatelessWidget {
+  const _PopupMenu({
+    required this.sprints,
+    required this.currentSprintId,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onMove,
+  });
+
+  final List<RoadmapSprint> sprints;
+  final String currentSprintId;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final void Function(String) onMove;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      onSelected: (v) {
+        if (v == 'edit') return onEdit();
+        if (v == 'delete') return onDelete();
+        if (v.startsWith('move:')) onMove(v.substring(5));
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+        ...sprints
+            .where((s) => s.id != currentSprintId)
+            .map((s) => PopupMenuItem(
+                  value: 'move:${s.id}',
+                  child: Text('Move to ${s.name}'),
+                )),
+        const PopupMenuItem(
+            value: 'delete',
+            child: Text('Delete', style: TextStyle(color: Color(0xFFEF4444)))),
+      ],
+      child: const Icon(Icons.more_vert, size: 16, color: _kMuted),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+  final RoadmapDeliverableStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        _statusLabel(status),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _PriorityDot extends StatelessWidget {
+  const _PriorityDot({required this.priority});
+  final RoadmapDeliverablePriority priority;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _priorityColor(priority);
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.title,
+    required this.message,
+    required this.icon,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kCardBorder),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: const Color(0xFFF59E0B), size: 28),
+          ),
+          const SizedBox(height: 16),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: _kHeadline)),
+          const SizedBox(height: 6),
+          Text(message, style: const TextStyle(fontSize: 13, color: _kMuted)),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: onAction,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(actionLabel!),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kAccent,
+                foregroundColor: _kHeadline,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Dialogs ──────────────────────────────────────────────────
+
+Future<Map<String, dynamic>?> _showSprintDialog(
+  BuildContext context, {
+  RoadmapSprint? existing,
+}) async {
+  final nameCtl = TextEditingController(text: existing?.name ?? '');
+  final goalCtl = TextEditingController(text: existing?.goal ?? '');
+  DateTime? startDate = existing?.startDate;
+  DateTime? endDate = existing?.endDate;
+  final formKey = GlobalKey<FormState>();
+
+  return showDialog<Map<String, dynamic>>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setDialogState) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: Text(
+            existing == null ? 'Create Sprint' : 'Edit Sprint',
+            style:
+                const TextStyle(fontWeight: FontWeight.w800, color: _kHeadline),
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: nameCtl,
+                    decoration: const InputDecoration(labelText: 'Sprint Name'),
+                    textCapitalization: TextCapitalization.sentences,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Start Date',
+                          value: startDate,
+                          onChanged: (d) => setDialogState(() => startDate = d),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'End Date',
+                          value: endDate,
+                          onChanged: (d) => setDialogState(() => endDate = d),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: goalCtl,
+                    decoration: const InputDecoration(labelText: 'Sprint Goal'),
+                    minLines: 2,
+                    maxLines: 4,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actionsPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                Navigator.of(ctx).pop({
+                  'name': nameCtl.text.trim(),
+                  'startDate': startDate,
+                  'endDate': endDate,
+                  'goal': goalCtl.text.trim(),
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kAccent,
+                foregroundColor: _kHeadline,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      });
+    },
+  );
+}
+
+Future<Map<String, dynamic>?> _showDeliverableDialog(
+  BuildContext context, {
+  required List<RoadmapSprint> sprints,
+  required String selectedSprintId,
+  required List<RoadmapDeliverable> allDeliverables,
+  RoadmapDeliverable? existing,
+}) async {
+  final titleCtl = TextEditingController(text: existing?.title ?? '');
+  final descCtl = TextEditingController(text: existing?.description ?? '');
+  final assigneeCtl = TextEditingController(text: existing?.assignee ?? '');
+  final criteriaCtl =
+      TextEditingController(text: existing?.acceptanceCriteria ?? '');
+  final notesCtl = TextEditingController(text: existing?.notes ?? '');
+  final blockersCtl = TextEditingController(text: existing?.blockers ?? '');
+  String sprintId = existing?.sprintId ?? selectedSprintId;
+  var status = existing?.status ?? RoadmapDeliverableStatus.notStarted;
+  var priority = existing?.priority ?? RoadmapDeliverablePriority.medium;
+  var storyPoints = existing?.storyPoints ?? 1;
+  DateTime? dueDate = existing?.dueDate;
+  var selectedDeps = existing?.dependencies.toList() ?? <String>[];
+  final formKey = GlobalKey<FormState>();
+
+  return showDialog<Map<String, dynamic>>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setDialogState) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: Text(
+            existing == null ? 'Create Deliverable' : 'Edit Deliverable',
+            style:
+                const TextStyle(fontWeight: FontWeight.w800, color: _kHeadline),
+          ),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: titleCtl,
+                    decoration:
+                        const InputDecoration(labelText: 'Deliverable Title'),
+                    textCapitalization: TextCapitalization.sentences,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Enter a title'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descCtl,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    minLines: 2,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue:
+                        sprints.any((s) => s.id == sprintId) ? sprintId : null,
+                    decoration: const InputDecoration(labelText: 'Sprint'),
+                    items: sprints
+                        .map((s) => DropdownMenuItem(
+                              value: s.id,
+                              child: Text(s.name),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setDialogState(() => sprintId = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child:
+                            DropdownButtonFormField<RoadmapDeliverableStatus>(
+                          initialValue: status,
+                          decoration:
+                              const InputDecoration(labelText: 'Status'),
+                          items: RoadmapDeliverableStatus.values
+                              .map((s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(_statusLabel(s)),
+                                  ))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) setDialogState(() => status = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child:
+                            DropdownButtonFormField<RoadmapDeliverablePriority>(
+                          initialValue: priority,
+                          decoration:
+                              const InputDecoration(labelText: 'Priority'),
+                          items: RoadmapDeliverablePriority.values
+                              .map((p) => DropdownMenuItem(
+                                    value: p,
+                                    child: Text(_priorityLabel(p)),
+                                  ))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) setDialogState(() => priority = v);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          initialValue: storyPoints,
+                          decoration:
+                              const InputDecoration(labelText: 'Story Points'),
+                          items: [1, 2, 3, 5, 8, 13, 21]
+                              .map((v) => DropdownMenuItem(
+                                    value: v,
+                                    child: Text('$v'),
+                                  ))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null)
+                              setDialogState(() => storyPoints = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Due Date',
+                          value: dueDate,
+                          onChanged: (d) => setDialogState(() => dueDate = d),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: assigneeCtl,
+                    decoration: const InputDecoration(labelText: 'Assigned To'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: criteriaCtl,
+                    decoration:
+                        const InputDecoration(labelText: 'Acceptance Criteria'),
+                    minLines: 2,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: blockersCtl,
+                    decoration: const InputDecoration(labelText: 'Blockers'),
+                    minLines: 1,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: notesCtl,
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                    minLines: 1,
+                    maxLines: 3,
+                  ),
+                  if (allDeliverables.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Text('Dependencies',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _kMuted)),
+                    const SizedBox(height: 6),
+                    ...allDeliverables
+                        .where((d) => d.id != existing?.id)
+                        .map((d) {
+                      final isSelected = selectedDeps.contains(d.id);
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            if (isSelected) {
+                              selectedDeps.remove(d.id);
+                            } else {
+                              selectedDeps.add(d.id);
+                            }
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? _kAccent.withValues(alpha: 0.1)
+                                : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color:
+                                    isSelected ? _kAccent : Colors.transparent),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected
+                                    ? Icons.check_box
+                                    : Icons.check_box_outline_blank,
+                                size: 16,
+                                color: isSelected
+                                    ? const Color(0xFFD97706)
+                                    : _kMuted,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  d.title,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isSelected
+                                        ? const Color(0xFFD97706)
+                                        : _kHeadline,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actionsPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                Navigator.of(ctx).pop({
+                  'title': titleCtl.text.trim(),
+                  'description': descCtl.text.trim(),
+                  'sprintId': sprintId,
+                  'assignee': assigneeCtl.text.trim(),
+                  'dueDate': dueDate,
+                  'status': status,
+                  'priority': priority,
+                  'storyPoints': storyPoints,
+                  'acceptanceCriteria': criteriaCtl.text.trim(),
+                  'blockers': blockersCtl.text.trim(),
+                  'notes': notesCtl.text.trim(),
+                  'dependencies': selectedDeps,
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kAccent,
+                foregroundColor: _kHeadline,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      });
+    },
+  );
+}
+
+Future<bool?> _showConfirmDialog(String title, String message) {
+  return showDialog<bool>(
+    context: GlobalKey<NavigatorState>().currentContext!,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      title: Text(title,
+          style:
+              const TextStyle(fontWeight: FontWeight.w800, color: _kHeadline)),
+      content:
+          Text(message, style: const TextStyle(fontSize: 13, color: _kMuted)),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFEF4444),
+            foregroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _DatePickerField extends StatelessWidget {
+  const _DatePickerField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final text =
+        value != null ? '${value!.month}/${value!.day}/${value!.year}' : '';
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: value ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2040),
+        );
+        if (picked != null) onChanged(picked);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: const Icon(Icons.calendar_today, size: 16),
+        ),
+        child: Text(
+          text.isEmpty ? 'Select' : text,
+          style: TextStyle(
+            fontSize: 14,
+            color: text.isEmpty ? _kMuted : _kHeadline,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+Color _statusColor(RoadmapDeliverableStatus status) {
+  switch (status) {
+    case RoadmapDeliverableStatus.completed:
+      return const Color(0xFF10B981);
+    case RoadmapDeliverableStatus.inProgress:
+      return const Color(0xFFF97316);
+    case RoadmapDeliverableStatus.notStarted:
+      return const Color(0xFF6B7280);
+    case RoadmapDeliverableStatus.atRisk:
+      return const Color(0xFFF59E0B);
+    case RoadmapDeliverableStatus.blocked:
+      return const Color(0xFFEF4444);
+  }
+}
+
+String _statusLabel(RoadmapDeliverableStatus status) {
+  switch (status) {
+    case RoadmapDeliverableStatus.notStarted:
+      return 'Not Started';
+    case RoadmapDeliverableStatus.inProgress:
+      return 'In Progress';
+    case RoadmapDeliverableStatus.completed:
+      return 'Completed';
+    case RoadmapDeliverableStatus.atRisk:
+      return 'At Risk';
+    case RoadmapDeliverableStatus.blocked:
+      return 'Blocked';
+  }
+}
+
+Color _priorityColor(RoadmapDeliverablePriority priority) {
+  switch (priority) {
+    case RoadmapDeliverablePriority.critical:
+      return const Color(0xFFEF4444);
+    case RoadmapDeliverablePriority.high:
+      return const Color(0xFFF97316);
+    case RoadmapDeliverablePriority.medium:
+      return const Color(0xFFF59E0B);
+    case RoadmapDeliverablePriority.low:
+      return const Color(0xFF6B7280);
+  }
+}
+
+String _priorityLabel(RoadmapDeliverablePriority priority) {
+  switch (priority) {
+    case RoadmapDeliverablePriority.critical:
+      return 'Critical';
+    case RoadmapDeliverablePriority.high:
+      return 'High';
+    case RoadmapDeliverablePriority.medium:
+      return 'Medium';
+    case RoadmapDeliverablePriority.low:
+      return 'Low';
+  }
+}
+
+String _displayName(User? user) {
+  final name = user?.displayName?.trim();
+  if (name != null && name.isNotEmpty) return name;
+  final email = user?.email?.trim();
+  if (email != null && email.isNotEmpty) return email;
+  return 'Guest';
+}
+
+String _displaySubtitle(User? user) {
+  final email = user?.email?.trim();
+  if (email != null && email.isNotEmpty) return email;
+  return 'Signed in';
+}
+
+String _initialsFor(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return 'U';
+  final parts = trimmed.split(RegExp(r'\s+'));
+  if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+  final first = parts.first.characters.first.toUpperCase();
+  final last = parts.last.characters.first.toUpperCase();
+  return '$first$last';
 }
