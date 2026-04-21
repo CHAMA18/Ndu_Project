@@ -35,7 +35,7 @@
   <!-- Firebase SDK Configuration managed by FlutterFire -->
   <script>
     // Align with FlutterFire tested version to avoid runtime issues
-    window.flutterfire_web_sdk_version = '12.3.0';
+    window.flutterfire_web_sdk_version = '12.7.0';
   </script>
   <style>
     /* System font fallback to avoid Google Fonts CDN dependency */
@@ -45,6 +45,10 @@
   </style>
 </head>
 <body>
+  <!-- Disable service worker to avoid version mismatch fetch errors -->
+  <script>
+    window.flutterServiceWorkerSettings = { serviceWorkerVersion: null };
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
