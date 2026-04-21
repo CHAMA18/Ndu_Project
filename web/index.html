@@ -36,6 +36,9 @@
   <script>
     // Align with FlutterFire tested version to avoid runtime issues
     window.flutterfire_web_sdk_version = '12.7.0';
+
+    // Force HTML renderer to avoid CDN fetch issues
+    window.flutterConfiguration = { renderer: 'html' };
   </script>
   <style>
     /* System font fallback to avoid Google Fonts CDN dependency */
