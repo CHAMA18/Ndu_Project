@@ -276,7 +276,10 @@ class AppRouter {
     initialLocation: PlatformRouter.getInitialRoute(),
     redirect: (context, state) {
       // Enforce admin-host policy if a user is present
-      final user = FirebaseAuth.instance.currentUser;
+      User? user;
+      try {
+        user = FirebaseAuth.instance.currentUser;
+      } catch (_) {}
       final blocked = _adminHostGuard(user);
       if (blocked != null) return blocked;
 
@@ -800,7 +803,10 @@ class AppRouter {
     debugLogDiagnostics: kDebugMode,
     initialLocation: '/',
     redirect: (context, state) {
-      final user = FirebaseAuth.instance.currentUser;
+      User? user;
+      try {
+        user = FirebaseAuth.instance.currentUser;
+      } catch (_) {}
       final currentPath = state.uri.path;
 
       // On admin domain, handle routing specially
@@ -851,7 +857,10 @@ class AppRouter {
         path: '/',
         builder: (c, s) {
           // This should never be reached due to redirect, but provide fallback
-          final user = FirebaseAuth.instance.currentUser;
+          User? user;
+          try {
+            user = FirebaseAuth.instance.currentUser;
+          } catch (_) {}
           if (user?.email != null && user!.email!.isNotEmpty) {
             return const AdminAuthWrapper(child: AdminHomeScreen());
           }
@@ -906,7 +915,12 @@ class _RouteNotFound extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final isAdminDomain = AccessPolicy.isRestrictedAdminHost();
-    final user = FirebaseAuth.instance.currentUser;
+    User? user;
+    try {
+      user = FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      // Firebase not yet initialized or unavailable
+    }
     final hasEmail = user?.email != null && user!.email!.isNotEmpty;
 
     return Scaffold(

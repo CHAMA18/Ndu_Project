@@ -129,6 +129,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key, this.firebaseInitError});
 
   final Object? firebaseInitError;
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
