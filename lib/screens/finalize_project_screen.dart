@@ -66,6 +66,29 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
     'Rejected',
     'Deferred'
   ];
+  static const List<String> _snapshotSignals = [
+    'Final artifacts and deployment notes',
+    'Pending approvals',
+    'Variance vs. forecast',
+    'Handover confidence',
+    'On track',
+    'At risk',
+    'Blocked',
+    'Complete',
+    'Under review',
+    'Pending verification',
+  ];
+  static const List<String> _snapshotValues = [
+    'Complete',
+    'On track',
+    'At risk',
+    'Blocked',
+    'Not started',
+    'In progress',
+    'Under review',
+    'Pending sign-off',
+    'N/A',
+  ];
 
   @override
   void initState() {
@@ -252,6 +275,14 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
     if (value == null || value.isEmpty) return options.first;
     for (final option in options) {
       if (option.toLowerCase() == value.toLowerCase()) return option;
+    }
+    return options.first;
+  }
+
+  String? _normalizeDropdownValue(String current, List<String> options) {
+    if (current.isEmpty) return options.first;
+    for (final option in options) {
+      if (option.toLowerCase() == current.toLowerCase()) return option;
     }
     return options.first;
   }
@@ -511,6 +542,14 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
   }
 
   Widget _buildSnapshotRow(_SnapshotMetric metric) {
+    final normalizedSignal = _normalizeDropdownValue(
+      metric.subtitle,
+      _snapshotSignals,
+    );
+    final normalizedValue = _normalizeDropdownValue(
+      metric.value,
+      _snapshotValues,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -529,23 +568,44 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           const SizedBox(width: 12),
           Expanded(
             flex: 4,
-            child: TextFormField(
-              key: ValueKey('snapshot-sub-${metric.id}'),
-              initialValue: metric.subtitle,
+            child: DropdownButtonFormField<String>(
+              key: ValueKey('snapshot-signal-${metric.id}'),
+              initialValue: normalizedSignal,
               decoration: _inputDecoration('Signal'),
-              onChanged: (value) =>
-                  _updateSnapshotMetric(metric.copyWith(subtitle: value)),
+              items: _snapshotSignals
+                  .map((signal) => DropdownMenuItem(
+                      value: signal,
+                      child: Text(signal,
+                          style: const TextStyle(fontSize: 13),
+                          overflow: TextOverflow.ellipsis)))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateSnapshotMetric(
+                    metric.copyWith(subtitle: value),
+                    notify: true);
+              },
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: TextFormField(
+            child: DropdownButtonFormField<String>(
               key: ValueKey('snapshot-value-${metric.id}'),
-              initialValue: metric.value,
+              initialValue: normalizedValue,
               decoration: _inputDecoration('Value'),
-              onChanged: (value) =>
-                  _updateSnapshotMetric(metric.copyWith(value: value)),
+              items: _snapshotValues
+                  .map((val) => DropdownMenuItem(
+                      value: val,
+                      child: Text(val,
+                          style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                _updateSnapshotMetric(
+                    metric.copyWith(value: value),
+                    notify: true);
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -975,11 +1035,14 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
     _scheduleSave();
   }
 
-  void _updateSnapshotMetric(_SnapshotMetric metric) {
+  void _updateSnapshotMetric(_SnapshotMetric metric, {bool notify = false}) {
     final index =
         _snapshotMetrics.indexWhere((entry) => entry.id == metric.id);
     if (index == -1) return;
     _snapshotMetrics[index] = metric;
+    if (notify && mounted) {
+      setState(() {});
+    }
     _scheduleSave();
   }
 
