@@ -93,23 +93,12 @@ void main() async {
     );
   };
 
-  Object? firebaseInitError;
-  try {
-    debugPrint('Starting Firebase.initializeApp...');
-    // Prevent Preview from hanging indefinitely if Firebase JS is slow/blocked on web
-    await Firebase.initializeApp(
-            options: DefaultFirebaseOptions.currentPlatform)
-        .timeout(const Duration(seconds: 12));
-    debugPrint('Firebase initialized');
-  } on TimeoutException catch (e, st) {
-    firebaseInitError = e;
-    debugPrint('Firebase init timeout: $e');
-    debugPrint(st.toString());
-  } catch (e, st) {
-    firebaseInitError = e;
-    debugPrint('Firebase init error: $e');
-    debugPrint(st.toString());
-  }
+  // Firebase initialization - non-blocking for web
+  Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  ).catchError((e) {
+    debugPrint('Firebase init error (non-blocking): $e');
+  });
 
   // Initialize OpenAI API key from environment (if provided)
   ApiKeyManager.initializeApiKey();
@@ -118,7 +107,7 @@ void main() async {
   unawaited(ProjectNavigationService.instance.warmUp());
 
   runZonedGuarded(() {
-    runApp(MyApp(firebaseInitError: firebaseInitError));
+    runApp(const MyApp());
   }, (error, stack) {
     debugPrint('Uncaught zone error: $error');
     debugPrint(stack.toString());
@@ -126,9 +115,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, this.firebaseInitError});
-
-  final Object? firebaseInitError;
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +138,7 @@ class MyApp extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               theme: lightTheme,
               themeMode: ThemeMode.light,
-              routerConfig: _routerFor(firebaseInitError),
+              routerConfig: AppRouter.main,
               // Performance optimizations
               builder: (context, child) {
                 final media = MediaQuery.of(context).copyWith(boldText: false);
@@ -170,26 +157,6 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
-}
-
-GoRouter _routerFor(Object? firebaseInitError) {
-  if (firebaseInitError != null) {
-    // Minimal router that just shows the friendly error page
-    return GoRouter(
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => _FriendlyErrorScreen(
-            title: 'Unable to connect to the cloud',
-            message:
-                'Firebase failed to initialize. Some features may be unavailable.',
-            stack: firebaseInitError.toString(),
-          ),
-        ),
-      ],
-    );
-  }
-  return AppRouter.main;
 }
 
 class MyHomePage extends StatefulWidget {
