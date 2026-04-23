@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/models/page_hint_model.dart';
+import 'package:ndu_project/services/hint_content_service.dart';
 import 'package:ndu_project/services/hint_service.dart';
 
 class PageHintDialog {
@@ -11,6 +13,13 @@ class PageHintDialog {
     required String title,
     required String message,
   }) async {
+    final PageHintConfig resolvedHint = await HintContentService.getResolvedHint(
+      pageId: pageId,
+      fallbackTitle: title,
+      fallbackMessage: message,
+    );
+    if (!resolvedHint.enabled) return;
+
     final shouldShow = await HintService.shouldShowHint(pageId);
     if (!shouldShow) return;
 
@@ -48,7 +57,7 @@ class PageHintDialog {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            title,
+                            resolvedHint.title,
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -56,7 +65,7 @@ class PageHintDialog {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      message,
+                      resolvedHint.message,
                       style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
                     ),
                     const SizedBox(height: 16),
@@ -103,4 +112,3 @@ class PageHintDialog {
     );
   }
 }
-

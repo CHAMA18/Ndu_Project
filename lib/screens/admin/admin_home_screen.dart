@@ -4,6 +4,7 @@ import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/screens/admin/admin_users_screen.dart';
+import 'package:ndu_project/screens/admin/admin_hints_screen.dart';
 import 'package:ndu_project/screens/admin_content_screen.dart';
 import 'package:ndu_project/screens/admin/admin_projects_screen.dart';
 import 'package:ndu_project/screens/home_screen.dart';
@@ -13,6 +14,15 @@ import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
 import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
+const Color _adminBackgroundColor = Color(0xFFF6F7FB);
+const Color _adminSurfaceColor = Colors.white;
+const Color _adminBorderColor = Color(0xFFE5E7EB);
+const Color _adminAccentColor = Color(0xFFFFC107);
+const Color _adminAccentStrongColor = Color(0xFFB45309);
+const Color _adminAccentForegroundColor = Color(0xFF111827);
+const Color _adminTextPrimaryColor = Color(0xFF111827);
+const Color _adminTextSecondaryColor = Color(0xFF6B7280);
+
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
 
@@ -21,16 +31,23 @@ class AdminHomeScreen extends StatelessWidget {
     // Record admin dashboard context for logo navigation
     NavigationContextService.instance.setLastAdminDashboard(AppRoutes.adminHome);
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: _adminBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: Row(
           children: [
-            const Icon(Icons.admin_panel_settings, color: Color(0xFFFFC107), size: 28),
+            const Icon(Icons.admin_panel_settings, color: _adminAccentColor, size: 28),
             const SizedBox(width: 12),
-            const Text('Admin Dashboard', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black)),
+            const Text(
+              'Admin Dashboard',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: _adminTextPrimaryColor,
+              ),
+            ),
           ],
         ),
         actions: const [
@@ -40,51 +57,27 @@ class AdminHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFF8FAFF), Color(0xFFF6F7FB)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHero(context),
+            const SizedBox(height: 28),
+            _buildStatsGrid(),
+            const SizedBox(height: 32),
+            const Text(
+              'Quick Actions',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: _adminTextPrimaryColor,
               ),
             ),
-          ),
-          Positioned(
-            right: -120,
-            top: -80,
-            child: _FrostedOrb(
-              size: 260,
-              color: const Color(0xFFFFC107).withValues(alpha: 0.18),
-            ),
-          ),
-          Positioned(
-            left: -140,
-            bottom: 120,
-            child: _FrostedOrb(
-              size: 240,
-              color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
-            ),
-          ),
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHero(context),
-                const SizedBox(height: 28),
-                _buildStatsGrid(),
-                const SizedBox(height: 32),
-                const Text('Quick Actions', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 16),
-                _buildQuickActions(context),
-              ],
-            ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            _buildQuickActions(context),
+          ],
+        ),
       ),
     );
   }
@@ -93,13 +86,9 @@ class AdminHomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
+        color: _adminSurfaceColor,
         borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFFFFF), Color(0xFFF5F6FF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
+        border: Border.all(color: _adminBorderColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -126,14 +115,14 @@ class AdminHomeScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _adminSurfaceColor,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                            border: Border.all(color: _adminBorderColor),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFFC107).withValues(alpha: 0.18),
-                                blurRadius: 16,
-                                offset: const Offset(0, 8),
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
                               ),
                             ],
                           ),
@@ -143,22 +132,37 @@ class AdminHomeScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF111827).withValues(alpha: 0.06),
+                            color: _adminAccentColor.withValues(alpha: 0.16),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Text(
                             'Admin Console',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _adminAccentForegroundColor,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    const Text('System Overview', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+                    const Text(
+                      'System Overview',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: _adminTextPrimaryColor,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       'Monitor usage, manage critical systems, and keep projects moving forward in real time.',
-                      style: TextStyle(fontSize: 15, color: Colors.grey.shade700, height: 1.5),
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: _adminTextSecondaryColor,
+                        height: 1.5,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -184,14 +188,14 @@ class AdminHomeScreen extends StatelessWidget {
                       title: 'Active sessions',
                       value: 'Realtime',
                       subtitle: 'Monitoring system health',
-                      accent: const Color(0xFF4F46E5),
+                      accent: _adminAccentStrongColor,
                     ),
                     const SizedBox(height: 12),
                     _HeroStatTile(
                       title: 'Last refresh',
                       value: 'Just now',
                       subtitle: 'All services healthy',
-                      accent: const Color(0xFF16A34A),
+                      accent: _adminAccentStrongColor,
                     ),
                   ],
                 ),
@@ -224,32 +228,28 @@ class AdminHomeScreen extends StatelessWidget {
                   title: 'Total Users',
                   value: stats['users'].toString(),
                   icon: Icons.people,
-                  color: const Color(0xFF2563EB),
-                  gradient: const [Color(0xFFE0EEFF), Color(0xFFFFFFFF)],
+                  color: _adminAccentColor,
                   width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
                 ),
                 _StatCard(
                   title: 'Active Users',
                   value: stats['activeUsers'].toString(),
                   icon: Icons.person_outline,
-                  color: const Color(0xFF16A34A),
-                  gradient: const [Color(0xFFE4F7EC), Color(0xFFFFFFFF)],
+                  color: _adminAccentColor,
                   width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
                 ),
                 _StatCard(
                   title: 'Admins',
                   value: stats['admins'].toString(),
                   icon: Icons.admin_panel_settings,
-                  color: const Color(0xFFF59E0B),
-                  gradient: const [Color(0xFFFFF3CD), Color(0xFFFFFFFF)],
+                  color: _adminAccentColor,
                   width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
                 ),
                 _StatCard(
                   title: 'Total Projects',
                   value: stats['projects'].toString(),
                   icon: Icons.folder,
-                  color: const Color(0xFF7C3AED),
-                  gradient: const [Color(0xFFF1E8FF), Color(0xFFFFFFFF)],
+                  color: _adminAccentColor,
                   width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
                 ),
               ],
@@ -287,7 +287,7 @@ class AdminHomeScreen extends StatelessWidget {
               title: 'Executive Dashboard',
               description: 'Real-time pulse across every project, program, and portfolio',
               icon: Icons.dashboard_customize_outlined,
-              color: const Color(0xFF5B21B6),
+              color: _adminAccentColor,
               onTap: () => HomeScreen.open(context),
               width: cardWidth,
             ),
@@ -295,7 +295,7 @@ class AdminHomeScreen extends StatelessWidget {
               title: 'User Management',
               description: 'View and manage all users, roles, and permissions',
               icon: Icons.people,
-              color: const Color(0xFF2196F3),
+              color: _adminAccentColor,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsersScreen())),
               width: cardWidth,
             ),
@@ -303,7 +303,7 @@ class AdminHomeScreen extends StatelessWidget {
               title: 'Content Management',
               description: 'Edit app content, labels, and system messages',
               icon: Icons.edit_document,
-              color: const Color(0xFFFFC107),
+              color: _adminAccentColor,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminContentScreen())),
               width: cardWidth,
             ),
@@ -311,7 +311,7 @@ class AdminHomeScreen extends StatelessWidget {
               title: 'Project Overview',
               description: 'View all projects across the platform',
               icon: Icons.folder_open,
-              color: const Color(0xFF9C27B0),
+              color: _adminAccentColor,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminProjectsScreen())),
               width: cardWidth,
             ),
@@ -319,7 +319,7 @@ class AdminHomeScreen extends StatelessWidget {
               title: 'Coupon Management',
               description: 'Create and manage discount coupons for Stripe, PayPal, and Paystack',
               icon: Icons.local_offer,
-              color: const Color(0xFF4CAF50),
+              color: _adminAccentColor,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCouponsScreen())),
               width: cardWidth,
             ),
@@ -327,8 +327,16 @@ class AdminHomeScreen extends StatelessWidget {
               title: 'Subscription Lookup',
               description: 'Search users and manage their subscriptions, trials, and access',
               icon: Icons.search,
-              color: const Color(0xFF00BCD4),
+              color: _adminAccentColor,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSubscriptionLookupScreen())),
+              width: cardWidth,
+            ),
+            _ActionCard(
+              title: 'Hints',
+              description: 'Control per-screen hint visibility, rewrite onboarding copy, and replay guidance flows',
+              icon: Icons.tips_and_updates_outlined,
+              color: _adminAccentColor,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminHintsScreen())),
               width: cardWidth,
             ),
           ],
@@ -345,7 +353,6 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
-    required this.gradient,
     required this.width,
   });
 
@@ -353,7 +360,6 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-  final List<Color> gradient;
   final double width;
 
   @override
@@ -362,13 +368,9 @@ class _StatCard extends StatelessWidget {
       width: width,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: _adminSurfaceColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        border: Border.all(color: _adminBorderColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -386,28 +388,49 @@ class _StatCard extends StatelessWidget {
               color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: _adminAccentStrongColor, size: 20),
           ),
           const SizedBox(height: 18),
-          Text(value, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: color)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: _adminTextPrimaryColor,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _adminTextPrimaryColor,
+            ),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
+                  color: _adminAccentColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   'Live',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _adminAccentForegroundColor,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
-              Text('Updated just now', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              const Text(
+                'Updated just now',
+                style: TextStyle(fontSize: 11, color: _adminTextSecondaryColor),
+              ),
             ],
           ),
         ],
@@ -442,9 +465,9 @@ class _ActionCard extends StatelessWidget {
         width: width,
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _adminSurfaceColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.18)),
+          border: Border.all(color: _adminBorderColor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -461,32 +484,64 @@ class _ActionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: _adminAccentColor.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: _adminAccentStrongColor, size: 24),
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: _adminAccentColor,
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text('Manage', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+                  child: const Text(
+                    'Manage',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _adminAccentForegroundColor,
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: _adminTextPrimaryColor,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(description, style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.4)),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 14,
+                color: _adminTextSecondaryColor,
+                height: 1.4,
+              ),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
-                Text('Open', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
+                const Text(
+                  'Open',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _adminAccentStrongColor,
+                  ),
+                ),
                 const SizedBox(width: 4),
-                Icon(Icons.arrow_forward, color: color, size: 16),
+                const Icon(
+                  Icons.arrow_forward,
+                  color: _adminAccentStrongColor,
+                  size: 16,
+                ),
               ],
             ),
           ],
@@ -507,16 +562,23 @@ class _HeroPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _adminSurfaceColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(color: _adminBorderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF1F2937)),
+          Icon(icon, size: 16, color: _adminAccentStrongColor),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _adminTextPrimaryColor,
+            ),
+          ),
         ],
       ),
     );
@@ -541,38 +603,29 @@ class _HeroStatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _adminSurfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(color: _adminBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _adminTextSecondaryColor,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: accent)),
           const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 12, color: _adminTextSecondaryColor),
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _FrostedOrb extends StatelessWidget {
-  const _FrostedOrb({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
       ),
     );
   }

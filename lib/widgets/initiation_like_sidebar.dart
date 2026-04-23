@@ -26,6 +26,11 @@ import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
 import 'package:ndu_project/screens/planning_technology_screen.dart';
+import 'package:ndu_project/screens/technology_inventory_screen.dart';
+import 'package:ndu_project/screens/ai_integrations_screen.dart';
+import 'package:ndu_project/screens/external_integrations_screen.dart';
+import 'package:ndu_project/screens/technology_definitions_screen.dart';
+import 'package:ndu_project/screens/ai_recommendations_screen.dart';
 import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
 import 'package:ndu_project/screens/change_management_screen.dart';
@@ -119,6 +124,99 @@ class InitiationLikeSidebar extends StatefulWidget {
 }
 
 class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
+  static const Set<String> _businessCaseLabels = {
+    'Business Case Detail',
+    'Potential Solutions',
+    'Risk Identification',
+    'IT Considerations',
+    'Infrastructure Considerations',
+    'Core Stakeholders',
+    'Cost Benefit Analysis & Financial Metrics',
+    'Preferred Solution Analysis',
+    'Preferred Solution',
+  };
+
+  static const Set<String> _executiveSummaryLabels = {
+    'Preferred Solution Analysis',
+    'Preferred Solution',
+  };
+
+  static const Set<String> _frontEndLabels = {
+    'Details',
+    'Summary',
+    'Project Requirements',
+    'Project Risks',
+    'Project Opportunities',
+    'Contracting',
+    'Security',
+    'Milestone',
+    'Allowance',
+    'Project Charter',
+  };
+
+  static const Set<String> _organizationPlanLabels = {
+    'Organization Plan - Roles & Responsibilities',
+    'Organization Plan - Staffing Plan',
+    'Team Training and Team Building',
+    'Stakeholder Management',
+  };
+
+  static const Set<String> _executionPlanLabels = {
+    'Execution Plan Overview',
+    'Executive Plan Strategy',
+    'Execution Plan Details',
+    'Execution Early Works',
+    'Execution Enabling Work Plan',
+    'Execution Issue Management',
+    'Execution Plan - Construction Plan',
+    'Execution Plan - Infrastructure Plan',
+    'Execution Plan - Agile Delivery Plan',
+    'Execution Plan - Lesson Learned',
+    'Execution Plan - Best Practices',
+    'Execution Plan - Interface Management',
+    'Execution Plan - Communication Plan',
+    'Execution Plan - Interface Management Plan',
+    'Execution Plan - Interface Management Overview',
+  };
+
+  static const Set<String> _technologyPlanningLabels = {
+    'Technology Planning',
+    'Technology Inventory',
+    'AI Integrations',
+    'External Integrations',
+    'Technology Definitions',
+    'AI Recommendations',
+  };
+
+  static const Set<String> _costEstimateLabels = {
+    'Cost Estimate',
+  };
+
+  static const Set<String> _projectServicesLabels = {
+    'Scope Tracking Plan',
+  };
+
+  static const Set<String> _startUpPlanningLabels = {
+    'Start-Up Planning',
+    'Start-Up Planning - Operations Plan and Manual',
+    'Start-Up Planning - Hypercare Plan',
+    'Start-Up Planning - DevOps',
+    'Start-Up Planning - Close Out Plan',
+  };
+
+  static const Set<String> _deliverableRoadmapLabels = {
+    'Deliverable Roadmap',
+    'Roadmap Overview',
+    'Deliverable Roadmap - Agile Map Out',
+  };
+
+  static const Set<String> _projectPlanLabels = {
+    'Project Plan',
+    'Project Plan - Level 1 - Project Schedule',
+    'Project Plan - Detailed Project Schedule',
+    'Project Plan - Condensed Project Summary',
+  };
+
   static const Set<String> _designPhaseLabels = {
     'Design Phase',
     'Design Management',
@@ -135,12 +233,111 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     'Design Deliverables',
   };
 
+  static const Set<String> _progressTrackingLabels = {
+    'Progress Tracking',
+    'Deliverable Status Updates',
+    'Recurring Deliverables',
+    'Status Reports',
+  };
+
+  static const Set<String> _executionPhaseLabels = {
+    'Execution Phase',
+    'Staff Team',
+    'Team Meetings',
+    ..._progressTrackingLabels,
+    'Contracts Tracking',
+    'Vendor Tracking',
+    'Detailed Design',
+    'Agile Development Iterations',
+    'Scope Tracking Implementation',
+    'Stakeholder Alignment',
+    'Update Ops and Maintenance Plans',
+    'Launch Checklist',
+    'Risk Tracking',
+    'Scope Completion',
+    'Gap Analysis and Scope Reconciliation',
+    'Punchlist Actions',
+    'Technical Debt Management',
+    'Identify and Staff Ops Team',
+    'Salvage and/or Disposal Plan',
+    'Finalize Project',
+  };
+
+  static const Set<String> _punchlistLabels = {
+    'Punchlist Actions',
+    'Technical Debt Management',
+  };
+
+  static const Set<String> _projectFinancialReviewLabels = {
+    'Project Financial Review',
+    'Actual vs Planned Gap Analysis',
+    'Project Financial Review - Scope Reconcillation',
+  };
+
+  static const Set<String> _projectCloseOutLabels = {
+    'Project Close Out',
+    'Project Close Out - Long Form',
+    'Project Close Out - Summarized Form',
+  };
+
+  static const Set<String> _launchPhaseLabels = {
+    'Launch Phase',
+    'Deliver Project',
+    'Transition To Production Team',
+    'Contract Close Out',
+    'Vendor Account Close Out',
+    'Project Summary',
+    'Warranties & Operations Support',
+    ..._projectFinancialReviewLabels,
+    'Demobilize Team',
+    ..._projectCloseOutLabels,
+  };
+
+  static const Set<String> _planningPhaseLabels = {
+    'Planning Phase',
+    'Project Details',
+    'Work Breakdown Structure',
+    'Project Goals & Milestones',
+    'Requirements',
+    ..._organizationPlanLabels,
+    'SSHER',
+    'Quality Management',
+    ..._executionPlanLabels,
+    'Design Planning',
+    ..._technologyPlanningLabels,
+    'Interface Management',
+    'Risk Assessment',
+    'Contract',
+    'Contract Planning',
+    'Planning Procurement',
+    'Schedule',
+    ..._costEstimateLabels,
+    ..._projectServicesLabels,
+    'Change Management',
+    'Issue Management',
+    'Lessons Learned',
+    'Team Management',
+    'Security Management',
+    ..._startUpPlanningLabels,
+    ..._deliverableRoadmapLabels,
+    'Agile Project Baseline',
+    ..._projectPlanLabels,
+    'Project Baseline',
+  };
+
+  static const Set<String> _initiationPhaseLabels = {
+    'Initiation Phase',
+    ..._businessCaseLabels,
+    ..._frontEndLabels,
+  };
+
   // Shared expansion and scroll state across all instances so navigation
   // doesn't reset the sidebar UI state.
   static bool? _sharedInitiationExpanded;
   static bool? _sharedBusinessCaseExpanded;
   static bool? _sharedFrontEndExpanded;
   static bool? _sharedExecutionPlanExpanded;
+  static bool? _sharedTechnologyPlanningExpanded;
   static bool? _sharedPlanningPhaseExpanded;
   static bool? _sharedDesignPhaseExpanded;
   static bool? _sharedExecutionPhaseExpanded;
@@ -162,6 +359,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   late bool _businessCaseExpanded = _sharedBusinessCaseExpanded ?? true;
   late bool _frontEndExpanded = _sharedFrontEndExpanded ?? true;
   late bool _executionPlanExpanded = _sharedExecutionPlanExpanded ?? false;
+  late bool _technologyPlanningExpanded =
+      _sharedTechnologyPlanningExpanded ?? false;
   late bool _planningPhaseExpanded = _sharedPlanningPhaseExpanded ?? false;
   late bool _designPhaseExpanded = _sharedDesignPhaseExpanded ?? false;
   late bool _executionPhaseExpanded = _sharedExecutionPhaseExpanded ?? false;
@@ -186,9 +385,103 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  bool get _shouldExpandDesignPhase {
+  bool _activeIn(Set<String> labels) {
     final activeLabel = widget.activeItemLabel;
-    return activeLabel != null && _designPhaseLabels.contains(activeLabel);
+    return activeLabel != null && labels.contains(activeLabel);
+  }
+
+  bool _expandForActiveLabel() {
+    bool changed = false;
+
+    void expandIf(Set<String> labels, bool currentValue, void Function() apply) {
+      if (_activeIn(labels) && !currentValue) {
+        apply();
+        changed = true;
+      }
+    }
+
+    expandIf(_initiationPhaseLabels, _initiationExpanded, () {
+      _initiationExpanded = true;
+      _sharedInitiationExpanded = true;
+    });
+    expandIf(_businessCaseLabels, _businessCaseExpanded, () {
+      _businessCaseExpanded = true;
+      _sharedBusinessCaseExpanded = true;
+    });
+    expandIf(_frontEndLabels, _frontEndExpanded, () {
+      _frontEndExpanded = true;
+      _sharedFrontEndExpanded = true;
+    });
+    expandIf(_executiveSummaryLabels, _executiveSummaryExpanded, () {
+      _executiveSummaryExpanded = true;
+      _sharedExecutiveSummaryExpanded = true;
+    });
+    expandIf(_planningPhaseLabels, _planningPhaseExpanded, () {
+      _planningPhaseExpanded = true;
+      _sharedPlanningPhaseExpanded = true;
+    });
+    expandIf(_organizationPlanLabels, _organizationPlanExpanded, () {
+      _organizationPlanExpanded = true;
+      _sharedOrganizationPlanExpanded = true;
+    });
+    expandIf(_executionPlanLabels, _executionPlanExpanded, () {
+      _executionPlanExpanded = true;
+      _sharedExecutionPlanExpanded = true;
+    });
+    expandIf(_technologyPlanningLabels, _technologyPlanningExpanded, () {
+      _technologyPlanningExpanded = true;
+      _sharedTechnologyPlanningExpanded = true;
+    });
+    expandIf(_costEstimateLabels, _costEstimateExpanded, () {
+      _costEstimateExpanded = true;
+      _sharedCostEstimateExpanded = true;
+    });
+    expandIf(_projectServicesLabels, _projectServicesExpanded, () {
+      _projectServicesExpanded = true;
+      _sharedProjectServicesExpanded = true;
+    });
+    expandIf(_startUpPlanningLabels, _startUpPlanningExpanded, () {
+      _startUpPlanningExpanded = true;
+      _sharedStartUpPlanningExpanded = true;
+    });
+    expandIf(_deliverableRoadmapLabels, _deliverableRoadmapExpanded, () {
+      _deliverableRoadmapExpanded = true;
+      _sharedDeliverableRoadmapExpanded = true;
+    });
+    expandIf(_projectPlanLabels, _projectPlanExpanded, () {
+      _projectPlanExpanded = true;
+      _sharedProjectPlanExpanded = true;
+    });
+    expandIf(_designPhaseLabels, _designPhaseExpanded, () {
+      _designPhaseExpanded = true;
+      _sharedDesignPhaseExpanded = true;
+    });
+    expandIf(_executionPhaseLabels, _executionPhaseExpanded, () {
+      _executionPhaseExpanded = true;
+      _sharedExecutionPhaseExpanded = true;
+    });
+    expandIf(_progressTrackingLabels, _progressTrackingExpanded, () {
+      _progressTrackingExpanded = true;
+      _sharedProgressTrackingExpanded = true;
+    });
+    expandIf(_punchlistLabels, _punchlistExpanded, () {
+      _punchlistExpanded = true;
+      _sharedPunchlistExpanded = true;
+    });
+    expandIf(_launchPhaseLabels, _launchPhaseExpanded, () {
+      _launchPhaseExpanded = true;
+      _sharedLaunchPhaseExpanded = true;
+    });
+    expandIf(_projectFinancialReviewLabels, _actualVsPlannedExpanded, () {
+      _actualVsPlannedExpanded = true;
+      _sharedActualVsPlannedExpanded = true;
+    });
+    expandIf(_projectCloseOutLabels, _projectCloseOutExpanded, () {
+      _projectCloseOutExpanded = true;
+      _sharedProjectCloseOutExpanded = true;
+    });
+
+    return changed;
   }
 
   bool get _isBasicPlanProject {
@@ -235,10 +528,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   @override
   void initState() {
     super.initState();
-    if (_shouldExpandDesignPhase) {
-      _designPhaseExpanded = true;
-      _sharedDesignPhaseExpanded = true;
-    }
+    _expandForActiveLabel();
     // Keep the shared state in sync as the user scrolls.
     _scrollController.addListener(() {
       _sharedScrollOffset = _scrollController.offset;
@@ -248,11 +538,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   @override
   void didUpdateWidget(covariant InitiationLikeSidebar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_shouldExpandDesignPhase && !_designPhaseExpanded) {
-      setState(() {
-        _designPhaseExpanded = true;
-        _sharedDesignPhaseExpanded = true;
-      });
+    if (_expandForActiveLabel()) {
+      setState(() {});
     }
   }
 
@@ -718,6 +1005,38 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   void _openTechnology() {
     _navigateWithCheckpoint('technology', const PlanningTechnologyScreen());
+  }
+
+  void _openTechnologyInventory() {
+    _navigateWithCheckpoint(
+      'technology_inventory',
+      const TechnologyInventoryScreen(),
+    );
+  }
+
+  void _openAiIntegrations() {
+    _navigateWithCheckpoint('ai_integrations', const AiIntegrationsScreen());
+  }
+
+  void _openExternalIntegrations() {
+    _navigateWithCheckpoint(
+      'external_integrations',
+      const ExternalIntegrationsScreen(),
+    );
+  }
+
+  void _openTechnologyDefinitions() {
+    _navigateWithCheckpoint(
+      'technology_definitions',
+      const TechnologyDefinitionsScreen(),
+    );
+  }
+
+  void _openAiRecommendations() {
+    _navigateWithCheckpoint(
+      'ai_recommendations',
+      const AiRecommendationsScreen(),
+    );
   }
 
   void _openInterfaceManagement() {
@@ -1612,6 +1931,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         _isBasicPlanLocked('Detailed Project Schedule');
     final lockProjectPlanCondensed =
         _isBasicPlanLocked('Condensed Project Summary');
+    final lockTeamManagement = _isBasicPlanLocked('Team Management');
     final lockStaffTeam = _isBasicPlanLocked('Staff Team');
     final lockUpdateOps =
         _isBasicPlanLocked('Update Ops and Maintenance Plans');
@@ -1644,7 +1964,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           _initiationExpanded = !_initiationExpanded;
           _sharedInitiationExpanded = _initiationExpanded;
         }),
-        isActive: widget.activeItemLabel == 'Initiation Phase',
+        isActive: _activeIn(_initiationPhaseLabels),
       ),
       if (_initiationExpanded) ...[
         _buildSubExpandableHeader(
@@ -1654,7 +1974,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _businessCaseExpanded = !_businessCaseExpanded;
             _sharedBusinessCaseExpanded = _businessCaseExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Business Case',
+          isActive: _activeIn(_businessCaseLabels),
         ),
         if (_businessCaseExpanded) ...[
           _buildSubSubMenuItem('Scope Statement',
@@ -1687,8 +2007,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               _executiveSummaryExpanded = !_executiveSummaryExpanded;
               _sharedExecutiveSummaryExpanded = _executiveSummaryExpanded;
             }),
-            isActive: widget.activeItemLabel == 'Executive Summary' ||
-                widget.activeItemLabel == 'Preferred Solution Analysis',
+            isActive: _activeIn(_executiveSummaryLabels),
           ),
           if (_executiveSummaryExpanded) ...[
             _buildSubSubMenuItem('Preferred Solution Analysis',
@@ -1707,12 +2026,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _frontEndExpanded = !_frontEndExpanded;
             _sharedFrontEndExpanded = _frontEndExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Front End Planning',
+          isActive: _activeIn(_frontEndLabels),
         ),
         if (_frontEndExpanded) ...[
           _buildSubSubMenuItem('Details',
               onTap: _openSummary,
-              isActive: widget.activeItemLabel == 'Details'),
+              isActive: widget.activeItemLabel == 'Details' ||
+                  widget.activeItemLabel == 'Summary'),
           _buildSubSubMenuItem('Project Requirements',
               onTap: _openFrontEndRequirements,
               isActive: widget.activeItemLabel == 'Project Requirements'),
@@ -1761,7 +2081,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           _planningPhaseExpanded = !_planningPhaseExpanded;
           _sharedPlanningPhaseExpanded = _planningPhaseExpanded;
         }),
-        isActive: widget.activeItemLabel == 'Planning Phase',
+        isActive: _activeIn(_planningPhaseLabels),
       ),
       if (_planningPhaseExpanded) ...[
         _buildSubMenuItem('Project Details',
@@ -1786,12 +2106,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _organizationPlanExpanded = !_organizationPlanExpanded;
             _sharedOrganizationPlanExpanded = _organizationPlanExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Organization Plan' ||
-              widget.activeItemLabel ==
-                  'Organization Plan - Roles & Responsibilities' ||
-              widget.activeItemLabel == 'Organization Plan - Staffing Plan' ||
-              widget.activeItemLabel == 'Team Training and Team Building' ||
-              widget.activeItemLabel == 'Stakeholder Management',
+          isActive: _activeIn(_organizationPlanLabels),
         ),
         if (_organizationPlanExpanded) ...[
           _buildSubSubMenuItem('Roles & Responsibilities',
@@ -1822,13 +2137,40 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _executionPlanExpanded = !_executionPlanExpanded;
             _sharedExecutionPlanExpanded = _executionPlanExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Execution Plan' ||
-              widget.activeItemLabel == 'Execution Plan - Construction Plan' ||
-              widget.activeItemLabel ==
-                  'Execution Plan - Infrastructure Plan' ||
-              widget.activeItemLabel == 'Execution Plan - Agile Delivery Plan',
+          isActive: _activeIn(_executionPlanLabels),
         ),
         if (_executionPlanExpanded) ...[
+          _buildSubSubMenuItem(
+            'Overview',
+            onTap: _openExecutionPlan,
+            isActive: widget.activeItemLabel == 'Execution Plan Overview',
+          ),
+          _buildSubSubMenuItem(
+            'Executive Plan Strategy',
+            onTap: _openExecutionPlanStrategy,
+            isActive: widget.activeItemLabel == 'Executive Plan Strategy',
+          ),
+          _buildSubSubMenuItem(
+            'Execution Plan Details',
+            onTap: _openExecutionPlanDetails,
+            isActive: widget.activeItemLabel == 'Execution Plan Details',
+          ),
+          _buildSubSubMenuItem(
+            'Execution Early Works',
+            onTap: _openExecutionEarlyWorks,
+            isActive: widget.activeItemLabel == 'Execution Early Works',
+          ),
+          _buildSubSubMenuItem(
+            'Execution Enabling Work Plan',
+            onTap: _openExecutionEnablingWorkPlan,
+            isActive:
+                widget.activeItemLabel == 'Execution Enabling Work Plan',
+          ),
+          _buildSubSubMenuItem(
+            'Execution Issue Management',
+            onTap: _openExecutionIssueManagement,
+            isActive: widget.activeItemLabel == 'Execution Issue Management',
+          ),
           _buildSubSubMenuItem('Construction Plan',
               onTap: _openExecutionPlanConstructionPlan,
               isActive: widget.activeItemLabel ==
@@ -1841,13 +2183,85 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               onTap: _openExecutionPlanAgileDeliveryPlan,
               isActive: widget.activeItemLabel ==
                   'Execution Plan - Agile Delivery Plan'),
+          _buildSubSubMenuItem(
+            'Lessons Learned',
+            onTap: _openExecutionPlanLessonsLearned,
+            isActive: widget.activeItemLabel == 'Execution Plan - Lesson Learned',
+          ),
+          _buildSubSubMenuItem(
+            'Best Practices',
+            onTap: _openExecutionPlanBestPractices,
+            isActive: widget.activeItemLabel == 'Execution Plan - Best Practices',
+          ),
+          _buildSubSubMenuItem(
+            'Interface Management',
+            onTap: _openExecutionPlanInterfaceManagement,
+            isActive:
+                widget.activeItemLabel == 'Execution Plan - Interface Management',
+          ),
+          _buildSubSubMenuItem(
+            'Communication Plan',
+            onTap: _openExecutionPlanCommunicationPlan,
+            isActive:
+                widget.activeItemLabel == 'Execution Plan - Communication Plan',
+          ),
+          _buildSubSubMenuItem(
+            'Interface Management Plan',
+            onTap: _openExecutionPlanInterfaceManagementPlan,
+            isActive: widget.activeItemLabel ==
+                'Execution Plan - Interface Management Plan',
+          ),
+          _buildSubSubMenuItem(
+            'Interface Management Overview',
+            onTap: _openExecutionPlanInterfaceManagementOverview,
+            isActive: widget.activeItemLabel ==
+                'Execution Plan - Interface Management Overview',
+          ),
         ],
         _buildSubMenuItem('Design Planning',
             onTap: _openDesign,
             isActive: widget.activeItemLabel == 'Design Planning'),
-        _buildSubMenuItem('Technology Planning',
+        _buildSubExpandableHeader(
+          'Technology Planning',
+          expanded: _technologyPlanningExpanded,
+          onTap: () => setState(() {
+            _technologyPlanningExpanded = !_technologyPlanningExpanded;
+            _sharedTechnologyPlanningExpanded = _technologyPlanningExpanded;
+          }),
+          isActive: _activeIn(_technologyPlanningLabels),
+        ),
+        if (_technologyPlanningExpanded) ...[
+          _buildSubSubMenuItem(
+            'Technology Planning Overview',
             onTap: _openTechnology,
-            isActive: widget.activeItemLabel == 'Technology Planning'),
+            isActive: widget.activeItemLabel == 'Technology Planning',
+          ),
+          _buildSubSubMenuItem(
+            'Technology Inventory',
+            onTap: _openTechnologyInventory,
+            isActive: widget.activeItemLabel == 'Technology Inventory',
+          ),
+          _buildSubSubMenuItem(
+            'AI Integrations',
+            onTap: _openAiIntegrations,
+            isActive: widget.activeItemLabel == 'AI Integrations',
+          ),
+          _buildSubSubMenuItem(
+            'External Integrations',
+            onTap: _openExternalIntegrations,
+            isActive: widget.activeItemLabel == 'External Integrations',
+          ),
+          _buildSubSubMenuItem(
+            'Technology Definitions',
+            onTap: _openTechnologyDefinitions,
+            isActive: widget.activeItemLabel == 'Technology Definitions',
+          ),
+          _buildSubSubMenuItem(
+            'AI Recommendations',
+            onTap: _openAiRecommendations,
+            isActive: widget.activeItemLabel == 'AI Recommendations',
+          ),
+        ],
         _buildSubMenuItem(
           'Interface Management',
           onTap: lockInterfaceManagement ? null : _openInterfaceManagement,
@@ -1859,7 +2273,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             isActive: widget.activeItemLabel == 'Risk Assessment'),
         _buildSubMenuItem('Contract Planning',
             onTap: _openContract,
-            isActive: widget.activeItemLabel == 'Contract Planning'),
+            isActive: widget.activeItemLabel == 'Contract Planning' ||
+                widget.activeItemLabel == 'Contract'),
         _buildSubMenuItem('Procurement',
             onTap: _openPlanningProcurement,
             isActive: widget.activeItemLabel == 'Planning Procurement'),
@@ -1873,7 +2288,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _costEstimateExpanded = !_costEstimateExpanded;
             _sharedCostEstimateExpanded = _costEstimateExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Cost Estimate',
+          isActive: _activeIn(_costEstimateLabels),
         ),
         if (_costEstimateExpanded) ...[
           _buildSubSubMenuItem('Cost Estimate Overview',
@@ -1887,7 +2302,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _projectServicesExpanded = !_projectServicesExpanded;
             _sharedProjectServicesExpanded = _projectServicesExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Scope Tracking Plan',
+          isActive: _activeIn(_projectServicesLabels),
         ),
         if (_projectServicesExpanded) ...[
           _buildSubSubMenuItem('Scope Tracking Plan',
@@ -1906,6 +2321,15 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         _buildSubMenuItem('Lessons Learned',
             onTap: _openLessonsLearned,
             isActive: widget.activeItemLabel == 'Lessons Learned'),
+        _buildSubMenuItem(
+          'Team Management',
+          onTap: lockTeamManagement ? null : _openTeamManagement,
+          isActive: widget.activeItemLabel == 'Team Management',
+          isDisabled: lockTeamManagement,
+        ),
+        _buildSubMenuItem('Security Management',
+            onTap: _openSecurityManagement,
+            isActive: widget.activeItemLabel == 'Security Management'),
         _buildSubExpandableHeader(
           'Start-Up Planning',
           expanded: _startUpPlanningExpanded,
@@ -1913,12 +2337,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _startUpPlanningExpanded = !_startUpPlanningExpanded;
             _sharedStartUpPlanningExpanded = _startUpPlanningExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Start-Up Planning' ||
-              widget.activeItemLabel ==
-                  'Start-Up Planning - Operations Plan and Manual' ||
-              widget.activeItemLabel == 'Start-Up Planning - Hypercare Plan' ||
-              widget.activeItemLabel == 'Start-Up Planning - DevOps' ||
-              widget.activeItemLabel == 'Start-Up Planning - Close Out Plan',
+          isActive: _activeIn(_startUpPlanningLabels),
         ),
         if (_startUpPlanningExpanded) ...[
           _buildSubSubMenuItem(
@@ -1952,13 +2371,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _deliverableRoadmapExpanded = !_deliverableRoadmapExpanded;
             _sharedDeliverableRoadmapExpanded = _deliverableRoadmapExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Deliverable Roadmap' ||
-              widget.activeItemLabel == 'Deliverable Roadmap - Agile Map Out',
+          isActive: _activeIn(_deliverableRoadmapLabels),
         ),
         if (_deliverableRoadmapExpanded) ...[
           _buildSubSubMenuItem('Roadmap Overview',
               onTap: _openDeliverableRoadmap,
-              isActive: widget.activeItemLabel == 'Deliverable Roadmap'),
+              isActive: widget.activeItemLabel == 'Deliverable Roadmap' ||
+                  widget.activeItemLabel == 'Roadmap Overview'),
           _buildSubSubMenuItem('Agile Map Out',
               onTap: _openDeliverableRoadmapAgileMapOut,
               isActive: widget.activeItemLabel ==
@@ -1974,13 +2393,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _projectPlanExpanded = !_projectPlanExpanded;
             _sharedProjectPlanExpanded = _projectPlanExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Project Plan' ||
-              widget.activeItemLabel ==
-                  'Project Plan - Level 1 - Project Schedule' ||
-              widget.activeItemLabel ==
-                  'Project Plan - Detailed Project Schedule' ||
-              widget.activeItemLabel ==
-                  'Project Plan - Condensed Project Summary',
+          isActive: _activeIn(_projectPlanLabels),
         ),
         if (_projectPlanExpanded) ...[
           _buildSubSubMenuItem('Project Plan Overview',
@@ -2028,7 +2441,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           _designPhaseExpanded = !_designPhaseExpanded;
           _sharedDesignPhaseExpanded = _designPhaseExpanded;
         }),
-        isActive: widget.activeItemLabel == 'Design Phase',
+        isActive: _activeIn(_designPhaseLabels),
       ),
       if (_designPhaseExpanded) ...[
         _buildSubMenuItem('Design Management',
@@ -2085,7 +2498,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           _executionPhaseExpanded = !_executionPhaseExpanded;
           _sharedExecutionPhaseExpanded = _executionPhaseExpanded;
         }),
-        isActive: widget.activeItemLabel == 'Execution Phase',
+        isActive: _activeIn(_executionPhaseLabels),
       ),
       if (_executionPhaseExpanded) ...[
         _buildSubMenuItem(
@@ -2104,10 +2517,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _progressTrackingExpanded = !_progressTrackingExpanded;
             _sharedProgressTrackingExpanded = _progressTrackingExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Progress Tracking' ||
-              widget.activeItemLabel == 'Deliverable Status Updates' ||
-              widget.activeItemLabel == 'Recurring Deliverables' ||
-              widget.activeItemLabel == 'Status Reports',
+          isActive: _activeIn(_progressTrackingLabels),
         ),
         if (_progressTrackingExpanded) ...[
           _buildSubSubMenuItem('Deliverable Status Updates',
@@ -2146,9 +2556,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               widget.activeItemLabel == 'Update Ops and Maintenance Plans',
           isDisabled: lockUpdateOps,
         ),
-        _buildSubMenuItem('Start-up or Launch Checklist',
+        _buildSubMenuItem('Launch Checklist',
             onTap: _openLaunchChecklist,
-            isActive: widget.activeItemLabel == 'Start-up or Launch Checklist'),
+            isActive: widget.activeItemLabel == 'Launch Checklist'),
         _buildSubMenuItem('Risk Tracking',
             onTap: _openRiskTracking,
             isActive: widget.activeItemLabel == 'Risk Tracking'),
@@ -2170,8 +2580,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _punchlistExpanded = !_punchlistExpanded;
             _sharedPunchlistExpanded = _punchlistExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Punchlist Actions' ||
-              widget.activeItemLabel == 'Technical Debt Management',
+          isActive: _activeIn(_punchlistLabels),
           isDisabled: lockPunchlistActions,
         ),
         if (_punchlistExpanded) ...[
@@ -2209,7 +2618,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           _launchPhaseExpanded = !_launchPhaseExpanded;
           _sharedLaunchPhaseExpanded = _launchPhaseExpanded;
         }),
-        isActive: widget.activeItemLabel == 'Launch Phase',
+        isActive: _activeIn(_launchPhaseLabels),
       ),
       if (_launchPhaseExpanded) ...[
         _buildSubMenuItem('Deliver Project',
@@ -2244,16 +2653,15 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _actualVsPlannedExpanded = !_actualVsPlannedExpanded;
             _sharedActualVsPlannedExpanded = _actualVsPlannedExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Project Financial Review' ||
-              widget.activeItemLabel ==
-                  'Project Financial Review - Scope Reconcillation',
+          isActive: _activeIn(_projectFinancialReviewLabels),
           isDisabled: lockProjectFinancialReview,
         ),
         if (_actualVsPlannedExpanded) ...[
           _buildSubSubMenuItem(
             'Gap Analysis',
             onTap: _openActualVsPlannedGapAnalysis,
-            isActive: widget.activeItemLabel == 'Project Financial Review',
+            isActive: widget.activeItemLabel == 'Project Financial Review' ||
+                widget.activeItemLabel == 'Actual vs Planned Gap Analysis',
           ),
           _buildSubSubMenuItem(
             'Scope Reconcillation',
@@ -2272,9 +2680,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             _projectCloseOutExpanded = !_projectCloseOutExpanded;
             _sharedProjectCloseOutExpanded = _projectCloseOutExpanded;
           }),
-          isActive: widget.activeItemLabel == 'Project Close Out' ||
-              widget.activeItemLabel == 'Project Close Out - Long Form' ||
-              widget.activeItemLabel == 'Project Close Out - Summarized Form',
+          isActive: _activeIn(_projectCloseOutLabels),
         ),
         if (_projectCloseOutExpanded) ...[
           _buildSubSubMenuItem(

@@ -88,7 +88,7 @@ flutter_launcher_icons:
 flutter_native_splash:
   color: "#FFD700"
   color_dark: "#1A1A1A"
-  image: assets/images/ndu_logo_splash.png
+  image: assets/images/Ndu_logo.png
   android: true
   ios: true
   web: false
