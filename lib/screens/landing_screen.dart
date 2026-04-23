@@ -1,14 +1,13 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:ndu_project/providers/app_content_provider.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
-import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LandingScreen extends StatefulWidget {
@@ -33,8 +32,6 @@ class _LandingScreenState extends State<LandingScreen>
   bool _isDebugMode = false;
   int _kazAiTapCount = 0;
   DateTime? _lastKazAiTap;
-
-  // Workflow tap counter for admin edit mode (admin domain only)
   int _workflowTapCount = 0;
   DateTime? _lastWorkflowTap;
 
@@ -101,15 +98,7 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   void _handleWorkflowTap() {
-    // Only enable edit mode on admin domain
-    if (!AccessPolicy.isRestrictedAdminHost()) {
-      // Not on admin domain, just scroll
-      _scrollTo(_workflowKey);
-      return;
-    }
-
     final now = DateTime.now();
-    // Reset counter if more than 2 seconds have passed
     if (_lastWorkflowTap == null ||
         now.difference(_lastWorkflowTap!) > const Duration(seconds: 2)) {
       _workflowTapCount = 1;
@@ -119,25 +108,12 @@ class _LandingScreenState extends State<LandingScreen>
     _lastWorkflowTap = now;
 
     if (_workflowTapCount >= 5) {
-      // Enable edit mode via provider
-      final provider = context.read<AppContentProvider>();
-      provider.toggleEditMode();
-
-      setState(() => _workflowTapCount = 0);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.isEditMode
-              ? '✏️ Edit mode enabled'
-              : '✅ Edit mode disabled'),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } else {
-      // Still scroll to workflow section
-      _scrollTo(_workflowKey);
+      _workflowTapCount = 0;
+      context.go('/${AppRoutes.adminPortal}');
+      return;
     }
+
+    _scrollTo(_workflowKey);
   }
 
   void _handleStartProject() {

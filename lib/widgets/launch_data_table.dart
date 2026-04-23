@@ -29,6 +29,7 @@ class LaunchDataTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -140,6 +141,7 @@ class LaunchDataTable extends StatelessWidget {
 
   Widget _buildRows(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildColumnHeaders(),
         ...List.generate(rowCount, (i) => cellBuilder(context, i)),
@@ -149,6 +151,7 @@ class LaunchDataTable extends StatelessWidget {
 
   Widget _buildColumnHeaders() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: Color(0xFFF8FAFC),
@@ -202,14 +205,15 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
+            width: double.infinity,
             color: _hovering ? const Color(0xFFF9FAFB) : Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
               children: [
                 ...widget.cells,
-                const Spacer(),
                 SizedBox(
                   width: 40,
                   child: _hovering && widget.onDelete != null
