@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 
+class LaunchColumn {
+  final String label;
+  final double? width;
+  final bool flexible;
+
+  const LaunchColumn({
+    required this.label,
+    this.width,
+    this.flexible = false,
+  }) : assert(width != null || flexible, 'Either width or flexible must be set');
+}
+
 class LaunchDataTable extends StatelessWidget {
-  const LaunchDataTable({
+  LaunchDataTable({
     super.key,
     required this.title,
-    required this.columns,
+    required List<dynamic> columns,
     required this.rowCount,
     required this.cellBuilder,
     this.subtitle,
@@ -13,11 +25,13 @@ class LaunchDataTable extends StatelessWidget {
     this.importLabel,
     this.onImport,
     this.emptyMessage = 'No entries yet. Add details to get started.',
-  });
+  }) : _columns = columns is List<LaunchColumn>
+      ? columns
+      : columns.map((c) => LaunchColumn(label: c.toString(), width: 160)).toList();
 
   final String title;
   final String? subtitle;
-  final List<String> columns;
+  final List<LaunchColumn> _columns;
   final int rowCount;
   final Widget Function(BuildContext context, int rowIdx) cellBuilder;
   final VoidCallback? onAdd;
@@ -25,6 +39,8 @@ class LaunchDataTable extends StatelessWidget {
   final String? importLabel;
   final VoidCallback? onImport;
   final String emptyMessage;
+
+  List<LaunchColumn> get columns => _columns;
 
   @override
   Widget build(BuildContext context) {
@@ -159,20 +175,31 @@ class LaunchDataTable extends StatelessWidget {
       child: Row(
         children: [
           ...columns.map(
-            (c) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                c,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B7280),
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ),
+            (col) => col.flexible
+                ? Expanded(
+                    child: Text(
+                      col.label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6B7280),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  )
+                : SizedBox(
+                    width: col.width,
+                    child: Text(
+                      col.label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6B7280),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
           ),
-          const Spacer(),
           const SizedBox(width: 40),
         ],
       ),
