@@ -1,5 +1,35 @@
 import 'package:flutter/material.dart';
 
+const double _defaultColumnWidth = 160;
+const double _tableHorizontalPadding = 20;
+const double _columnGap = 2;
+const double _actionColumnWidth = 40;
+
+class _TableLayoutInherited extends InheritedWidget {
+  final double tableWidth;
+  final List<LaunchColumn> columns;
+  final bool hasRowActions;
+
+  const _TableLayoutInherited({
+    required this.tableWidth,
+    required this.columns,
+    required this.hasRowActions,
+    required super.child,
+  });
+
+  static _TableLayoutInherited? of(BuildContext context) {
+    final inherited =
+        context.dependOnInheritedWidgetOfExactType<_TableLayoutInherited>();
+    return inherited;
+  }
+
+  @override
+  bool updateShouldNotify(_TableLayoutInherited oldWidget) =>
+      tableWidth != oldWidget.tableWidth ||
+      columns != oldWidget.columns ||
+      hasRowActions != oldWidget.hasRowActions;
+}
+
 class LaunchColumn {
   final String label;
   final double? width;
@@ -9,7 +39,8 @@ class LaunchColumn {
     required this.label,
     this.width,
     this.flexible = false,
-  }) : assert(width != null || flexible, 'Either width or flexible must be set');
+  }) : assert(
+            width != null || flexible, 'Either width or flexible must be set');
 }
 
 class LaunchDataTable extends StatelessWidget {
@@ -26,8 +57,10 @@ class LaunchDataTable extends StatelessWidget {
     this.onImport,
     this.emptyMessage = 'No entries yet. Add details to get started.',
   }) : _columns = columns is List<LaunchColumn>
-      ? columns
-      : columns.map((c) => LaunchColumn(label: c.toString(), width: 160)).toList();
+            ? columns
+            : columns
+                .map((c) => LaunchColumn(label: c.toString(), flexible: true))
+                .toList();
 
   final String title;
   final String? subtitle;
@@ -156,55 +189,132 @@ class LaunchDataTable extends StatelessWidget {
   }
 
   Widget _buildRows(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildColumnHeaders(),
-        ...List.generate(rowCount, (i) => cellBuilder(context, i)),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final rows = List.generate(rowCount, (i) => cellBuilder(context, i));
+        final effectiveColumns = _resolveColumns(rows);
+        final hasRowActions = rows.any(
+          (row) => row is LaunchDataRow && row.onDelete != null,
+        );
+        final minTableWidth = _minTableWidth(effectiveColumns, hasRowActions);
+        final tableWidth = constraints.maxWidth > minTableWidth
+            ? constraints.maxWidth
+            : minTableWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: _TableLayoutInherited(
+            tableWidth: tableWidth,
+            columns: effectiveColumns,
+            hasRowActions: hasRowActions,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildColumnHeaders(
+                    tableWidth, effectiveColumns, hasRowActions),
+                ...rows,
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildColumnHeaders() {
+  List<LaunchColumn> _resolveColumns(List<Widget> rows) {
+    return List.generate(columns.length, (index) {
+      final column = columns[index];
+      if (!column.flexible) return column;
+
+      final widths = rows
+          .whereType<LaunchDataRow>()
+          .map((row) => index < row.cells.length ? row.cells[index] : null)
+          .map(_fixedWidthForCell)
+          .whereType<double>()
+          .toList();
+
+      if (widths.isEmpty) return column;
+
+      return LaunchColumn(
+        label: column.label,
+        width: widths.reduce((a, b) => a > b ? a : b),
+      );
+    });
+  }
+
+  double? _fixedWidthForCell(Widget? cell) {
+    if (cell is LaunchEditableCell && cell.width != null && !cell.expand) {
+      return cell.width;
+    }
+    if (cell is LaunchStatusDropdown) return cell.width;
+    return null;
+  }
+
+  double _minTableWidth(List<LaunchColumn> columns, bool hasRowActions) {
+    final columnWidths = columns.fold<double>(0, (sum, col) {
+      if (col.flexible) return sum + _defaultColumnWidth;
+      return sum + (col.width ?? _defaultColumnWidth);
+    });
+    final gapWidth = columns.isEmpty ? 0 : _columnGap * (columns.length - 1);
+    final rowPadding = _tableHorizontalPadding * 2;
+    final actionWidth = hasRowActions ? _actionColumnWidth : 0.0;
+    return columnWidths + gapWidth + rowPadding + actionWidth;
+  }
+
+  Widget _buildColumnHeaders(
+    double tableWidth,
+    List<LaunchColumn> columns,
+    bool hasRowActions,
+  ) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      width: tableWidth,
+      padding: const EdgeInsets.symmetric(
+        horizontal: _tableHorizontalPadding,
+        vertical: 12,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFFF8FAFC),
       ),
       child: Row(
         children: [
-          ...columns.map(
-            (col) => col.flexible
-                ? Expanded(
-                    child: Text(
-                      col.label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF6B7280),
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  )
-                : SizedBox(
-                    width: col.width,
-                    child: Text(
-                      col.label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF6B7280),
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
+          ..._buildColumnSlots(
+            columns,
+            (col, _) => Text(
+              col.label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280),
+                letterSpacing: 0.3,
+              ),
+            ),
           ),
-          const SizedBox(width: 40),
+          if (hasRowActions) const SizedBox(width: _actionColumnWidth),
         ],
       ),
     );
   }
+}
+
+List<Widget> _buildColumnSlots(
+  List<LaunchColumn> columns,
+  Widget Function(LaunchColumn column, int index) builder,
+) {
+  final slots = <Widget>[];
+  for (var i = 0; i < columns.length; i++) {
+    final column = columns[i];
+    final child = builder(column, i);
+    slots.add(
+      column.flexible
+          ? Expanded(child: child)
+          : SizedBox(width: column.width, child: child),
+    );
+    if (i < columns.length - 1) {
+      slots.add(const SizedBox(width: _columnGap));
+    }
+  }
+  return slots;
 }
 
 class LaunchDataRow extends StatefulWidget {
@@ -228,30 +338,46 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
 
   @override
   Widget build(BuildContext context) {
+    final tableLayout = _TableLayoutInherited.of(context);
+    final columns = tableLayout?.columns;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            width: double.infinity,
+            width: tableLayout?.tableWidth,
             color: _hovering ? const Color(0xFFF9FAFB) : Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: _tableHorizontalPadding,
+              vertical: 10,
+            ),
             child: Row(
               children: [
-                ...widget.cells,
-                SizedBox(
-                  width: 40,
-                  child: _hovering && widget.onDelete != null
-                      ? IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              size: 18, color: Color(0xFF9CA3AF)),
-                          onPressed: widget.onDelete,
-                          tooltip: 'Delete',
-                        )
-                      : null,
-                ),
+                if (columns == null)
+                  ...widget.cells
+                else
+                  ..._buildColumnSlots(
+                    columns,
+                    (_, index) {
+                      if (index >= widget.cells.length) {
+                        return const SizedBox.shrink();
+                      }
+                      return _CellSlot(child: widget.cells[index]);
+                    },
+                  ),
+                if (tableLayout?.hasRowActions ?? false)
+                  SizedBox(
+                    width: _actionColumnWidth,
+                    child: _hovering && widget.onDelete != null
+                        ? IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                size: 18, color: Color(0xFF9CA3AF)),
+                            onPressed: widget.onDelete,
+                            tooltip: 'Delete',
+                          )
+                        : null,
+                  ),
               ],
             ),
           ),
@@ -263,7 +389,24 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
   }
 }
 
-class LaunchEditableCell extends StatelessWidget {
+class _CellSlot extends StatelessWidget {
+  const _CellSlot({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: child,
+      ),
+    );
+  }
+}
+
+class LaunchEditableCell extends StatefulWidget {
   const LaunchEditableCell({
     super.key,
     required this.value,
@@ -282,28 +425,59 @@ class LaunchEditableCell extends StatelessWidget {
   final bool expand;
 
   @override
+  State<LaunchEditableCell> createState() => _LaunchEditableCellState();
+}
+
+class _LaunchEditableCellState extends State<LaunchEditableCell> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant LaunchEditableCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value == _controller.text) return;
+
+    _controller.value = TextEditingValue(
+      text: widget.value,
+      selection: TextSelection.collapsed(offset: widget.value.length),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final inTable = _TableLayoutInherited.of(context) != null;
     final child = TextField(
-      controller: TextEditingController(text: value)
-        ..selection = TextSelection.collapsed(offset: value.length),
-      onChanged: onChanged,
+      controller: _controller,
+      onChanged: widget.onChanged,
       style: TextStyle(
         fontSize: 12,
         color: const Color(0xFF111827),
-        fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+        fontWeight: widget.bold ? FontWeight.w600 : FontWeight.normal,
       ),
       decoration: InputDecoration(
-        hintText: hint,
+        hintText: widget.hint,
         hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
         border: InputBorder.none,
         contentPadding: const EdgeInsets.symmetric(vertical: 8),
         isDense: true,
       ),
     );
-    if (width != null) {
-      return SizedBox(width: width, child: child);
+    if (inTable) return child;
+    if (widget.width != null) {
+      return SizedBox(width: widget.width, child: child);
     }
-    if (expand) return Expanded(child: child);
+    if (widget.expand) return Expanded(child: child);
     return child;
   }
 }
@@ -325,32 +499,39 @@ class LaunchStatusDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effective = items.contains(value) ? value : items.first;
+    final statusColor = _statusColor(effective);
     return SizedBox(
       width: width,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      height: 28,
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          color: _statusColor(effective).withValues(alpha: 0.1),
+          color: statusColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: effective,
-            isDense: true,
-            isExpanded: true,
-            iconSize: 14,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _statusColor(effective),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: effective,
+              isDense: true,
+              isExpanded: true,
+              iconSize: 14,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: statusColor,
+              ),
+              items: items
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(
+                          s,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ))
+                  .toList(),
+              onChanged: onChanged,
             ),
-            items: items
-                .map((s) => DropdownMenuItem(
-                      value: s,
-                      child: Text(s),
-                    ))
-                .toList(),
-            onChanged: onChanged,
           ),
         ),
       ),
