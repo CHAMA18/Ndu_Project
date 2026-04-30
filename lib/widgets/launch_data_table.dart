@@ -246,6 +246,7 @@ class LaunchDataTable extends StatelessWidget {
     if (cell is LaunchEditableCell && cell.width != null && !cell.expand) {
       return cell.width;
     }
+    if (cell is LaunchDateCell) return cell.width;
     if (cell is LaunchStatusDropdown) return cell.width;
     return null;
   }
@@ -281,6 +282,7 @@ class LaunchDataTable extends StatelessWidget {
             columns,
             (col, _) => Text(
               col.label,
+              textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 11,
@@ -479,6 +481,125 @@ class _LaunchEditableCellState extends State<LaunchEditableCell> {
     }
     if (widget.expand) return Expanded(child: child);
     return child;
+  }
+}
+
+class LaunchDateCell extends StatefulWidget {
+  const LaunchDateCell({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.hint = 'Date',
+    this.width = 120,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+  final String hint;
+  final double width;
+
+  @override
+  State<LaunchDateCell> createState() => _LaunchDateCellState();
+}
+
+class _LaunchDateCellState extends State<LaunchDateCell> {
+  late String _displayValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayValue = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant LaunchDateCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != _displayValue) {
+      _displayValue = widget.value;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _displayValue.trim();
+    final isEmpty = text.isEmpty;
+
+    return SizedBox(
+      width: widget.width,
+      height: 34,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () => _pickDate(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isEmpty ? widget.hint : text,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isEmpty
+                        ? const Color(0xFF9CA3AF)
+                        : const Color(0xFF111827),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 14,
+                color: Color(0xFF6B7280),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _parseDate(_displayValue) ?? now,
+      firstDate: DateTime(now.year - 20),
+      lastDate: DateTime(now.year + 20),
+    );
+
+    if (selected == null) return;
+
+    final formatted = _formatDate(selected);
+    setState(() => _displayValue = formatted);
+    widget.onChanged(formatted);
+  }
+
+  DateTime? _parseDate(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return null;
+
+    final parsed = DateTime.tryParse(text);
+    if (parsed != null) return parsed;
+
+    final parts = text.split(RegExp(r'[-/]'));
+    if (parts.length != 3) return null;
+
+    final first = int.tryParse(parts[0]);
+    final second = int.tryParse(parts[1]);
+    final third = int.tryParse(parts[2]);
+    if (first == null || second == null || third == null) return null;
+
+    if (parts[0].length == 4) return DateTime(first, second, third);
+    if (parts[2].length == 4) return DateTime(third, second, first);
+    return null;
+  }
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 }
 
