@@ -18,7 +18,7 @@ class SidebarNavigationService {
     _PhaseRange(
       label: 'Planning Phase',
       startCheckpoint: 'project_framework',
-      endCheckpoint: 'quality_management',
+      endCheckpoint: 'project_baseline',
     ),
     _PhaseRange(
       label: 'Design Phase',
@@ -149,21 +149,31 @@ class SidebarNavigationService {
     SidebarItem(
         checkpoint: 'execution_plan_infrastructure_plan',
         label: 'Infrastructure Plan'),
+    // Agile Section sub-items
     SidebarItem(
         checkpoint: 'execution_plan_agile_delivery_plan',
         label: 'Agile Delivery Plan'),
     SidebarItem(checkpoint: 'deliverables_roadmap_overview', label: 'Roadmap Overview'),
     SidebarItem(checkpoint: 'deliverables_roadmap_detailed', label: 'Detailed Deliverables'),
+    SidebarItem(
+        checkpoint: 'deliverable_roadmap_agile_map_out',
+        label: 'Agile Map Out'),
     SidebarItem(checkpoint: 'document_review_matrix', label: 'Document Review Matrix'),
+    SidebarItem(
+        checkpoint: 'agile_project_baseline', label: 'Agile Project Baseline'),
+    // Design & Technology
     SidebarItem(checkpoint: 'design', label: 'Design Planning'),
     SidebarItem(checkpoint: 'technology', label: 'Technology Planning'),
     SidebarItem(
         checkpoint: 'interface_management', label: 'Interface Management'),
+    // Risk & Contracts
     SidebarItem(checkpoint: 'risk_assessment', label: 'Risk Assessment'),
     SidebarItem(checkpoint: 'contracts', label: 'Contract'),
     SidebarItem(checkpoint: 'procurement', label: 'Procurement'),
+    // Schedule & Cost
     SidebarItem(checkpoint: 'schedule', label: 'Schedule'),
     SidebarItem(checkpoint: 'cost_estimate', label: 'Cost Estimate Overview'),
+    // Scope & Change Management
     SidebarItem(
         checkpoint: 'scope_tracking_plan', label: 'Scope Tracking Plan'),
     SidebarItem(checkpoint: 'change_management', label: 'Change Management'),
@@ -179,13 +189,6 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'startup_planning_devops', label: 'DevOps'),
     SidebarItem(
         checkpoint: 'startup_planning_closeout', label: 'Close Out Plan'),
-    // Deliverable Roadmap sub-items
-    SidebarItem(checkpoint: 'deliverable_roadmap', label: 'Roadmap Overview'),
-    SidebarItem(
-        checkpoint: 'deliverable_roadmap_agile_map_out',
-        label: 'Agile Map Out'),
-    SidebarItem(
-        checkpoint: 'agile_project_baseline', label: 'Agile Project Baseline'),
     // Project Plan sub-items
     SidebarItem(checkpoint: 'project_plan', label: 'Project Plan Overview'),
     SidebarItem(
