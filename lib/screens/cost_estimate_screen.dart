@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ndu_project/models/procurement/procurement_models.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
@@ -40,8 +42,17 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
   };
 
   _CostView _activeView = _CostView.indirect;
+  _CostStateFilter _activeStateFilter = _CostStateFilter.all;
+  bool _includeSupersededLines = false;
+  _CostWorkspaceTab _activeTab = _CostWorkspaceTab.overview;
   bool _loadedCostItems = false;
   bool _autoPopulated = false;
+  bool _importingSources = false;
+  bool _validating = false;
+  DateTime? _baselineConfirmedAt;
+  List<ProcurementItemModel> _procurementItems = const [];
+  List<PurchaseOrderModel> _purchaseOrders = const [];
+  List<ContractModel> _contracts = const [];
 
   @override
   void initState() {
@@ -49,6 +60,8 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCostItemsFromFirestore().then((_) {
         if (mounted) {
+          _loadCommercialSources();
+          _loadWorkspaceState();
           _autoPopulateFromInitiationIfNeeded();
         }
       });
@@ -63,6 +76,15 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     final projectData = ProjectDataHelper.getData(context);
     final directItems = _itemsForView(projectData, _CostView.direct);
     final indirectItems = _itemsForView(projectData, _CostView.indirect);
+    final forecastItems = ProjectDataHelper.getActiveCostEstimateItems(
+        projectData,
+        costState: 'forecast');
+    final committedItems = ProjectDataHelper.getActiveCostEstimateItems(
+        projectData,
+        costState: 'committed');
+    final actualItems = ProjectDataHelper.getActiveCostEstimateItems(
+        projectData,
+        costState: 'actual');
     final directBaseline =
         directItems.where((item) => item.isBaseline).toList();
     final indirectBaseline =
@@ -73,11 +95,16 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
         indirectItems.where((item) => !item.isBaseline).toList();
     final double directTotal = _sumCostItems(directItems);
     final double indirectTotal = _sumCostItems(indirectItems);
-    final double total = directTotal + indirectTotal;
+    final double total = _sumCostItems(forecastItems);
+    final double forecastTotal = total;
+    final double committedTotal = _sumCostItems(committedItems);
+    final double actualTotal = _sumCostItems(actualItems);
     final double baselineTotal =
         _sumCostItems([...directBaseline, ...indirectBaseline]);
-    final double adjustmentTotal =
-        _sumCostItems([...directAdjustments, ...indirectAdjustments]);
+    final double adjustmentTotal = _sumCostItems([
+      ...directAdjustments.where((item) => item.costState == 'forecast'),
+      ...indirectAdjustments.where((item) => item.costState == 'forecast'),
+    ]);
     final viewDefinitions = {
       _CostView.direct:
           _buildViewDefinition(_CostView.direct, directItems, directTotal),
@@ -85,8 +112,23 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
           _CostView.indirect, indirectItems, indirectTotal),
     };
     final _CostViewDefinition view = viewDefinitions[_activeView]!;
-    final summaryMetrics =
-        _buildSummaryMetrics(total, directTotal, indirectTotal);
+    final summaryMetrics = _buildSummaryMetrics(
+      total: total,
+      forecastTotal: forecastTotal,
+      committedTotal: committedTotal,
+      actualTotal: actualTotal,
+    );
+    final sourceSummaries = _buildSourceSummaries(projectData);
+    final validationSummary = _buildValidationSummary(projectData);
+    final reconciliationReport = _buildReconciliationReport(projectData);
+    final overviewRows = _buildOverviewRows(
+      projectData,
+      baselineTotal: baselineTotal,
+      total: forecastTotal,
+      committedTotal: committedTotal,
+      actualTotal: actualTotal,
+      sourceSummaries: sourceSummaries,
+    );
 
     final preferredTitle = _preferredSolutionTitle(projectData);
     final projectValueAmount =
@@ -141,62 +183,47 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                         ),
                         const SizedBox(height: 18),
                         _BaselineDeltaStrip(
-                          total: total,
+                          total: forecastTotal,
                           baseline: baselineTotal,
                           adjustments: adjustmentTotal,
                           isMobile: isMobile,
                         ),
                         const SizedBox(height: 24),
-                        _MetricStrip(
-                            metrics: summaryMetrics, isMobile: isMobile),
+                        _CostEstimateTopBar(
+                          baselineConfirmedAt: _baselineConfirmedAt,
+                          isImporting: _importingSources,
+                          isValidating: _validating,
+                          onRefreshBaseline: _refreshFromInitiation,
+                          onImportSources: _importAllSources,
+                          onAiGenerate: () => _showAiSuggestions(context),
+                          onValidate: _runValidation,
+                          onSetBaseline: _confirmBaseline,
+                          onReconcile: () => setState(() =>
+                              _activeTab = _CostWorkspaceTab.sourceImports),
+                        ),
                         const SizedBox(height: 24),
-                        _ViewSelector(
-                          activeView: _activeView,
-                          definitions: viewDefinitions,
-                          onChanged: (view) =>
-                              setState(() => _activeView = view),
+                        _WorkspaceTabs(
+                          activeTab: _activeTab,
+                          onChanged: (tab) => setState(() => _activeTab = tab),
                         ),
-                        const SizedBox(height: 20),
-                        _SectionHeader(
+                        const SizedBox(height: 24),
+                        _buildTabContent(
+                          context,
+                          projectData,
+                          isMobile: isMobile,
+                          summaryMetrics: summaryMetrics,
+                          directBaseline: directBaseline,
+                          indirectBaseline: indirectBaseline,
+                          directAdjustments: directAdjustments,
+                          indirectAdjustments: indirectAdjustments,
+                          viewDefinitions: viewDefinitions,
                           view: view,
-                          onAiSuggestions: () => _showAiSuggestions(context),
-                          onAddItem: () => _showAddItem(context),
+                          sourceSummaries: sourceSummaries,
+                          validationSummary: validationSummary,
+                          reconciliationReport: reconciliationReport,
+                          overviewRows: overviewRows,
                         ),
-                        const SizedBox(height: 18),
-                        _SubsectionHeader(
-                          title: 'Initiation baseline',
-                          subtitle:
-                              'Imported from Cost Benefit Analysis & Financial Metrics.',
-                        ),
-                        const SizedBox(height: 12),
-                        _CostCategoryList(
-                          items: _activeView == _CostView.direct
-                              ? directBaseline
-                              : indirectBaseline,
-                          view: _activeView,
-                          iconForItem: _iconForItem,
-                          onEdit: (item) => _showEditItem(context, item),
-                          onDelete: (item) => _deleteItem(context, item),
-                        ),
-                        const SizedBox(height: 20),
-                        _SubsectionHeader(
-                          title: 'Planning adjustments',
-                          subtitle:
-                              'Add scope, vendor, or scheduling deltas here.',
-                        ),
-                        const SizedBox(height: 12),
-                        _CostCategoryList(
-                          items: _activeView == _CostView.direct
-                              ? directAdjustments
-                              : indirectAdjustments,
-                          view: _activeView,
-                          iconForItem: _iconForItem,
-                          onEdit: (item) => _showEditItem(context, item),
-                          onDelete: (item) => _deleteItem(context, item),
-                        ),
-                        const SizedBox(height: 22),
-                        _TrailingSummaryCard(view: view),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                         LaunchPhaseNavigation(
                           backLabel: PlanningPhaseNavigation.backLabel(
                               'cost_estimate'),
@@ -221,11 +248,173 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     );
   }
 
+  Widget _buildTabContent(
+    BuildContext context,
+    ProjectDataModel projectData, {
+    required bool isMobile,
+    required List<_CostSummary> summaryMetrics,
+    required List<CostEstimateItem> directBaseline,
+    required List<CostEstimateItem> indirectBaseline,
+    required List<CostEstimateItem> directAdjustments,
+    required List<CostEstimateItem> indirectAdjustments,
+    required Map<_CostView, _CostViewDefinition> viewDefinitions,
+    required _CostViewDefinition view,
+    required List<_SourceSummary> sourceSummaries,
+    required _ValidationSummary validationSummary,
+    required _ReconciliationReport reconciliationReport,
+    required List<_OverviewRow> overviewRows,
+  }) {
+    switch (_activeTab) {
+      case _CostWorkspaceTab.overview:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _MetricStrip(metrics: summaryMetrics, isMobile: isMobile),
+            const SizedBox(height: 24),
+            _OverviewRollupCard(rows: overviewRows),
+            const SizedBox(height: 24),
+            _CoverageSummaryCard(
+              sourceSummaries: sourceSummaries,
+              validationSummary: validationSummary,
+              reconciliationReport: reconciliationReport,
+            ),
+          ],
+        );
+      case _CostWorkspaceTab.estimateLines:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ViewSelector(
+              activeView: _activeView,
+              definitions: viewDefinitions,
+              onChanged: (nextView) => setState(() => _activeView = nextView),
+            ),
+            const SizedBox(height: 20),
+            _CostStateSelector(
+              activeFilter: _activeStateFilter,
+              onChanged: (nextFilter) =>
+                  setState(() => _activeStateFilter = nextFilter),
+            ),
+            const SizedBox(height: 20),
+            _SupersededToggle(
+              enabled: _includeSupersededLines,
+              onChanged: (value) =>
+                  setState(() => _includeSupersededLines = value),
+            ),
+            const SizedBox(height: 20),
+            _SectionHeader(
+              view: view,
+              onAiSuggestions: () => _showAiSuggestions(context),
+              onAddItem: () => _showAddItem(context),
+            ),
+            const SizedBox(height: 18),
+            _SubsectionHeader(
+              title: 'Initiation baseline',
+              subtitle:
+                  'Imported baseline items confirmed for the current estimate.',
+            ),
+            const SizedBox(height: 12),
+            _CostCategoryList(
+              items: _activeView == _CostView.direct
+                  ? directBaseline
+                  : indirectBaseline,
+              view: _activeView,
+              iconForItem: _iconForItem,
+              onEdit: (item) => _showEditItem(context, item),
+              onDelete: (item) => _deleteItem(context, item),
+            ),
+            const SizedBox(height: 20),
+            _SubsectionHeader(
+              title: 'Planning adjustments',
+              subtitle:
+                  'Manual lines and imported planning deltas linked to project sources.',
+            ),
+            const SizedBox(height: 12),
+            _CostCategoryList(
+              items: _activeView == _CostView.direct
+                  ? directAdjustments
+                  : indirectAdjustments,
+              view: _activeView,
+              iconForItem: _iconForItem,
+              onEdit: (item) => _showEditItem(context, item),
+              onDelete: (item) => _deleteItem(context, item),
+            ),
+            if (_includeSupersededLines) ...[
+              const SizedBox(height: 20),
+              _SubsectionHeader(
+                title: 'Superseded by reconciliation',
+                subtitle:
+                    'Raw imported lines that were collapsed because a stronger cost state exists for the same scope.',
+              ),
+              const SizedBox(height: 12),
+              _SupersededCostList(
+                items: _supersededItemsForView(
+                  reconciliationReport,
+                  _activeView,
+                ),
+                view: _activeView,
+                activeFilter: _activeStateFilter,
+                iconForItem: _iconForItem,
+              ),
+            ],
+            const SizedBox(height: 22),
+            _TrailingSummaryCard(view: view),
+          ],
+        );
+      case _CostWorkspaceTab.sourceImports:
+        return _SourceImportsTab(
+          sourceSummaries: sourceSummaries,
+          reconciliationReport: reconciliationReport,
+          onImportAll: _importAllSources,
+          onValidate: _runValidation,
+        );
+      case _CostWorkspaceTab.contractsProcurement:
+        return _SourceDetailList(
+          title: 'Contracts & Procurement',
+          subtitle:
+              'Commercial sources that should reconcile to the estimate total.',
+          rows: _buildContractsProcurementRows(projectData),
+        );
+      case _CostWorkspaceTab.staffingInfrastructure:
+        return _SourceDetailList(
+          title: 'Staffing & Infrastructure',
+          subtitle:
+              'Structured and pending inputs for resource and infrastructure cost coverage.',
+          rows: _buildStaffingInfrastructureRows(projectData),
+        );
+      case _CostWorkspaceTab.contingencyRisk:
+        return _SourceDetailList(
+          title: 'Contingency & Risk',
+          subtitle:
+              'Allowance and mitigation exposure that should be tracked separately from core delivery cost.',
+          rows: _buildContingencyRiskRows(projectData),
+        );
+      case _CostWorkspaceTab.costVsSchedule:
+        return _CostVsScheduleWorkspace(projectData: projectData);
+    }
+  }
+
   List<CostEstimateItem> _itemsForView(ProjectDataModel data, _CostView view) {
     final key = _viewKey(view);
-    return data.costEstimateItems
-        .where((item) => item.costType == key)
-        .toList();
+    final selectedState = _activeStateFilter == _CostStateFilter.all
+        ? 'forecast'
+        : _costStateValue(_activeStateFilter);
+    return ProjectDataHelper.getActiveCostEstimateItems(
+      data,
+      costState: selectedState,
+    ).where((item) => item.costType == key).toList();
+  }
+
+  List<_ReconciliationEntry> _supersededItemsForView(
+    _ReconciliationReport report,
+    _CostView view,
+  ) {
+    final key = _viewKey(view);
+    return report.entries.where((entry) {
+      if (entry.superseded.costType != key) return false;
+      if (_activeStateFilter == _CostStateFilter.all) return true;
+      return entry.superseded.costState == _costStateValue(_activeStateFilter);
+    }).toList();
   }
 
   double _sumCostItems(List<CostEstimateItem> items) {
@@ -256,52 +445,58 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     );
   }
 
-  List<_CostSummary> _buildSummaryMetrics(
-      double total, double directTotal, double indirectTotal) {
-    final String totalDescription = total == 0
-        ? 'No cost items yet'
-        : 'Composite of direct & indirect cost bases';
-    final String directDescription = total == 0
-        ? 'No cost items yet'
-        : '${_formatPercent(directTotal / total)} of total';
-    final String indirectDescription = total == 0
-        ? 'No cost items yet'
-        : '${_formatPercent(indirectTotal / total)} of total';
-
+  List<_CostSummary> _buildSummaryMetrics({
+    required double total,
+    required double forecastTotal,
+    required double committedTotal,
+    required double actualTotal,
+  }) {
     return [
       _CostSummary(
-        title: 'Total Project Cost',
-        amount: total,
-        description: totalDescription,
+        title: 'Forecast',
+        amount: forecastTotal,
+        description: forecastTotal == 0
+            ? 'No forecast costs yet'
+            : 'Planning estimate and budget inputs',
         backgroundColor: Colors.white,
         accentColor: const Color(0xFF111827),
         descriptionColor: const Color(0xFF6B7280),
-        badgeLabel: total == 0 ? null : 'All Programmes',
+        badgeLabel: forecastTotal == 0 ? null : 'Forecast',
       ),
       _CostSummary(
-        title: 'Direct Costs',
-        amount: directTotal,
-        description: directDescription,
+        title: 'Committed',
+        amount: committedTotal,
+        description: committedTotal == 0
+            ? 'No committed costs yet'
+            : 'Reference-only downstream commitments',
         backgroundColor: const Color(0xFFEFF6FF),
         accentColor: const Color(0xFF1D4ED8),
         descriptionColor: const Color(0xFF1D4ED8),
-        badgeLabel: directTotal == 0 ? null : 'Direct',
+        badgeLabel: committedTotal == 0 ? null : 'Committed',
       ),
       _CostSummary(
-        title: 'Indirect Costs',
-        amount: indirectTotal,
-        description: indirectDescription,
+        title: 'Actual',
+        amount: actualTotal,
+        description: actualTotal == 0
+            ? 'No actual costs yet'
+            : 'Reference-only downstream actuals',
         backgroundColor: const Color(0xFFEFFDF5),
         accentColor: const Color(0xFF047857),
         descriptionColor: const Color(0xFF047857),
-        badgeLabel: indirectTotal == 0 ? null : 'Overheads',
+        badgeLabel: actualTotal == 0 ? null : 'Actual',
+      ),
+      _CostSummary(
+        title: 'Planning Total',
+        amount: total,
+        description: total == 0
+            ? 'No planning forecast costs yet'
+            : 'Authoritative planning-phase forecast total',
+        backgroundColor: const Color(0xFFFFFBEB),
+        accentColor: const Color(0xFFB45309),
+        descriptionColor: const Color(0xFFB45309),
+        badgeLabel: total == 0 ? null : 'Planning',
       ),
     ];
-  }
-
-  String _formatPercent(double value) {
-    final percent = (value * 100).clamp(0, 100);
-    return '${percent.toStringAsFixed(1)}%';
   }
 
   IconData _iconForItem(CostEstimateItem item, _CostView view) {
@@ -333,6 +528,19 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
 
   String _viewKey(_CostView view) =>
       view == _CostView.direct ? 'direct' : 'indirect';
+
+  String _costStateValue(_CostStateFilter filter) {
+    switch (filter) {
+      case _CostStateFilter.all:
+        return 'all';
+      case _CostStateFilter.forecast:
+        return 'forecast';
+      case _CostStateFilter.committed:
+        return 'committed';
+      case _CostStateFilter.actual:
+        return 'actual';
+    }
+  }
 
   Future<void> _showAiSuggestions(BuildContext context) async {
     final provider = ProjectDataHelper.getProvider(context);
@@ -376,6 +584,7 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
               amount: item.amount,
               costType: item.costType,
               source: 'ai',
+              costState: 'forecast',
               isBaseline: false,
             ),
           )
@@ -406,7 +615,10 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
     final provider = ProjectDataHelper.getProvider(context);
     final selected = await showDialog<CostEstimateItem>(
       context: context,
-      builder: (dialogContext) => _AddCostItemDialog(initialView: _activeView),
+      builder: (dialogContext) => _AddCostItemDialog(
+        initialView: _activeView,
+        projectData: provider.projectData,
+      ),
     );
 
     if (selected == null) return;
@@ -429,6 +641,7 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
             ? _CostView.direct
             : _CostView.indirect,
         existingItem: existing,
+        projectData: provider.projectData,
       ),
     );
 
@@ -863,7 +1076,9 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
       final items = snapshot.docs
           .map((doc) => CostEstimateItem.fromJson(doc.data()))
           .toList();
-      provider.updateField((data) => data.copyWith(costEstimateItems: items));
+      provider.updateField(
+        (data) => data.copyWith(costEstimateItems: _reconcileCostItems(items)),
+      );
       _loadedCostItems = true;
     } catch (error) {
       debugPrint('Failed to load cost estimate items: $error');
@@ -881,6 +1096,1357 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
         .collection('cost_estimate_items')
         .doc(item.id)
         .set(item.toJson(), SetOptions(merge: true));
+  }
+
+  Future<void> _loadWorkspaceState() async {
+    final notes = ProjectDataHelper.getData(context).planningNotes;
+    final baselineValue =
+        notes['planning_cost_estimate_baseline_date']?.trim() ?? '';
+    if (baselineValue.isNotEmpty) {
+      _baselineConfirmedAt = DateTime.tryParse(baselineValue);
+    }
+  }
+
+  Future<void> _confirmBaseline() async {
+    final success = await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'cost_estimate',
+      dataUpdater: (data) => data.copyWith(
+        planningNotes: {
+          ...data.planningNotes,
+          'planning_cost_estimate_baseline_date':
+              DateTime.now().toIso8601String(),
+        },
+      ),
+      showSnackbar: false,
+    );
+    if (!mounted || !success) return;
+    setState(() => _baselineConfirmedAt = DateTime.now());
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Cost estimate baseline confirmed.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _runValidation() async {
+    if (_validating) return;
+    setState(() => _validating = true);
+    final summary = _buildValidationSummary(ProjectDataHelper.getData(context));
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+    setState(() => _validating = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          summary.issues.isEmpty
+              ? 'Validation complete. No critical reconciliation issues found.'
+              : 'Validation found ${summary.issues.length} issue(s). Review Source Imports.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _importAllSources() async {
+    if (_importingSources) return;
+    final provider = ProjectDataHelper.getProvider(context);
+    await _loadCommercialSources();
+    final projectData = provider.projectData;
+    final imported = _buildImportedSourceItems(projectData);
+    if (imported.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No structured cost sources available to import.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _importingSources = true);
+    try {
+      final existingManual = provider.projectData.costEstimateItems.where(
+        (item) => !_isAutoImportedCostSource(item.source) && !item.isBaseline,
+      );
+      final existingBaseline = provider.projectData.costEstimateItems.where(
+        (item) => item.isBaseline,
+      );
+      final merged = _reconcileCostItems([
+        ...existingBaseline,
+        ...existingManual,
+        ...imported,
+      ]);
+      provider.updateField((data) => data.copyWith(costEstimateItems: merged));
+      await provider.saveToFirebase(checkpoint: 'cost_estimate');
+      await _replaceAutoImportedDocs(imported);
+      if (!mounted) return;
+      setState(() => _activeTab = _CostWorkspaceTab.sourceImports);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Imported ${merged.where((item) => _isAutoImportedCostSource(item.source)).length} active cost lines from project sources.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _importingSources = false);
+      }
+    }
+  }
+
+  Future<void> _loadCommercialSources() async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final projectId = provider.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      final procurementItems =
+          await ProcurementService.streamItems(projectId, limit: 400).first;
+      final purchaseOrders =
+          await ProcurementService.streamPos(projectId, limit: 400).first;
+      final contracts =
+          await ProcurementService.streamContracts(projectId, limit: 300).first;
+      if (!mounted) return;
+      setState(() {
+        _procurementItems = procurementItems;
+        _purchaseOrders = purchaseOrders;
+        _contracts = contracts;
+      });
+    } catch (error) {
+      debugPrint('Failed to load commercial sources for cost estimate: $error');
+    }
+  }
+
+  Future<void> _replaceAutoImportedDocs(List<CostEstimateItem> imported) async {
+    final provider = ProjectDataHelper.getProvider(context);
+    final projectId = provider.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) return;
+
+    final collection = FirebaseFirestore.instance
+        .collection('projects')
+        .doc(projectId)
+        .collection('cost_estimate_items');
+    final snapshot = await collection.get();
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in snapshot.docs) {
+      final existing = CostEstimateItem.fromJson(doc.data());
+      if (_isAutoImportedCostSource(existing.source)) {
+        batch.delete(doc.reference);
+      }
+    }
+    for (final item in imported) {
+      final reconciled = provider.projectData.costEstimateItems
+          .any((existing) => existing.id == item.id);
+      if (!reconciled) continue;
+      batch.set(
+          collection.doc(item.id), item.toJson(), SetOptions(merge: true));
+    }
+    await batch.commit();
+  }
+
+  bool _isAutoImportedCostSource(String source) {
+    const autoSources = {
+      'project_contractor',
+      'project_vendor',
+      'project_contract',
+      'project_procurement_item',
+      'project_procurement_actual',
+      'project_purchase_order',
+      'planning_allowance',
+      'risk_mitigation',
+      'project_work_package',
+      'project_work_package_actual',
+      'planning_staffing',
+      'planning_infrastructure',
+      'planning_technology',
+    };
+    return autoSources.contains(source);
+  }
+
+  List<CostEstimateItem> _reconcileCostItems(List<CostEstimateItem> items) {
+    return _computeReconciliationOutcome(items).activeItems;
+  }
+
+  _ReconciliationOutcome _computeReconciliationOutcome(
+      List<CostEstimateItem> items) {
+    final grouped = <String, List<CostEstimateItem>>{};
+    final passthrough = <CostEstimateItem>[];
+    for (final item in items) {
+      if (!_isAutoImportedCostSource(item.source) || item.isBaseline) {
+        passthrough.add(item);
+        continue;
+      }
+      final key = _reconciliationGroupKey(item);
+      if (key == null) {
+        passthrough.add(item);
+        continue;
+      }
+      grouped.putIfAbsent(key, () => <CostEstimateItem>[]).add(item);
+    }
+
+    final reconciled = <CostEstimateItem>[...passthrough];
+    final reportEntries = <_ReconciliationEntry>[];
+    for (final entry in grouped.entries) {
+      final groupItems = entry.value;
+      final highestPriority = groupItems
+          .map(_costStatePriority)
+          .fold<int>(0, (highest, value) => value > highest ? value : highest);
+      final retained = groupItems
+          .where((item) => _costStatePriority(item) == highestPriority)
+          .toList();
+      final superseded = groupItems
+          .where((item) => _costStatePriority(item) < highestPriority)
+          .toList();
+      reconciled.addAll(retained);
+      for (final replaced in superseded) {
+        final winner = retained.first;
+        reportEntries.add(
+          _ReconciliationEntry(
+            key: entry.key,
+            superseded: replaced,
+            retained: winner,
+            reason:
+                '${_costStateLabel(winner.costState)} supersedes ${_costStateLabel(replaced.costState)} for the same scope.',
+          ),
+        );
+      }
+    }
+    return _ReconciliationOutcome(
+      activeItems: reconciled,
+      reportEntries: reportEntries,
+    );
+  }
+
+  _ReconciliationReport _buildReconciliationReport(ProjectDataModel data) {
+    final imported = _buildImportedSourceItems(data);
+    final outcome = _computeReconciliationOutcome(imported);
+    return _ReconciliationReport(
+      totalImported: imported.length,
+      activeImported: outcome.activeItems.length,
+      supersededCount: outcome.reportEntries.length,
+      entries: outcome.reportEntries,
+    );
+  }
+
+  String? _reconciliationGroupKey(CostEstimateItem item) {
+    if (item.reconciliationReference.trim().isNotEmpty) {
+      return item.reconciliationReference.trim();
+    }
+    if (item.workPackageId.trim().isNotEmpty) {
+      return 'work_package:${item.workPackageId.trim()}';
+    }
+    if (item.contractId.trim().isNotEmpty) {
+      return 'contract:${item.contractId.trim()}';
+    }
+    final procurementId = _procurementRecordKey(item);
+    if (procurementId != null) {
+      return 'procurement:$procurementId';
+    }
+    return null;
+  }
+
+  String? _procurementRecordKey(CostEstimateItem item) {
+    const prefixes = {
+      'src_procurement_actual_',
+      'src_procurement_',
+    };
+    for (final prefix in prefixes) {
+      if (item.id.startsWith(prefix)) {
+        return item.id.substring(prefix.length);
+      }
+    }
+    return null;
+  }
+
+  int _costStatePriority(CostEstimateItem item) {
+    switch (item.costState) {
+      case 'actual':
+        return 3;
+      case 'committed':
+        return 2;
+      case 'forecast':
+      default:
+        return 1;
+    }
+  }
+
+  List<CostEstimateItem> _buildImportedSourceItems(ProjectDataModel data) {
+    final items = <CostEstimateItem>[];
+
+    for (final contractor in data.contractors) {
+      final label = contractor.service.trim().isNotEmpty
+          ? contractor.service.trim()
+          : contractor.name.trim();
+      if (label.isEmpty || contractor.estimatedCost <= 0) continue;
+      items.add(
+        CostEstimateItem(
+          id: 'src_contractor_${contractor.id}',
+          title: label,
+          notes: contractor.notes.trim(),
+          amount: contractor.estimatedCost,
+          costType: 'direct',
+          source: 'project_contractor',
+          costState: 'forecast',
+          reconciliationReference: 'contractor:${contractor.id}',
+          phase: 'planning',
+          estimatingMethod: 'analogous',
+          estimatingBasis: 'Imported from contractor estimate',
+          quoteReference: contractor.status.trim(),
+        ),
+      );
+    }
+
+    for (final vendor in data.vendors) {
+      final label = vendor.name.trim();
+      if (label.isEmpty || vendor.estimatedPrice <= 0) continue;
+      items.add(
+        CostEstimateItem(
+          id: 'src_vendor_${vendor.id}',
+          title: label,
+          notes: vendor.notes.trim().isNotEmpty
+              ? vendor.notes.trim()
+              : vendor.equipmentOrService.trim(),
+          amount: vendor.estimatedPrice,
+          costType: _inferCostType(vendor.equipmentOrService),
+          source: 'project_vendor',
+          costState: 'forecast',
+          reconciliationReference: 'vendor:${vendor.id}',
+          phase: 'planning',
+          estimatingMethod: 'quote_based',
+          estimatingBasis: 'Imported from vendor estimate',
+          quoteReference: vendor.procurementStage.trim(),
+        ),
+      );
+    }
+
+    for (final contract in _contracts) {
+      final label = contract.title.trim();
+      if (label.isEmpty || contract.estimatedCost <= 0) continue;
+      final reconciliationReference =
+          _contractReconciliationReference(contract.id);
+      items.add(
+        CostEstimateItem(
+          id: 'src_contract_${contract.id}',
+          title: label,
+          notes: _joinNotes([
+            contract.contractorName.trim(),
+            contract.description.trim(),
+          ]),
+          amount: contract.estimatedCost,
+          costType: 'direct',
+          source: 'project_contract',
+          costState: _contractCostState(contract),
+          reconciliationReference: reconciliationReference,
+          phase: 'planning',
+          estimatingMethod: 'quote_based',
+          estimatingBasis: 'Imported from contract plan',
+          contractId: contract.id,
+          quoteReference: contract.status.name,
+        ),
+      );
+    }
+
+    for (final item in _procurementItems) {
+      if (item.name.trim().isEmpty || item.budget <= 0) continue;
+      final reconciliationReference = _procurementReconciliationReference(item);
+      items.add(
+        CostEstimateItem(
+          id: 'src_procurement_${item.id}',
+          title: item.name.trim(),
+          notes: _joinNotes([
+            item.category.trim(),
+            item.description.trim(),
+            item.comments.trim(),
+          ]),
+          amount: item.budget,
+          costType: 'direct',
+          source: 'project_procurement_item',
+          costState: 'forecast',
+          reconciliationReference: reconciliationReference,
+          phase: item.projectPhase.trim().toLowerCase(),
+          estimatingMethod: 'bottoms_up',
+          estimatingBasis: 'Imported from procurement budget',
+          scheduleActivityId: item.linkedMilestoneId ?? '',
+          wbsItemId: item.linkedWbsId ?? '',
+          contractId: item.contractId ?? '',
+        ),
+      );
+      if (item.spent > 0) {
+        items.add(
+          CostEstimateItem(
+            id: 'src_procurement_actual_${item.id}',
+            title: '${item.name.trim()} actual spend',
+            notes: _joinNotes([
+              item.category.trim(),
+              item.description.trim(),
+              'Imported from procurement actual spend',
+            ]),
+            amount: item.spent,
+            costType: 'direct',
+            source: 'project_procurement_actual',
+            costState: 'actual',
+            reconciliationReference: reconciliationReference,
+            phase: item.projectPhase.trim().toLowerCase(),
+            estimatingMethod: 'actual',
+            estimatingBasis: 'Imported from procurement actual spend',
+            scheduleActivityId: item.linkedMilestoneId ?? '',
+            wbsItemId: item.linkedWbsId ?? '',
+            contractId: item.contractId ?? '',
+          ),
+        );
+      }
+    }
+
+    for (final order in _purchaseOrders) {
+      final label = order.poNumber.trim().isNotEmpty
+          ? order.poNumber.trim()
+          : order.vendorName.trim();
+      if (label.isEmpty || order.amount <= 0) continue;
+      final reconciliationReference =
+          _purchaseOrderReconciliationReference(order);
+      items.add(
+        CostEstimateItem(
+          id: 'src_purchase_order_${order.id}',
+          title: label,
+          notes: _joinNotes([
+            order.vendorName.trim(),
+            order.category.trim(),
+            'Approval: ${order.approvalStatusDisplay}',
+          ]),
+          amount: order.amount,
+          costType: 'direct',
+          source: 'project_purchase_order',
+          costState: _purchaseOrderCostState(order),
+          reconciliationReference: reconciliationReference,
+          phase: 'planning',
+          estimatingMethod: 'quote_based',
+          estimatingBasis: 'Imported from purchase order commitment',
+          quoteReference: order.poNumber.trim(),
+        ),
+      );
+    }
+
+    for (final allowance in data.frontEndPlanning.allowanceItems) {
+      if (allowance.name.trim().isEmpty || allowance.amount <= 0) continue;
+      items.add(
+        CostEstimateItem(
+          id: 'src_allowance_${allowance.id}',
+          title: allowance.name.trim(),
+          notes: allowance.notes.trim(),
+          amount: allowance.amount,
+          costType: allowance.type.toLowerCase().contains('contingency')
+              ? 'indirect'
+              : 'direct',
+          source: 'planning_allowance',
+          costState: 'forecast',
+          reconciliationReference: 'allowance:${allowance.id}',
+          phase: 'planning',
+          estimatingMethod: 'top_down',
+          estimatingBasis: 'Imported from allowance register',
+          contingencyAmount: allowance.amount,
+        ),
+      );
+      if (allowance.releasedAmount > 0) {
+        items.add(
+          CostEstimateItem(
+            id: 'src_allowance_released_${allowance.id}',
+            title: '${allowance.name.trim()} released',
+            notes: _joinNotes([
+              allowance.notes.trim(),
+              'Release status: ${allowance.releaseStatus.trim()}',
+            ]),
+            amount: allowance.releasedAmount,
+            costType: 'indirect',
+            source: 'planning_allowance',
+            costState: 'committed',
+            reconciliationReference: 'allowance:${allowance.id}',
+            phase: 'planning',
+            estimatingMethod: 'allowance_release',
+            estimatingBasis: 'Imported from allowance released amount',
+            contingencyAmount: allowance.releasedAmount,
+          ),
+        );
+      }
+      if (allowance.actualAmount > 0) {
+        items.add(
+          CostEstimateItem(
+            id: 'src_allowance_actual_${allowance.id}',
+            title: '${allowance.name.trim()} actual',
+            notes: allowance.notes.trim(),
+            amount: allowance.actualAmount,
+            costType: 'indirect',
+            source: 'planning_allowance',
+            costState: 'actual',
+            reconciliationReference: 'allowance:${allowance.id}',
+            phase: 'planning',
+            estimatingMethod: 'actual',
+            estimatingBasis: 'Imported from allowance actual usage',
+            contingencyAmount: allowance.actualAmount,
+          ),
+        );
+      }
+    }
+
+    for (var index = 0; index < data.technologyInventory.length; index++) {
+      final item = data.technologyInventory[index];
+      final label = (item['name'] ?? item['title'] ?? '').toString().trim();
+      final amount = _technologyAmount(item, 'cost');
+      if (label.isEmpty || amount <= 0) continue;
+      items.add(
+        CostEstimateItem(
+          id: 'src_technology_inventory_$index',
+          title: label,
+          notes: _joinNotes([
+            (item['category'] ?? '').toString().trim(),
+            (item['description'] ?? '').toString().trim(),
+            'Imported from technology inventory',
+          ]),
+          amount: amount,
+          costType: 'direct',
+          source: 'planning_technology',
+          costState: 'forecast',
+          reconciliationReference: 'technology:inventory:$index',
+          phase: 'planning',
+          estimatingMethod: 'bottoms_up',
+          estimatingBasis: 'Imported from technology inventory',
+        ),
+      );
+    }
+
+    for (var index = 0; index < data.aiIntegrations.length; index++) {
+      final item = data.aiIntegrations[index];
+      final label = (item['name'] ?? item['title'] ?? '').toString().trim();
+      final amount = _technologyAmount(item, 'cost');
+      if (label.isEmpty || amount <= 0) continue;
+      items.add(
+        CostEstimateItem(
+          id: 'src_ai_integration_$index',
+          title: label,
+          notes: _joinNotes([
+            (item['status'] ?? '').toString().trim(),
+            (item['description'] ?? '').toString().trim(),
+            'Imported from AI integrations plan',
+          ]),
+          amount: amount,
+          costType: 'direct',
+          source: 'planning_technology',
+          costState: 'forecast',
+          reconciliationReference: 'technology:ai:$index',
+          phase: 'planning',
+          estimatingMethod: 'analogous',
+          estimatingBasis: 'Imported from AI integration plan',
+        ),
+      );
+    }
+
+    for (var index = 0; index < data.externalIntegrations.length; index++) {
+      final item = data.externalIntegrations[index];
+      final label = (item['name'] ?? item['title'] ?? '').toString().trim();
+      final amount = _technologyAmount(item, 'implementationCost');
+      if (label.isEmpty || amount <= 0) continue;
+      items.add(
+        CostEstimateItem(
+          id: 'src_external_integration_$index',
+          title: label,
+          notes: _joinNotes([
+            (item['vendor'] ?? '').toString().trim(),
+            (item['description'] ?? '').toString().trim(),
+            'Imported from external integrations plan',
+          ]),
+          amount: amount,
+          costType: 'direct',
+          source: 'planning_technology',
+          costState: 'forecast',
+          reconciliationReference: 'technology:external:$index',
+          phase: 'planning',
+          estimatingMethod: 'quote_based',
+          estimatingBasis: 'Imported from external integration plan',
+        ),
+      );
+    }
+
+    for (final workPackage in data.workPackages) {
+      if (workPackage.title.trim().isEmpty || workPackage.budgetedCost <= 0) {
+        continue;
+      }
+      items.add(
+        CostEstimateItem(
+          id: 'src_work_package_${workPackage.id}',
+          title: workPackage.title.trim(),
+          notes: workPackage.description.trim(),
+          amount: workPackage.budgetedCost,
+          costType: 'direct',
+          source: 'project_work_package',
+          costState: 'forecast',
+          reconciliationReference: 'work_package:${workPackage.id}',
+          isBaseline: false,
+          workPackageId: workPackage.id,
+          workPackageTitle: workPackage.title.trim(),
+          phase: workPackage.phase.trim(),
+          estimatingMethod: 'bottoms_up',
+          estimatingBasis: 'Imported from work package budget',
+        ),
+      );
+      if (workPackage.actualCost > 0) {
+        items.add(
+          CostEstimateItem(
+            id: 'src_work_package_actual_${workPackage.id}',
+            title: '${workPackage.title.trim()} actual',
+            notes: workPackage.description.trim(),
+            amount: workPackage.actualCost,
+            costType: 'direct',
+            source: 'project_work_package_actual',
+            costState: 'actual',
+            reconciliationReference: 'work_package:${workPackage.id}',
+            isBaseline: false,
+            workPackageId: workPackage.id,
+            workPackageTitle: workPackage.title.trim(),
+            phase: workPackage.phase.trim(),
+            estimatingMethod: 'actual',
+            estimatingBasis: 'Imported from work package actual cost',
+          ),
+        );
+      }
+    }
+
+    for (final staffing in data.staffingRequirements) {
+      if (staffing.title.trim().isEmpty || staffing.estimatedTotal <= 0) {
+        continue;
+      }
+      items.add(
+        CostEstimateItem(
+          id: 'src_staffing_requirement_${staffing.id}',
+          title: staffing.title.trim(),
+          notes: _joinNotes([
+            staffing.personName.trim(),
+            staffing.location.trim(),
+            staffing.notes.trim(),
+          ]),
+          amount: staffing.estimatedTotal,
+          costType: 'direct',
+          source: 'planning_staffing',
+          costState: 'forecast',
+          reconciliationReference: 'staffing_requirement:${staffing.id}',
+          phase: 'planning',
+          estimatingMethod: 'bottoms_up',
+          estimatingBasis: 'Imported from organization staffing plan',
+          quantity: staffing.headcount,
+          unitRate: staffing.monthlyCost,
+          unitOfMeasure: 'staff-month',
+        ),
+      );
+    }
+
+    for (final infrastructureItem in data.planningInfrastructureItems) {
+      if (infrastructureItem.name.trim().isEmpty ||
+          infrastructureItem.potentialCost <= 0) {
+        continue;
+      }
+      items.add(
+        CostEstimateItem(
+          id: 'src_planning_infrastructure_${infrastructureItem.id}',
+          title: infrastructureItem.name.trim(),
+          notes: _joinNotes([
+            infrastructureItem.summary.trim(),
+            infrastructureItem.details.trim(),
+          ]),
+          amount: infrastructureItem.potentialCost,
+          costType: 'direct',
+          source: 'planning_infrastructure',
+          costState: 'forecast',
+          reconciliationReference:
+              'planning_infrastructure:${infrastructureItem.id}',
+          phase: 'planning',
+          estimatingMethod: 'analogous',
+          estimatingBasis: 'Imported from planning infrastructure register',
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  List<_SourceSummary> _buildSourceSummaries(ProjectDataModel data) {
+    final items = data.costEstimateItems;
+    final technologySourceCount = data.technologyInventory
+            .where((item) => _technologyAmount(item, 'cost') > 0)
+            .length +
+        data.aiIntegrations
+            .where((item) => _technologyAmount(item, 'cost') > 0)
+            .length +
+        data.externalIntegrations
+            .where((item) => _technologyAmount(item, 'implementationCost') > 0)
+            .length;
+    final technologyTotal = data.technologyInventory.fold<double>(
+          0,
+          (totalValue, item) => totalValue + _technologyAmount(item, 'cost'),
+        ) +
+        data.aiIntegrations.fold<double>(
+          0,
+          (totalValue, item) => totalValue + _technologyAmount(item, 'cost'),
+        ) +
+        data.externalIntegrations.fold<double>(
+          0,
+          (totalValue, item) =>
+              totalValue + _technologyAmount(item, 'implementationCost'),
+        );
+    return [
+      _SourceSummary(
+        title: 'Initiation baseline',
+        subtitle: 'Cost benefit analysis and preferred solution inputs',
+        sourceKey: 'initiation',
+        total: _sumBySources(items, const {
+          'initiation_cost_rows',
+          'initiation_category_costs',
+          'preferred_solution',
+        }),
+        sourceCount: items
+            .where((item) => {
+                  'initiation_cost_rows',
+                  'initiation_category_costs',
+                  'preferred_solution',
+                }.contains(item.source))
+            .length,
+        status: items.any((item) => item.isBaseline)
+            ? _SourceSummaryStatus.imported
+            : _SourceSummaryStatus.missing,
+      ),
+      _SourceSummary(
+        title: 'Contractors',
+        subtitle:
+            '${data.contractors.length} contractor entries with estimated cost',
+        sourceKey: 'contractors',
+        total: data.contractors.fold<double>(0,
+            (totalValue, contractor) => totalValue + contractor.estimatedCost),
+        sourceCount: data.contractors.where((c) => c.estimatedCost > 0).length,
+        importedCount:
+            items.where((item) => item.source == 'project_contractor').length,
+        status: _coverageStatus(
+          expectedCount:
+              data.contractors.where((c) => c.estimatedCost > 0).length,
+          importedCount:
+              items.where((item) => item.source == 'project_contractor').length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Vendors',
+        subtitle: '${data.vendors.length} vendor estimates',
+        sourceKey: 'vendors',
+        total: data.vendors.fold<double>(
+            0, (totalValue, vendor) => totalValue + vendor.estimatedPrice),
+        sourceCount: data.vendors.where((v) => v.estimatedPrice > 0).length,
+        importedCount:
+            items.where((item) => item.source == 'project_vendor').length,
+        status: _coverageStatus(
+          expectedCount: data.vendors.where((v) => v.estimatedPrice > 0).length,
+          importedCount:
+              items.where((item) => item.source == 'project_vendor').length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Contracts',
+        subtitle: '${_contracts.length} planned contract values',
+        sourceKey: 'contracts',
+        total: _contracts.fold<double>(
+            0, (totalValue, contract) => totalValue + contract.estimatedCost),
+        sourceCount:
+            _contracts.where((contract) => contract.estimatedCost > 0).length,
+        importedCount:
+            items.where((item) => item.source == 'project_contract').length,
+        status: _coverageStatus(
+          expectedCount:
+              _contracts.where((contract) => contract.estimatedCost > 0).length,
+          importedCount:
+              items.where((item) => item.source == 'project_contract').length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Allowances & contingency',
+        subtitle:
+            '${data.frontEndPlanning.allowanceItems.length} allowance items',
+        sourceKey: 'allowances',
+        total: data.frontEndPlanning.allowanceItems
+            .fold<double>(0, (totalValue, item) => totalValue + item.amount),
+        sourceCount: data.frontEndPlanning.allowanceItems
+            .where((item) => item.amount > 0)
+            .length,
+        importedCount:
+            items.where((item) => item.source == 'planning_allowance').length,
+        status: _coverageStatus(
+          expectedCount: data.frontEndPlanning.allowanceItems
+              .where((item) => item.amount > 0)
+              .length,
+          importedCount:
+              items.where((item) => item.source == 'planning_allowance').length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Procurement budgets',
+        subtitle: '${_procurementItems.length} procurement items with budgets',
+        sourceKey: 'procurement',
+        total: _procurementItems.fold<double>(
+            0, (totalValue, item) => totalValue + item.budget),
+        sourceCount: _procurementItems.where((item) => item.budget > 0).length,
+        importedCount: items
+            .where((item) => item.source == 'project_procurement_item')
+            .length,
+        status: _coverageStatus(
+          expectedCount:
+              _procurementItems.where((item) => item.budget > 0).length,
+          importedCount: items
+              .where((item) => item.source == 'project_procurement_item')
+              .length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Purchase orders',
+        subtitle:
+            '${_purchaseOrders.length} committed or pending purchase orders',
+        sourceKey: 'purchase_orders',
+        total: _purchaseOrders.fold<double>(
+            0, (totalValue, order) => totalValue + order.amount),
+        sourceCount: _purchaseOrders.where((order) => order.amount > 0).length,
+        importedCount: items
+            .where((item) => item.source == 'project_purchase_order')
+            .length,
+        status: _coverageStatus(
+          expectedCount:
+              _purchaseOrders.where((order) => order.amount > 0).length,
+          importedCount: items
+              .where((item) => item.source == 'project_purchase_order')
+              .length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Work packages',
+        subtitle: '${data.workPackages.length} packages with budget linkage',
+        sourceKey: 'work_packages',
+        total: data.workPackages.fold<double>(
+            0, (totalValue, item) => totalValue + item.budgetedCost),
+        sourceCount:
+            data.workPackages.where((item) => item.budgetedCost > 0).length,
+        importedCount:
+            items.where((item) => item.source == 'project_work_package').length,
+        status: _coverageStatus(
+          expectedCount:
+              data.workPackages.where((item) => item.budgetedCost > 0).length,
+          importedCount: items
+              .where((item) => item.source == 'project_work_package')
+              .length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Technology planning',
+        subtitle:
+            '${data.technologyInventory.length + data.aiIntegrations.length + data.externalIntegrations.length} structured technology cost inputs',
+        sourceKey: 'technology',
+        total: technologyTotal,
+        sourceCount: technologySourceCount,
+        importedCount:
+            items.where((item) => item.source == 'planning_technology').length,
+        status: _coverageStatus(
+          expectedCount: technologySourceCount,
+          importedCount: items
+              .where((item) => item.source == 'planning_technology')
+              .length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Infrastructure',
+        subtitle:
+            '${data.planningInfrastructureItems.length} structured infrastructure cost items from the planning infrastructure page',
+        sourceKey: 'infrastructure',
+        total: data.planningInfrastructureItems.fold<double>(
+          0,
+          (totalValue, item) => totalValue + item.potentialCost,
+        ),
+        sourceCount: data.planningInfrastructureItems
+            .where((item) => item.potentialCost > 0)
+            .length,
+        importedCount: items
+            .where((item) => item.source == 'planning_infrastructure')
+            .length,
+        status: _coverageStatus(
+          expectedCount: data.planningInfrastructureItems
+              .where((item) => item.potentialCost > 0)
+              .length,
+          importedCount: items
+              .where((item) => item.source == 'planning_infrastructure')
+              .length,
+        ),
+      ),
+      _SourceSummary(
+        title: 'Personnel / staffing',
+        subtitle:
+            '${data.staffingRequirements.length} staffing requirements from the organization staffing plan',
+        sourceKey: 'staffing',
+        total: data.staffingRequirements.fold<double>(
+          0,
+          (totalValue, item) => totalValue + item.estimatedTotal,
+        ),
+        sourceCount: data.staffingRequirements
+            .where((item) => item.estimatedTotal > 0)
+            .length,
+        importedCount:
+            items.where((item) => item.source == 'planning_staffing').length,
+        status: _coverageStatus(
+          expectedCount: data.staffingRequirements
+              .where((item) => item.estimatedTotal > 0)
+              .length,
+          importedCount:
+              items.where((item) => item.source == 'planning_staffing').length,
+        ),
+      ),
+    ];
+  }
+
+  double _sumBySources(List<CostEstimateItem> items, Set<String> sources) {
+    return items
+        .where((item) => sources.contains(item.source))
+        .fold<double>(0, (totalValue, item) => totalValue + item.amount);
+  }
+
+  _SourceSummaryStatus _coverageStatus({
+    required int expectedCount,
+    required int importedCount,
+  }) {
+    if (expectedCount == 0) return _SourceSummaryStatus.missing;
+    if (importedCount == 0) return _SourceSummaryStatus.missing;
+    if (importedCount < expectedCount) return _SourceSummaryStatus.partial;
+    return _SourceSummaryStatus.imported;
+  }
+
+  _ValidationSummary _buildValidationSummary(ProjectDataModel data) {
+    final issues = <String>[];
+    if (data.contractors.any((c) => c.estimatedCost > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'project_contractor')) {
+      issues.add(
+          'Contractor estimates exist but are not imported into the cost estimate.');
+    }
+    if (data.vendors.any((v) => v.estimatedPrice > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'project_vendor')) {
+      issues.add(
+          'Vendor estimates exist but are not imported into the cost estimate.');
+    }
+    if (_contracts.any((contract) => contract.estimatedCost > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'project_contract')) {
+      issues.add(
+          'Planned contracts exist but are not imported into the cost estimate.');
+    }
+    if (data.frontEndPlanning.allowanceItems.any((a) => a.amount > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'planning_allowance')) {
+      issues.add(
+          'Allowance items exist but are not represented in the estimate.');
+    }
+    if (_procurementItems.any((item) => item.budget > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'project_procurement_item')) {
+      issues.add(
+          'Procurement budgets exist but are not imported into the estimate.');
+    }
+    if (_purchaseOrders.any((order) => order.amount > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'project_purchase_order')) {
+      issues.add(
+          'Purchase order commitments exist but are not imported into the estimate.');
+    }
+    if (data.workPackages.any((wp) => wp.budgetedCost > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'project_work_package')) {
+      issues
+          .add('Budgeted work packages are not yet linked to estimate lines.');
+    }
+    final technologySourceCount = data.technologyInventory
+            .where((item) => _technologyAmount(item, 'cost') > 0)
+            .length +
+        data.aiIntegrations
+            .where((item) => _technologyAmount(item, 'cost') > 0)
+            .length +
+        data.externalIntegrations
+            .where((item) => _technologyAmount(item, 'implementationCost') > 0)
+            .length;
+    if (technologySourceCount > 0 &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'planning_technology')) {
+      issues.add(
+          'Technology budget inputs exist but are not imported into the estimate.');
+    }
+    if (data.staffingRequirements.any((item) => item.estimatedTotal > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'planning_staffing')) {
+      issues.add(
+          'Staffing costs exist in the organization staffing plan but are not imported into the estimate.');
+    }
+    if (data.planningInfrastructureItems
+            .any((item) => item.potentialCost > 0) &&
+        !data.costEstimateItems
+            .any((item) => item.source == 'planning_infrastructure')) {
+      issues.add(
+          'Infrastructure cost items exist in the planning infrastructure page but are not imported into the estimate.');
+    }
+    if (data.executionRiskMitigations.isNotEmpty) {
+      issues.add(
+          'Execution risk mitigations are intentionally excluded from the planning cost estimate.');
+    }
+    if (data.frontEndPlanning.technologyPersonnelItems.isEmpty &&
+        (data.technologyInventory.isNotEmpty ||
+            data.aiIntegrations.isNotEmpty ||
+            data.externalIntegrations.isNotEmpty)) {
+      issues.add(
+          'Technology cost sources exist but no structured technology ownership rows have been captured.');
+    }
+    final unlinkedManual = data.costEstimateItems.where((item) {
+      if (item.isBaseline) return false;
+      if (_isAutoImportedCostSource(item.source)) return false;
+      return item.workPackageId.trim().isEmpty &&
+          item.scheduleActivityId.trim().isEmpty &&
+          item.estimatingBasis.trim().isEmpty;
+    }).length;
+    if (unlinkedManual > 0) {
+      issues.add(
+          '$unlinkedManual manual cost item(s) have no linkage or estimating basis.');
+    }
+    return _ValidationSummary(issues: issues);
+  }
+
+  List<_OverviewRow> _buildOverviewRows(
+    ProjectDataModel data, {
+    required double baselineTotal,
+    required double total,
+    required double committedTotal,
+    required double actualTotal,
+    required List<_SourceSummary> sourceSummaries,
+  }) {
+    final contractorTotal = data.contractors.fold<double>(
+        0, (totalValue, contractor) => totalValue + contractor.estimatedCost);
+    final vendorTotal = data.vendors.fold<double>(
+        0, (totalValue, vendor) => totalValue + vendor.estimatedPrice);
+    final contractTotal = _contracts.fold<double>(
+        0, (totalValue, contract) => totalValue + contract.estimatedCost);
+    final allowanceTotal = data.frontEndPlanning.allowanceItems.fold<double>(
+        0, (totalValue, allowance) => totalValue + allowance.amount);
+    final procurementTotal = _procurementItems.fold<double>(
+        0, (totalValue, item) => totalValue + item.budget);
+    final purchaseOrderTotal = _purchaseOrders.fold<double>(
+        0, (totalValue, order) => totalValue + order.amount);
+    final workPackageTotal = data.workPackages
+        .fold<double>(0, (totalValue, wp) => totalValue + wp.budgetedCost);
+    final staffingTotal = data.staffingRequirements
+        .fold<double>(0, (totalValue, row) => totalValue + row.estimatedTotal);
+    final infrastructureTotal = data.planningInfrastructureItems
+        .fold<double>(0, (totalValue, item) => totalValue + item.potentialCost);
+    final technologyTotal = data.technologyInventory.fold<double>(
+          0,
+          (totalValue, item) => totalValue + _technologyAmount(item, 'cost'),
+        ) +
+        data.aiIntegrations.fold<double>(
+          0,
+          (totalValue, item) => totalValue + _technologyAmount(item, 'cost'),
+        ) +
+        data.externalIntegrations.fold<double>(
+          0,
+          (totalValue, item) =>
+              totalValue + _technologyAmount(item, 'implementationCost'),
+        );
+    final importedSourcesTotal = sourceSummaries.fold<double>(
+      0,
+      (totalValue, source) => totalValue + source.total,
+    );
+    return [
+      _OverviewRow(label: 'Planning forecast total', value: total),
+      _OverviewRow(label: 'Committed reference total', value: committedTotal),
+      _OverviewRow(label: 'Actual reference total', value: actualTotal),
+      _OverviewRow(label: 'Initiation baseline', value: baselineTotal),
+      _OverviewRow(
+          label: 'Imported source coverage', value: importedSourcesTotal),
+      _OverviewRow(label: 'Contractor estimates', value: contractorTotal),
+      _OverviewRow(label: 'Vendor estimates', value: vendorTotal),
+      _OverviewRow(label: 'Contract values', value: contractTotal),
+      _OverviewRow(label: 'Allowance / contingency', value: allowanceTotal),
+      _OverviewRow(label: 'Procurement budgets', value: procurementTotal),
+      _OverviewRow(
+          label: 'Purchase order commitments', value: purchaseOrderTotal),
+      _OverviewRow(label: 'Work package budgets', value: workPackageTotal),
+      _OverviewRow(label: 'Staffing plan costs', value: staffingTotal),
+      _OverviewRow(
+          label: 'Infrastructure plan costs', value: infrastructureTotal),
+      _OverviewRow(label: 'Technology plan costs', value: technologyTotal),
+    ];
+  }
+
+  List<_SourceDetailRow> _buildContractsProcurementRows(ProjectDataModel data) {
+    final rows = <_SourceDetailRow>[];
+    for (final contractor in data.contractors) {
+      if (contractor.estimatedCost <= 0) continue;
+      rows.add(_SourceDetailRow(
+        title: contractor.service.trim().isNotEmpty
+            ? contractor.service.trim()
+            : contractor.name.trim(),
+        subtitle: contractor.status.trim().isEmpty
+            ? 'Contractor estimate'
+            : contractor.status.trim(),
+        amount: contractor.estimatedCost,
+      ));
+    }
+    for (final vendor in data.vendors) {
+      if (vendor.estimatedPrice <= 0) continue;
+      rows.add(_SourceDetailRow(
+        title: vendor.name.trim(),
+        subtitle: vendor.equipmentOrService.trim().isEmpty
+            ? 'Vendor estimate'
+            : vendor.equipmentOrService.trim(),
+        amount: vendor.estimatedPrice,
+      ));
+    }
+    for (final contract in _contracts) {
+      if (contract.estimatedCost <= 0) continue;
+      rows.add(_SourceDetailRow(
+        title: contract.title.trim(),
+        subtitle: contract.contractorName.trim().isEmpty
+            ? 'Planned contract'
+            : contract.contractorName.trim(),
+        amount: contract.estimatedCost,
+      ));
+    }
+    for (final item in _procurementItems) {
+      if (item.budget <= 0) continue;
+      rows.add(_SourceDetailRow(
+        title: item.name.trim(),
+        subtitle: item.category.trim().isEmpty
+            ? 'Procurement budget'
+            : item.category.trim(),
+        amount: item.budget,
+      ));
+    }
+    for (final order in _purchaseOrders) {
+      if (order.amount <= 0) continue;
+      rows.add(_SourceDetailRow(
+        title: order.poNumber.trim().isEmpty
+            ? order.vendorName.trim()
+            : order.poNumber.trim(),
+        subtitle: order.vendorName.trim().isEmpty
+            ? 'Purchase order'
+            : order.vendorName.trim(),
+        amount: order.amount,
+      ));
+    }
+    if (rows.isEmpty) {
+      rows.add(const _SourceDetailRow(
+        title: 'No structured contract or procurement costs',
+        subtitle: 'Add contractor or vendor estimates to surface them here.',
+        amount: 0,
+      ));
+    }
+    return rows;
+  }
+
+  List<_SourceDetailRow> _buildStaffingInfrastructureRows(
+      ProjectDataModel data) {
+    final rows = <_SourceDetailRow>[];
+    for (final staffing in data.staffingRequirements) {
+      if (staffing.estimatedTotal <= 0) continue;
+      rows.add(
+        _SourceDetailRow(
+          title: staffing.title.trim().isEmpty
+              ? 'Unnamed staffing requirement'
+              : staffing.title.trim(),
+          subtitle: _joinNotes([
+            staffing.personName.trim(),
+            '${staffing.headcount} x ${staffing.plannedMonths.toStringAsFixed(1)} months',
+            staffing.notes.trim(),
+          ]),
+          amount: staffing.estimatedTotal,
+        ),
+      );
+    }
+    for (final infrastructureItem in data.planningInfrastructureItems) {
+      if (infrastructureItem.potentialCost <= 0) continue;
+      rows.add(
+        _SourceDetailRow(
+          title: infrastructureItem.name.trim().isEmpty
+              ? 'Unnamed infrastructure item'
+              : infrastructureItem.name.trim(),
+          subtitle: _joinNotes([
+            infrastructureItem.summary.trim(),
+            infrastructureItem.owner.trim(),
+            infrastructureItem.status.trim(),
+          ]),
+          amount: infrastructureItem.potentialCost,
+        ),
+      );
+    }
+    if (rows.isEmpty) {
+      rows.add(const _SourceDetailRow(
+        title: 'No structured staffing or infrastructure costs',
+        subtitle:
+            'Add staffing costs in the organization staffing plan and infrastructure costs in the planning infrastructure page.',
+        amount: 0,
+      ));
+    }
+    return rows;
+  }
+
+  List<_SourceDetailRow> _buildContingencyRiskRows(ProjectDataModel data) {
+    final rows = <_SourceDetailRow>[];
+    for (final allowance in data.frontEndPlanning.allowanceItems) {
+      if (allowance.amount <= 0) continue;
+      rows.add(_SourceDetailRow(
+        title: allowance.name.trim().isEmpty
+            ? 'Allowance ${allowance.number}'
+            : allowance.name.trim(),
+        subtitle: _joinNotes([
+          allowance.type.trim().isEmpty ? 'Allowance' : allowance.type.trim(),
+          'Release: ${allowance.releaseStatus.trim()}',
+          allowance.releasedAmount > 0
+              ? 'Released ${allowance.releasedAmount.toStringAsFixed(2)}'
+              : '',
+          allowance.actualAmount > 0
+              ? 'Actual ${allowance.actualAmount.toStringAsFixed(2)}'
+              : '',
+        ]),
+        amount: allowance.amount,
+      ));
+    }
+    if (rows.isEmpty) {
+      rows.add(const _SourceDetailRow(
+        title: 'No structured contingency exposure',
+        subtitle: 'Allowance inputs have not been added yet.',
+        amount: 0,
+      ));
+    }
+    if (data.executionRiskMitigations.isNotEmpty) {
+      rows.add(const _SourceDetailRow(
+        title: 'Execution risk mitigations are excluded here',
+        subtitle:
+            'Risk mitigation costs are tracked downstream and are intentionally not part of the planning cost estimate.',
+        amount: 0,
+      ));
+    }
+    return rows;
+  }
+
+  double _technologyAmount(Map<String, dynamic> item, String key) {
+    final raw = (item[key] ?? '').toString();
+    if (raw.trim().isEmpty) return 0;
+    return _parseCurrency(raw);
+  }
+
+  String _joinNotes(List<String> values) {
+    return values.where((value) => value.trim().isNotEmpty).join('\n');
+  }
+
+  String _contractReconciliationReference(String contractId) {
+    return 'commercial_contract:${contractId.trim()}';
+  }
+
+  String _procurementReconciliationReference(ProcurementItemModel item) {
+    final contractId = (item.contractId ?? '').trim();
+    if (contractId.isNotEmpty) {
+      return _contractReconciliationReference(contractId);
+    }
+    final vendorId = (item.vendorId ?? '').trim();
+    final category = _normalizeReconciliationToken(item.category);
+    if (vendorId.isNotEmpty && category.isNotEmpty) {
+      return 'commercial_vendor:$vendorId:$category';
+    }
+    if (vendorId.isNotEmpty) {
+      return 'commercial_vendor:$vendorId';
+    }
+    return 'commercial_procurement:${item.id}';
+  }
+
+  String _purchaseOrderReconciliationReference(PurchaseOrderModel order) {
+    final vendorId = (order.vendorId ?? '').trim();
+    final normalizedCategory = _normalizeReconciliationToken(order.category);
+
+    final exactProcurementMatches = _procurementItems.where((item) {
+      return (item.vendorId ?? '').trim() == vendorId &&
+          vendorId.isNotEmpty &&
+          _normalizeReconciliationToken(item.category) == normalizedCategory;
+    }).toList();
+    final vendorProcurementMatches = _procurementItems.where((item) {
+      return (item.vendorId ?? '').trim() == vendorId && vendorId.isNotEmpty;
+    }).toList();
+
+    final exactContractMatches = exactProcurementMatches
+        .map((item) => (item.contractId ?? '').trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList();
+    if (exactContractMatches.length == 1) {
+      return _contractReconciliationReference(exactContractMatches.single);
+    }
+
+    final vendorContractMatches = vendorProcurementMatches
+        .map((item) => (item.contractId ?? '').trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList();
+    if (vendorContractMatches.length == 1) {
+      return _contractReconciliationReference(vendorContractMatches.single);
+    }
+
+    if (exactProcurementMatches.length == 1) {
+      return _procurementReconciliationReference(
+          exactProcurementMatches.single);
+    }
+    if (vendorProcurementMatches.length == 1) {
+      return _procurementReconciliationReference(
+          vendorProcurementMatches.single);
+    }
+
+    final vendorName = _normalizeReconciliationToken(order.vendorName);
+    final contractNameMatches = _contracts.where((contract) {
+      return _normalizeReconciliationToken(contract.contractorName) ==
+              vendorName &&
+          vendorName.isNotEmpty;
+    }).toList();
+    if (contractNameMatches.length == 1) {
+      return _contractReconciliationReference(contractNameMatches.single.id);
+    }
+
+    if (vendorId.isNotEmpty && normalizedCategory.isNotEmpty) {
+      return 'commercial_vendor:$vendorId:$normalizedCategory';
+    }
+    if (vendorId.isNotEmpty) {
+      return 'commercial_vendor:$vendorId';
+    }
+    return 'commercial_po:${order.id}';
+  }
+
+  String _normalizeReconciliationToken(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+  }
+
+  String _purchaseOrderCostState(PurchaseOrderModel order) {
+    if (order.status == PurchaseOrderStatus.received) return 'actual';
+    if (order.approvalStatus == 'approved' ||
+        order.status == PurchaseOrderStatus.issued ||
+        order.status == PurchaseOrderStatus.inTransit) {
+      return 'committed';
+    }
+    return 'forecast';
+  }
+
+  String _contractCostState(ContractModel contract) {
+    switch (contract.status) {
+      case ContractStatus.approved:
+      case ContractStatus.executed:
+        return 'committed';
+      case ContractStatus.expired:
+      case ContractStatus.terminated:
+        return 'actual';
+      case ContractStatus.draft:
+      case ContractStatus.under_review:
+        return 'forecast';
+    }
   }
 }
 
@@ -933,55 +2499,6 @@ class _TopUtilityBar extends StatelessWidget {
           border: Border.all(color: const Color(0xFFE5E7EB)),
         ),
         child: Icon(icon, size: 18, color: const Color(0xFF6B7280)),
-      ),
-    );
-  }
-}
-
-class _HeroBanner extends StatelessWidget {
-  const _HeroBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFB200),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFB200).withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Project Cost Estimate',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Comprehensive breakdown of all project costs by category.',
-                  style: TextStyle(fontSize: 14, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 32),
-          const Icon(Icons.stacked_bar_chart_rounded,
-              color: Colors.white, size: 46),
-        ],
       ),
     );
   }
@@ -1084,6 +2601,859 @@ class _MetricCard extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: summary.descriptionColor),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CostStateSelector extends StatelessWidget {
+  const _CostStateSelector({
+    required this.activeFilter,
+    required this.onChanged,
+  });
+
+  final _CostStateFilter activeFilter;
+  final ValueChanged<_CostStateFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: _CostStateFilter.values.map((filter) {
+        final isActive = filter == activeFilter;
+        return InkWell(
+          onTap: () => onChanged(filter),
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isActive
+                    ? const Color(0xFF0F172A)
+                    : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Text(
+              _costStateFilterLabel(filter),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isActive ? Colors.white : const Color(0xFF334155),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _CostStateBadge extends StatelessWidget {
+  const _CostStateBadge({required this.costState});
+
+  final String costState;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = _costStateTone(costState);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tone.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        _costStateLabel(costState),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: tone,
+        ),
+      ),
+    );
+  }
+}
+
+class _SupersededToggle extends StatelessWidget {
+  const _SupersededToggle({
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Include Superseded Lines',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Show raw imported lines that were collapsed by reconciliation.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: enabled,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CostEstimateTopBar extends StatelessWidget {
+  const _CostEstimateTopBar({
+    required this.baselineConfirmedAt,
+    required this.isImporting,
+    required this.isValidating,
+    required this.onRefreshBaseline,
+    required this.onImportSources,
+    required this.onAiGenerate,
+    required this.onValidate,
+    required this.onSetBaseline,
+    required this.onReconcile,
+  });
+
+  final DateTime? baselineConfirmedAt;
+  final bool isImporting;
+  final bool isValidating;
+  final VoidCallback onRefreshBaseline;
+  final VoidCallback onImportSources;
+  final VoidCallback onAiGenerate;
+  final VoidCallback onValidate;
+  final VoidCallback onSetBaseline;
+  final VoidCallback onReconcile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Cost Workspace Controls',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+              ),
+              if (baselineConfirmedAt != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Baseline ${_formatShortDate(baselineConfirmedAt!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF059669),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _OutlinedActionButton(
+                label: 'Refresh Baseline',
+                icon: Icons.refresh,
+                onPressed: onRefreshBaseline,
+              ),
+              _FilledActionButton(
+                label: isImporting ? 'Importing...' : 'Import Sources',
+                icon: isImporting ? Icons.sync : Icons.download_outlined,
+                onPressed: isImporting ? () {} : onImportSources,
+              ),
+              _OutlinedActionButton(
+                label: 'AI Generate',
+                icon: Icons.auto_awesome,
+                onPressed: onAiGenerate,
+              ),
+              _OutlinedActionButton(
+                label: isValidating ? 'Validating...' : 'Validate',
+                icon: Icons.fact_check_outlined,
+                onPressed: isValidating ? () {} : onValidate,
+              ),
+              _OutlinedActionButton(
+                label: 'Set Baseline',
+                icon: Icons.lock_outline,
+                onPressed: onSetBaseline,
+              ),
+              _OutlinedActionButton(
+                label: 'Reconcile Totals',
+                icon: Icons.balance_outlined,
+                onPressed: onReconcile,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceTabs extends StatelessWidget {
+  const _WorkspaceTabs({
+    required this.activeTab,
+    required this.onChanged,
+  });
+
+  final _CostWorkspaceTab activeTab;
+  final ValueChanged<_CostWorkspaceTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _CostWorkspaceTab.values.map((tab) {
+          final isActive = tab == activeTab;
+          return GestureDetector(
+            onTap: () => onChanged(tab),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? const Color(0xFF0F172A)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                tab.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isActive ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _OverviewRollupCard extends StatelessWidget {
+  const _OverviewRollupCard({required this.rows});
+
+  final List<_OverviewRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cost Rollup',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...rows.map((row) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        row.label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      formatCurrency(row.value),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _CoverageSummaryCard extends StatelessWidget {
+  const _CoverageSummaryCard({
+    required this.sourceSummaries,
+    required this.validationSummary,
+    required this.reconciliationReport,
+  });
+
+  final List<_SourceSummary> sourceSummaries;
+  final _ValidationSummary validationSummary;
+  final _ReconciliationReport reconciliationReport;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Coverage & Validation',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: sourceSummaries.take(5).map((source) {
+              return _StatusChip(
+                label: source.title,
+                status: source.status,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          if (reconciliationReport.supersededCount > 0) ...[
+            Text(
+              '${reconciliationReport.supersededCount} imported line(s) are currently superseded by stronger cost states.',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1D4ED8)),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (validationSummary.issues.isEmpty)
+            const Text(
+              'No validation issues detected in structured sources.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF059669)),
+            )
+          else
+            ...validationSummary.issues.map(
+              (issue) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 3),
+                      child: Icon(Icons.warning_amber_rounded,
+                          size: 16, color: Color(0xFFF59E0B)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        issue,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SourceImportsTab extends StatelessWidget {
+  const _SourceImportsTab({
+    required this.sourceSummaries,
+    required this.reconciliationReport,
+    required this.onImportAll,
+    required this.onValidate,
+  });
+
+  final List<_SourceSummary> sourceSummaries;
+  final _ReconciliationReport reconciliationReport;
+  final VoidCallback onImportAll;
+  final VoidCallback onValidate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Source Imports',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Track which project cost sources are already represented in estimate lines.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            _OutlinedActionButton(
+              label: 'Validate',
+              icon: Icons.fact_check_outlined,
+              onPressed: onValidate,
+            ),
+            const SizedBox(width: 12),
+            _FilledActionButton(
+              label: 'Import Available Sources',
+              icon: Icons.download_outlined,
+              onPressed: onImportAll,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _ReconciliationReportCard(report: reconciliationReport),
+        const SizedBox(height: 18),
+        ...sourceSummaries.map(
+          (summary) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _SourceSummaryCard(summary: summary),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SourceSummaryCard extends StatelessWidget {
+  const _SourceSummaryCard({required this.summary});
+
+  final _SourceSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  summary.subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Source total ${formatCurrency(summary.total)}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _StatusChip(label: summary.status.label, status: summary.status),
+              const SizedBox(height: 10),
+              Text(
+                'Imported ${summary.importedCount}/${summary.sourceCount}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReconciliationReportCard extends StatelessWidget {
+  const _ReconciliationReportCard({required this.report});
+
+  final _ReconciliationReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Reconciliation Report',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            report.supersededCount == 0
+                ? 'No imported lines are currently being collapsed by reconciliation.'
+                : '${report.activeImported} active of ${report.totalImported} imported lines. ${report.supersededCount} line(s) were superseded.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          if (report.entries.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            ...report.entries.take(8).map(
+                  (entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ReconciliationEntryTile(entry: entry),
+                  ),
+                ),
+            if (report.entries.length > 8)
+              Text(
+                '${report.entries.length - 8} more superseded line(s) not shown.',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReconciliationEntryTile extends StatelessWidget {
+  const _ReconciliationEntryTile({required this.entry});
+
+  final _ReconciliationEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.superseded.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+              ),
+              _CostStateBadge(costState: entry.superseded.costState),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Superseded by ${entry.retained.title} (${_costStateLabel(entry.retained.costState)})',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            entry.reason,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Scope key: ${entry.key}',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SourceDetailList extends StatelessWidget {
+  const _SourceDetailList({
+    required this.title,
+    required this.subtitle,
+    required this.rows,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<_SourceDetailRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 18),
+          ...rows.map((row) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            row.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            row.subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      formatCurrency(row.amount),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _CostVsScheduleWorkspace extends StatelessWidget {
+  const _CostVsScheduleWorkspace({required this.projectData});
+
+  final ProjectDataModel projectData;
+
+  @override
+  Widget build(BuildContext context) {
+    final linkedCount = projectData.costEstimateItems.where((item) {
+      return item.workPackageId.trim().isNotEmpty ||
+          item.scheduleActivityId.trim().isNotEmpty;
+    }).length;
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cost vs Schedule',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$linkedCount estimate line(s) are linked to work packages or schedule activities.',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 18),
+          ...projectData.workPackages.take(8).map(
+                (workPackage) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          workPackage.title.trim().isEmpty
+                              ? 'Untitled Work Package'
+                              : workPackage.title.trim(),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        formatCurrency(workPackage.budgetedCost),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          if (projectData.workPackages.isEmpty)
+            const Text(
+              'No work packages available yet for cost/schedule mapping.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.label,
+    required this.status,
+  });
+
+  final String label;
+  final _SourceSummaryStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: status.backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: status.foregroundColor,
+        ),
       ),
     );
   }
@@ -1304,6 +3674,54 @@ class _CostCategoryList extends StatelessWidget {
                 icon: iconForItem(item, view),
                 onEdit: () => onEdit(item),
                 onDelete: () => onDelete(item),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _SupersededCostList extends StatelessWidget {
+  const _SupersededCostList({
+    required this.items,
+    required this.view,
+    required this.activeFilter,
+    required this.iconForItem,
+  });
+
+  final List<_ReconciliationEntry> items;
+  final _CostView view;
+  final _CostStateFilter activeFilter;
+  final IconData Function(CostEstimateItem, _CostView) iconForItem;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Text(
+          activeFilter == _CostStateFilter.all
+              ? 'No superseded lines for this cost view.'
+              : 'No superseded ${_costStateFilterLabel(activeFilter).toLowerCase()} lines for this cost view.',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+      );
+    }
+
+    return Column(
+      children: items
+          .map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _SupersededCategoryTile(
+                entry: entry,
+                icon: iconForItem(entry.superseded, view),
               ),
             ),
           )
@@ -1684,12 +4102,20 @@ class _CategoryTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF111827)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF111827)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _CostStateBadge(costState: item.costState),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -1724,6 +4150,91 @@ class _CategoryTile extends StatelessWidget {
                 size: 18, color: Color(0xFFEF4444)),
             tooltip: 'Delete',
             splashRadius: 18,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupersededCategoryTile extends StatelessWidget {
+  const _SupersededCategoryTile({
+    required this.entry,
+    required this.icon,
+  });
+
+  final _ReconciliationEntry entry;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 20, color: const Color(0xFF92400E)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.superseded.title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _CostStateBadge(costState: entry.superseded.costState),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  entry.superseded.notes.isEmpty
+                      ? 'No notes added'
+                      : entry.superseded.notes,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Superseded by ${entry.retained.title} (${_costStateLabel(entry.retained.costState)})',
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            formatCurrency(entry.superseded.amount),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF92400E),
+            ),
           ),
         ],
       ),
@@ -1781,9 +4292,14 @@ class _TrailingSummaryCard extends StatelessWidget {
 }
 
 class _AddCostItemDialog extends StatefulWidget {
-  const _AddCostItemDialog({required this.initialView, this.existingItem});
+  const _AddCostItemDialog({
+    required this.initialView,
+    required this.projectData,
+    this.existingItem,
+  });
 
   final _CostView initialView;
+  final ProjectDataModel projectData;
   final CostEstimateItem? existingItem;
 
   @override
@@ -1794,8 +4310,22 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
+  final _estimatingBasisController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _unitRateController = TextEditingController();
+  final _unitOfMeasureController = TextEditingController();
+  final _contingencyPercentController = TextEditingController();
+  final _contingencyAmountController = TextEditingController();
+  final _quoteReferenceController = TextEditingController();
+  final _contractReferenceController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   late _CostView _selectedView = widget.initialView;
+  late String _selectedSource;
+  late String _selectedCostState;
+  late String _selectedPhase;
+  late String _selectedEstimatingMethod;
+  String? _selectedWorkPackageId;
+  String? _selectedScheduleActivityId;
   bool _showValidation = false;
 
   bool get _isEditing => widget.existingItem != null;
@@ -1808,7 +4338,37 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
       _titleController.text = existing.title;
       _amountController.text = existing.amount.toStringAsFixed(2);
       _notesController.text = existing.notes;
+      _estimatingBasisController.text = existing.estimatingBasis;
+      _quantityController.text =
+          existing.quantity <= 0 ? '' : existing.quantity.toString();
+      _unitRateController.text =
+          existing.unitRate <= 0 ? '' : existing.unitRate.toStringAsFixed(2);
+      _unitOfMeasureController.text = existing.unitOfMeasure;
+      _contingencyPercentController.text = existing.contingencyPercent <= 0
+          ? ''
+          : existing.contingencyPercent.toStringAsFixed(2);
+      _contingencyAmountController.text = existing.contingencyAmount <= 0
+          ? ''
+          : existing.contingencyAmount.toStringAsFixed(2);
+      _quoteReferenceController.text = existing.quoteReference;
+      _contractReferenceController.text = existing.contractId;
     }
+    _selectedSource = existing?.source ?? 'manual';
+    _selectedCostState = existing?.costState ?? 'forecast';
+    _selectedPhase = existing?.phase.trim().isNotEmpty == true
+        ? existing!.phase
+        : 'planning';
+    _selectedEstimatingMethod =
+        existing?.estimatingMethod.trim().isNotEmpty == true
+            ? existing!.estimatingMethod
+            : 'manual';
+    _selectedWorkPackageId = existing?.workPackageId.trim().isNotEmpty == true
+        ? existing!.workPackageId
+        : null;
+    _selectedScheduleActivityId =
+        existing?.scheduleActivityId.trim().isNotEmpty == true
+            ? existing!.scheduleActivityId
+            : null;
   }
 
   @override
@@ -1816,6 +4376,14 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
     _titleController.dispose();
     _amountController.dispose();
     _notesController.dispose();
+    _estimatingBasisController.dispose();
+    _quantityController.dispose();
+    _unitRateController.dispose();
+    _unitOfMeasureController.dispose();
+    _contingencyPercentController.dispose();
+    _contingencyAmountController.dispose();
+    _quoteReferenceController.dispose();
+    _contractReferenceController.dispose();
     super.dispose();
   }
 
@@ -1827,7 +4395,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       backgroundColor: Colors.white,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: 760, maxHeight: 820),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1897,94 +4465,367 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                 autovalidateMode: _showValidation
                     ? AutovalidateMode.always
                     : AutovalidateMode.disabled,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _DialogLabel(label: 'Category'),
-                    const SizedBox(height: 8),
-                    _TypeSelector(
-                      selectedView: _selectedView,
-                      onChanged: (value) =>
-                          setState(() => _selectedView = value),
-                    ),
-                    const SizedBox(height: 18),
-                    _DialogLabel(label: 'Cost item'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _titleController,
-                      decoration:
-                          _inputDecoration('e.g., Vendor integration services'),
-                      textCapitalization: TextCapitalization.sentences,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Add a short name for this cost item';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _DialogLabel(label: 'Estimated amount'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      decoration: _inputDecoration('0.00', prefix: '\$'),
-                      validator: (value) {
-                        final amount = _parseAmount(value ?? '');
-                        if (amount <= 0) {
-                          return 'Enter a valid amount';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _DialogLabel(label: 'Notes (optional)'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _notesController,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: _inputDecoration(
-                          'Add vendor notes, scope details, or assumptions'),
-                    ),
-                    const SizedBox(height: 22),
-                    Row(
+                child: SizedBox(
+                  height: 620,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                              side: const BorderSide(color: Color(0xFFE2E8F0)),
-                              foregroundColor: const Color(0xFF475569),
+                        _DialogLabel(label: 'Category'),
+                        const SizedBox(height: 8),
+                        _TypeSelector(
+                          selectedView: _selectedView,
+                          onChanged: (value) =>
+                              setState(() => _selectedView = value),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _dropdownField<String>(
+                                label: 'Source',
+                                value: _selectedSource,
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 'manual', child: Text('Manual')),
+                                  DropdownMenuItem(
+                                      value: 'project_contractor',
+                                      child: Text('Contractor')),
+                                  DropdownMenuItem(
+                                      value: 'project_vendor',
+                                      child: Text('Vendor')),
+                                  DropdownMenuItem(
+                                      value: 'project_contract',
+                                      child: Text('Contract')),
+                                  DropdownMenuItem(
+                                      value: 'project_procurement_item',
+                                      child: Text('Procurement Budget')),
+                                  DropdownMenuItem(
+                                      value: 'project_procurement_actual',
+                                      child: Text('Procurement Actual')),
+                                  DropdownMenuItem(
+                                      value: 'project_purchase_order',
+                                      child: Text('Purchase Order')),
+                                  DropdownMenuItem(
+                                      value: 'planning_allowance',
+                                      child: Text('Allowance')),
+                                  DropdownMenuItem(
+                                      value: 'risk_mitigation',
+                                      child: Text('Risk Mitigation')),
+                                  DropdownMenuItem(
+                                      value: 'planning_technology',
+                                      child: Text('Technology')),
+                                  DropdownMenuItem(
+                                      value: 'project_work_package',
+                                      child: Text('Work Package')),
+                                  DropdownMenuItem(
+                                      value: 'project_work_package_actual',
+                                      child: Text('Work Package Actual')),
+                                  DropdownMenuItem(
+                                      value: 'planning_staffing',
+                                      child: Text('Staffing')),
+                                  DropdownMenuItem(
+                                      value: 'planning_infrastructure',
+                                      child: Text('Infrastructure')),
+                                ],
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() => _selectedSource = value);
+                                },
+                              ),
                             ),
-                            child: const Text('Cancel',
-                                style: TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _dropdownField<String>(
+                                label: 'Phase',
+                                value: _selectedPhase,
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 'planning',
+                                      child: Text('Planning')),
+                                  DropdownMenuItem(
+                                      value: 'design', child: Text('Design')),
+                                  DropdownMenuItem(
+                                      value: 'execution',
+                                      child: Text('Execution')),
+                                  DropdownMenuItem(
+                                      value: 'launch', child: Text('Launch')),
+                                ],
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() => _selectedPhase = value);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _dropdownField<String>(
+                          label: 'Cost State',
+                          value: _selectedCostState,
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'forecast', child: Text('Forecast')),
+                            DropdownMenuItem(
+                                value: 'committed', child: Text('Committed')),
+                            DropdownMenuItem(
+                                value: 'actual', child: Text('Actual')),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _selectedCostState = value);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _DialogLabel(label: 'Cost item'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _titleController,
+                          decoration: _inputDecoration(
+                              'e.g., Vendor integration services'),
+                          textCapitalization: TextCapitalization.sentences,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Add a short name for this cost item';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _dropdownField<String?>(
+                                label: 'Work Package',
+                                value: _selectedWorkPackageId,
+                                items: [
+                                  const DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text('Not linked'),
+                                  ),
+                                  ...widget.projectData.workPackages.map(
+                                    (workPackage) => DropdownMenuItem<String?>(
+                                      value: workPackage.id,
+                                      child: Text(
+                                        workPackage.title.trim().isEmpty
+                                            ? 'Untitled Work Package'
+                                            : workPackage.title.trim(),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (value) => setState(
+                                    () => _selectedWorkPackageId = value),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _dropdownField<String?>(
+                                label: 'Schedule Activity',
+                                value: _selectedScheduleActivityId,
+                                items: [
+                                  const DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text('Not linked'),
+                                  ),
+                                  ...widget.projectData.scheduleActivities.map(
+                                    (activity) => DropdownMenuItem<String?>(
+                                      value: activity.id,
+                                      child: Text(
+                                        activity.title.trim().isEmpty
+                                            ? 'Untitled Activity'
+                                            : activity.title.trim(),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (value) => setState(
+                                    () => _selectedScheduleActivityId = value),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _DialogLabel(label: 'Estimated amount'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: _inputDecoration('0.00', prefix: '\$'),
+                          validator: (value) {
+                            final amount = _parseAmount(value ?? '');
+                            if (amount <= 0) {
+                              return 'Enter a valid amount';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _dropdownField<String>(
+                          label: 'Estimating Method',
+                          value: _selectedEstimatingMethod,
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'manual', child: Text('Manual')),
+                            DropdownMenuItem(
+                                value: 'bottoms_up', child: Text('Bottoms up')),
+                            DropdownMenuItem(
+                                value: 'top_down', child: Text('Top down')),
+                            DropdownMenuItem(
+                                value: 'unit_rate', child: Text('Unit rate')),
+                            DropdownMenuItem(
+                                value: 'analogous', child: Text('Analogous')),
+                            DropdownMenuItem(
+                                value: 'quote_based',
+                                child: Text('Quote based')),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _selectedEstimatingMethod = value);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _DialogLabel(label: 'Estimating basis'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _estimatingBasisController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: _inputDecoration(
+                            'Describe the assumptions, source quote, or method behind this estimate',
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _submit,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              backgroundColor: accent,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                              elevation: 0,
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _quantityController,
+                                keyboardType: TextInputType.number,
+                                decoration: _inputDecoration('Quantity'),
+                              ),
                             ),
-                            child: Text(_isEditing ? 'Update item' : 'Add item',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _unitRateController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration:
+                                    _inputDecoration('Unit rate', prefix: '\$'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _unitOfMeasureController,
+                                decoration: _inputDecoration('Unit of measure'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _contingencyPercentController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration: _inputDecoration('Contingency %'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _contingencyAmountController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration: _inputDecoration(
+                                  'Contingency amount',
+                                  prefix: '\$',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _quoteReferenceController,
+                                decoration: _inputDecoration('Quote reference'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _contractReferenceController,
+                                decoration: _inputDecoration(
+                                    'Contract / commercial reference'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _DialogLabel(label: 'Notes (optional)'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _notesController,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: _inputDecoration(
+                              'Add vendor notes, scope details, or assumptions'),
+                        ),
+                        const SizedBox(height: 22),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14)),
+                                  side: const BorderSide(
+                                      color: Color(0xFFE2E8F0)),
+                                  foregroundColor: const Color(0xFF475569),
+                                ),
+                                child: const Text('Cancel',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _submit,
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  backgroundColor: accent,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14)),
+                                  elevation: 0,
+                                ),
+                                child: Text(
+                                    _isEditing ? 'Update item' : 'Add item',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -2007,8 +4848,24 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
       notes: _notesController.text.trim(),
       amount: amount,
       costType: _viewKey(_selectedView),
-      source: _isEditing ? widget.existingItem!.source : 'manual',
+      source: _selectedSource,
+      costState: _selectedCostState,
       isBaseline: _isEditing ? widget.existingItem!.isBaseline : false,
+      workPackageId: _selectedWorkPackageId ?? '',
+      workPackageTitle: _workPackageTitle(_selectedWorkPackageId),
+      scheduleActivityId: _selectedScheduleActivityId ?? '',
+      phase: _selectedPhase,
+      estimatingMethod: _selectedEstimatingMethod,
+      estimatingBasis: _estimatingBasisController.text.trim(),
+      quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
+      unitRate: _parseAmount(_unitRateController.text),
+      unitOfMeasure: _unitOfMeasureController.text.trim(),
+      contingencyPercent: _parseAmount(_contingencyPercentController.text),
+      contingencyAmount: _parseAmount(_contingencyAmountController.text),
+      contractId: _contractReferenceController.text.trim(),
+      quoteReference: _quoteReferenceController.text.trim(),
+      reconciliationReference:
+          _isEditing ? widget.existingItem!.reconciliationReference : '',
     );
     Navigator.of(context).pop(item);
   }
@@ -2046,6 +4903,30 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
 
   String _viewKey(_CostView view) =>
       view == _CostView.direct ? 'direct' : 'indirect';
+
+  Widget _dropdownField<T>({
+    required String label,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      initialValue: value,
+      items: items,
+      onChanged: onChanged,
+      decoration: _inputDecoration(label),
+    );
+  }
+
+  String _workPackageTitle(String? workPackageId) {
+    if (workPackageId == null || workPackageId.isEmpty) return '';
+    for (final workPackage in widget.projectData.workPackages) {
+      if (workPackage.id == workPackageId) {
+        return workPackage.title.trim();
+      }
+    }
+    return '';
+  }
 }
 
 class _TypeSelector extends StatelessWidget {
@@ -2244,6 +5125,18 @@ class _CostCategory {
 
 enum _CostView { direct, indirect }
 
+enum _CostStateFilter { all, forecast, committed, actual }
+
+enum _CostWorkspaceTab {
+  overview,
+  estimateLines,
+  sourceImports,
+  contractsProcurement,
+  staffingInfrastructure,
+  contingencyRisk,
+  costVsSchedule,
+}
+
 class _CostViewDefinition {
   const _CostViewDefinition({
     required this.label,
@@ -2260,6 +5153,195 @@ class _CostViewDefinition {
   final double trailingSummaryAmount;
 }
 
+class _SourceSummary {
+  const _SourceSummary({
+    required this.title,
+    required this.subtitle,
+    required this.sourceKey,
+    required this.total,
+    required this.sourceCount,
+    required this.status,
+    this.importedCount = 0,
+  });
+
+  final String title;
+  final String subtitle;
+  final String sourceKey;
+  final double total;
+  final int sourceCount;
+  final int importedCount;
+  final _SourceSummaryStatus status;
+}
+
+enum _SourceSummaryStatus {
+  imported,
+  partial,
+  missing,
+  needsStructuring,
+}
+
+extension _SourceSummaryStatusX on _SourceSummaryStatus {
+  String get label {
+    switch (this) {
+      case _SourceSummaryStatus.imported:
+        return 'Imported';
+      case _SourceSummaryStatus.partial:
+        return 'Partial';
+      case _SourceSummaryStatus.missing:
+        return 'Missing';
+      case _SourceSummaryStatus.needsStructuring:
+        return 'Needs Structuring';
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case _SourceSummaryStatus.imported:
+        return const Color(0xFFECFDF5);
+      case _SourceSummaryStatus.partial:
+        return const Color(0xFFFFF7ED);
+      case _SourceSummaryStatus.missing:
+        return const Color(0xFFFEF2F2);
+      case _SourceSummaryStatus.needsStructuring:
+        return const Color(0xFFF1F5F9);
+    }
+  }
+
+  Color get foregroundColor {
+    switch (this) {
+      case _SourceSummaryStatus.imported:
+        return const Color(0xFF059669);
+      case _SourceSummaryStatus.partial:
+        return const Color(0xFFC2410C);
+      case _SourceSummaryStatus.missing:
+        return const Color(0xFFDC2626);
+      case _SourceSummaryStatus.needsStructuring:
+        return const Color(0xFF475569);
+    }
+  }
+}
+
+extension _CostWorkspaceTabX on _CostWorkspaceTab {
+  String get label {
+    switch (this) {
+      case _CostWorkspaceTab.overview:
+        return 'Overview';
+      case _CostWorkspaceTab.estimateLines:
+        return 'Estimate Lines';
+      case _CostWorkspaceTab.sourceImports:
+        return 'Source Imports';
+      case _CostWorkspaceTab.contractsProcurement:
+        return 'Contracts & Procurement';
+      case _CostWorkspaceTab.staffingInfrastructure:
+        return 'Staffing & Infrastructure';
+      case _CostWorkspaceTab.contingencyRisk:
+        return 'Contingency & Risk';
+      case _CostWorkspaceTab.costVsSchedule:
+        return 'Cost vs Schedule';
+    }
+  }
+}
+
+class _ValidationSummary {
+  const _ValidationSummary({required this.issues});
+
+  final List<String> issues;
+}
+
+class _ReconciliationReport {
+  const _ReconciliationReport({
+    required this.totalImported,
+    required this.activeImported,
+    required this.supersededCount,
+    required this.entries,
+  });
+
+  final int totalImported;
+  final int activeImported;
+  final int supersededCount;
+  final List<_ReconciliationEntry> entries;
+}
+
+class _ReconciliationEntry {
+  const _ReconciliationEntry({
+    required this.key,
+    required this.superseded,
+    required this.retained,
+    required this.reason,
+  });
+
+  final String key;
+  final CostEstimateItem superseded;
+  final CostEstimateItem retained;
+  final String reason;
+}
+
+class _ReconciliationOutcome {
+  const _ReconciliationOutcome({
+    required this.activeItems,
+    required this.reportEntries,
+  });
+
+  final List<CostEstimateItem> activeItems;
+  final List<_ReconciliationEntry> reportEntries;
+}
+
+class _OverviewRow {
+  const _OverviewRow({required this.label, required this.value});
+
+  final String label;
+  final double value;
+}
+
+class _SourceDetailRow {
+  const _SourceDetailRow({
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+  });
+
+  final String title;
+  final String subtitle;
+  final double amount;
+}
+
+String _costStateFilterLabel(_CostStateFilter filter) {
+  switch (filter) {
+    case _CostStateFilter.all:
+      return 'Planning Forecast';
+    case _CostStateFilter.forecast:
+      return 'Forecast';
+    case _CostStateFilter.committed:
+      return 'Committed';
+    case _CostStateFilter.actual:
+      return 'Actual';
+  }
+}
+
+String _costStateLabel(String costState) {
+  switch (costState) {
+    case 'committed':
+      return 'Committed';
+    case 'actual':
+      return 'Actual';
+    case 'forecast':
+    default:
+      return 'Forecast';
+  }
+}
+
+Color _costStateTone(String costState) {
+  switch (costState) {
+    case 'committed':
+      return const Color(0xFF1D4ED8);
+    case 'actual':
+      return const Color(0xFF047857);
+    case 'forecast':
+    default:
+      return const Color(0xFFB45309);
+  }
+}
+
 String formatCurrency(double value) {
   final parts = value.toStringAsFixed(2).split('.');
   final whole = parts.first.replaceAllMapped(
@@ -2267,6 +5349,24 @@ String formatCurrency(double value) {
     (match) => ',',
   );
   return "\$$whole.${parts.last}";
+}
+
+String _formatShortDate(DateTime value) {
+  final month = <int, String>{
+    1: 'Jan',
+    2: 'Feb',
+    3: 'Mar',
+    4: 'Apr',
+    5: 'May',
+    6: 'Jun',
+    7: 'Jul',
+    8: 'Aug',
+    9: 'Sep',
+    10: 'Oct',
+    11: 'Nov',
+    12: 'Dec',
+  }[value.month];
+  return '${month ?? value.month}/${value.day}/${value.year}';
 }
 
 class _AiSuggestionsDialog extends StatefulWidget {
