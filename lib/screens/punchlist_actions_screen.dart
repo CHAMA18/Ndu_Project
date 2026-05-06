@@ -777,21 +777,22 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
   ];
 
   List<_CapacityHealthRow> _defaultCapacityHealthRows() => [
-    const _CapacityHealthRow(team: 'Field Execution', allocatedFte: 12.0, availableFte: 10.5, utilization: 87, overallocated: 1.5, burnRate: 92, overtimeHrs: 18, skillGap: 2, riskLevel: 'Medium', owner: 'Field Ops Mgr', status: 'Active', lastUpdated: '2 hrs ago'),
-    const _CapacityHealthRow(team: 'QA & Verification', allocatedFte: 8.0, availableFte: 7.0, utilization: 94, overallocated: 1.0, burnRate: 88, overtimeHrs: 12, skillGap: 1, riskLevel: 'High', owner: 'QA Lead', status: 'At Risk', lastUpdated: '4 hrs ago'),
-    const _CapacityHealthRow(team: 'Systems Integration', allocatedFte: 10.0, availableFte: 9.0, utilization: 78, overallocated: 0.0, burnRate: 75, overtimeHrs: 6, skillGap: 3, riskLevel: 'Low', owner: 'Integration Lead', status: 'On Track', lastUpdated: '1 day ago'),
-    const _CapacityHealthRow(team: 'Safety & Compliance', allocatedFte: 6.0, availableFte: 5.5, utilization: 91, overallocated: 0.5, burnRate: 85, overtimeHrs: 8, skillGap: 1, riskLevel: 'Medium', owner: 'Safety Officer', status: 'Active', lastUpdated: '3 hrs ago'),
-    const _CapacityHealthRow(team: 'Technical Debt', allocatedFte: 5.0, availableFte: 4.0, utilization: 68, overallocated: 0.0, burnRate: 62, overtimeHrs: 4, skillGap: 4, riskLevel: 'High', owner: 'Platform Lead', status: 'Under Review', lastUpdated: '6 hrs ago'),
-    const _CapacityHealthRow(team: 'Remediation Ops', allocatedFte: 7.0, availableFte: 6.5, utilization: 82, overallocated: 0.5, burnRate: 79, overtimeHrs: 10, skillGap: 1, riskLevel: 'Low', owner: 'Operations Mgr', status: 'On Track', lastUpdated: '5 hrs ago'),
+    const _CapacityHealthRow(team: 'Field Execution', plannedFte: 14.0, allocatedFte: 12.0, availableFte: 10.5, utilization: 87, overallocated: 1.5, fteVariance: -2.0, burnRate: 92, productivityIndex: 94, overtimeHrs: 18, absenteeismRate: 8.2, skillGap: 2, backlogWeeks: 3.2, costVariance: -4, riskLevel: 'Medium', owner: 'Field Ops Mgr', status: 'Active', lastUpdated: '2 hrs ago'),
+    const _CapacityHealthRow(team: 'QA & Verification', plannedFte: 9.0, allocatedFte: 8.0, availableFte: 7.0, utilization: 94, overallocated: 1.0, fteVariance: -1.0, burnRate: 88, productivityIndex: 102, overtimeHrs: 12, absenteeismRate: 4.5, skillGap: 1, backlogWeeks: 2.8, costVariance: -2, riskLevel: 'High', owner: 'QA Lead', status: 'At Risk', lastUpdated: '4 hrs ago'),
+    const _CapacityHealthRow(team: 'Systems Integration', plannedFte: 10.0, allocatedFte: 10.0, availableFte: 9.0, utilization: 78, overallocated: 0.0, fteVariance: 0.0, burnRate: 75, productivityIndex: 108, overtimeHrs: 6, absenteeismRate: 3.1, skillGap: 3, backlogWeeks: 4.5, costVariance: 3, riskLevel: 'Low', owner: 'Integration Lead', status: 'On Track', lastUpdated: '1 day ago'),
+    const _CapacityHealthRow(team: 'Safety & Compliance', plannedFte: 6.5, allocatedFte: 6.0, availableFte: 5.5, utilization: 91, overallocated: 0.5, fteVariance: -0.5, burnRate: 85, productivityIndex: 97, overtimeHrs: 8, absenteeismRate: 5.8, skillGap: 1, backlogWeeks: 2.1, costVariance: -1, riskLevel: 'Medium', owner: 'Safety Officer', status: 'Active', lastUpdated: '3 hrs ago'),
+    const _CapacityHealthRow(team: 'Technical Debt', plannedFte: 7.0, allocatedFte: 5.0, availableFte: 4.0, utilization: 68, overallocated: 0.0, fteVariance: -2.0, burnRate: 62, productivityIndex: 78, overtimeHrs: 4, absenteeismRate: 6.3, skillGap: 4, backlogWeeks: 6.8, costVariance: -8, riskLevel: 'High', owner: 'Platform Lead', status: 'Under Review', lastUpdated: '6 hrs ago'),
+    const _CapacityHealthRow(team: 'Remediation Ops', plannedFte: 7.5, allocatedFte: 7.0, availableFte: 6.5, utilization: 82, overallocated: 0.5, fteVariance: -0.5, burnRate: 79, productivityIndex: 105, overtimeHrs: 10, absenteeismRate: 3.7, skillGap: 1, backlogWeeks: 3.0, costVariance: 2, riskLevel: 'Low', owner: 'Operations Mgr', status: 'On Track', lastUpdated: '5 hrs ago'),
+    const _CapacityHealthRow(team: 'Electrical & Mech', plannedFte: 11.0, allocatedFte: 9.5, availableFte: 8.0, utilization: 89, overallocated: 1.5, fteVariance: -1.5, burnRate: 86, productivityIndex: 91, overtimeHrs: 22, absenteeismRate: 7.1, skillGap: 2, backlogWeeks: 3.8, costVariance: -5, riskLevel: 'Medium', owner: 'E&M Lead', status: 'Active', lastUpdated: '1 hr ago'),
   ];
 
   List<_ShiftCoverageRow> _defaultShiftCoverageRows() => [
-    const _ShiftCoverageRow(shift: 'Day Shift (06:00-14:00)', requiredHeadcount: 24, actualHeadcount: 22, coveragePercent: 92, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 16, contractorFill: 1, nextRotation: 'May 10', owner: 'Shift Supervisor A', status: 'Covered', lastUpdated: '1 hr ago'),
-    const _ShiftCoverageRow(shift: 'Swing Shift (14:00-22:00)', requiredHeadcount: 20, actualHeadcount: 18, coveragePercent: 90, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 14, contractorFill: 0, nextRotation: 'May 12', owner: 'Shift Supervisor B', status: 'Covered', lastUpdated: '3 hrs ago'),
-    const _ShiftCoverageRow(shift: 'Night Shift (22:00-06:00)', requiredHeadcount: 16, actualHeadcount: 12, coveragePercent: 75, gap: 4, shiftPattern: '3 on / 4 off', overtimeHrs: 22, contractorFill: 2, nextRotation: 'May 8', owner: 'Night Lead', status: 'Understaffed', lastUpdated: '30 min ago'),
-    const _ShiftCoverageRow(shift: 'Weekend Coverage (Sat-Sun)', requiredHeadcount: 12, actualHeadcount: 10, coveragePercent: 83, gap: 2, shiftPattern: 'Alternate weekends', overtimeHrs: 8, contractorFill: 1, nextRotation: 'May 11', owner: 'Weekend Lead', status: 'Covered', lastUpdated: '2 hrs ago'),
-    const _ShiftCoverageRow(shift: 'Emergency Response On-Call', requiredHeadcount: 6, actualHeadcount: 6, coveragePercent: 100, gap: 0, shiftPattern: 'Rotating standby', overtimeHrs: 4, contractorFill: 0, nextRotation: 'May 9', owner: 'Safety Officer', status: 'Full', lastUpdated: '4 hrs ago'),
-    const _ShiftCoverageRow(shift: 'QA Inspection Team', requiredHeadcount: 8, actualHeadcount: 6, coveragePercent: 75, gap: 2, shiftPattern: '5 on / 2 off', overtimeHrs: 10, contractorFill: 1, nextRotation: 'May 13', owner: 'QA Lead', status: 'Understaffed', lastUpdated: '5 hrs ago'),
+    const _ShiftCoverageRow(shift: 'Day Shift (06:00-14:00)', requiredHeadcount: 24, actualHeadcount: 22, coveragePercent: 92, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 16, contractorFill: 1, agencyStaff: 1, absenceCount: 3, complianceStatus: 'Compliant', nextRotation: 'May 10', supervisor: 'Shift Supervisor A', riskFlag: 'Low', status: 'Covered', lastUpdated: '1 hr ago'),
+    const _ShiftCoverageRow(shift: 'Swing Shift (14:00-22:00)', requiredHeadcount: 20, actualHeadcount: 18, coveragePercent: 90, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 14, contractorFill: 0, agencyStaff: 2, absenceCount: 2, complianceStatus: 'Compliant', nextRotation: 'May 12', supervisor: 'Shift Supervisor B', riskFlag: 'Low', status: 'Covered', lastUpdated: '3 hrs ago'),
+    const _ShiftCoverageRow(shift: 'Night Shift (22:00-06:00)', requiredHeadcount: 16, actualHeadcount: 12, coveragePercent: 75, gap: 4, shiftPattern: '3 on / 4 off', overtimeHrs: 22, contractorFill: 2, agencyStaff: 1, absenceCount: 5, complianceStatus: 'Non-Compliant', nextRotation: 'May 8', supervisor: 'Night Lead', riskFlag: 'High', status: 'Understaffed', lastUpdated: '30 min ago'),
+    const _ShiftCoverageRow(shift: 'Weekend Coverage (Sat-Sun)', requiredHeadcount: 12, actualHeadcount: 10, coveragePercent: 83, gap: 2, shiftPattern: 'Alternate weekends', overtimeHrs: 8, contractorFill: 1, agencyStaff: 0, absenceCount: 2, complianceStatus: 'Compliant', nextRotation: 'May 11', supervisor: 'Weekend Lead', riskFlag: 'Medium', status: 'Covered', lastUpdated: '2 hrs ago'),
+    const _ShiftCoverageRow(shift: 'Emergency Response On-Call', requiredHeadcount: 6, actualHeadcount: 6, coveragePercent: 100, gap: 0, shiftPattern: 'Rotating standby', overtimeHrs: 4, contractorFill: 0, agencyStaff: 0, absenceCount: 0, complianceStatus: 'Compliant', nextRotation: 'May 9', supervisor: 'Safety Officer', riskFlag: 'None', status: 'Full', lastUpdated: '4 hrs ago'),
+    const _ShiftCoverageRow(shift: 'QA Inspection Team', requiredHeadcount: 8, actualHeadcount: 6, coveragePercent: 75, gap: 2, shiftPattern: '5 on / 2 off', overtimeHrs: 10, contractorFill: 1, agencyStaff: 1, absenceCount: 3, complianceStatus: 'Conditional', nextRotation: 'May 13', supervisor: 'QA Lead', riskFlag: 'Medium', status: 'Understaffed', lastUpdated: '5 hrs ago'),
   ];
 
   Widget _wrapInsightCards(List<Widget> cards) {
@@ -1226,16 +1227,20 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
   }
 
   Widget _buildCapacityHealthCard() {
+    final totalPlanned = _capacityHealthRows.fold<double>(0.0, (sum, r) => sum + r.plannedFte);
     final totalAllocated = _capacityHealthRows.fold<double>(0.0, (sum, r) => sum + r.allocatedFte);
     final totalAvailable = _capacityHealthRows.fold<double>(0.0, (sum, r) => sum + r.availableFte);
     final avgUtilization = _capacityHealthRows.isNotEmpty
         ? _capacityHealthRows.fold<int>(0, (sum, r) => sum + r.utilization) / _capacityHealthRows.length
         : 0.0;
+    final avgProductivity = _capacityHealthRows.isNotEmpty
+        ? _capacityHealthRows.fold<int>(0, (sum, r) => sum + r.productivityIndex) / _capacityHealthRows.length
+        : 0.0;
     final totalOvertime = _capacityHealthRows.fold<int>(0, (sum, r) => sum + r.overtimeHrs);
     final highRiskCount = _capacityHealthRows.where((r) => r.riskLevel == 'High').length;
     return _panel(
       title: 'Capacity Health',
-      subtitle: 'Workforce FTE allocation, utilization burn rate, and skill gap risk assessment across project teams.',
+      subtitle: 'Workforce FTE planning vs allocation, utilization burn rate, productivity index, absenteeism, backlog capacity, and cost variance risk assessment across project teams.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1247,16 +1252,19 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Row(
+            child: Wrap(
+              spacing: 24,
+              runSpacing: 10,
+              alignment: WrapAlignment.start,
               children: [
+                _summaryMetric(label: 'Planned FTE', value: totalPlanned.toStringAsFixed(1), color: const Color(0xFF7C3AED)),
                 _summaryMetric(label: 'Allocated FTE', value: totalAllocated.toStringAsFixed(1), color: const Color(0xFF1E293B)),
-                const SizedBox(width: 28),
                 _summaryMetric(label: 'Available FTE', value: totalAvailable.toStringAsFixed(1), color: const Color(0xFF22C55E)),
-                const SizedBox(width: 28),
                 _summaryMetric(label: 'Avg Utilization', value: '${avgUtilization.toStringAsFixed(0)}%', color: const Color(0xFF2563EB)),
-                const SizedBox(width: 28),
+                _summaryMetric(label: 'Avg Productivity', value: '${avgProductivity.toStringAsFixed(0)}%', color: const Color(0xFF0EA5E9)),
+                _summaryMetric(label: 'Total OT Hrs', value: '$totalOvertime', color: const Color(0xFFF59E0B)),
                 _summaryMetric(label: 'High Risk', value: '$highRiskCount', color: const Color(0xFFEF4444)),
-                const Spacer(),
+                const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () => _showCapacityHealthDialog(context),
                   icon: const Icon(Icons.add, size: 18),
@@ -1291,13 +1299,19 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                     horizontalMargin: 12,
                     columns: const [
                       DataColumn(label: Text('Team')),
+                      DataColumn(label: Text('Planned FTE'), numeric: true),
                       DataColumn(label: Text('Alloc. FTE'), numeric: true),
                       DataColumn(label: Text('Avail. FTE'), numeric: true),
+                      DataColumn(label: Text('FTE Variance'), numeric: true),
                       DataColumn(label: Text('Utilization %'), numeric: true),
                       DataColumn(label: Text('Overalloc.'), numeric: true),
                       DataColumn(label: Text('Burn Rate'), numeric: true),
+                      DataColumn(label: Text('Productivity'), numeric: true),
                       DataColumn(label: Text('OT Hours'), numeric: true),
+                      DataColumn(label: Text('Absent %'), numeric: true),
                       DataColumn(label: Text('Skill Gap'), numeric: true),
+                      DataColumn(label: Text('Backlog Wks'), numeric: true),
+                      DataColumn(label: Text('Cost Var %'), numeric: true),
                       DataColumn(label: Text('Risk Level')),
                       DataColumn(label: Text('Owner')),
                       DataColumn(label: Text('Status')),
@@ -1319,8 +1333,21 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                             Text(row.team, style: const TextStyle(fontWeight: FontWeight.w700)),
                           ],
                         )),
+                        DataCell(_numberCell(row.plannedFte.toStringAsFixed(1), const Color(0xFF7C3AED))),
                         DataCell(_numberCell(row.allocatedFte.toStringAsFixed(1), const Color(0xFF1E293B))),
                         DataCell(_numberCell(row.availableFte.toStringAsFixed(1), const Color(0xFF22C55E))),
+                        DataCell(Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: row.fteVariance < -1.0 ? const Color(0xFFFEF2F2) : row.fteVariance < 0 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('${row.fteVariance > 0 ? '+' : ''}${row.fteVariance.toStringAsFixed(1)}', style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: row.fteVariance < -1.0 ? const Color(0xFFDC2626) : row.fteVariance < 0 ? const Color(0xFFD97706) : const Color(0xFF16A34A),
+                          )),
+                        )),
                         DataCell(Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1359,8 +1386,34 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                             color: row.burnRate >= 90 ? const Color(0xFFDC2626) : row.burnRate >= 75 ? const Color(0xFFD97706) : const Color(0xFF16A34A),
                           )),
                         )),
+                        DataCell(Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: row.productivityIndex >= 100 ? const Color(0xFFF0FDF4) : row.productivityIndex >= 85 ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('${row.productivityIndex}%', style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: row.productivityIndex >= 100 ? const Color(0xFF16A34A) : row.productivityIndex >= 85 ? const Color(0xFFD97706) : const Color(0xFFDC2626),
+                          )),
+                        )),
                         DataCell(_numberCell('${row.overtimeHrs}h', row.overtimeHrs > 15 ? const Color(0xFFEF4444) : const Color(0xFF475569))),
+                        DataCell(_numberCell('${row.absenteeismRate.toStringAsFixed(1)}%', row.absenteeismRate > 6.0 ? const Color(0xFFEF4444) : row.absenteeismRate > 4.0 ? const Color(0xFFF59E0B) : const Color(0xFF22C55E))),
                         DataCell(_numberCell('${row.skillGap}', row.skillGap >= 3 ? const Color(0xFFEF4444) : row.skillGap >= 1 ? const Color(0xFFF59E0B) : const Color(0xFF22C55E))),
+                        DataCell(_numberCell('${row.backlogWeeks.toStringAsFixed(1)}w', row.backlogWeeks > 5.0 ? const Color(0xFFEF4444) : row.backlogWeeks > 3.5 ? const Color(0xFFF59E0B) : const Color(0xFF0EA5E9))),
+                        DataCell(Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: row.costVariance < -5 ? const Color(0xFFFEF2F2) : row.costVariance < 0 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('${row.costVariance > 0 ? '+' : ''}${row.costVariance}%', style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: row.costVariance < -5 ? const Color(0xFFDC2626) : row.costVariance < 0 ? const Color(0xFFD97706) : const Color(0xFF16A34A),
+                          )),
+                        )),
                         DataCell(_buildRiskChip(row.riskLevel)),
                         DataCell(Text(row.owner, style: const TextStyle(fontSize: 12))),
                         DataCell(_buildStatusChip(row.status)),
@@ -1391,10 +1444,13 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         ? _shiftCoverageRows.fold<int>(0, (sum, r) => sum + r.coveragePercent) / _shiftCoverageRows.length
         : 0.0;
     final totalGap = _shiftCoverageRows.fold<int>(0, (sum, r) => sum + r.gap);
+    final totalAbsences = _shiftCoverageRows.fold<int>(0, (sum, r) => sum + r.absenceCount);
+    final totalAgency = _shiftCoverageRows.fold<int>(0, (sum, r) => sum + r.agencyStaff);
+    final nonCompliantCount = _shiftCoverageRows.where((r) => r.complianceStatus == 'Non-Compliant').length;
     final understaffedCount = _shiftCoverageRows.where((r) => r.status == 'Understaffed').length;
     return _panel(
       title: 'Shift Coverage',
-      subtitle: 'Shift scheduling headcount compliance, coverage gaps, and rotation planning with contractor fill tracking.',
+      subtitle: 'Shift scheduling headcount compliance, coverage gaps, absence tracking, agency/contractor fill, regulatory compliance, and rotation planning with risk flagging.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1406,16 +1462,20 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Row(
+            child: Wrap(
+              spacing: 24,
+              runSpacing: 10,
+              alignment: WrapAlignment.start,
               children: [
                 _summaryMetric(label: 'Required', value: '$totalRequired', color: const Color(0xFF1E293B)),
-                const SizedBox(width: 28),
                 _summaryMetric(label: 'Actual', value: '$totalActual', color: const Color(0xFF22C55E)),
-                const SizedBox(width: 28),
                 _summaryMetric(label: 'Avg Coverage', value: '${avgCoverage.toStringAsFixed(0)}%', color: const Color(0xFF2563EB)),
-                const SizedBox(width: 28),
                 _summaryMetric(label: 'Total Gap', value: '$totalGap', color: const Color(0xFFEF4444)),
-                const Spacer(),
+                _summaryMetric(label: 'Absences', value: '$totalAbsences', color: const Color(0xFFF59E0B)),
+                _summaryMetric(label: 'Agency Staff', value: '$totalAgency', color: const Color(0xFF7C3AED)),
+                _summaryMetric(label: 'Non-Compliant', value: '$nonCompliantCount', color: const Color(0xFFDC2626)),
+                _summaryMetric(label: 'Understaffed', value: '$understaffedCount', color: const Color(0xFFEF4444)),
+                const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () => _showShiftCoverageDialog(context),
                   icon: const Icon(Icons.add, size: 18),
@@ -1457,8 +1517,12 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                       DataColumn(label: Text('Pattern')),
                       DataColumn(label: Text('OT Hours'), numeric: true),
                       DataColumn(label: Text('Contractor'), numeric: true),
+                      DataColumn(label: Text('Agency'), numeric: true),
+                      DataColumn(label: Text('Absences'), numeric: true),
+                      DataColumn(label: Text('Compliance')),
                       DataColumn(label: Text('Next Rotation')),
-                      DataColumn(label: Text('Owner')),
+                      DataColumn(label: Text('Supervisor')),
+                      DataColumn(label: Text('Risk Flag')),
                       DataColumn(label: Text('Status')),
                       DataColumn(label: Text('Updated')),
                       DataColumn(label: Text('Actions')),
@@ -1520,8 +1584,23 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         DataCell(Text(row.shiftPattern, style: const TextStyle(fontSize: 12))),
                         DataCell(_numberCell('${row.overtimeHrs}h', row.overtimeHrs > 15 ? const Color(0xFFEF4444) : const Color(0xFF475569))),
                         DataCell(_numberCell('${row.contractorFill}', row.contractorFill > 0 ? const Color(0xFF7C3AED) : const Color(0xFF94A3B8))),
+                        DataCell(_numberCell('${row.agencyStaff}', row.agencyStaff > 0 ? const Color(0xFF0EA5E9) : const Color(0xFF94A3B8))),
+                        DataCell(Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: row.absenceCount == 0 ? const Color(0xFFF0FDF4) : row.absenceCount <= 2 ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('${row.absenceCount}', style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: row.absenceCount == 0 ? const Color(0xFF16A34A) : row.absenceCount <= 2 ? const Color(0xFFD97706) : const Color(0xFFDC2626),
+                          )),
+                        )),
+                        DataCell(_buildComplianceChip(row.complianceStatus)),
                         DataCell(Text(row.nextRotation, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                        DataCell(Text(row.owner, style: const TextStyle(fontSize: 12))),
+                        DataCell(Text(row.supervisor, style: const TextStyle(fontSize: 12))),
+                        DataCell(_buildRiskFlagChip(row.riskFlag)),
                         DataCell(_buildShiftStatusChip(row.status)),
                         DataCell(Text(row.lastUpdated.isNotEmpty ? row.lastUpdated : '-', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
                         DataCell(Row(
@@ -1674,6 +1753,50 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+    );
+  }
+
+  Widget _buildComplianceChip(String compliance) {
+    Color bg;
+    Color fg;
+    switch (compliance.toLowerCase()) {
+      case 'compliant':
+        bg = const Color(0xFFF0FDF4); fg = const Color(0xFF16A34A); break;
+      case 'conditional':
+        bg = const Color(0xFFFFFBEB); fg = const Color(0xFFD97706); break;
+      case 'non-compliant':
+        bg = const Color(0xFFFEF2F2); fg = const Color(0xFFDC2626); break;
+      default:
+        bg = const Color(0xFFF1F5F9); fg = const Color(0xFF475569);
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      child: Text(compliance, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+    );
+  }
+
+  Widget _buildRiskFlagChip(String riskFlag) {
+    Color bg;
+    Color fg;
+    switch (riskFlag.toLowerCase()) {
+      case 'none':
+        bg = const Color(0xFFF0FDF4); fg = const Color(0xFF16A34A); break;
+      case 'low':
+        bg = const Color(0xFFEFF6FF); fg = const Color(0xFF2563EB); break;
+      case 'medium':
+        bg = const Color(0xFFFFFBEB); fg = const Color(0xFFD97706); break;
+      case 'high':
+        bg = const Color(0xFFFEF2F2); fg = const Color(0xFFDC2626); break;
+      case 'critical':
+        bg = const Color(0xFF7F1D1D); fg = const Color(0xFFFCA5A5); break;
+      default:
+        bg = const Color(0xFFF1F5F9); fg = const Color(0xFF475569);
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      child: Text(riskFlag, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 
@@ -1923,13 +2046,19 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
     final isEdit = editIndex != null;
     final existing = isEdit ? _capacityHealthRows[editIndex] : null;
     final teamCtrl = TextEditingController(text: existing?.team ?? '');
+    final plannedFteCtrl = TextEditingController(text: existing != null ? '${existing.plannedFte}' : '0.0');
     final allocatedFteCtrl = TextEditingController(text: existing != null ? '${existing.allocatedFte}' : '0.0');
     final availableFteCtrl = TextEditingController(text: existing != null ? '${existing.availableFte}' : '0.0');
     final utilizationCtrl = TextEditingController(text: existing != null ? '${existing.utilization}' : '0');
     final overallocatedCtrl = TextEditingController(text: existing != null ? '${existing.overallocated}' : '0.0');
+    final fteVarianceCtrl = TextEditingController(text: existing != null ? '${existing.fteVariance}' : '0.0');
     final burnRateCtrl = TextEditingController(text: existing != null ? '${existing.burnRate}' : '0');
+    final productivityIndexCtrl = TextEditingController(text: existing != null ? '${existing.productivityIndex}' : '100');
     final overtimeHrsCtrl = TextEditingController(text: existing != null ? '${existing.overtimeHrs}' : '0');
+    final absenteeismRateCtrl = TextEditingController(text: existing != null ? '${existing.absenteeismRate}' : '0.0');
     final skillGapCtrl = TextEditingController(text: existing != null ? '${existing.skillGap}' : '0');
+    final backlogWeeksCtrl = TextEditingController(text: existing != null ? '${existing.backlogWeeks}' : '0.0');
+    final costVarianceCtrl = TextEditingController(text: existing != null ? '${existing.costVariance}' : '0');
     final ownerCtrl = TextEditingController(text: existing?.owner ?? '');
     final lastUpdatedCtrl = TextEditingController(text: existing?.lastUpdated ?? 'Just now');
     String riskLevel = existing?.riskLevel ?? 'Medium';
@@ -1942,7 +2071,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
           title: Text(isEdit ? 'Edit Team' : 'Add Team'),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: SizedBox(
-            width: 480,
+            width: 560,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1950,6 +2079,8 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   TextField(controller: teamCtrl, decoration: const InputDecoration(labelText: 'Team Name', border: OutlineInputBorder()),),
                   const SizedBox(height: 14),
                   Row(children: [
+                    Expanded(child: TextField(controller: plannedFteCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Planned FTE', border: OutlineInputBorder()),)),
+                    const SizedBox(width: 10),
                     Expanded(child: TextField(controller: allocatedFteCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Allocated FTE', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
                     Expanded(child: TextField(controller: availableFteCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Available FTE', border: OutlineInputBorder()),)),
@@ -1959,23 +2090,37 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                     Expanded(child: TextField(controller: utilizationCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Utilization %', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
                     Expanded(child: TextField(controller: overallocatedCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Overallocated FTE', border: OutlineInputBorder()),)),
+                    const SizedBox(width: 10),
+                    Expanded(child: TextField(controller: fteVarianceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'FTE Variance', border: OutlineInputBorder()),)),
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
                     Expanded(child: TextField(controller: burnRateCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Burn Rate %', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
+                    Expanded(child: TextField(controller: productivityIndexCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Productivity Index %', border: OutlineInputBorder()),)),
+                  ]),
+                  const SizedBox(height: 14),
+                  Row(children: [
                     Expanded(child: TextField(controller: overtimeHrsCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Overtime Hours', border: OutlineInputBorder()),)),
+                    const SizedBox(width: 10),
+                    Expanded(child: TextField(controller: absenteeismRateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Absenteeism Rate %', border: OutlineInputBorder()),)),
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
                     Expanded(child: TextField(controller: skillGapCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Skill Gap Count', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
-                    Expanded(child: TextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()),)),
+                    Expanded(child: TextField(controller: backlogWeeksCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Backlog Weeks', border: OutlineInputBorder()),)),
+                    const SizedBox(width: 10),
+                    Expanded(child: TextField(controller: costVarianceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Cost Variance %', border: OutlineInputBorder()),)),
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
-                    Expanded(child: TextField(controller: lastUpdatedCtrl, decoration: const InputDecoration(labelText: 'Last Updated', border: OutlineInputBorder()),)),
+                    Expanded(child: TextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
+                    Expanded(child: TextField(controller: lastUpdatedCtrl, decoration: const InputDecoration(labelText: 'Last Updated', border: OutlineInputBorder()),)),
+                  ]),
+                  const SizedBox(height: 14),
+                  Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: riskLevel,
@@ -1984,14 +2129,16 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         onChanged: (v) => setDialogState(() => riskLevel = v ?? 'Medium'),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: status,
+                        decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+                        items: ['Active', 'On Track', 'Under Review', 'At Risk', 'Monitoring'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (v) => setDialogState(() => status = v ?? 'Active'),
+                      ),
+                    ),
                   ]),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
-                    value: status,
-                    decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-                    items: ['Active', 'On Track', 'Under Review', 'At Risk', 'Monitoring'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                    onChanged: (v) => setDialogState(() => status = v ?? 'Active'),
-                  ),
                 ],
               ),
             ),
@@ -2002,13 +2149,19 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
               onPressed: () {
                 final row = _CapacityHealthRow(
                   team: teamCtrl.text.trim(),
+                  plannedFte: double.tryParse(plannedFteCtrl.text) ?? 0.0,
                   allocatedFte: double.tryParse(allocatedFteCtrl.text) ?? 0.0,
                   availableFte: double.tryParse(availableFteCtrl.text) ?? 0.0,
                   utilization: int.tryParse(utilizationCtrl.text) ?? 0,
                   overallocated: double.tryParse(overallocatedCtrl.text) ?? 0.0,
+                  fteVariance: double.tryParse(fteVarianceCtrl.text) ?? 0.0,
                   burnRate: int.tryParse(burnRateCtrl.text) ?? 0,
+                  productivityIndex: int.tryParse(productivityIndexCtrl.text) ?? 100,
                   overtimeHrs: int.tryParse(overtimeHrsCtrl.text) ?? 0,
+                  absenteeismRate: double.tryParse(absenteeismRateCtrl.text) ?? 0.0,
                   skillGap: int.tryParse(skillGapCtrl.text) ?? 0,
+                  backlogWeeks: double.tryParse(backlogWeeksCtrl.text) ?? 0.0,
+                  costVariance: int.tryParse(costVarianceCtrl.text) ?? 0,
                   riskLevel: riskLevel,
                   owner: ownerCtrl.text.trim(),
                   status: status,
@@ -2070,9 +2223,13 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
     final shiftPatternCtrl = TextEditingController(text: existing?.shiftPattern ?? '');
     final overtimeHrsCtrl = TextEditingController(text: existing != null ? '${existing.overtimeHrs}' : '0');
     final contractorFillCtrl = TextEditingController(text: existing != null ? '${existing.contractorFill}' : '0');
+    final agencyStaffCtrl = TextEditingController(text: existing != null ? '${existing.agencyStaff}' : '0');
+    final absenceCountCtrl = TextEditingController(text: existing != null ? '${existing.absenceCount}' : '0');
     final nextRotationCtrl = TextEditingController(text: existing?.nextRotation ?? '');
-    final ownerCtrl = TextEditingController(text: existing?.owner ?? '');
+    final supervisorCtrl = TextEditingController(text: existing?.supervisor ?? '');
     final lastUpdatedCtrl = TextEditingController(text: existing?.lastUpdated ?? 'Just now');
+    String complianceStatus = existing?.complianceStatus ?? 'Compliant';
+    String riskFlag = existing?.riskFlag ?? 'None';
     String status = existing?.status ?? 'Covered';
 
     showDialog(
@@ -2082,7 +2239,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
           title: Text(isEdit ? 'Edit Shift' : 'Add Shift'),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: SizedBox(
-            width: 480,
+            width: 560,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -2093,38 +2250,64 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                     Expanded(child: TextField(controller: requiredHeadcountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Required Headcount', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
                     Expanded(child: TextField(controller: actualHeadcountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Actual Headcount', border: OutlineInputBorder()),)),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
+                    const SizedBox(width: 10),
                     Expanded(child: TextField(controller: coveragePercentCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Coverage %', border: OutlineInputBorder()),)),
-                    const SizedBox(width: 10),
+                  ]),
+                  const SizedBox(height: 14),
+                  Row(children: [
                     Expanded(child: TextField(controller: gapCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Gap', border: OutlineInputBorder()),)),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Expanded(child: TextField(controller: shiftPatternCtrl, decoration: const InputDecoration(labelText: 'Shift Pattern', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
-                    Expanded(child: TextField(controller: overtimeHrsCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Overtime Hours', border: OutlineInputBorder()),)),
+                    Expanded(child: TextField(controller: shiftPatternCtrl, decoration: const InputDecoration(labelText: 'Shift Pattern', border: OutlineInputBorder()),)),
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
+                    Expanded(child: TextField(controller: overtimeHrsCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Overtime Hours', border: OutlineInputBorder()),)),
+                    const SizedBox(width: 10),
                     Expanded(child: TextField(controller: contractorFillCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Contractor Fill', border: OutlineInputBorder()),)),
+                    const SizedBox(width: 10),
+                    Expanded(child: TextField(controller: agencyStaffCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Agency Staff', border: OutlineInputBorder()),)),
+                  ]),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    Expanded(child: TextField(controller: absenceCountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Absence Count', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
                     Expanded(child: TextField(controller: nextRotationCtrl, decoration: const InputDecoration(labelText: 'Next Rotation', border: OutlineInputBorder()),)),
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
-                    Expanded(child: TextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()),)),
+                    Expanded(child: TextField(controller: supervisorCtrl, decoration: const InputDecoration(labelText: 'Supervisor', border: OutlineInputBorder()),)),
                     const SizedBox(width: 10),
                     Expanded(child: TextField(controller: lastUpdatedCtrl, decoration: const InputDecoration(labelText: 'Last Updated', border: OutlineInputBorder()),)),
                   ]),
                   const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
-                    value: status,
-                    decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-                    items: ['Full', 'Covered', 'Partial', 'Understaffed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                    onChanged: (v) => setDialogState(() => status = v ?? 'Covered'),
-                  ),
+                  Row(children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: complianceStatus,
+                        decoration: const InputDecoration(labelText: 'Compliance', border: OutlineInputBorder()),
+                        items: ['Compliant', 'Conditional', 'Non-Compliant'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (v) => setDialogState(() => complianceStatus = v ?? 'Compliant'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: riskFlag,
+                        decoration: const InputDecoration(labelText: 'Risk Flag', border: OutlineInputBorder()),
+                        items: ['None', 'Low', 'Medium', 'High', 'Critical'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (v) => setDialogState(() => riskFlag = v ?? 'None'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: status,
+                        decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+                        items: ['Full', 'Covered', 'Partial', 'Understaffed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (v) => setDialogState(() => status = v ?? 'Covered'),
+                      ),
+                    ),
+                  ]),
                 ],
               ),
             ),
@@ -2142,8 +2325,12 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   shiftPattern: shiftPatternCtrl.text.trim(),
                   overtimeHrs: int.tryParse(overtimeHrsCtrl.text) ?? 0,
                   contractorFill: int.tryParse(contractorFillCtrl.text) ?? 0,
+                  agencyStaff: int.tryParse(agencyStaffCtrl.text) ?? 0,
+                  absenceCount: int.tryParse(absenceCountCtrl.text) ?? 0,
+                  complianceStatus: complianceStatus,
                   nextRotation: nextRotationCtrl.text.trim(),
-                  owner: ownerCtrl.text.trim(),
+                  supervisor: supervisorCtrl.text.trim(),
+                  riskFlag: riskFlag,
                   status: status,
                   lastUpdated: lastUpdatedCtrl.text.trim().isNotEmpty ? lastUpdatedCtrl.text.trim() : 'Just now',
                 );
@@ -2583,13 +2770,19 @@ class _ActionVelocityRow {
 class _CapacityHealthRow {
   const _CapacityHealthRow({
     required this.team,
+    required this.plannedFte,
     required this.allocatedFte,
     required this.availableFte,
     required this.utilization,
     required this.overallocated,
+    required this.fteVariance,
     required this.burnRate,
+    required this.productivityIndex,
     required this.overtimeHrs,
+    required this.absenteeismRate,
     required this.skillGap,
+    required this.backlogWeeks,
+    required this.costVariance,
     required this.riskLevel,
     required this.owner,
     required this.status,
@@ -2597,13 +2790,19 @@ class _CapacityHealthRow {
   });
 
   final String team;
+  final double plannedFte;
   final double allocatedFte;
   final double availableFte;
   final int utilization;
   final double overallocated;
+  final double fteVariance;
   final int burnRate;
+  final int productivityIndex;
   final int overtimeHrs;
+  final double absenteeismRate;
   final int skillGap;
+  final double backlogWeeks;
+  final int costVariance;
   final String riskLevel;
   final String owner;
   final String status;
@@ -2611,13 +2810,19 @@ class _CapacityHealthRow {
 
   Map<String, dynamic> toMap() => {
     'team': team,
+    'plannedFte': plannedFte,
     'allocatedFte': allocatedFte,
     'availableFte': availableFte,
     'utilization': utilization,
     'overallocated': overallocated,
+    'fteVariance': fteVariance,
     'burnRate': burnRate,
+    'productivityIndex': productivityIndex,
     'overtimeHrs': overtimeHrs,
+    'absenteeismRate': absenteeismRate,
     'skillGap': skillGap,
+    'backlogWeeks': backlogWeeks,
+    'costVariance': costVariance,
     'riskLevel': riskLevel,
     'owner': owner,
     'status': status,
@@ -2626,13 +2831,19 @@ class _CapacityHealthRow {
 
   static _CapacityHealthRow fromMap(Map<String, dynamic> map) => _CapacityHealthRow(
     team: map['team']?.toString() ?? '',
+    plannedFte: (map['plannedFte'] is num) ? (map['plannedFte'] as num).toDouble() : double.tryParse(map['plannedFte'].toString()) ?? 0.0,
     allocatedFte: (map['allocatedFte'] is num) ? (map['allocatedFte'] as num).toDouble() : double.tryParse(map['allocatedFte'].toString()) ?? 0.0,
     availableFte: (map['availableFte'] is num) ? (map['availableFte'] as num).toDouble() : double.tryParse(map['availableFte'].toString()) ?? 0.0,
     utilization: (map['utilization'] is int) ? map['utilization'] as int : int.tryParse(map['utilization'].toString()) ?? 0,
     overallocated: (map['overallocated'] is num) ? (map['overallocated'] as num).toDouble() : double.tryParse(map['overallocated'].toString()) ?? 0.0,
+    fteVariance: (map['fteVariance'] is num) ? (map['fteVariance'] as num).toDouble() : double.tryParse(map['fteVariance'].toString()) ?? 0.0,
     burnRate: (map['burnRate'] is int) ? map['burnRate'] as int : int.tryParse(map['burnRate'].toString()) ?? 0,
+    productivityIndex: (map['productivityIndex'] is int) ? map['productivityIndex'] as int : int.tryParse(map['productivityIndex'].toString()) ?? 100,
     overtimeHrs: (map['overtimeHrs'] is int) ? map['overtimeHrs'] as int : int.tryParse(map['overtimeHrs'].toString()) ?? 0,
+    absenteeismRate: (map['absenteeismRate'] is num) ? (map['absenteeismRate'] as num).toDouble() : double.tryParse(map['absenteeismRate'].toString()) ?? 0.0,
     skillGap: (map['skillGap'] is int) ? map['skillGap'] as int : int.tryParse(map['skillGap'].toString()) ?? 0,
+    backlogWeeks: (map['backlogWeeks'] is num) ? (map['backlogWeeks'] as num).toDouble() : double.tryParse(map['backlogWeeks'].toString()) ?? 0.0,
+    costVariance: (map['costVariance'] is int) ? map['costVariance'] as int : int.tryParse(map['costVariance'].toString()) ?? 0,
     riskLevel: map['riskLevel']?.toString() ?? 'Medium',
     owner: map['owner']?.toString() ?? '',
     status: map['status']?.toString() ?? 'Active',
@@ -2650,8 +2861,12 @@ class _ShiftCoverageRow {
     required this.shiftPattern,
     required this.overtimeHrs,
     required this.contractorFill,
+    required this.agencyStaff,
+    required this.absenceCount,
+    required this.complianceStatus,
     required this.nextRotation,
-    required this.owner,
+    required this.supervisor,
+    required this.riskFlag,
     required this.status,
     this.lastUpdated = '',
   });
@@ -2664,8 +2879,12 @@ class _ShiftCoverageRow {
   final String shiftPattern;
   final int overtimeHrs;
   final int contractorFill;
+  final int agencyStaff;
+  final int absenceCount;
+  final String complianceStatus;
   final String nextRotation;
-  final String owner;
+  final String supervisor;
+  final String riskFlag;
   final String status;
   final String lastUpdated;
 
@@ -2678,8 +2897,12 @@ class _ShiftCoverageRow {
     'shiftPattern': shiftPattern,
     'overtimeHrs': overtimeHrs,
     'contractorFill': contractorFill,
+    'agencyStaff': agencyStaff,
+    'absenceCount': absenceCount,
+    'complianceStatus': complianceStatus,
     'nextRotation': nextRotation,
-    'owner': owner,
+    'supervisor': supervisor,
+    'riskFlag': riskFlag,
     'status': status,
     'lastUpdated': lastUpdated,
   };
@@ -2693,8 +2916,12 @@ class _ShiftCoverageRow {
     shiftPattern: map['shiftPattern']?.toString() ?? '',
     overtimeHrs: (map['overtimeHrs'] is int) ? map['overtimeHrs'] as int : int.tryParse(map['overtimeHrs'].toString()) ?? 0,
     contractorFill: (map['contractorFill'] is int) ? map['contractorFill'] as int : int.tryParse(map['contractorFill'].toString()) ?? 0,
+    agencyStaff: (map['agencyStaff'] is int) ? map['agencyStaff'] as int : int.tryParse(map['agencyStaff'].toString()) ?? 0,
+    absenceCount: (map['absenceCount'] is int) ? map['absenceCount'] as int : int.tryParse(map['absenceCount'].toString()) ?? 0,
+    complianceStatus: map['complianceStatus']?.toString() ?? 'Compliant',
     nextRotation: map['nextRotation']?.toString() ?? '',
-    owner: map['owner']?.toString() ?? '',
+    supervisor: map['supervisor']?.toString() ?? '',
+    riskFlag: map['riskFlag']?.toString() ?? 'None',
     status: map['status']?.toString() ?? 'Covered',
     lastUpdated: map['lastUpdated']?.toString() ?? '',
   );
