@@ -28,24 +28,6 @@ class PunchlistActionsScreen extends StatefulWidget {
 class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
   static const double _panelMinHeight = 360;
 
-  final Set<String> _selectedScopeFilters = {'All open'};
-  final Set<String> _selectedViewFilters = {'Show overdue'};
-
-  static const List<String> _scopeOptions = [
-    'All open',
-    'Due this week',
-    'Field fix',
-    'In QA review',
-    'Blocked',
-  ];
-
-  static const List<String> _viewOptions = [
-    'Show overdue',
-    'Only high risk',
-    'Include archived',
-    'Flagged for launch',
-  ];
-
   /*
   final List<_PunchlistInsight> _priorityItems = const [
     _PunchlistInsight(
@@ -211,8 +193,6 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         _buildContextHeader(context),
                         const SizedBox(height: 18),
                         _buildPageHeader(context),
-                        const SizedBox(height: 20),
-                        _buildFilterToolbar(context),
                         const SizedBox(height: 26),
                         _buildSummaryGrid(context),
                         const SizedBox(height: 26),
@@ -567,137 +547,6 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
           ],
         );
       },
-    );
-  }
-
-  Widget _buildFilterToolbar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFFEBF0F6)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final bool stack = constraints.maxWidth < 860;
-              final chips = Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: _scopeOptions
-                    .map(
-                      (option) => ChoiceChip(
-                        label: Text(option),
-                        selected: _selectedScopeFilters.contains(option),
-                        onSelected: (_) => setState(() {
-                          _selectedScopeFilters
-                            ..clear()
-                            ..add(option);
-                        }),
-                        showCheckmark: false,
-                        backgroundColor: const Color(0xFFF3F4F6),
-                        selectedColor: const Color(0xFFEFF6FF),
-                        labelStyle: TextStyle(
-                          fontWeight: _selectedScopeFilters.contains(option)
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: _selectedScopeFilters.contains(option)
-                              ? const Color(0xFF1D4ED8)
-                              : const Color(0xFF4B5563),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18)),
-                      ),
-                    )
-                    .toList(),
-              );
-
-              final searchField = SizedBox(
-                width: stack ? double.infinity : 260,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search punch items, owners, keywords…',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              );
-
-              if (stack) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    chips,
-                    const SizedBox(height: 18),
-                    searchField,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: chips),
-                  const SizedBox(width: 24),
-                  searchField,
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _viewOptions
-                .map(
-                  (option) => FilterChip(
-                    label: Text(option),
-                    selected: _selectedViewFilters.contains(option),
-                    onSelected: (_) => setState(() {
-                      if (_selectedViewFilters.contains(option)) {
-                        _selectedViewFilters.remove(option);
-                      } else {
-                        _selectedViewFilters.add(option);
-                      }
-                    }),
-                    showCheckmark: false,
-                    backgroundColor: const Color(0xFFF4F4F5),
-                    selectedColor: const Color(0xFFEDE9FE),
-                    labelStyle: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: _selectedViewFilters.contains(option)
-                          ? const Color(0xFF5B21B6)
-                          : const Color(0xFF4B5563),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18)),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
     );
   }
 
