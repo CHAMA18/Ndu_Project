@@ -909,7 +909,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         children: [
           // Summary bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
@@ -918,11 +918,11 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
             child: Row(
               children: [
                 _summaryMetric(label: 'Total Items', value: '$grandTotal', color: const Color(0xFF1E293B)),
-                const SizedBox(width: 28),
+                const SizedBox(width: 20),
                 _summaryMetric(label: 'Open', value: '$grandOpen', color: const Color(0xFFF59E0B)),
-                const SizedBox(width: 28),
+                const SizedBox(width: 20),
                 _summaryMetric(label: 'Closed', value: '$grandClosed', color: const Color(0xFF22C55E)),
-                const SizedBox(width: 28),
+                const SizedBox(width: 20),
                 _summaryMetric(label: 'Completion', value: '${grandPct.toStringAsFixed(1)}%', color: const Color(0xFF2563EB)),
                 const Spacer(),
                 FilledButton.icon(
@@ -930,7 +930,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Category'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     backgroundColor: const Color(0xFF2563EB),
                   ),
@@ -938,7 +938,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           // Full-width table
           LayoutBuilder(
             builder: (context, constraints) {
@@ -948,15 +948,15 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
-                    headingRowHeight: 36,
-                    dataRowMinHeight: 28,
-                    dataRowMaxHeight: 34,
+                    headingRowHeight: 30,
+                    dataRowMinHeight: 22,
+                    dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
                     ),
-                    dataTextStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
-                    columnSpacing: 12,
-                    horizontalMargin: 12,
+                    dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
+                    columnSpacing: 8,
+                    horizontalMargin: 8,
                     columns: const [
                       DataColumn(label: Text('Category')),
                       DataColumn(label: Text('Open'), numeric: true),
@@ -992,15 +992,15 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         DataCell(_numberCell('${row.low}', const Color(0xFF22C55E))),
                         DataCell(_numberCell('${row.closed}', const Color(0xFF22C55E))),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8)),
                           child: Text('${row.total}', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8))),
                         )),
                         DataCell(Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 60,
+                              width: 48,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
@@ -1009,11 +1009,11 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                                   valueColor: AlwaysStoppedAnimation(
                                     pct >= 70 ? const Color(0xFF22C55E) : pct >= 40 ? const Color(0xFF2563EB) : const Color(0xFFEF4444),
                                   ),
-                                  minHeight: 6,
+                                  minHeight: 4,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 4),
                             Text('${pct.toStringAsFixed(0)}%', style: TextStyle(
                               fontWeight: FontWeight.w700, fontSize: 12,
                               color: pct >= 70 ? const Color(0xFF16A34A) : pct >= 40 ? const Color(0xFF2563EB) : const Color(0xFFDC2626),
@@ -1075,7 +1075,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         children: [
           // Summary bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
@@ -1084,11 +1084,11 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
             child: Row(
               children: [
                 _summaryMetric(label: 'Total Open', value: '$totalOpen', color: const Color(0xFFF59E0B)),
-                const SizedBox(width: 28),
+                const SizedBox(width: 20),
                 _summaryMetric(label: 'Closed Sprint', value: '$totalClosed', color: const Color(0xFF22C55E)),
-                const SizedBox(width: 28),
+                const SizedBox(width: 20),
                 _summaryMetric(label: 'Avg Velocity', value: '${avgVelocity.toStringAsFixed(0)}%', color: const Color(0xFF2563EB)),
-                const SizedBox(width: 28),
+                const SizedBox(width: 20),
                 _summaryMetric(label: 'Avg Cycle Time', value: '${avgCycle.toStringAsFixed(1)}d', color: const Color(0xFF7C3AED)),
                 const Spacer(),
                 FilledButton.icon(
@@ -1096,7 +1096,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Workstream'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     backgroundColor: const Color(0xFF2563EB),
                   ),
@@ -1104,7 +1104,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           // Full-width table
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1114,15 +1114,15 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
-                    headingRowHeight: 36,
-                    dataRowMinHeight: 28,
-                    dataRowMaxHeight: 34,
+                    headingRowHeight: 30,
+                    dataRowMinHeight: 22,
+                    dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
                     ),
-                    dataTextStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
-                    columnSpacing: 12,
-                    horizontalMargin: 12,
+                    dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
+                    columnSpacing: 8,
+                    horizontalMargin: 8,
                     columns: const [
                       DataColumn(label: Text('Workstream')),
                       DataColumn(label: Text('Open'), numeric: true),
@@ -1155,7 +1155,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 70,
+                              width: 56,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(6),
                                 child: LinearProgressIndicator(
@@ -1181,7 +1181,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ))),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: isPositive ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(10),
@@ -1193,7 +1193,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           ]),
                         )),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: row.avgCycleTime <= 3.0 ? const Color(0xFFF0FDF4) : row.avgCycleTime <= 5.0 ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(8),
@@ -1246,7 +1246,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         children: [
           // Summary bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
@@ -1270,7 +1270,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Team'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     backgroundColor: const Color(0xFF2563EB),
                   ),
@@ -1278,7 +1278,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           // Full-width table
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1288,15 +1288,15 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
-                    headingRowHeight: 36,
-                    dataRowMinHeight: 28,
-                    dataRowMaxHeight: 34,
+                    headingRowHeight: 30,
+                    dataRowMinHeight: 22,
+                    dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
                     ),
-                    dataTextStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
-                    columnSpacing: 12,
-                    horizontalMargin: 12,
+                    dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
+                    columnSpacing: 8,
+                    horizontalMargin: 8,
                     columns: const [
                       DataColumn(label: Text('Team')),
                       DataColumn(label: Text('Planned FTE'), numeric: true),
@@ -1337,7 +1337,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         DataCell(_numberCell(row.allocatedFte.toStringAsFixed(1), const Color(0xFF1E293B))),
                         DataCell(_numberCell(row.availableFte.toStringAsFixed(1), const Color(0xFF22C55E))),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: row.fteVariance < -1.0 ? const Color(0xFFFEF2F2) : row.fteVariance < 0 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
                             borderRadius: BorderRadius.circular(8),
@@ -1352,7 +1352,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 60,
+                              width: 48,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
@@ -1361,7 +1361,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                                   valueColor: AlwaysStoppedAnimation(
                                     row.utilization >= 90 ? const Color(0xFFEF4444) : row.utilization >= 75 ? const Color(0xFFF59E0B) : const Color(0xFF22C55E),
                                   ),
-                                  minHeight: 6,
+                                  minHeight: 4,
                                 ),
                               ),
                             ),
@@ -1375,7 +1375,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         )),
                         DataCell(_numberCell(row.overallocated.toStringAsFixed(1), row.overallocated > 0 ? const Color(0xFFEF4444) : const Color(0xFF94A3B8))),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: row.burnRate >= 90 ? const Color(0xFFFEF2F2) : row.burnRate >= 75 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
                             borderRadius: BorderRadius.circular(8),
@@ -1387,7 +1387,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           )),
                         )),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: row.productivityIndex >= 100 ? const Color(0xFFF0FDF4) : row.productivityIndex >= 85 ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(8),
@@ -1403,7 +1403,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         DataCell(_numberCell('${row.skillGap}', row.skillGap >= 3 ? const Color(0xFFEF4444) : row.skillGap >= 1 ? const Color(0xFFF59E0B) : const Color(0xFF22C55E))),
                         DataCell(_numberCell('${row.backlogWeeks.toStringAsFixed(1)}w', row.backlogWeeks > 5.0 ? const Color(0xFFEF4444) : row.backlogWeeks > 3.5 ? const Color(0xFFF59E0B) : const Color(0xFF0EA5E9))),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: row.costVariance < -5 ? const Color(0xFFFEF2F2) : row.costVariance < 0 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
                             borderRadius: BorderRadius.circular(8),
@@ -1456,7 +1456,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         children: [
           // Summary bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
@@ -1481,7 +1481,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Shift'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     backgroundColor: const Color(0xFF2563EB),
                   ),
@@ -1489,7 +1489,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           // Full-width table
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1499,15 +1499,15 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
-                    headingRowHeight: 36,
-                    dataRowMinHeight: 28,
-                    dataRowMaxHeight: 34,
+                    headingRowHeight: 30,
+                    dataRowMinHeight: 22,
+                    dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
                     ),
-                    dataTextStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
-                    columnSpacing: 12,
-                    horizontalMargin: 12,
+                    dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
+                    columnSpacing: 8,
+                    horizontalMargin: 8,
                     columns: const [
                       DataColumn(label: Text('Shift')),
                       DataColumn(label: Text('Required'), numeric: true),
@@ -1548,7 +1548,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 60,
+                              width: 48,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
@@ -1557,7 +1557,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                                   valueColor: AlwaysStoppedAnimation(
                                     row.coveragePercent >= 95 ? const Color(0xFF22C55E) : row.coveragePercent >= 80 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444),
                                   ),
-                                  minHeight: 6,
+                                  minHeight: 4,
                                 ),
                               ),
                             ),
@@ -1570,7 +1570,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           ],
                         )),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: row.gap == 0 ? const Color(0xFFF0FDF4) : row.gap <= 2 ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(10),
@@ -1586,7 +1586,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         DataCell(_numberCell('${row.contractorFill}', row.contractorFill > 0 ? const Color(0xFF7C3AED) : const Color(0xFF94A3B8))),
                         DataCell(_numberCell('${row.agencyStaff}', row.agencyStaff > 0 ? const Color(0xFF0EA5E9) : const Color(0xFF94A3B8))),
                         DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: row.absenceCount == 0 ? const Color(0xFFF0FDF4) : row.absenceCount <= 2 ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(8),
@@ -1708,7 +1708,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         bg = const Color(0xFFF1F5F9); fg = const Color(0xFF475569);
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
     );
@@ -1728,7 +1728,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         bg = const Color(0xFFF1F5F9); fg = const Color(0xFF475569);
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(riskLevel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
     );
@@ -1750,7 +1750,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         bg = const Color(0xFFF1F5F9); fg = const Color(0xFF475569);
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
     );
@@ -1770,7 +1770,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         bg = const Color(0xFFF1F5F9); fg = const Color(0xFF475569);
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(compliance, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
     );
@@ -1794,7 +1794,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
         bg = const Color(0xFFF1F5F9); fg = const Color(0xFF475569);
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(riskFlag, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
     );
