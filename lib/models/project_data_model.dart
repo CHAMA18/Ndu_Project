@@ -3349,35 +3349,115 @@ class DebtItem {
 class DebtInsight {
   String title;
   String subtitle;
+  String evidence;
+  String control;
+  String tier;
+  int colorValue;
 
-  DebtInsight({this.title = '', this.subtitle = ''});
+  DebtInsight({
+    this.title = '',
+    this.subtitle = '',
+    this.evidence = '',
+    this.control = '',
+    this.tier = 'Medium',
+    this.colorValue = 0xFF6366F1,
+  });
 
-  Map<String, dynamic> toJson() => {'title': title, 'subtitle': subtitle};
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'subtitle': subtitle,
+        'evidence': evidence,
+        'control': control,
+        'tier': tier,
+        'colorValue': colorValue,
+      };
 
   factory DebtInsight.fromJson(Map<String, dynamic> json) => DebtInsight(
         title: json['title'] ?? '',
         subtitle: json['subtitle'] ?? '',
+        evidence: json['evidence'] ?? '',
+        control: json['control'] ?? '',
+        tier: json['tier'] ?? 'Medium',
+        colorValue: json['colorValue'] ?? 0xFF6366F1,
+      );
+
+  DebtInsight copyWith({
+    String? title,
+    String? subtitle,
+    String? evidence,
+    String? control,
+    String? tier,
+    int? colorValue,
+  }) =>
+      DebtInsight(
+        title: title ?? this.title,
+        subtitle: subtitle ?? this.subtitle,
+        evidence: evidence ?? this.evidence,
+        control: control ?? this.control,
+        tier: tier ?? this.tier,
+        colorValue: colorValue ?? this.colorValue,
       );
 }
 
 class RemediationTrack {
   String label;
+  String secondary;
+  String exitCriteria;
+  String evidence;
+  String ownerCadence;
   double progress;
   int colorValue;
 
-  RemediationTrack(
-      {this.label = '', this.progress = 0.0, this.colorValue = 0xFF6366F1});
+  RemediationTrack({
+    this.label = '',
+    this.secondary = '',
+    this.exitCriteria = '',
+    this.evidence = '',
+    this.ownerCadence = '',
+    this.progress = 0.0,
+    this.colorValue = 0xFF6366F1,
+  });
 
-  Map<String, dynamic> toJson() =>
-      {'label': label, 'progress': progress, 'colorValue': colorValue};
+  Map<String, dynamic> toJson() => {
+        'label': label,
+        'secondary': secondary,
+        'exitCriteria': exitCriteria,
+        'evidence': evidence,
+        'ownerCadence': ownerCadence,
+        'progress': progress,
+        'colorValue': colorValue,
+      };
 
   factory RemediationTrack.fromJson(Map<String, dynamic> json) =>
       RemediationTrack(
         label: json['label'] ?? '',
+        secondary: json['secondary'] ?? '',
+        exitCriteria: json['exitCriteria'] ?? '',
+        evidence: json['evidence'] ?? '',
+        ownerCadence: json['ownerCadence'] ?? '',
         progress: (json['progress'] is num)
             ? (json['progress'] as num).toDouble()
             : 0.0,
         colorValue: json['colorValue'] ?? 0xFF6366F1,
+      );
+
+  RemediationTrack copyWith({
+    String? label,
+    String? secondary,
+    String? exitCriteria,
+    String? evidence,
+    String? ownerCadence,
+    double? progress,
+    int? colorValue,
+  }) =>
+      RemediationTrack(
+        label: label ?? this.label,
+        secondary: secondary ?? this.secondary,
+        exitCriteria: exitCriteria ?? this.exitCriteria,
+        evidence: evidence ?? this.evidence,
+        ownerCadence: ownerCadence ?? this.ownerCadence,
+        progress: progress ?? this.progress,
+        colorValue: colorValue ?? this.colorValue,
       );
 }
 
@@ -3385,15 +3465,58 @@ class OwnerItem {
   String name;
   String count;
   String note;
+  String workstream;
+  String scope;
+  String coverage;
+  String escalation;
 
-  OwnerItem({this.name = '', this.count = '', this.note = ''});
+  OwnerItem({
+    this.name = '',
+    this.count = '1',
+    this.note = '',
+    this.workstream = '',
+    this.scope = '',
+    this.coverage = '',
+    this.escalation = '',
+  });
 
-  Map<String, dynamic> toJson() => {'name': name, 'count': count, 'note': note};
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'count': count,
+        'note': note,
+        'workstream': workstream,
+        'scope': scope,
+        'coverage': coverage,
+        'escalation': escalation,
+      };
 
   factory OwnerItem.fromJson(Map<String, dynamic> json) => OwnerItem(
         name: json['name'] ?? '',
-        count: json['count'] ?? '',
+        count: json['count'] ?? '1',
         note: json['note'] ?? '',
+        workstream: json['workstream'] ?? '',
+        scope: json['scope'] ?? '',
+        coverage: json['coverage'] ?? '',
+        escalation: json['escalation'] ?? '',
+      );
+
+  OwnerItem copyWith({
+    String? name,
+    String? count,
+    String? note,
+    String? workstream,
+    String? scope,
+    String? coverage,
+    String? escalation,
+  }) =>
+      OwnerItem(
+        name: name ?? this.name,
+        count: count ?? this.count,
+        note: note ?? this.note,
+        workstream: workstream ?? this.workstream,
+        scope: scope ?? this.scope,
+        coverage: coverage ?? this.coverage,
+        escalation: escalation ?? this.escalation,
       );
 }
 
