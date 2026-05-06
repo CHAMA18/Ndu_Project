@@ -744,56 +744,13 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
     double horizontalSpacing = 20,
     double verticalSpacing = 20,
   }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double maxWidth = constraints.maxWidth;
-        final int columns;
-        if (maxWidth >= 1400) {
-          columns = 3;
-        } else if (maxWidth >= 980) {
-          columns = 2;
-        } else {
-          columns = 1;
-        }
-
-        if (columns == 1) {
-          return Column(
-            children: [
-              for (int i = 0; i < cards.length; i++) ...[
-                cards[i],
-                if (i != cards.length - 1) SizedBox(height: verticalSpacing),
-              ],
-            ],
-          );
-        }
-
-        final rows = <Widget>[];
-        for (int i = 0; i < cards.length; i += columns) {
-          final int end =
-              (i + columns) > cards.length ? cards.length : i + columns;
-          final rowCards = cards.sublist(i, end);
-          rows.add(
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (int j = 0; j < rowCards.length; j++) ...[
-                    Expanded(child: rowCards[j]),
-                    if (j != rowCards.length - 1)
-                      SizedBox(width: horizontalSpacing),
-                  ],
-                ],
-              ),
-            ),
-          );
-
-          if (i + columns < cards.length) {
-            rows.add(SizedBox(height: verticalSpacing));
-          }
-        }
-
-        return Column(children: rows);
-      },
+    return Column(
+      children: [
+        for (int i = 0; i < cards.length; i++) ...[
+          cards[i],
+          if (i != cards.length - 1) SizedBox(height: verticalSpacing),
+        ],
+      ],
     );
   }
 
