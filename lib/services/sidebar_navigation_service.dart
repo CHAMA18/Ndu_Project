@@ -140,6 +140,7 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'team_training', label: 'Training & Team Building'),
     SidebarItem(
         checkpoint: 'stakeholder_management', label: 'Stakeholder Management'),
+    SidebarItem(checkpoint: 'team_management', label: 'Team Management'),
     SidebarItem(checkpoint: 'ssher', label: 'SSHER'),
     SidebarItem(checkpoint: 'quality_management', label: 'Quality Management'),
     // Execution Plan sub-items
