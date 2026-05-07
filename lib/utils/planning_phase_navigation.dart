@@ -6,6 +6,7 @@ import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/screens/organization_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/team_training_building_screen.dart';
 import 'package:ndu_project/screens/stakeholder_management_screen.dart';
+import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/quality_management_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
@@ -78,6 +79,11 @@ class PlanningPhaseNavigation {
       id: 'stakeholder_management',
       title: 'Stakeholder Management',
       builder: (_) => const StakeholderManagementScreen(),
+    ),
+    PlanningPage(
+      id: 'team_management',
+      title: 'Team Management',
+      builder: (_) => const TeamManagementScreen(),
     ),
     PlanningPage(
       id: 'ssher',
