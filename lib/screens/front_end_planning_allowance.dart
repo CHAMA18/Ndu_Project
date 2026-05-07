@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/models/project_data_model.dart';
@@ -51,6 +52,37 @@ class _FrontEndPlanningAllowanceScreenState
   bool _isGenerating = false;
   late final OpenAiServiceSecure _openAi;
 
+  String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  Future<bool> _isSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .get();
+      return doc.data()?[flagKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,7 +104,7 @@ class _FrontEndPlanningAllowanceScreenState
       _isSyncReady = true;
       _syncItemsToProvider();
       if (_allowanceItems.isEmpty) {
-        Future<void>(() async => _generateDefaultAllowances());
+        _checkAndGenerateDefaultAllowances();
       }
       setState(() {});
     });
@@ -114,6 +146,16 @@ class _FrontEndPlanningAllowanceScreenState
       },
     );
     provider.saveToFirebase(checkpoint: 'fep_allowance');
+    if (_allowanceItems.isNotEmpty) {
+      _markSectionInitialized('allowance_initialized');
+    }
+  }
+
+  Future<void> _checkAndGenerateDefaultAllowances() async {
+    final initialized = await _isSectionInitialized('allowance_initialized');
+    if (!initialized && mounted) {
+      await _generateDefaultAllowances();
+    }
   }
 
   Future<void> _generateDefaultAllowances() async {

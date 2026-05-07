@@ -697,6 +697,35 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
 
   ProjectDataModel get _data => ProjectDataHelper.getData(context);
 
+  Future<bool> _isSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .get();
+      return doc.data()?[flagKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   void _importOverview() {
     final data = _data;
     _suspendOverviewSave = true;
@@ -1212,7 +1241,10 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           assumptions.isEmpty &&
           milestones.isEmpty;
       if (allEmpty) {
-        _importOverview();
+        final initialized = await _isSectionInitialized('project_plan_overview_initialized');
+        if (!initialized) {
+          _importOverview();
+        }
       }
     } catch (error) {
       debugPrint('Failed to load project plan overview: $error');
@@ -1249,7 +1281,10 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..addAll(tools);
       });
       if (resources.isEmpty && vendors.isEmpty && tools.isEmpty) {
-        _importResources();
+        final initialized = await _isSectionInitialized('project_plan_resources_initialized');
+        if (!initialized) {
+          _importResources();
+        }
       }
     } catch (error) {
       debugPrint('Failed to load project plan resources: $error');
@@ -1278,7 +1313,10 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..addAll(tasks);
       });
       if (tasks.isEmpty) {
-        _importTasks();
+        final initialized = await _isSectionInitialized('project_plan_tasks_initialized');
+        if (!initialized) {
+          _importTasks();
+        }
       }
     } catch (error) {
       debugPrint('Failed to load project plan tasks: $error');
@@ -1319,7 +1357,10 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..addAll(breakdown);
       });
       if (breakdown.isEmpty && totalBudget.isEmpty) {
-        _importBudget();
+        final initialized = await _isSectionInitialized('project_plan_budget_initialized');
+        if (!initialized) {
+          _importBudget();
+        }
       }
     } catch (error) {
       debugPrint('Failed to load project plan budget: $error');
@@ -1348,7 +1389,10 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           ..addAll(risks);
       });
       if (risks.isEmpty) {
-        _importRisks();
+        final initialized = await _isSectionInitialized('project_plan_risks_initialized');
+        if (!initialized) {
+          _importRisks();
+        }
       }
     } catch (error) {
       debugPrint('Failed to load project plan risks: $error');
@@ -1374,6 +1418,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
         .collection('project_plan_sections')
         .doc('overview')
         .set(payload, SetOptions(merge: true));
+    await _markSectionInitialized('project_plan_overview_initialized');
   }
 
   Future<void> _persistResources() async {
@@ -1391,6 +1436,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
         .collection('project_plan_sections')
         .doc('resources')
         .set(payload, SetOptions(merge: true));
+    await _markSectionInitialized('project_plan_resources_initialized');
   }
 
   Future<void> _persistTasks() async {
@@ -1406,6 +1452,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
         .collection('project_plan_sections')
         .doc('tasks')
         .set(payload, SetOptions(merge: true));
+    await _markSectionInitialized('project_plan_tasks_initialized');
   }
 
   Future<void> _persistBudget() async {
@@ -1425,6 +1472,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
         .collection('project_plan_sections')
         .doc('budget')
         .set(payload, SetOptions(merge: true));
+    await _markSectionInitialized('project_plan_budget_initialized');
   }
 
   Future<void> _persistRisks() async {
@@ -1440,6 +1488,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
         .collection('project_plan_sections')
         .doc('risks')
         .set(payload, SetOptions(merge: true));
+    await _markSectionInitialized('project_plan_risks_initialized');
   }
 
   void _addOverviewObjective() {

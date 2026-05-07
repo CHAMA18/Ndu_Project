@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
@@ -57,6 +58,37 @@ class _FrontEndPlanningMilestoneScreenState
       <TextEditingController>[];
   late final OpenAiServiceSecure _openAi;
   Map<String, String> _validationErrors = const {};
+
+  String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  Future<bool> _isSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .get();
+      return doc.data()?[flagKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -124,11 +156,14 @@ class _FrontEndPlanningMilestoneScreenState
     final milestonesMissing = _milestones.isEmpty;
     if (!datesMissing && !milestonesMissing) return;
 
+    final datesInitialized = await _isSectionInitialized('milestone_dates_initialized');
+    final itemsInitialized = await _isSectionInitialized('milestone_items_initialized');
+
     _autoGenerationTriggered = true;
-    if (datesMissing) {
+    if (datesMissing && !datesInitialized) {
       await _generateDatesWithAI(silent: true);
     }
-    if (milestonesMissing) {
+    if (milestonesMissing && !itemsInitialized) {
       await _generateMilestonesWithAI(silent: true);
     }
   }
@@ -147,6 +182,12 @@ class _FrontEndPlanningMilestoneScreenState
       ),
     );
     provider.saveToFirebase(checkpoint: 'fep_milestone');
+    if (_startDateStr.trim().isNotEmpty || _endDateStr.trim().isNotEmpty) {
+      _markSectionInitialized('milestone_dates_initialized');
+    }
+    if (_milestones.isNotEmpty) {
+      _markSectionInitialized('milestone_items_initialized');
+    }
   }
 
   GlobalKey _milestoneNameKey(int index) {

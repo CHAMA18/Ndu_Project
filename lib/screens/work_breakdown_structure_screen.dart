@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -115,9 +116,43 @@ class _WorkBreakdownStructureBodyState
   Map<String, dynamic>? _contextSnapshot;
   DateTime? _contextCapturedAt;
 
+  String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  Future<bool> _isSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .get();
+      return doc.data()?[flagKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   void _syncWbsToProvider() {
     if (!mounted) return;
     ProjectDataHelper.getProvider(context).updateWBSData(wbsTree: _wbsItems);
+    if (_wbsItems.isNotEmpty) {
+      _markSectionInitialized('wbs_initialized');
+    }
   }
 
   @override
@@ -133,8 +168,11 @@ class _WorkBreakdownStructureBodyState
       _wbsItems = projectData.wbsTree;
       if (_wbsItems.isEmpty &&
           projectData.goalWorkItems.any((list) => list.isNotEmpty)) {
-        _migrateFromGoalsToTree(projectData.goalWorkItems);
-        _syncWbsToProvider();
+        final wbsInitialized = await _isSectionInitialized('wbs_initialized');
+        if (!wbsInitialized) {
+          _migrateFromGoalsToTree(projectData.goalWorkItems);
+          _syncWbsToProvider();
+        }
       }
       _syncGoalFrameworks(projectData);
       _applyOverallFrameworkRules(projectData);
