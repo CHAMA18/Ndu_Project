@@ -620,6 +620,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       'interface_management',
       'startup_planning',
       'deliverable_roadmap',
+      'deliverables_roadmap',
       'agile_project_baseline',
       'project_baseline',
       'organization_roles_responsibilities',

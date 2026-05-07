@@ -361,6 +361,7 @@ class NavigationRouteResolver {
         return const StartUpPlanningDevOpsScreen();
       case 'startup_planning_closeout':
         return const StartUpPlanningCloseOutPlanScreen();
+      case 'deliverables_roadmap':
       case 'deliverable_roadmap':
         return const DeliverablesRoadmapScreen();
       case 'deliverable_roadmap_agile_map_out':
