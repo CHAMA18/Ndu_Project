@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/models/project_data_model.dart';
@@ -125,6 +126,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
     if (mounted && success) {
       setState(() => _lastSavedAt = DateTime.now());
+      if (_activityRows.isNotEmpty) {
+        await _markSectionInitialized('schedule_initialized');
+      }
     }
   }
 
@@ -191,6 +195,37 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  Future<bool> _isSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .get();
+      return doc.data()?[flagKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   void _loadScheduleActivities(ProjectDataModel data) {
     final usedIds = <String>{};
     _activityRows
@@ -209,7 +244,23 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       }));
 
     if (_activityRows.isEmpty && data.wbsTree.isNotEmpty) {
+      _checkAndAutoImportSchedule();
+    }
+  }
+
+  Future<void> _checkAndAutoImportSchedule() async {
+    final scheduleInitialized = await _isSectionInitialized('schedule_initialized');
+    if (!scheduleInitialized && mounted) {
       _importFromWbs(showConfirm: false);
+    }
+  }
+
+  Future<void> _checkAndAutoImportScheduleFromBuild() async {
+    final scheduleInitialized = await _isSectionInitialized('schedule_initialized');
+    if (!scheduleInitialized && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _importFromWbs(showConfirm: false);
+      });
     }
   }
 
@@ -2036,9 +2087,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         _activityRows.isEmpty &&
         data.wbsTree.isNotEmpty) {
       _autoImportAttempted = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _importFromWbs(showConfirm: false);
-      });
+      _checkAndAutoImportScheduleFromBuild();
     }
 
     final computed = _computeSchedule(

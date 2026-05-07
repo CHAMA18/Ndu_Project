@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/front_end_planning_contract_vendor_quotes_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
@@ -79,12 +80,21 @@ class _FrontEndPlanningOpportunitiesScreenState
       // Load saved opportunities
       _loadSavedOpportunities(projectData);
       _syncOpportunitiesToProvider();
-      if (_shouldAutofillInitialOpportunities()) {
-        _hasAttemptedInitialAutofill = true;
-        _generateOpportunitiesFromContext(autoTriggered: true);
-      }
+      _checkAndAutoGenerateOpportunities();
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _checkAndAutoGenerateOpportunities() async {
+    if (_hasAttemptedInitialAutofill) return;
+    if (_isGeneratingOpportunities) return;
+    if (_rows.where((r) => r.opportunity.trim().isNotEmpty).isNotEmpty) return;
+
+    final initialized = await _isSectionInitialized('opportunities_initialized');
+    if (!initialized && mounted) {
+      _hasAttemptedInitialAutofill = true;
+      _generateOpportunitiesFromContext(autoTriggered: true);
+    }
   }
 
   bool _shouldAutofillInitialOpportunities() {
@@ -311,6 +321,37 @@ class _FrontEndPlanningOpportunitiesScreenState
     super.dispose();
   }
 
+  String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  Future<bool> _isSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .get();
+      return doc.data()?[flagKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   void _syncOpportunitiesToProvider() {
     if (!mounted || !_isSyncReady) return;
 
@@ -345,6 +386,9 @@ class _FrontEndPlanningOpportunitiesScreenState
       },
     );
     provider.saveToFirebase(checkpoint: 'fep_opportunities');
+    if (_rows.where((r) => r.opportunity.trim().isNotEmpty).isNotEmpty) {
+      _markSectionInitialized('opportunities_initialized');
+    }
   }
 
   String _resolvePreferredSolutionTitle(ProjectDataModel data) {

@@ -41,6 +41,37 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
     ),
   };
 
+  String? _projectId() => ProjectDataHelper.getData(context).projectId;
+
+  Future<bool> _isSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .get();
+      return doc.data()?[flagKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markSectionInitialized(String flagKey) async {
+    final projectId = _projectId();
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .collection('planning_meta')
+          .doc('initialization_flags')
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   _CostView _activeView = _CostView.indirect;
   _CostStateFilter _activeStateFilter = _CostStateFilter.all;
   bool _includeSupersededLines = false;
@@ -700,6 +731,12 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
       return;
     }
 
+    final initialized = await _isSectionInitialized('cost_estimate_initialized');
+    if (initialized) {
+      _autoPopulated = true;
+      return;
+    }
+
     final baselineItems =
         _buildBaselineItemsFromInitiation(provider.projectData);
     if (baselineItems.isEmpty) {
@@ -715,6 +752,7 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
       await _persistCostItem(item);
     }
     _autoPopulated = true;
+    await _markSectionInitialized('cost_estimate_initialized');
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1096,6 +1134,7 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
         .collection('cost_estimate_items')
         .doc(item.id)
         .set(item.toJson(), SetOptions(merge: true));
+    await _markSectionInitialized('cost_estimate_initialized');
   }
 
   Future<void> _loadWorkspaceState() async {
