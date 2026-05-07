@@ -1565,12 +1565,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   Widget _buildMenuItem(IconData icon, String title,
       {VoidCallback? onTap, bool isActive = false, bool isDisabled = false}) {
-    final primary = const Color(0xFFFFD700);
+    const activeColor = Color(0xFF4154F1);
     final isInteractive = !isDisabled && onTap != null;
     final isHighlighted = isActive && !isDisabled;
     final textColor = isDisabled
         ? Colors.grey[400]
-        : (isHighlighted ? primary : Colors.black87);
+        : (isHighlighted ? activeColor : Colors.black87);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
@@ -1582,9 +1582,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isHighlighted
-                  ? primary.withValues(alpha: 0.12)
+                  ? activeColor.withValues(alpha: 0.08)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
+              border: isHighlighted
+                  ? Border.all(color: activeColor.withValues(alpha: 0.20))
+                  : null,
             ),
             child: Row(
               children: [
@@ -1614,12 +1617,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   Widget _buildSubMenuItem(String title,
       {VoidCallback? onTap, bool isActive = false, bool isDisabled = false}) {
-    final primary = const Color(0xFFFFD700);
+    const activeColor = Color(0xFF4154F1);
     final isInteractive = !isDisabled && onTap != null;
     final isHighlighted = isActive && !isDisabled;
     final textColor = isDisabled
         ? Colors.grey[400]
-        : (isHighlighted ? primary : Colors.black87);
+        : (isHighlighted ? activeColor : Colors.black87);
 
     return Padding(
       padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
@@ -1631,9 +1634,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: isHighlighted
-                  ? primary.withValues(alpha: 0.10)
+                  ? activeColor.withValues(alpha: 0.08)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
+              border: isHighlighted
+                  ? Border.all(color: activeColor.withValues(alpha: 0.18))
+                  : null,
             ),
             child: Row(
               children: [
@@ -1641,7 +1647,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                     size: 8,
                     color: isDisabled
                         ? Colors.grey[400]
-                        : (isHighlighted ? primary : Colors.grey[500])),
+                        : (isHighlighted ? activeColor : Colors.grey[500])),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1669,12 +1675,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       required VoidCallback onTap,
       bool isActive = false,
       bool isDisabled = false}) {
-    final primary = const Color(0xFFFFD700);
+    const activeColor = Color(0xFF4154F1);
     final isInteractive = !isDisabled;
     final isHighlighted = isActive && !isDisabled;
     final textColor = isDisabled
         ? Colors.grey[400]
-        : (isHighlighted ? primary : Colors.black87);
+        : (isHighlighted ? activeColor : Colors.black87);
     return Padding(
       padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
       child: InkWell(
@@ -1683,9 +1689,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: isHighlighted
-                ? primary.withValues(alpha: 0.10)
+                ? activeColor.withValues(alpha: 0.08)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
+            border: isHighlighted
+                ? Border.all(color: activeColor.withValues(alpha: 0.18))
+                : null,
           ),
           child: Row(
             children: [
@@ -1693,7 +1702,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   size: 8,
                   color: isDisabled
                       ? Colors.grey[400]
-                      : (isHighlighted ? primary : Colors.grey[500])),
+                      : (isHighlighted ? activeColor : Colors.grey[500])),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -1723,12 +1732,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   Widget _buildSubSubMenuItem(String title,
       {VoidCallback? onTap, bool isActive = false, bool isDisabled = false}) {
-    final primary = const Color(0xFFFFD700);
+    const activeColor = Color(0xFF4154F1);
     final isInteractive = !isDisabled && onTap != null;
     final isHighlighted = isActive && !isDisabled;
     final textColor = isDisabled
         ? Colors.grey[400]
-        : (isHighlighted ? primary : Colors.black87);
+        : (isHighlighted ? activeColor : Colors.black87);
     return Padding(
       padding: const EdgeInsets.only(left: 72, right: 24, top: 2, bottom: 2),
       child: AbsorbPointer(
@@ -1741,9 +1750,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             decoration: BoxDecoration(
               color: isHighlighted
-                  ? primary.withValues(alpha: 0.08)
+                  ? activeColor.withValues(alpha: 0.08)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
+              border: isHighlighted
+                  ? Border.all(color: activeColor.withValues(alpha: 0.15))
+                  : null,
             ),
             child: Row(
               children: [
@@ -1753,7 +1765,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   decoration: BoxDecoration(
                     color: isDisabled
                         ? Colors.grey[300]
-                        : (isHighlighted ? primary : Colors.grey[400]),
+                        : (isHighlighted ? activeColor : Colors.grey[400]),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -1783,7 +1795,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       {required bool expanded,
       required VoidCallback onTap,
       bool isActive = false}) {
-    final primary = const Color(0xFFFFD700);
+    const activeColor = Color(0xFF4154F1);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
       child: InkWell(
@@ -1791,20 +1803,24 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
+            color: isActive
+                ? activeColor.withValues(alpha: 0.08)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
+            border: isActive
+                ? Border.all(color: activeColor.withValues(alpha: 0.20))
+                : null,
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: isActive ? primary : Colors.black87),
+              Icon(icon, size: 20, color: isActive ? activeColor : Colors.black87),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
                     fontSize: 14,
-                    color: isActive ? primary : Colors.black87,
+                    color: isActive ? activeColor : Colors.black87,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                   ),
                   softWrap: true,
@@ -1816,7 +1832,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                   expanded
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
-                  color: Colors.grey[700],
+                  color: isActive ? activeColor : Colors.grey[700],
                   size: 20),
             ],
           ),
