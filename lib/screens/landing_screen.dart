@@ -77,14 +77,6 @@ class _LandingScreenState extends State<LandingScreen>
     super.dispose();
   }
 
-
-  // Safe gradient text that avoids ShaderMask web bugs
-  Widget _gradientText(String text, {required TextStyle style, List<Color>? colors, TextAlign? textAlign}) {
-    // Use plain styled text to avoid ShaderMask+BlendMode.srcIn crash on Flutter web
-    final effectiveStyle = style.copyWith(color: colors?.first ?? style.color);
-    return Text(text, style: effectiveStyle, textAlign: textAlign);
-  }
-
   void _onScroll() {
     final offset = _scrollController.offset;
     setState(() {
@@ -710,17 +702,16 @@ class _LandingScreenState extends State<LandingScreen>
         ),
         const SizedBox(height: 28),
         // Headline with gradient
-        _gradientText(
+        Text(
             '42% of Projects Fail to meet original scope.\nFix Project Failure Before It Starts',
+            textAlign: isDesktop ? TextAlign.left : TextAlign.center,
             style: TextStyle(
               fontSize: isDesktop ? 48.0 : 32.0,
               fontWeight: FontWeight.w800,
               height: 1.12,
               letterSpacing: -0.5,
-              color: Colors.white,
+              color: Color(0xFFFFF3C0),
             ),
-            colors: const [Color(0xFFFFF3C0), Colors.white, Color(0xFFE0E7FF)],
-            textAlign: isDesktop ? TextAlign.left : TextAlign.center,
           ),
         const SizedBox(height: 20),
         // Subheadline
@@ -920,7 +911,7 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           const SizedBox(height: 24),
           // Headline
-Text(
+          Text(
               'Projects Don\'t Fail in Execution.\nThey Fail Before Execution Begins',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -930,7 +921,7 @@ Text(
                 letterSpacing: -0.3,
                 color: Colors.redAccent,
               ),
-            )
+            ),
           const SizedBox(height: 24),
           Text(
             'Most project tools focus on tracking work after it starts. But by then, the most critical decisions have already been made… and often made poorly.',
@@ -1029,7 +1020,7 @@ Text(
           ),
           const SizedBox(height: 24),
           // Headline
-Text(
+          Text(
               'A New Category:\nProject Delivery Operating System (PDOS)',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -1039,7 +1030,7 @@ Text(
                 letterSpacing: -0.3,
                 color: _LpColors.blue,
               ),
-            )
+            ),
           const SizedBox(height: 20),
           Text(
             'Ndu Project replaces disconnected tools with a unified system that governs how projects are defined, planned, and delivered.',
@@ -1151,7 +1142,7 @@ Text(
             ),
           ),
           const SizedBox(height: 24),
-Text(
+          Text(
               'How Ndu Project Delivers Results',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -1161,7 +1152,7 @@ Text(
                 letterSpacing: -0.3,
                 color: _LpColors.green,
               ),
-            )
+            ),
           const SizedBox(height: 56),
           // Steps
           isDesktop
@@ -1246,7 +1237,7 @@ Text(
             ),
           ),
           const SizedBox(height: 24),
-Text(
+          Text(
               'Built Differently From Traditional Project Tools',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -1256,7 +1247,7 @@ Text(
                 letterSpacing: -0.3,
                 color: _LpColors.gold,
               ),
-            )
+            ),
           const SizedBox(height: 48),
           // Comparison cards
           ...comparisons
@@ -1322,7 +1313,7 @@ Text(
             ),
           ),
           const SizedBox(height: 24),
-Text(
+          Text(
               'What You Achieve with PDOS',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -1332,7 +1323,7 @@ Text(
                 letterSpacing: -0.3,
                 color: _LpColors.green,
               ),
-            )
+            ),
           const SizedBox(height: 48),
           // Outcome cards
           Wrap(
@@ -1443,7 +1434,7 @@ Text(
             ),
           ),
           const SizedBox(height: 24),
-Text(
+          Text(
               'Built for Organizations Delivering\nSimple to Complex Work',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -1453,7 +1444,7 @@ Text(
                 letterSpacing: -0.3,
                 color: _LpColors.purple,
               ),
-            )
+            ),
           const SizedBox(height: 48),
           Wrap(
             spacing: 16,
@@ -1513,7 +1504,7 @@ Text(
                 ),
               ),
               const SizedBox(height: 24),
-Text(
+              Text(
                   'Built From Experience.\nValidated by Research.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -1523,7 +1514,7 @@ Text(
                     letterSpacing: -0.3,
                     color: _LpColors.blue,
                   ),
-                )
+                ),
               const SizedBox(height: 20),
               Text(
                 'Ndu Project is informed by nearly two decades of hands-on project delivery experience across global enterprises and emerging organizations.',
@@ -1579,7 +1570,7 @@ Text(
       child: Column(
         children: [
           // Large statement
-Text(
+          Text(
               '"Execution Doesn\'t Fix Bad Starts"',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -1589,7 +1580,7 @@ Text(
                 letterSpacing: -0.3,
                 color: Colors.redAccent,
               ),
-            )
+            ),
           const SizedBox(height: 24),
           Text(
             'Projects fail upstream in initiation and planning. Execution only exposes those failures later.',
@@ -1652,7 +1643,7 @@ Text(
           padding: EdgeInsets.all(isDesktop ? 56 : 32),
           child: Column(
             children: [
-Text(
+              Text(
                   'Ready to Transform How You Deliver Projects?',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -1662,7 +1653,7 @@ Text(
                     letterSpacing: -0.3,
                     color: _LpColors.gold,
                   ),
-                )
+                ),
               const SizedBox(height: 16),
               Text(
                 'Move beyond tracking tools. Implement a system designed for real project success.',
