@@ -950,7 +950,7 @@ class _HeroBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFFB200).withValues(alpha: 0.25),
+            color: const Color(0xFFFFB200).withOpacity(0.25),
             blurRadius: 24,
             offset: const Offset(0, 16),
           ),
@@ -1024,10 +1024,10 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: summary.backgroundColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: summary.accentColor.withValues(alpha: 0.12)),
+        border: Border.all(color: summary.accentColor.withOpacity(0.12)),
         boxShadow: [
           BoxShadow(
-            color: summary.accentColor.withValues(alpha: 0.08),
+            color: summary.accentColor.withOpacity(0.08),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -1043,7 +1043,7 @@ class _MetricCard extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                    color: summary.accentColor.withValues(alpha: 0.3)),
+                    color: summary.accentColor.withOpacity(0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1068,7 +1068,7 @@ class _MetricCard extends StatelessWidget {
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: summary.accentColor.withValues(alpha: 0.9)),
+                color: summary.accentColor.withOpacity(0.9)),
           ),
           const SizedBox(height: 12),
           Text(
@@ -1142,7 +1142,7 @@ class _ViewSelector extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         color: isActive
-                            ? Colors.white.withValues(alpha: 0.82)
+                            ? Colors.white.withOpacity(0.82)
                             : const Color(0xFF94A3B8),
                       ),
                     ),
@@ -1354,7 +1354,7 @@ class _PhaseContextCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withOpacity(0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -1662,7 +1662,7 @@ class _CategoryTile extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            color: const Color(0xFF0F172A).withOpacity(0.02),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -1749,7 +1749,7 @@ class _TrailingSummaryCard extends StatelessWidget {
           border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+              color: const Color(0xFF0F172A).withOpacity(0.04),
               blurRadius: 14,
               offset: const Offset(0, 6),
             ),
@@ -1836,8 +1836,8 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    accent.withValues(alpha: 0.16),
-                    accent.withValues(alpha: 0.05),
+                    accent.withOpacity(0.16),
+                    accent.withOpacity(0.05),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -1851,7 +1851,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
+                      color: accent.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(

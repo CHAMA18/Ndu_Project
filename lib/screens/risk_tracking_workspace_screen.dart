@@ -1020,7 +1020,7 @@ class _RiskTrackingWorkspaceScreenState
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: severityColor.withValues(alpha: 0.15),
+                  color: severityColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -1479,7 +1479,7 @@ class _RiskTrackingWorkspaceScreenState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
@@ -1515,7 +1515,7 @@ class _RiskTrackingWorkspaceScreenState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(5),
         border: Border.all(color: color, width: 1),
       ),
@@ -1892,7 +1892,7 @@ class _RiskTrackingWorkspaceScreenState
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: _getRiskScoreColor(likelihoodScore * impactScore).withValues(alpha: 0.15),
+                                      color: _getRiskScoreColor(likelihoodScore * impactScore).withOpacity(0.15),
                                       border: Border.all(
                                         color: _getRiskScoreColor(likelihoodScore * impactScore),
                                       ),

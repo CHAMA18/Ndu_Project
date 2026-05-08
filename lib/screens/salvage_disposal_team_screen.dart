@@ -1207,7 +1207,7 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: stat.color.withValues(alpha: 0.1),
+                  color: stat.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(stat.icon, size: 18, color: stat.color),
@@ -2609,7 +2609,7 @@ Execution snapshot:
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text('$workload%',
@@ -2708,7 +2708,7 @@ Execution snapshot:
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(mode,
@@ -2866,7 +2866,7 @@ Execution snapshot:
                                       CircleAvatar(
                                         radius: 14,
                                         backgroundColor: const Color(0xFF0EA5E9)
-                                            .withValues(alpha: 0.1),
+                                            .withOpacity(0.1),
                                         child: Text(
                                           initial,
                                           style: const TextStyle(
@@ -4564,7 +4564,7 @@ Execution snapshot:
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: insight.color.withValues(alpha: 0.1),
+                  color: insight.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(insight.icon, size: 18, color: insight.color),
@@ -4594,7 +4594,7 @@ Execution snapshot:
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -4673,9 +4673,9 @@ Execution snapshot:
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(priority,
           style: TextStyle(

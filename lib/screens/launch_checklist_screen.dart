@@ -606,7 +606,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
+              color: statusColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -670,9 +670,9 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
+              color: statusColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+              border: Border.all(color: statusColor.withOpacity(0.3)),
             ),
             child: Text(
               item.status,
@@ -734,7 +734,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
+              color: statusColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -772,9 +772,9 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
+              color: statusColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+              border: Border.all(color: statusColor.withOpacity(0.3)),
             ),
             child: Text(
               item.status,
@@ -900,9 +900,9 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
+              color: statusColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+              border: Border.all(color: statusColor.withOpacity(0.3)),
             ),
             child: Text(
               item.status,
