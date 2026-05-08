@@ -98,7 +98,7 @@ class ExecutionActionBar extends StatelessWidget {
           label: Text(action.label),
           style: OutlinedButton.styleFrom(
             foregroundColor: aiColor,
-            side: BorderSide(color: aiColor.withValues(alpha: 0.28)),
+            side: BorderSide(color: aiColor.withOpacity(0.28)),
             backgroundColor: const Color(0xFFF8F7FF),
             padding: EdgeInsets.symmetric(
               horizontal: compact ? 14 : 16,
@@ -189,7 +189,7 @@ class ExecutionPageHeader extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 22,
             offset: const Offset(0, 14),
           ),
@@ -374,7 +374,7 @@ class ExecutionMetricCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 16,
             offset: const Offset(0, 10),
           ),
@@ -386,7 +386,7 @@ class ExecutionMetricCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: metric.emphasisColor.withValues(alpha: 0.12),
+              color: metric.emphasisColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(metric.icon, size: 20, color: metric.emphasisColor),
@@ -464,7 +464,7 @@ class ExecutionPanelShell extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 18,
             offset: const Offset(0, 12),
           ),
