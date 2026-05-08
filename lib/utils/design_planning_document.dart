@@ -2,6 +2,19 @@ import 'dart:convert';
 
 import 'package:ndu_project/models/project_data_model.dart';
 
+/// Monotonic counter used to generate unique IDs without relying on
+/// `DateTime.now()` (which can produce duplicates in tight loops on
+/// platforms with millisecond-resolution clocks).
+int _uniqueIdCounter = 0;
+
+String _nextUniqueId([String prefix = 'id']) {
+  _uniqueIdCounter++;
+  return '${prefix}_${DateTime.now().millisecondsSinceEpoch}_$_uniqueIdCounter';
+}
+
+/// Kept for backward compatibility — delegates to [_nextUniqueId].
+String _nextSpecRowId() => _nextUniqueId('spec_row');
+
 const String kDesignPlanningDocumentKey = 'planning_design_basis_document';
 const String kDesignPlanningSummaryKey = 'planning_design_notes';
 const String kDesignPlanningPlanKey = 'planning_design_plan';
@@ -868,7 +881,7 @@ class DesignRequirementMapping {
     this.linkedArtifact = '',
     this.acceptanceCriteria = '',
     this.verificationMethod = '',
-  }) : localId = localId ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : localId = localId ?? _nextUniqueId();
 
   final String localId;
   String requirementId;
@@ -952,7 +965,7 @@ class DesignPlanningWorkItem {
     this.purpose = '',
     this.owner = '',
     this.status = 'Draft',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id = id ?? _nextUniqueId();
 
   final String id;
   String name;
@@ -997,7 +1010,7 @@ class DesignSpecificationPlanRow {
     this.wbsWorkPackageTitle = '',
     this.uploadedFileName = '',
     this.uploadedStoragePath = '',
-  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+  })  : id = id ?? _nextSpecRowId(),
         attachedRequirementIds = attachedRequirementIds ?? [];
 
   final String id;
@@ -1099,7 +1112,7 @@ class DesignSpecificationDeviation {
     String? id,
     this.specificationId = '',
     this.description = '',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id = id ?? _nextUniqueId();
 
   final String id;
   String specificationId;
@@ -1134,7 +1147,7 @@ class DesignPlanningReferenceDoc {
     this.fileName = '',
     this.storagePath = '',
     this.notes = '',
-  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+  })  : id = id ?? _nextUniqueId(),
         attachedRequirementIds = attachedRequirementIds ?? [];
 
   final String id;
@@ -1186,7 +1199,7 @@ class DesignRiskEntry {
     this.mitigation = '',
     this.owner = '',
     this.status = 'Open',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id = id ?? _nextUniqueId();
 
   final String id;
   String risk;
@@ -1240,7 +1253,7 @@ class DesignDependencyEntry {
     this.owner = '',
     this.status = 'Planned',
     this.notes = '',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id = id ?? _nextUniqueId();
 
   final String id;
   String name;
@@ -1285,7 +1298,7 @@ class DesignDecisionEntry {
     this.owner = '',
     this.date = '',
     this.status = 'Open',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id = id ?? _nextUniqueId();
 
   final String id;
   String decision;
@@ -1325,7 +1338,7 @@ class DesignApprovalEntry {
     this.role = '',
     this.status = 'Pending',
     this.comment = '',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id = id ?? _nextUniqueId();
 
   final String id;
   String reviewer;
