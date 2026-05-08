@@ -77,6 +77,61 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     ),
   ];
 
+  List<_EscalationReadiness> _escalations = [
+    _EscalationReadiness(
+      id: 'ESC-001',
+      event: 'Executive sync — critical path unblock',
+      level: 'L3-Executive',
+      triggerCondition: '2+ critical risks unresolved > 48 hrs',
+      responsibleParty: 'A. Mwanza',
+      escalationTarget: 'CTO / Steering Committee',
+      status: 'Ready',
+      readiness: 0.85,
+      responseWindow: '4 hrs',
+      decisionRequired: 'Approve expedited vendor failover deployment',
+      lastReview: '2026-05-07',
+    ),
+    _EscalationReadiness(
+      id: 'ESC-002',
+      event: 'Risk board update — regulatory submission',
+      level: 'L2-Management',
+      triggerCondition: 'Compliance SLA breach or regulatory deadline < 5 days',
+      responsibleParty: 'B. Tembo',
+      escalationTarget: 'VP Legal / Risk Board',
+      status: 'Pending',
+      readiness: 0.60,
+      responseWindow: '8 hrs',
+      decisionRequired: 'Authorize parallel regulatory submission track',
+      lastReview: '2026-05-06',
+    ),
+    _EscalationReadiness(
+      id: 'ESC-003',
+      event: 'Ops stakeholder review — security posture',
+      level: 'L2-Management',
+      triggerCondition: 'Penetration retest overdue or critical vulnerability detected',
+      responsibleParty: 'D. Phiri',
+      escalationTarget: 'CISO / Ops Review Board',
+      status: 'In progress',
+      readiness: 0.45,
+      responseWindow: '24 hrs',
+      decisionRequired: 'Approve emergency patch cycle & retest schedule',
+      lastReview: '2026-05-05',
+    ),
+    _EscalationReadiness(
+      id: 'ESC-004',
+      event: 'Budget variance escalation — forecast drift',
+      level: 'L3-Executive',
+      triggerCondition: 'Forecast variance > 8% or contingency depleted',
+      responsibleParty: 'E. Zulu',
+      escalationTarget: 'CFO / Executive Sponsor',
+      status: 'Deferred',
+      readiness: 0.30,
+      responseWindow: '12 hrs',
+      decisionRequired: 'Release contingency reserve & revise budget baseline',
+      lastReview: '2026-05-04',
+    ),
+  ];
+
   List<_MitigationPlan> _plans = [
     _MitigationPlan(
       id: 'MIT-001',
@@ -1217,20 +1272,595 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     );
   }
 
-  // ─── Escalation Panel ─────────────────────────────────────────────────────
+  // ─── Escalation Readiness Table ──────────────────────────────────────────
 
   Widget _buildEscalationPanel() {
     return _PanelShell(
       title: 'Escalation readiness',
-      subtitle: 'Decision log & sponsor alignment',
+      subtitle: 'Escalation paths, decision authority, and sponsor alignment — ISO 31000 & ITIL aligned',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _actionButton(Icons.add, 'Add escalation', onPressed: _openAddEscalationDialog),
+        ],
+      ),
+      child: _escalations.isEmpty
+          ? _buildEmptyEscalationState()
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowColor:
+                          WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      headingRowHeight: 32,
+                      dataRowHeight: 36,
+                      columnSpacing: 14,
+                      horizontalMargin: 12,
+                      columns: const [
+                        DataColumn(
+                            label: Text('ID',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Escalation Event',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Level',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Trigger Condition',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Responsible',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Escalation Target',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Status',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Readiness',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Response',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Decision Required',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Last Review',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                        DataColumn(
+                            label: Text('Actions',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700))),
+                      ],
+                      rows: _escalations.map((esc) {
+                        return DataRow(cells: [
+                          DataCell(Text(esc.id,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF0EA5E9), fontWeight: FontWeight.w600))),
+                          DataCell(SizedBox(
+                            width: 200,
+                            child: Text(esc.event,
+                                style: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
+                          )),
+                          DataCell(_escalationLevelChip(esc.level)),
+                          DataCell(SizedBox(
+                            width: 180,
+                            child: Text(esc.triggerCondition,
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
+                          )),
+                          DataCell(Text(esc.responsibleParty,
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
+                          DataCell(Text(esc.escalationTarget,
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w600))),
+                          DataCell(_escalationStatusChip(esc.status)),
+                          DataCell(_buildEscalationReadinessCell(esc)),
+                          DataCell(_responseWindowChip(esc.responseWindow)),
+                          DataCell(SizedBox(
+                            width: 200,
+                            child: Text(esc.decisionRequired,
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
+                          )),
+                          DataCell(Text(esc.lastReview,
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
+                          DataCell(_buildRowActions(
+                            onEdit: () => _openEditEscalationDialog(esc),
+                            onDelete: () => _deleteEscalation(esc),
+                          )),
+                        ]);
+                      }).toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _buildEmptyEscalationState() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      alignment: Alignment.center,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _EscalationItem('Executive sync', 'Fri 9:30 AM', 'Agenda locked'),
-          _EscalationItem(
-              'Risk board update', 'Mon 3:00 PM', 'Pending approvals'),
-          _EscalationItem(
-              'Ops stakeholder review', 'Wed 11:00 AM', 'Materials sent'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.vertical_align_top, size: 40, color: const Color(0xFFCBD5E1)),
+          const SizedBox(height: 12),
+          const Text(
+            'No escalation paths defined.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Add an escalation path to track decision authority and sponsor readiness.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 16),
+          _actionButton(Icons.add, 'Add escalation', onPressed: _openAddEscalationDialog),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEscalationReadinessCell(_EscalationReadiness esc) {
+    final pct = (esc.readiness * 100).round();
+    final color = _readinessColor(pct);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 48,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: esc.readiness,
+              minHeight: 4,
+              backgroundColor: const Color(0xFFE2E8F0),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text('$pct%',
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+      ],
+    );
+  }
+
+  Color _readinessColor(int pct) {
+    if (pct >= 80) return const Color(0xFF10B981);
+    if (pct >= 60) return const Color(0xFF0EA5E9);
+    if (pct >= 40) return const Color(0xFFF59E0B);
+    return const Color(0xFFEF4444);
+  }
+
+  Widget _escalationLevelChip(String level) {
+    final (color, icon) = switch (level) {
+      'L1-Operational' => (const Color(0xFF10B981), Icons.support_agent),
+      'L2-Management' => (const Color(0xFF0EA5E9), Icons.manage_accounts),
+      'L3-Executive' => (const Color(0xFFF59E0B), Icons.business_center),
+      'L4-Board/C-Suite' => (const Color(0xFFEF4444), Icons.account_balance),
+      _ => (const Color(0xFF64748B), Icons.help_outline),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(level,
+              style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _escalationStatusChip(String status) {
+    final (color, icon) = switch (status) {
+      'Ready' => (const Color(0xFF10B981), Icons.check_circle_outline),
+      'Pending' => (const Color(0xFFF59E0B), Icons.schedule),
+      'In progress' => (const Color(0xFF0EA5E9), Icons.sync),
+      'Escalated' => (const Color(0xFFEF4444), Icons.notifications_active),
+      'Deferred' => (const Color(0xFF94A3B8), Icons.pause_circle_outline),
+      _ => (const Color(0xFF64748B), Icons.help_outline),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(status,
+              style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _responseWindowChip(String window) {
+    final hrs = int.tryParse(window.replaceAll(RegExp(r'[^0-9]'), '')) ?? 24;
+    final color = hrs <= 4
+        ? const Color(0xFFEF4444)
+        : hrs <= 12
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF0EA5E9);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timer_outlined, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(window,
+              style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
+  }
+
+  // ─── CRUD: Escalation Readiness ────────────────────────────────────────────
+
+  void _openAddEscalationDialog() {
+    final idController = TextEditingController();
+    final eventController = TextEditingController();
+    final triggerController = TextEditingController();
+    final responsibleController = TextEditingController();
+    final targetController = TextEditingController();
+    final windowController = TextEditingController();
+    final decisionController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var selectedLevel = 'L2-Management';
+    var selectedStatus = 'Pending';
+    var readinessValue = 0.0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add escalation path'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: 480,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: idController,
+                          decoration: const InputDecoration(
+                              labelText: 'Escalation ID', hintText: 'e.g., ESC-005'),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Enter an ID' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: eventController,
+                          decoration: const InputDecoration(
+                              labelText: 'Escalation event', hintText: 'e.g., Executive sync — critical unblock'),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: selectedLevel,
+                          items: ['L1-Operational', 'L2-Management', 'L3-Executive', 'L4-Board/C-Suite']
+                              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                              .toList(),
+                          onChanged: (v) { if (v != null) setDialogState(() => selectedLevel = v); },
+                          decoration: const InputDecoration(labelText: 'Escalation level'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: triggerController,
+                          decoration: const InputDecoration(
+                              labelText: 'Trigger condition', hintText: 'e.g., SLA breach or threshold exceeded'),
+                          maxLines: 2,
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: responsibleController,
+                          decoration: const InputDecoration(labelText: 'Responsible party'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: targetController,
+                          decoration: const InputDecoration(
+                              labelText: 'Escalation target', hintText: 'e.g., CTO / Steering Committee'),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: selectedStatus,
+                          items: ['Ready', 'Pending', 'In progress', 'Escalated', 'Deferred']
+                              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                              .toList(),
+                          onChanged: (v) { if (v != null) setDialogState(() => selectedStatus = v); },
+                          decoration: const InputDecoration(labelText: 'Status'),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Text('Readiness: ', style: TextStyle(fontSize: 13)),
+                            Expanded(
+                              child: Slider(
+                                value: readinessValue,
+                                min: 0.0,
+                                max: 1.0,
+                                divisions: 20,
+                                label: '${(readinessValue * 100).round()}%',
+                                onChanged: (v) => setDialogState(() => readinessValue = v),
+                              ),
+                            ),
+                            Text('${(readinessValue * 100).round()}%',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: windowController,
+                          decoration: const InputDecoration(
+                              labelText: 'Response window', hintText: 'e.g., 4 hrs, 24 hrs'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: decisionController,
+                          decoration: const InputDecoration(
+                              labelText: 'Decision required', hintText: 'What decision is needed?'),
+                          maxLines: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState?.validate() ?? false) {
+                      setState(() {
+                        _escalations.add(_EscalationReadiness(
+                          id: idController.text.trim(),
+                          event: eventController.text.trim(),
+                          level: selectedLevel,
+                          triggerCondition: triggerController.text.trim(),
+                          responsibleParty: responsibleController.text.trim().isEmpty ? 'TBD' : responsibleController.text.trim(),
+                          escalationTarget: targetController.text.trim().isEmpty ? 'TBD' : targetController.text.trim(),
+                          status: selectedStatus,
+                          readiness: readinessValue,
+                          responseWindow: windowController.text.trim().isEmpty ? '24 hrs' : windowController.text.trim(),
+                          decisionRequired: decisionController.text.trim().isEmpty ? 'TBD' : decisionController.text.trim(),
+                          lastReview: DateTime.now().toIso8601String().substring(0, 10),
+                        ));
+                      });
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text('Add escalation'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      idController.dispose();
+      eventController.dispose();
+      triggerController.dispose();
+      responsibleController.dispose();
+      targetController.dispose();
+      windowController.dispose();
+      decisionController.dispose();
+    });
+  }
+
+  void _openEditEscalationDialog(_EscalationReadiness esc) {
+    final eventController = TextEditingController(text: esc.event);
+    final triggerController = TextEditingController(text: esc.triggerCondition);
+    final responsibleController = TextEditingController(text: esc.responsibleParty);
+    final targetController = TextEditingController(text: esc.escalationTarget);
+    final windowController = TextEditingController(text: esc.responseWindow);
+    final decisionController = TextEditingController(text: esc.decisionRequired);
+    final formKey = GlobalKey<FormState>();
+    var selectedLevel = esc.level;
+    var selectedStatus = esc.status;
+    var readinessValue = esc.readiness;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Edit ${esc.id}'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: 480,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: eventController,
+                          decoration: const InputDecoration(labelText: 'Escalation event'),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: selectedLevel,
+                          items: ['L1-Operational', 'L2-Management', 'L3-Executive', 'L4-Board/C-Suite']
+                              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                              .toList(),
+                          onChanged: (v) { if (v != null) setDialogState(() => selectedLevel = v); },
+                          decoration: const InputDecoration(labelText: 'Escalation level'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: triggerController,
+                          decoration: const InputDecoration(labelText: 'Trigger condition'),
+                          maxLines: 2,
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: responsibleController,
+                          decoration: const InputDecoration(labelText: 'Responsible party'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: targetController,
+                          decoration: const InputDecoration(labelText: 'Escalation target'),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: selectedStatus,
+                          items: ['Ready', 'Pending', 'In progress', 'Escalated', 'Deferred']
+                              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                              .toList(),
+                          onChanged: (v) { if (v != null) setDialogState(() => selectedStatus = v); },
+                          decoration: const InputDecoration(labelText: 'Status'),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Text('Readiness: ', style: TextStyle(fontSize: 13)),
+                            Expanded(
+                              child: Slider(
+                                value: readinessValue,
+                                min: 0.0,
+                                max: 1.0,
+                                divisions: 20,
+                                label: '${(readinessValue * 100).round()}%',
+                                onChanged: (v) => setDialogState(() => readinessValue = v),
+                              ),
+                            ),
+                            Text('${(readinessValue * 100).round()}%',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: windowController,
+                          decoration: const InputDecoration(labelText: 'Response window'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: decisionController,
+                          decoration: const InputDecoration(labelText: 'Decision required'),
+                          maxLines: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState?.validate() ?? false) {
+                      setState(() {
+                        final idx = _escalations.indexWhere((e) => e.id == esc.id);
+                        if (idx != -1) {
+                          _escalations[idx] = _EscalationReadiness(
+                            id: esc.id,
+                            event: eventController.text.trim(),
+                            level: selectedLevel,
+                            triggerCondition: triggerController.text.trim(),
+                            responsibleParty: responsibleController.text.trim(),
+                            escalationTarget: targetController.text.trim(),
+                            status: selectedStatus,
+                            readiness: readinessValue,
+                            responseWindow: windowController.text.trim(),
+                            decisionRequired: decisionController.text.trim(),
+                            lastReview: DateTime.now().toIso8601String().substring(0, 10),
+                          );
+                        }
+                      });
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      eventController.dispose();
+      triggerController.dispose();
+      responsibleController.dispose();
+      targetController.dispose();
+      windowController.dispose();
+      decisionController.dispose();
+    });
+  }
+
+  void _deleteEscalation(_EscalationReadiness esc) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete escalation path?'),
+        content: Text('Are you sure you want to delete ${esc.id}: "${esc.event}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            onPressed: () {
+              setState(() => _escalations.removeWhere((e) => e.id == esc.id));
+              Navigator.of(context).pop();
+            },
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -2207,54 +2837,32 @@ class _PanelShell extends StatelessWidget {
   }
 }
 
-class _EscalationItem extends StatelessWidget {
-  const _EscalationItem(this.title, this.time, this.status);
+class _EscalationReadiness {
+  const _EscalationReadiness({
+    required this.id,
+    required this.event,
+    required this.level,
+    required this.triggerCondition,
+    required this.responsibleParty,
+    required this.escalationTarget,
+    required this.status,
+    required this.readiness,
+    required this.responseWindow,
+    required this.decisionRequired,
+    required this.lastReview,
+  });
 
-  final String title;
-  final String time;
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-                color: const Color(0xFF0EA5E9), shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600)),
-                Text(time,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF64748B))),
-              ],
-            ),
-          ),
-          Text(status,
-              style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B))),
-        ],
-      ),
-    );
-  }
+  final String id;
+  final String event;
+  final String level; // L1-Operational | L2-Management | L3-Executive | L4-Board/C-Suite
+  final String triggerCondition;
+  final String responsibleParty;
+  final String escalationTarget;
+  final String status; // Ready | Pending | In progress | Escalated | Deferred
+  final double readiness;
+  final String responseWindow;
+  final String decisionRequired;
+  final String lastReview;
 }
 
 // ─── Data Models ────────────────────────────────────────────────────────────
