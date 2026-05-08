@@ -1,0 +1,2431 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/screens/development_set_up_screen.dart';
+import 'package:ndu_project/screens/requirements_implementation_screen.dart';
+import 'package:ndu_project/screens/technical_alignment_screen.dart';
+import 'package:ndu_project/screens/ui_ux_design_screen.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/architecture_canvas.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/services/architecture_service.dart';
+import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/utils/rich_text_editing_controller.dart';
+import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/utils/phase_transition_helper.dart';
+import 'package:ndu_project/widgets/whiteboard_canvas.dart';
+import 'package:ndu_project/widgets/chart_builder_workspace.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/design_governance_dashboard.dart';
+import 'package:ndu_project/services/design_phase_service.dart';
+import 'package:ndu_project/models/design_phase_models.dart';
+import 'package:ndu_project/widgets/design_readiness_card.dart';
+import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/web_utils.dart';
+import 'package:ndu_project/widgets/design_phase_stable_shell.dart';
+
+class DesignPhaseScreen extends StatefulWidget {
+  const DesignPhaseScreen(
+      {super.key, this.activeItemLabel = 'Design Management'});
+
+  final String activeItemLabel;
+
+  static void open(
+    BuildContext context, {
+    String activeItemLabel = 'Design Management',
+    String destinationCheckpoint = 'design_management',
+  }) {
+    PhaseTransitionHelper.pushPhaseAware(
+      context: context,
+      builder: (_) => DesignPhaseScreen(activeItemLabel: activeItemLabel),
+      destinationCheckpoint: destinationCheckpoint,
+    );
+  }
+
+  @override
+  State<DesignPhaseScreen> createState() => _DesignPhaseScreenState();
+}
+
+enum DesignTool {
+  architecture,
+  whiteboard,
+  chartBuilder,
+  richText,
+}
+
+class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
+  // Dynamic Output Documents list
+  final List<_DocItem> _outputDocs = [];
+
+  // Architecture canvas state
+  final List<ArchitectureNode> _nodes = [];
+  final List<ArchitectureEdge> _edges = [];
+  int _nodeCounter = 0;
+
+  // Persistence state
+  String? _projectId;
+  bool _isSaving = false;
+  DateTime? _lastSavedAt;
+  Timer? _saveDebounce;
+
+  DesignTool _activeTool =
+      kIsWeb ? DesignTool.richText : DesignTool.architecture;
+  late final TextEditingController _richTextController;
+
+  // Component Library for dragging into Output Docs OR directly onto canvas
+  final List<_PaletteItem> _library = const [
+    _PaletteItem('Service', Icons.settings_suggest),
+    _PaletteItem('API', Icons.cloud_sync_outlined),
+    _PaletteItem('Database', Icons.storage),
+    _PaletteItem('Queue', Icons.sync_alt),
+    _PaletteItem('Cache', Icons.memory),
+    _PaletteItem('Auth', Icons.verified_user),
+    _PaletteItem('Mobile App', Icons.phone_android),
+    _PaletteItem('Web App', Icons.language),
+    _PaletteItem('Admin Portal', Icons.admin_panel_settings),
+    _PaletteItem('3rd-Party', Icons.link),
+  ];
+
+  ArchitectureNode _createNodeFromDrop(Offset pos, dynamic payload) {
+    final label = payload is ArchitectureDragPayload
+        ? payload.label
+        : payload is _DocItem
+            ? payload.title
+            : payload.toString();
+    final icon = payload is ArchitectureDragPayload
+        ? payload.icon
+        : payload is _DocItem
+            ? payload.icon
+            : null;
+    return ArchitectureNode(
+      id: 'n_${_nodeCounter++}',
+      label: label,
+      position: pos,
+      color: Colors.white,
+      icon: icon,
+    );
+  }
+
+  DesignPhaseProgress? _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _richTextController = RichTextEditingController(
+      text:
+          '### Design Notes\n\nStart drafting your design narrative here. Use the toolbar above for quick formatting.',
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider = ProjectDataInherited.maybeOf(context);
+      final pid = provider?.projectData.projectId;
+      if (pid != null && pid.isNotEmpty) {
+        setState(() => _projectId = pid);
+        _loadPersisted(pid);
+        _loadProgress(pid);
+        // Save this page as the last visited page for the project
+        await ProjectNavigationService.instance.saveLastPage(pid, 'design');
+      }
+    });
+  }
+
+  Future<void> _loadProgress(String projectId) async {
+    try {
+      final progress =
+          await DesignPhaseService.instance.getDesignProgress(projectId);
+      if (mounted) setState(() => _progress = progress);
+    } catch (e) {
+      debugPrint('Error loading design progress: $e');
+    }
+  }
+
+  Widget _buildDesignDashboard(double padding) {
+    if (_progress == null) return const SizedBox.shrink();
+
+    // Use the new Readiness Card
+    // Note: _progress is technically DesignPhaseProgress (typedef for DesignReadinessModel)
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: padding, vertical: 16),
+      child: DesignReadinessCard(readiness: _progress!),
+    );
+  }
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    _richTextController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPersisted(String projectId) async {
+    final data = await ArchitectureService.load(projectId);
+    if (data == null) return;
+    try {
+      final docs = (data['outputDocs'] as List?) ?? const [];
+      final nodes = (data['nodes'] as List?) ?? const [];
+      final edges = (data['edges'] as List?) ?? const [];
+
+      setState(() {
+        _outputDocs
+          ..clear()
+          ..addAll(docs.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return _DocItem(
+              m['title']?.toString() ?? 'Untitled',
+              icon: _iconFromCode(
+                  m['iconCode'] as int?, m['iconFont']?.toString()),
+              color: _colorFromHex(m['color']?.toString()),
+            );
+          }));
+
+        _nodes
+          ..clear()
+          ..addAll(nodes.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            final id = m['id']?.toString() ?? 'n_${_nodeCounter++}';
+            final dx = (m['x'] is num) ? (m['x'] as num).toDouble() : 0.0;
+            final dy = (m['y'] is num) ? (m['y'] as num).toDouble() : 0.0;
+            return ArchitectureNode(
+              id: id,
+              label: m['label']?.toString() ?? 'Node',
+              position: Offset(dx, dy),
+              color: _colorFromHex(m['color']?.toString()) ?? Colors.white,
+              icon: _iconFromCode(
+                  m['iconCode'] as int?, m['iconFont']?.toString()),
+            );
+          }));
+        _nodeCounter = _nodes.fold<int>(0, (acc, n) {
+              final parts = n.id.split('_');
+              final maybe = int.tryParse(parts.isNotEmpty ? parts.last : '');
+              return maybe != null && maybe > acc ? maybe : acc;
+            }) +
+            1;
+
+        _edges
+          ..clear()
+          ..addAll(edges.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return ArchitectureEdge(
+              fromId: m['from']?.toString() ?? '',
+              toId: m['to']?.toString() ?? '',
+              label: m['label']?.toString() ?? '',
+            );
+          }));
+      });
+    } catch (e, st) {
+      debugPrint('⚠️ Failed to parse architecture doc: $e\n$st');
+    }
+  }
+
+  void _scheduleSave() {
+    if (_projectId == null || _projectId!.isEmpty) return;
+    _saveDebounce?.cancel();
+    setState(() => _isSaving = true);
+    _saveDebounce = Timer(const Duration(milliseconds: 600), () async {
+      try {
+        final payload = {
+          'outputDocs': _outputDocs
+              .map((d) => {
+                    'title': d.title,
+                    'iconCode': d.icon?.codePoint,
+                    'iconFont': d.icon?.fontFamily,
+                    'color': _hexFromColor(d.color),
+                  })
+              .toList(),
+          'nodes': _nodes
+              .map((n) => {
+                    'id': n.id,
+                    'label': n.label,
+                    'x': n.position.dx,
+                    'y': n.position.dy,
+                    'iconCode': n.icon?.codePoint,
+                    'iconFont': n.icon?.fontFamily,
+                    'color': _hexFromColor(n.color),
+                  })
+              .toList(),
+          'edges': _edges
+              .map((e) => {
+                    'from': e.fromId,
+                    'to': e.toId,
+                    'label': e.label,
+                  })
+              .toList(),
+        };
+        await ArchitectureService.save(_projectId!, payload);
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+            _lastSavedAt = DateTime.now();
+          });
+        }
+      } catch (e, st) {
+        debugPrint('❌ Failed to save architecture: $e\n$st');
+        if (mounted) setState(() => _isSaving = false);
+      }
+    });
+  }
+
+  static Color? _colorFromHex(String? hex) {
+    if (hex == null || hex.isEmpty) return null;
+    try {
+      final buffer = StringBuffer();
+      var value = hex.replaceFirst('#', '').toUpperCase();
+      if (value.length == 6) buffer.write('FF');
+      buffer.write(value);
+      final intColor = int.parse(buffer.toString(), radix: 16);
+      return Color(intColor);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String? _hexFromColor(Color? c) {
+    if (c == null) return null;
+    final argb = c.toARGB32();
+    return '#${argb.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  }
+
+  // Keep icon resolution to a known set so web builds can tree-shake icons safely.
+  static final Map<int, IconData> _iconLookup = <int, IconData>{
+    Icons.settings_suggest.codePoint: Icons.settings_suggest,
+    Icons.cloud_sync_outlined.codePoint: Icons.cloud_sync_outlined,
+    Icons.storage.codePoint: Icons.storage,
+    Icons.sync_alt.codePoint: Icons.sync_alt,
+    Icons.memory.codePoint: Icons.memory,
+    Icons.verified_user.codePoint: Icons.verified_user,
+    Icons.phone_android.codePoint: Icons.phone_android,
+    Icons.language.codePoint: Icons.language,
+    Icons.admin_panel_settings.codePoint: Icons.admin_panel_settings,
+    Icons.link.codePoint: Icons.link,
+    Icons.insert_drive_file_outlined.codePoint:
+        Icons.insert_drive_file_outlined,
+    Icons.widgets_outlined.codePoint: Icons.widgets_outlined,
+  };
+
+  static IconData? _iconFromCode(int? codePoint, String? fontFamily) {
+    if (codePoint == null) return null;
+    if (fontFamily != null && fontFamily != 'MaterialIcons') return null;
+    return _iconLookup[codePoint];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    final padding = isMobile ? 16.0 : 24.0;
+    if (widget.activeItemLabel == 'Design Management') {
+      return _buildStableManagementScreen(padding);
+    }
+    if (kIsWeb) {
+      return _buildMinimalWebScreen(padding);
+    }
+
+    return ResponsiveScaffold(
+      activeItemLabel: widget.activeItemLabel,
+      body: Column(
+        children: [
+          const PlanningPhaseHeader(
+            title: 'Design Management',
+            showImportButton: false,
+            showContentButton: false,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Move Design Dashboard inside scroll view
+                  if (_projectId != null) ...[
+                    _buildDesignDashboard(padding),
+                    const SizedBox(height: 16),
+                  ],
+                  const PlanningAiNotesCard(
+                    title: 'Notes',
+                    sectionLabel: 'Design',
+                    noteKey: 'planning_design_notes',
+                    checkpoint: 'design',
+                    description:
+                        'Summarize design goals, artifacts, and key decisions.',
+                  ),
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Collaborative workspace for Waterfall design and documentation',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  if (isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Design Management',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Text(
+                          'Develop project design documentation',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildStrategySection(),
+                        const SizedBox(height: 24),
+                        _buildManagementCards(),
+                        const SizedBox(height: 24),
+                        _buildEditorSection(),
+                      ],
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Design Management',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Text(
+                          'Develop project design documentation',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildStrategySection(),
+                        const SizedBox(height: 24),
+                        _buildManagementCards(),
+                        const SizedBox(height: 24),
+                        _buildEditorSection(),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          LaunchPhaseNavigation(
+            backLabel: 'Back: Design overview',
+            nextLabel: 'Next: Requirements Implementation',
+            onBack: () => Navigator.of(context).maybePop(),
+            onNext: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (_) => const RequirementsImplementationScreen()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStableManagementScreen(double padding) {
+    return DesignPhaseStableShell(
+      activeLabel: 'Design Management',
+      onItemSelected: _openStableDesignItem,
+      child: ListView(
+        padding: EdgeInsets.all(padding),
+        children: [
+          _buildStableManagementHeader(),
+          const SizedBox(height: 24),
+          _buildStableNotesCard(),
+          const SizedBox(height: 24),
+          Text(
+            'Collaborative workspace for Waterfall design and documentation',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Design Management',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const Text(
+            'Develop project design documentation',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          _buildWebSafeStrategySection(),
+          const SizedBox(height: 24),
+          _buildWebGovernanceSummary(),
+          const SizedBox(height: 24),
+          _buildWebEditorSummary(),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppSemanticColors.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                OutlinedButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: const Text('Back: Design overview'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const RequirementsImplementationScreen(),
+                    ),
+                  ),
+                  child: const Text('Next: Requirements Implementation'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openStableDesignItem(String label) {
+    Widget? destination;
+    switch (label) {
+      case 'Design Management':
+        destination =
+            const DesignPhaseScreen(activeItemLabel: 'Design Management');
+        break;
+      case 'Design Specifications':
+        destination = const RequirementsImplementationScreen();
+        break;
+      case 'Technical Alignment':
+        destination = const TechnicalAlignmentScreen();
+        break;
+      case 'Development Set Up':
+        destination = const DevelopmentSetUpScreen();
+        break;
+      case 'UI/UX Design':
+        destination = const UiUxDesignScreen();
+        break;
+    }
+
+    if (destination == null) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => destination!),
+    );
+  }
+
+  Widget _buildStableManagementHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+            tooltip: 'Back',
+          ),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Design',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStableNotesCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7D6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.sticky_note_2_outlined,
+                  size: 14,
+                  color: Color(0xFFF4B400),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Notes',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Summarize design goals, artifacts, and key decisions.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormattingToolbar(controller: _richTextController),
+          const SizedBox(height: 12),
+          Container(
+            constraints: const BoxConstraints(minHeight: 120),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppSemanticColors.border),
+            ),
+            child: TextField(
+              controller: _richTextController,
+              minLines: 4,
+              maxLines: 6,
+              decoration: const InputDecoration.collapsed(
+                hintText:
+                    'Capture the key decisions and details for this section...',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMinimalWebScreen(double padding) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppSemanticColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x12000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Design Management',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'Web diagnostic mode is active.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'If this placeholder renders, the previous layout failure was inside the Design Management widget tree. If it still crashes, the failure is outside this screen and in a shared app wrapper.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: Color(0xFF4B5563),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildWebSafeNavigationCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Next Step',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Continue to requirements implementation once the strategy and notes are updated.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[600],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                child: const Text('Back'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const RequirementsImplementationScreen(),
+                  ),
+                ),
+                child: const Text('Requirements Implementation'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildWebSafeStrategySection() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (provider == null) return const SizedBox.shrink();
+
+    final projectData = provider.projectData;
+    final managementData = _resolvedManagementData(projectData);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Design Strategy & Governance',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'The web layout uses a simplified single-column strategy form to keep the screen stable.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 18),
+          _buildWebSafeDropdownBlock<ProjectMethodology>(
+            label: 'Methodology',
+            value: managementData.methodology,
+            items: ProjectMethodology.values
+                .map(
+                  (methodology) => DropdownMenuItem(
+                    value: methodology,
+                    child: Text(
+                      methodology.name.toUpperCase(),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) _updateMethodology(value);
+            },
+            helper: _getMethodologyDescription(managementData.methodology),
+          ),
+          const SizedBox(height: 16),
+          _buildWebSafeDropdownBlock<ProjectIndustry>(
+            label: 'Industry',
+            value: managementData.industry,
+            items: ProjectIndustry.values
+                .map(
+                  (industry) => DropdownMenuItem(
+                    value: industry,
+                    child: Text(
+                      industry.name.substring(0, 1).toUpperCase() +
+                          industry.name.substring(1),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) _updateIndustry(value);
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildWebSafeDropdownBlock<ExecutionStrategy>(
+            label: 'Execution Strategy',
+            value: managementData.executionStrategy,
+            items: ExecutionStrategy.values
+                .map(
+                  (strategy) => DropdownMenuItem(
+                    value: strategy,
+                    child: Text(
+                      strategy.name
+                          .replaceAll(RegExp(r'(?<!^)(?=[A-Z])'), ' ')
+                          .toUpperCase(),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) _updateStrategy(value);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebSafeDropdownBlock<T>({
+    required String label,
+    required T value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+    String? helper,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<T>(
+          initialValue: value,
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          items: items,
+          onChanged: onChanged,
+        ),
+        if (helper != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            helper,
+            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildWebGovernanceSummary() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectData = provider?.projectData ?? ProjectDataModel();
+    final data = _resolvedManagementData(projectData);
+    final readiness = _progress ?? data.readiness;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.admin_panel_settings_outlined,
+              color: Color(0xFF2563EB),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Governance Snapshot',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildGovernanceMetric(
+                'Readiness',
+                '${(readiness.overallScore * 100).toInt()}%',
+                const Color(0xFF2563EB),
+              ),
+              _buildGovernanceMetric(
+                'Team Members',
+                '${projectData.teamMembers.length}',
+                const Color(0xFF0F766E),
+              ),
+              _buildGovernanceMetric(
+                'Requirements',
+                '${projectData.frontEndPlanningData.requirements.length}',
+                const Color(0xFFD97706),
+              ),
+              _buildGovernanceMetric(
+                'Architecture Nodes',
+                '${_nodes.length}',
+                const Color(0xFF7C3AED),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Web-safe mode is active for this screen. Core design strategy, governance summary, and editor tools remain available while the heavier visual workspace is simplified for reliable rendering.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGovernanceMetric(String label, String value, Color color) {
+    return Container(
+      width: 180,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildWebEditorSummary() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child:
+                const Icon(Icons.edit_note_outlined, color: Color(0xFF2563EB)),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Design Editor Summary',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'The full interactive editor stack is simplified on web to avoid layout failures while keeping core design documentation accessible.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextFormattingToolbar(controller: _richTextController),
+          const SizedBox(height: 12),
+          Container(
+            constraints: const BoxConstraints(minHeight: 320),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppSemanticColors.border),
+            ),
+            child: TextField(
+              controller: _richTextController,
+              minLines: 12,
+              maxLines: 18,
+              decoration: const InputDecoration.collapsed(
+                hintText: 'Start typing your design notes...',
+              ),
+              style: const TextStyle(height: 1.5),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildGovernanceMetric(
+                'Nodes',
+                '${_nodes.length}',
+                const Color(0xFF7C3AED),
+              ),
+              _buildGovernanceMetric(
+                'Edges',
+                '${_edges.length}',
+                const Color(0xFF2563EB),
+              ),
+              _buildGovernanceMetric(
+                'Status',
+                _isSaving ? 'Saving' : 'Ready',
+                const Color(0xFF0F766E),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesignToolsSidebarSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Design Tools',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const Icon(Icons.add, size: 16),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('Select to use',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildToolItem(
+                  'Draw.io',
+                  Icons.account_tree,
+                  isSelected: _activeTool == DesignTool.architecture,
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.architecture),
+                ),
+                const SizedBox(width: 8),
+                _buildToolItem(
+                  'Miro',
+                  Icons.dashboard_outlined,
+                  onTap: () =>
+                      _openToolWebView('Miro', 'https://miro.com/login/'),
+                  showExternalIcon: true,
+                ),
+                const SizedBox(width: 8),
+                _buildToolItem(
+                  'Figma',
+                  Icons.design_services,
+                  onTap: () =>
+                      _openToolWebView('Figma', 'https://www.figma.com/'),
+                  showExternalIcon: true,
+                ),
+                const SizedBox(width: 8),
+                _buildToolItem(
+                  'Rich Text Editor',
+                  Icons.text_fields,
+                  isSelected: _activeTool == DesignTool.richText,
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.richText),
+                ),
+                const SizedBox(width: 8),
+                _buildToolItem(
+                  'Whiteboard',
+                  Icons.brush,
+                  isSelected: _activeTool == DesignTool.whiteboard,
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.whiteboard),
+                ),
+                const SizedBox(width: 8),
+                _buildToolItem(
+                  'Chart Builder',
+                  Icons.bar_chart,
+                  isSelected: _activeTool == DesignTool.chartBuilder,
+                  onTap: () =>
+                      setState(() => _activeTool = DesignTool.chartBuilder),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolItem(
+    String title,
+    IconData icon, {
+    bool isSelected = false,
+    VoidCallback? onTap,
+    bool showExternalIcon = false,
+  }) {
+    final backgroundColor = isSelected
+        ? Colors.blue.withValues(alpha: 0.1)
+        : Colors.grey.withValues(alpha: 0.06);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 18, color: isSelected ? Colors.blue : Colors.grey[700]),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isSelected ? Colors.blue : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                ),
+              ),
+              if (showExternalIcon)
+                Icon(Icons.open_in_new, size: 14, color: Colors.grey[400]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCollaboratorsSection() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final teamMembers = provider?.projectData.teamMembers ?? [];
+    final collaborators = teamMembers.map((member) {
+      final trimmedName = member.name.trim();
+      final trimmedRole = member.role.trim();
+      final displayName = trimmedName.isNotEmpty
+          ? trimmedName
+          : trimmedRole.isNotEmpty
+              ? trimmedRole
+              : 'Unassigned team member';
+      final displayRole = trimmedRole.isNotEmpty ? trimmedRole : 'Team Member';
+      return (displayName, displayRole);
+    }).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Collaborators',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const Icon(Icons.add, size: 16),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('${collaborators.length} members',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          const SizedBox(height: 12),
+          if (collaborators.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No team members yet. Add team members in Team Management.',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic),
+              ),
+            )
+          else
+            ...collaborators.map((member) {
+              final displayName = member.$1;
+              final displayRole = member.$2;
+              final initials = _getInitials(displayName);
+              final color = _getColorForMember(displayName);
+              return _buildCollaboratorItem(
+                displayName,
+                displayRole,
+                initials,
+                color,
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  String _getInitials(String name) {
+    final normalized = name.trim();
+    if (normalized.isEmpty) return '?';
+
+    final parts = normalized
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      return parts[0].substring(0, 1).toUpperCase();
+    }
+    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'
+        .toUpperCase();
+  }
+
+  Color _getColorForMember(String name) {
+    final colors = [
+      Colors.blue,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.cyan,
+      Colors.amber
+    ];
+    final hash = name.hashCode.abs();
+    return colors[hash % colors.length];
+  }
+
+  Widget _buildCollaboratorItem(
+      String name, String role, String initials, Color color,
+      {bool isOnline = false, Color? statusColor}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: color.withValues(alpha: 0.2),
+            child: Text(initials,
+                style: TextStyle(
+                    fontSize: 12, color: color, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w500)),
+                Text(role,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+              ],
+            ),
+          ),
+          if (statusColor != null)
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: statusColor,
+                shape: BoxShape.circle,
+              ),
+            )
+          else if (isOnline)
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _openToolWebView(String title, String url) {
+    // For web platform, open in new tab since WebView is not supported
+    if (kIsWeb) {
+      // Open in new tab
+      openUrlInNewWindow(url);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Opening $title in new tab'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // For mobile/desktop, use modal with WebView
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.85,
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.public, color: Colors.grey.shade700, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Close',
+                    ),
+                  ],
+                ),
+              ),
+              // WebView Content
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  child: WebViewWidget(
+                    controller: WebViewController()
+                      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+                      ..loadRequest(Uri.parse(url)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStrategySection() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (provider == null) return const SizedBox.shrink();
+
+    final projectData = provider.projectData;
+    final DesignManagementData managementData =
+        _resolvedManagementData(projectData);
+    final methodology = managementData.methodology;
+    final strategy = managementData.executionStrategy;
+    final industry = managementData.industry;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Design Strategy & Governance',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('Required',
+                    style: TextStyle(fontSize: 11, color: Colors.blue)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Methodology',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<ProjectMethodology>(
+                      initialValue: methodology,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: ProjectMethodology.values.map((m) {
+                        return DropdownMenuItem(
+                          value: m,
+                          child: Text(m.name.toUpperCase(),
+                              style: const TextStyle(fontSize: 13)),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) _updateMethodology(val);
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _getMethodologyDescription(methodology),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Industry',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<ProjectIndustry>(
+                      initialValue: industry,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: ProjectIndustry.values.map((i) {
+                        return DropdownMenuItem(
+                          value: i,
+                          child: Text(
+                              i.name.substring(0, 1).toUpperCase() +
+                                  i.name.substring(1),
+                              style: const TextStyle(fontSize: 13)),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) _updateIndustry(val);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Execution Strategy',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<ExecutionStrategy>(
+                      initialValue: strategy,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: ExecutionStrategy.values.map((s) {
+                        return DropdownMenuItem(
+                          value: s,
+                          child: Text(
+                              s.name
+                                  .replaceAll(RegExp(r'(?<!^)(?=[A-Z])'), ' ')
+                                  .toUpperCase(),
+                              style: const TextStyle(fontSize: 13)),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) _updateStrategy(val);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMethodologyDescription(ProjectMethodology m) {
+    switch (m) {
+      case ProjectMethodology.waterfall:
+        return 'Sequential phases, strict requirements';
+      case ProjectMethodology.agile:
+        return 'Iterative sprints, flexible scope';
+      case ProjectMethodology.hybrid:
+        return 'Mixed approach for optimal control';
+    }
+  }
+
+  DesignManagementData _resolvedManagementData(ProjectDataModel projectData) {
+    final existing = projectData.designManagementData;
+    if (existing != null) return existing;
+    final mapped = ProjectDataHelper.projectMethodologyFromOverallFramework(
+          projectData.overallFramework,
+        ) ??
+        ProjectMethodology.waterfall;
+    return DesignManagementData(methodology: mapped);
+  }
+
+  void _updateMethodology(ProjectMethodology val) {
+    final provider = ProjectDataInherited.maybeOf(context);
+    provider?.updateField((ProjectDataModel p) {
+      final dm = p.designManagementData ?? DesignManagementData();
+      return p.copyWith(
+        designManagementData: dm.copyWith(methodology: val),
+        overallFramework:
+            ProjectDataHelper.overallFrameworkFromMethodology(val),
+      );
+    });
+  }
+
+  void _updateIndustry(ProjectIndustry val) {
+    final provider = ProjectDataInherited.maybeOf(context);
+    provider?.updateField((ProjectDataModel p) {
+      final dm = p.designManagementData ?? DesignManagementData();
+      return p.copyWith(designManagementData: dm.copyWith(industry: val));
+    });
+  }
+
+  void _updateStrategy(ExecutionStrategy val) {
+    final provider = ProjectDataInherited.maybeOf(context);
+    provider?.updateField((ProjectDataModel p) {
+      final dm = p.designManagementData ?? DesignManagementData();
+      return p.copyWith(
+          designManagementData: dm.copyWith(executionStrategy: val));
+    });
+  }
+
+  Widget _buildManagementCards() {
+    final ProjectDataProvider? provider = ProjectDataInherited.maybeOf(context);
+    final projectData = provider?.projectData ?? ProjectDataModel();
+    final data = _resolvedManagementData(projectData);
+
+    return DesignGovernanceDashboard(
+      projectData: projectData,
+      managementData: data,
+      readiness: _progress,
+      architectureNodeCount: _nodes.length,
+    );
+  }
+
+  Widget _buildEditorSection() {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      height: 680,
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x12000000), blurRadius: 18, offset: Offset(0, 10)),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Editor Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              border:
+                  Border(bottom: BorderSide(color: AppSemanticColors.border)),
+            ),
+            child: Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('System Architecture',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text('Design Editor · Output Document',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text('Live canvas',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                ),
+                const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: _addArchitectureNode,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add node',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+                if (_nodes.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _deleteLastArchitectureNode,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB42318),
+                      side: const BorderSide(color: Color(0xFFFECACA)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text(
+                      'Delete last',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _clearArchitectureCanvas,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF7A0916),
+                      side: const BorderSide(color: Color(0xFFFDA4AF)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.layers_clear_outlined, size: 16),
+                    label: const Text(
+                      'Clear canvas',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppSemanticColors.successSurface,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline,
+                          size: 14, color: AppSemanticColors.success),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isSaving
+                            ? 'Saving…'
+                            : _lastSavedAt != null
+                                ? 'Saved'
+                                : 'Ready',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppSemanticColors.success),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Icon(Icons.fullscreen, size: 20, color: Colors.grey),
+                const SizedBox(width: 12),
+                const Icon(Icons.chat_bubble_outline,
+                    size: 18, color: Colors.grey),
+                const SizedBox(width: 12),
+                const Icon(Icons.more_horiz, size: 20, color: Colors.grey),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 860;
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildDesignToolsSidebarSection(),
+                      const SizedBox(height: 16),
+                      _buildCollaboratorsSection(),
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildDesignToolsSidebarSection()),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildCollaboratorsSection()),
+                  ],
+                );
+              },
+            ),
+          ),
+          // Editor Body
+          Expanded(
+            child: Row(
+              children: [
+                _buildToolSidePanel(),
+
+                // Canvas
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: _buildActiveCanvas(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Footer
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: AppSemanticColors.border)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    size: 16, color: AppSemanticColors.success),
+                const SizedBox(width: 24),
+                Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
+                const SizedBox(width: 8),
+                Text(
+                  _isSaving
+                      ? 'Saving…'
+                      : _lastSavedAt != null
+                          ? 'Saved ${TimeOfDay.fromDateTime(_lastSavedAt!).format(context)}'
+                          : 'No changes yet',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+                const Spacer(),
+                Text(_toolFooterLabel(),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolSidePanel() {
+    if (_activeTool != DesignTool.architecture) {
+      return Container(
+        width: 220,
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: AppSemanticColors.border)),
+        ),
+        child: _buildToolSidebarContent(),
+      );
+    }
+    return Container(
+      width: 220,
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: AppSemanticColors.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: Text('Component Library',
+                style: TextStyle(
+                    color: Colors.grey[800], fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              itemCount: _library.length,
+              itemBuilder: (context, i) {
+                final item = _library[i];
+                final payload = ArchitectureDragPayload(item.label,
+                    icon: item.icon, color: Colors.blueGrey[50]);
+                return LongPressDraggable<ArchitectureDragPayload>(
+                  data: payload,
+                  dragAnchorStrategy: pointerDragAnchorStrategy,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: _componentTile(item,
+                        isDragging: true, showAddButton: false),
+                  ),
+                  child: _componentTile(
+                    item,
+                    showAddButton: true,
+                    onAddToCanvas: () {
+                      // Add node to center of visible canvas
+                      final centerPos = Offset(
+                          200 + (_nodes.length * 40).toDouble(),
+                          200 + (_nodes.length * 40).toDouble());
+                      final newNode = ArchitectureNode(
+                        id: 'n_${_nodeCounter++}',
+                        label: item.label,
+                        position: centerPos,
+                        color: Colors.white,
+                        icon: item.icon,
+                      );
+                      setState(() {
+                        _nodes.add(newNode);
+                      });
+                      _scheduleSave();
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tip: Click + to add to canvas, or drag to position.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Use "Connect" mode to draw workflow arrows between components.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolSidebarContent() {
+    switch (_activeTool) {
+      case DesignTool.whiteboard:
+        return _toolSidebarCard(
+          title: 'Whiteboard Tips',
+          lines: const [
+            'Draw freely with pen or marker.',
+            'Use the eraser to clean sections.',
+            'Undo restores the last stroke.',
+            'Clear removes everything instantly.',
+          ],
+        );
+      case DesignTool.chartBuilder:
+        return _toolSidebarCard(
+          title: 'Chart Builder',
+          lines: const [
+            'Switch chart types in the header.',
+            'Edit labels and values on the right.',
+            'Add points to grow the chart.',
+            'Use colors to group meaning.',
+          ],
+        );
+      case DesignTool.richText:
+        return _toolSidebarCard(
+          title: 'Rich Text Editor',
+          lines: const [
+            'Draft narratives beside diagrams.',
+            'Use headings for quick scannability.',
+            'Keep key decisions highlighted.',
+          ],
+        );
+      case DesignTool.architecture:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _toolSidebarCard(
+      {required String title, required List<String> lines}) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(
+                  color: Colors.grey[800], fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          ...lines.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(line,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 16, color: Colors.amber[700]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Pro tip: switch tools any time - your work stays here.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveCanvas() {
+    switch (_activeTool) {
+      case DesignTool.whiteboard:
+        return const WhiteboardCanvas();
+      case DesignTool.chartBuilder:
+        return const ChartBuilderWorkspace();
+      case DesignTool.richText:
+        return _buildRichTextPlaceholder();
+      case DesignTool.architecture:
+        if (kIsWeb) {
+          return _buildWebArchitectureFallback();
+        }
+        return ArchitectureCanvas(
+          nodes: _nodes,
+          edges: _edges,
+          onNodesChanged: (n) => setState(() {
+            _nodes
+              ..clear()
+              ..addAll(n);
+            _scheduleSave();
+          }),
+          onEdgesChanged: (e) => setState(() {
+            _edges
+              ..clear()
+              ..addAll(e);
+            _scheduleSave();
+          }),
+          onRequestAddNodeFromDrop: (pos, payload) {
+            final node = _createNodeFromDrop(pos, payload);
+            return node;
+          },
+        );
+    }
+  }
+
+  Widget _buildWebArchitectureFallback() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_tree_outlined,
+                    color: Color(0xFF2563EB)),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Architecture Workspace',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Web-safe summary mode is active to keep the Design Management screen stable and visible.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6B7280),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppSemanticColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_nodes.length} architecture nodes captured',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _nodes.isEmpty
+                      ? 'No architecture nodes have been added yet. Use the Rich Text Editor or add nodes from a non-web environment if you need the full interactive canvas.'
+                      : _nodes.take(6).map((n) => '• ${n.label}').join('\n'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF4B5563),
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _activeTool = DesignTool.richText),
+            icon: const Icon(Icons.text_fields, size: 18),
+            label: const Text('Switch to Rich Text Editor'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF111827),
+              side: const BorderSide(color: Color(0xFFE5E7EB)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppSemanticColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Manual node register',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _addArchitectureNode,
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add node'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (_nodes.isEmpty)
+                  Text(
+                    'No nodes yet. Add one manually to keep the architecture model editable on web.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  )
+                else
+                  ..._nodes.map(_buildWebNodeEditor),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addArchitectureNode() {
+    final node = ArchitectureNode(
+      id: 'n_${_nodeCounter++}',
+      label: 'New node',
+      position: Offset(
+        220 + (_nodes.length * 24).toDouble(),
+        160 + (_nodes.length * 24).toDouble(),
+      ),
+      color: Colors.white,
+      icon: Icons.widgets_outlined,
+    );
+    setState(() => _nodes.add(node));
+    _scheduleSave();
+  }
+
+  void _deleteLastArchitectureNode() {
+    if (_nodes.isEmpty) return;
+    final id = _nodes.last.id;
+    _deleteArchitectureNode(id);
+  }
+
+  void _deleteArchitectureNode(String id) {
+    setState(() {
+      _nodes.removeWhere((node) => node.id == id);
+      _edges.removeWhere((edge) => edge.fromId == id || edge.toId == id);
+    });
+    _scheduleSave();
+  }
+
+  void _clearArchitectureCanvas() {
+    setState(() {
+      _nodes.clear();
+      _edges.clear();
+    });
+    _scheduleSave();
+  }
+
+  Widget _buildWebNodeEditor(ArchitectureNode node) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(node.icon ?? Icons.widgets_outlined,
+              size: 18, color: const Color(0xFF475467)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextFormField(
+              key: ValueKey('web-node-${node.id}'),
+              initialValue: node.label,
+              decoration: const InputDecoration(
+                isDense: true,
+                hintText: 'Node label',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                node.label = value;
+                _scheduleSave();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Delete node',
+            onPressed: () => _deleteArchitectureNode(node.id),
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFB42318)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRichTextPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Text('Rich Text Editor',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.grey[800])),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextFormattingToolbar(controller: _richTextController),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: TextField(
+                  controller: _richTextController,
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  decoration: const InputDecoration.collapsed(
+                    hintText: 'Start typing your design notes...',
+                  ),
+                  style: const TextStyle(height: 1.5),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _toolFooterLabel() {
+    switch (_activeTool) {
+      case DesignTool.whiteboard:
+        return 'Whiteboard ready for freehand sketching';
+      case DesignTool.chartBuilder:
+        return 'Chart builder active';
+      case DesignTool.richText:
+        return 'Rich text workspace ready';
+      case DesignTool.architecture:
+        return '${_nodes.length} elements on canvas';
+    }
+  }
+
+  Widget _componentTile(_PaletteItem item,
+      {bool isDragging = false,
+      bool showAddButton = false,
+      VoidCallback? onAddToCanvas}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDragging
+            ? LightModeColors.accent.withValues(alpha: 0.15)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppSemanticColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(item.icon, size: 18, color: Colors.blueGrey[800]),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(item.label,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          if (showAddButton && onAddToCanvas != null) ...[
+            InkWell(
+              onTap: onAddToCanvas,
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                child: Icon(Icons.add_circle_outline,
+                    size: 18, color: LightModeColors.accent),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          const Icon(Icons.drag_indicator, size: 16, color: Colors.grey),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocItem {
+  _DocItem(this.title, {this.icon, this.color});
+  final String title;
+  final IconData? icon;
+  final Color? color;
+}
+
+class _PaletteItem {
+  const _PaletteItem(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
