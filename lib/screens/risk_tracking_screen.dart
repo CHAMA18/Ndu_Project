@@ -587,6 +587,8 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: DataTable(
                       headingRowColor:
                           WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      headingRowHeight: 32,
+                      dataRowHeight: 36,
                       columnSpacing: 16,
                       horizontalMargin: 12,
                       columns: const [
@@ -733,6 +735,8 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: DataTable(
                       headingRowColor:
                           WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      headingRowHeight: 32,
+                      dataRowHeight: 36,
                       columnSpacing: 14,
                       horizontalMargin: 12,
                       columns: const [
@@ -856,21 +860,21 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 60,
+          width: 48,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: plan.coverage,
-              minHeight: 6,
+              minHeight: 4,
               backgroundColor: const Color(0xFFE2E8F0),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 5),
         Text('$pct%',
             style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+                fontSize: 10, fontWeight: FontWeight.w600, color: color)),
       ],
     );
   }
@@ -895,19 +899,19 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ? Icons.attach_money
                         : Icons.category;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: const Color(0xFF475569)),
-          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: const Color(0xFF475569)),
+          const SizedBox(width: 3),
           Text(category,
               style: const TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+                  fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
         ],
       ),
     );
@@ -923,19 +927,19 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
       _ => (const Color(0xFF64748B), Icons.help_outline),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
           Text(status,
               style: TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+                  fontSize: 9, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -948,14 +952,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
             ? const Color(0xFFF59E0B)
             : const Color(0xFFEF4444);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(effectiveness,
           style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+              fontSize: 9, fontWeight: FontWeight.w600, color: color)),
     );
   }
 
@@ -966,14 +970,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
             ? const Color(0xFFF59E0B)
             : const Color(0xFFEF4444);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(residual,
           style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+              fontSize: 9, fontWeight: FontWeight.w600, color: color)),
     );
   }
 
@@ -1000,6 +1004,8 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: DataTable(
                       headingRowColor:
                           WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      headingRowHeight: 32,
+                      dataRowHeight: 36,
                       columnSpacing: 14,
                       horizontalMargin: 12,
                       columns: const [
@@ -1122,19 +1128,19 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     final color = isLeading ? const Color(0xFF0EA5E9) : const Color(0xFF8B5CF6);
     final icon = isLeading ? Icons.trending_up : Icons.history;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
           Text(category,
               style: TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+                  fontSize: 9, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -1149,19 +1155,19 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
       _ => (const Color(0xFF64748B), Icons.help_outline),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
           Text(severity,
               style: TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+                  fontSize: 9, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -1174,14 +1180,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
             ? const Color(0xFFF59E0B)
             : const Color(0xFFEF4444);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(confidence,
           style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+              fontSize: 9, fontWeight: FontWeight.w600, color: color)),
     );
   }
 
@@ -1193,19 +1199,19 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
       _ => (const Color(0xFF64748B), Icons.remove),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
           Text(trend,
               style: TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+                  fontSize: 9, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -1234,14 +1240,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
 
   Widget _chip(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,
           style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               color: Color(0xFF475569))),
     );
@@ -1256,14 +1262,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF10B981);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,
           style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
     );
   }
 
@@ -1274,14 +1280,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
             ? const Color(0xFFF59E0B)
             : const Color(0xFF10B981);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,
           style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
     );
   }
 
