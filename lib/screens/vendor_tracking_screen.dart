@@ -370,9 +370,9 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: item.color.withValues(alpha: 0.08),
+        color: item.color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: item.color.withValues(alpha: 0.18)),
+        border: Border.all(color: item.color.withOpacity(0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -998,7 +998,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.shield_outlined, size: 36, color: const Color(0xFF10B981).withValues(alpha: 0.6)),
+                    Icon(Icons.shield_outlined, size: 36, color: const Color(0xFF10B981).withOpacity(0.6)),
                     const SizedBox(height: 8),
                     const Text('No active risk signals', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w600)),
                   ],
@@ -1065,7 +1065,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                             flex: 1,
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                              decoration: BoxDecoration(color: sevColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                              decoration: BoxDecoration(color: sevColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                               child: Text(sig.severity, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: sevColor), textAlign: TextAlign.center),
                             ),
                           ),
@@ -1075,7 +1075,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                             flex: 1,
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                              decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                               child: Text(sig.status, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: statusColor), textAlign: TextAlign.center),
                             ),
                           ),
@@ -1237,7 +1237,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.event_note_outlined, size: 36, color: const Color(0xFF9CA3AF).withValues(alpha: 0.6)),
+                    Icon(Icons.event_note_outlined, size: 36, color: const Color(0xFF9CA3AF).withOpacity(0.6)),
                     const SizedBox(height: 8),
                     const Text('No action items yet', style: TextStyle(color: Color(0xFF9CA3AF), fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
@@ -1290,7 +1290,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                           flex: 1,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                            decoration: BoxDecoration(color: prioColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                            decoration: BoxDecoration(color: prioColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                             child: Text(act.priority, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: prioColor), textAlign: TextAlign.center),
                           ),
                         ),
@@ -1306,7 +1306,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                           flex: 2,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                             child: Text(act.status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor), textAlign: TextAlign.center),
                           ),
                         ),

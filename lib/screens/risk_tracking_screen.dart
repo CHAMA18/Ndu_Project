@@ -928,7 +928,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -953,7 +953,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(effectiveness,
@@ -971,7 +971,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(residual,
@@ -1129,7 +1129,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -1156,7 +1156,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -1181,7 +1181,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(confidence,
@@ -1200,7 +1200,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -1418,7 +1418,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -1446,7 +1446,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -1472,7 +1472,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -1838,7 +1838,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,
@@ -1856,7 +1856,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(label,

@@ -140,12 +140,12 @@ class _FrontEndPlanningInfrastructureScreenState
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide:
-                        BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        BorderSide(color: Colors.grey.withOpacity(0.3)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide:
-                        BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        BorderSide(color: Colors.grey.withOpacity(0.3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),

@@ -763,7 +763,7 @@ class _SummaryCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                  color: data.accentColor.withValues(alpha: 0.12),
+                  color: data.accentColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12)),
               child: Icon(data.icon, color: data.accentColor, size: 22),
             ),
@@ -858,7 +858,7 @@ class _SummaryCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 18,
               offset: const Offset(0, 14)),
         ],
@@ -2069,9 +2069,9 @@ class _GapEntryRowState extends State<_GapEntryRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: catColor.withValues(alpha: 0.08),
+                        color: catColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: catColor.withValues(alpha: 0.18)),
+                        border: Border.all(color: catColor.withOpacity(0.18)),
                       ),
                       child: Text(
                         e.category,
@@ -2092,7 +2092,7 @@ class _GapEntryRowState extends State<_GapEntryRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: sevColor.withValues(alpha: 0.08),
+                        color: sevColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -2120,7 +2120,7 @@ class _GapEntryRowState extends State<_GapEntryRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: prioColor.withValues(alpha: 0.08),
+                        color: prioColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -2354,9 +2354,9 @@ class _RootCauseRowState extends State<_RootCauseRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: catColor.withValues(alpha: 0.08),
+                        color: catColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: catColor.withValues(alpha: 0.18)),
+                        border: Border.all(color: catColor.withOpacity(0.18)),
                       ),
                       child: Text(
                         item.category,
@@ -2392,7 +2392,7 @@ class _RootCauseRowState extends State<_RootCauseRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: impactColor.withValues(alpha: 0.08),
+                        color: impactColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -2423,7 +2423,7 @@ class _RootCauseRowState extends State<_RootCauseRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
+                        color: statusColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -2921,7 +2921,7 @@ class _ImpactAssessmentCard extends StatelessWidget {
             onPressed: () {
               showDialog<void>(
                 context: context,
-                barrierColor: Colors.black.withValues(alpha: 0.35),
+                barrierColor: Colors.black.withOpacity(0.35),
                 builder: (_) => _ScenarioMatrixDialog(
                   impacts: impacts,
                   gaps: gaps,
@@ -3420,9 +3420,9 @@ class _ReconPlanRowState extends State<_ReconPlanRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: phaseColor.withValues(alpha: 0.08),
+                        color: phaseColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: phaseColor.withValues(alpha: 0.18)),
+                        border: Border.all(color: phaseColor.withOpacity(0.18)),
                       ),
                       child: Text(
                         p.phase,
@@ -3518,7 +3518,7 @@ class _ReconPlanRowState extends State<_ReconPlanRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
+                        color: statusColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -3752,9 +3752,9 @@ class _ImpactAssessmentRowState extends State<_ImpactAssessmentRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: domainColor.withValues(alpha: 0.08),
+                        color: domainColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: domainColor.withValues(alpha: 0.18)),
+                        border: Border.all(color: domainColor.withOpacity(0.18)),
                       ),
                       child: Text(
                         i.domain,
@@ -3775,7 +3775,7 @@ class _ImpactAssessmentRowState extends State<_ImpactAssessmentRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: ratingColor.withValues(alpha: 0.08),
+                        color: ratingColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -3802,7 +3802,7 @@ class _ImpactAssessmentRowState extends State<_ImpactAssessmentRow> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: trendColor.withValues(alpha: 0.08),
+                        color: trendColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -4659,7 +4659,7 @@ class _MatrixCell extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: Colors.white.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
@@ -4734,7 +4734,7 @@ class _ScorePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text('Score $score',
@@ -5067,7 +5067,7 @@ class _WorkflowBoardColumn extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isActive
-                ? accent.withValues(alpha: 0.08)
+                ? accent.withOpacity(0.08)
                 : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(16),
             border:
@@ -5097,7 +5097,7 @@ class _WorkflowBoardColumn extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.12),
+                      color: accent.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -5225,7 +5225,7 @@ class _WorkflowBoardCard extends StatelessWidget {
                 width: 6,
                 height: 18,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.5),
+                  color: accent.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -5432,7 +5432,7 @@ class _SectionShell extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 20,
               offset: const Offset(0, 12)),
         ],
@@ -5458,7 +5458,7 @@ class _InfoChip extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 14,
               offset: const Offset(0, 12)),
         ],
@@ -5598,7 +5598,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(30)),
       child: Text(
         label,
@@ -5634,7 +5634,7 @@ class _TrendPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(30)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -5669,7 +5669,7 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(16)),
       child: Text(
         label,

@@ -878,7 +878,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             'Engineering for ${snapshot.projectLabel}. This workspace brings together technical blueprints, calculations, approvals, interface detail, compliance evidence, simulation outcomes, and engineering change notices before implementation starts.',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.84),
+              color: Colors.white.withOpacity(0.84),
               height: 1.5,
             ),
           ),
@@ -889,10 +889,10 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.10),
+                  color: Colors.white.withOpacity(0.10),
                 ),
               ),
               child: Text(
@@ -904,7 +904,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.5,
-                  color: Colors.white.withValues(alpha: 0.82),
+                  color: Colors.white.withOpacity(0.82),
                   height: 1.45,
                 ),
               ),
@@ -1171,9 +1171,9 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.10),
+                  color: accent.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: accent.withValues(alpha: 0.18)),
+                  border: Border.all(color: accent.withOpacity(0.18)),
                 ),
                 child: Icon(icon, color: accent),
               ),
@@ -1215,9 +1215,9 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1227,7 +1227,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Colors.white.withValues(alpha: 0.72),
+              color: Colors.white.withOpacity(0.72),
             ),
           ),
           const SizedBox(height: 4),
@@ -1248,9 +1248,9 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        border: Border.all(color: color.withOpacity(0.22)),
       ),
       child: Text(
         label,
