@@ -69,7 +69,7 @@ class _WorkBreakdownStructureBody extends StatefulWidget {
 
 class _WorkBreakdownStructureBodyState
     extends State<_WorkBreakdownStructureBody> {
-  static const int _maxWbsDepth = 3;
+  static const int _maxWbsDepth = 5;
   static const List<Map<String, String>> _criteriaOptions = [
     {
       'value': 'Deliverable',
@@ -200,9 +200,9 @@ class _WorkBreakdownStructureBodyState
       if (parentDepth >= _maxWbsDepth) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Maximum WBS depth is Level 3.'),
-              backgroundColor: Color(0xFFEF4444),
+            SnackBar(
+              content: Text('Maximum WBS depth is Level $_maxWbsDepth.'),
+              backgroundColor: const Color(0xFFEF4444),
             ),
           );
         }
@@ -930,9 +930,9 @@ class _WorkBreakdownStructureBodyState
                       onTap: () {
                         if (!canAddChild) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Maximum WBS depth is Level 3.'),
-                              backgroundColor: Color(0xFFEF4444),
+                            SnackBar(
+                              content: Text('Maximum WBS depth is Level $_maxWbsDepth.'),
+                              backgroundColor: const Color(0xFFEF4444),
                             ),
                           );
                           return;
@@ -1000,11 +1000,15 @@ class _WorkBreakdownStructureBodyState
   Color _getNodeColor(int level) {
     switch (level) {
       case 0:
-        return const Color(0xFFFF5252); // Red
+        return const Color(0xFFFF5252); // Level 1: Red
       case 1:
-        return const Color(0xFF00BFA5); // Cyan (teal-ish)
+        return const Color(0xFF00BFA5); // Level 2: Teal
       case 2:
-        return const Color(0xFFFFD54F); // Yellow
+        return const Color(0xFFFFD54F); // Level 3: Yellow
+      case 3:
+        return const Color(0xFF7C4DFF); // Level 4: Deep Purple
+      case 4:
+        return const Color(0xFF448AFF); // Level 5: Blue
       default:
         return Colors.blueGrey.shade100;
     }

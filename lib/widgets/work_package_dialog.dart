@@ -303,7 +303,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                       child: TextFormField(
                         controller: _sourceWbsLevel3IdController,
                         decoration: const InputDecoration(
-                          labelText: 'WBS Level 3 Candidate ID',
+                          labelText: 'WBS Source Node ID',
                         ),
                       ),
                     ),
@@ -312,7 +312,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                       child: TextFormField(
                         controller: _sourceWbsLevel3TitleController,
                         decoration: const InputDecoration(
-                          labelText: 'WBS Level 3 Candidate',
+                          labelText: 'WBS Source Node',
                         ),
                       ),
                     ),

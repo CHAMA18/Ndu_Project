@@ -84,6 +84,11 @@ class WorkPackageDetailView extends StatelessWidget {
                           ? workPackage.packageCode
                           : 'Not set'),
                   _DetailItem(
+                      label: 'Package Level',
+                      value: workPackage.packageLevel > 0
+                          ? 'Level ${workPackage.packageLevel}'
+                          : 'Not set'),
+                  _DetailItem(
                       label: 'Release Status',
                       value: workPackage.releaseStatus == 'released'
                           ? 'Released${workPackage.releaseForExecutionDate != null ? " on ${workPackage.releaseForExecutionDate}" : ""}'
@@ -108,7 +113,7 @@ class WorkPackageDetailView extends StatelessWidget {
                           ? workPackage.wbsLevel2Title
                           : 'Unassigned'),
                   _DetailItem(
-                      label: 'WBS Level 3',
+                      label: 'WBS Source Node',
                       value: workPackage.sourceWbsLevel3Title.isNotEmpty
                           ? workPackage.sourceWbsLevel3Title
                           : 'Unassigned'),
@@ -405,6 +410,10 @@ class WorkPackageDetailView extends StatelessWidget {
         return 'Implementation Work Package';
       case IntegratedWorkPackageService.agileIterationPackage:
         return 'Agile Iteration Package';
+      case IntegratedWorkPackageService.preCommissioningPackage:
+        return 'Pre-Commissioning Package';
+      case IntegratedWorkPackageService.commissioningPackage:
+        return 'Commissioning Package';
       default:
         return _titleCase(value);
     }
@@ -595,10 +604,36 @@ class _EstimateBasisSummary extends StatelessWidget {
           value: _fallback(basis.confidenceLevel),
         ),
         _InlineRow(
+          label: 'Productivity',
+          value: _fallback(basis.productivityBasis),
+        ),
+        _InlineRow(
+          label: 'Resources',
+          value: _fallback(basis.resourceBasis),
+        ),
+        _InlineRow(
+          label: 'Working calendar',
+          value: _fallback(basis.workingCalendar),
+        ),
+        _InlineRow(
+          label: 'Lead time basis',
+          value: _fallback(basis.procurementLeadTimeBasis),
+        ),
+        _InlineRow(
+          label: 'Review allowance',
+          value: _fallback(basis.reviewAllowance),
+        ),
+        _InlineRow(
           label: 'Assumptions',
           value: basis.assumptions.isEmpty
               ? 'Not documented'
               : basis.assumptions.join('; '),
+        ),
+        _InlineRow(
+          label: 'Exclusions',
+          value: basis.exclusions.isEmpty
+              ? 'None'
+              : basis.exclusions.join('; '),
         ),
       ],
     );
