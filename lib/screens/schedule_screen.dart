@@ -1104,18 +1104,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         .where((id) => id.isNotEmpty)
         .toSet();
     final unlinkedWbsCandidates = <WorkItem>[];
-    void visitLevel3(List<WorkItem> nodes, int depth) {
+    void visitLeafNodes(List<WorkItem> nodes) {
       for (final node in nodes) {
-        if (depth == 3 && !packageCandidateIds.contains(node.id)) {
-          unlinkedWbsCandidates.add(node);
-        }
-        if (depth < 3) {
-          visitLevel3(node.children, depth + 1);
+        if (node.children.isEmpty) {
+          // Leaf node at any depth — check if linked
+          if (!packageCandidateIds.contains(node.id)) {
+            unlinkedWbsCandidates.add(node);
+          }
+        } else {
+          visitLeafNodes(node.children);
         }
       }
     }
 
-    visitLevel3(data.wbsTree, 1);
+    visitLeafNodes(data.wbsTree);
 
     final missingEstimateBasis = activities.where((activity) {
       final isCritical = cpm.activitiesById[activity.id]?.isCritical ?? false;
@@ -1362,7 +1364,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           _ContractAlignmentWarning(
             title: 'Contract ${entry.key}',
             detail:
-                'Mapped across multiple WBS Level 3 package candidates: ${entry.value.map((package) => package.title.isNotEmpty ? package.title : package.id).join(', ')}.',
+                'Mapped across multiple WBS package candidates: ${entry.value.map((package) => package.title.isNotEmpty ? package.title : package.id).join(', ')}.',
           ),
         );
       }
@@ -1797,8 +1799,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     generated = IntegratedWorkPackageService
         .deriveProcurementScopeFromEwpDeliverables(generated);
 
+    // Phase 2.3: Roll up child costs/dates into parent packages
+    generated = IntegratedWorkPackageService
+        .rollUpChildCostsAndDates(generated);
+
     if (generated.isEmpty) {
-      _showInfo('No WBS Level 3 package candidates found.');
+      _showInfo('No WBS leaf node package candidates found.');
       return;
     }
 
@@ -1823,7 +1829,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         title: const Text('Generate Integrated Package Chains'),
         content: Text(
           'Found ${newPackages.length} new EWP, procurement, and execution '
-          'packages from WBS Level 3 candidates.'
+          'packages from WBS leaf nodes (all depths).'
           '${specLinkedCount > 0 ? "\n\n$specLinkedCount deliverable(s) linked to design specifications." : ""}'
           '\n\nGenerate them now?',
         ),
@@ -4329,8 +4335,8 @@ class _ScheduleValidationDialog extends StatelessWidget {
                     .toList(),
               ),
               _ValidationSection(
-                title: 'Unlinked WBS Level 3 Candidates',
-                emptyText: 'All WBS Level 3 candidates are linked to packages.',
+                title: 'Unlinked WBS Leaf Candidates',
+                emptyText: 'All WBS leaf candidates are linked to packages.',
                 children: report.unlinkedWbsCandidates
                     .map((item) => _ValidationLine(
                           title: item.title.isNotEmpty ? item.title : item.id,

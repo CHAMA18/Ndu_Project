@@ -9,10 +9,16 @@ class IntegratedWorkPackageService {
   static const String constructionCwp = 'constructionCwp';
   static const String implementationWorkPackage = 'implementationWorkPackage';
   static const String agileIterationPackage = 'agileIterationPackage';
+  static const String commissioningPackage = 'commissioningPackage';
+  static const String preCommissioningPackage = 'preCommissioningPackage';
 
   // ------------------------------------------------------------------
   // Guide Step 1–5: Generate EWP → Procurement → Execution chains
-  // Now includes design-to-procurement traceability on deliverables.
+  // Now uses recursive traversal to support WBS depths of 1–5 levels.
+  // Leaf nodes (deepest children) get EWP→Proc→Exec chains.
+  // Non-leaf nodes get summary "roll-up" packages that aggregate
+  // their children's chain IDs for hierarchical tracking.
+  // Includes design-to-procurement traceability on deliverables.
   // ------------------------------------------------------------------
 
   static List<WorkPackage> generatePackageChainsFromWbs({
@@ -25,151 +31,48 @@ class IntegratedWorkPackageService {
   }) {
     final packages = <WorkPackage>[];
     final normalizedMethodology = methodology.trim().toLowerCase();
-    final isAgile = normalizedMethodology == 'agile';
 
-    for (final level1 in wbsTree) {
-      for (final level2 in level1.children) {
-        for (final level3 in level2.children) {
-          final baseId = _stableId(level3.id.isNotEmpty
-              ? level3.id
-              : '${level2.title}_${level3.title}');
-          final baseCode = _packageCode(level2.title, level3.title);
-          final executionClassification = isAgile
-              ? agileIterationPackage
-              : (_looksLikeConstruction(level3)
-                  ? constructionCwp
-                  : implementationWorkPackage);
-          final executionType = executionClassification == constructionCwp
-              ? 'construction'
-              : 'execution';
-          final executionLabel = executionClassification == constructionCwp
-              ? 'Construction Work Package'
-              : (executionClassification == agileIterationPackage
-                  ? 'Agile Iteration Package'
-                  : 'Implementation Work Package');
+    // Recursive traversal: for each WBS node, either generate a
+    // chain (if leaf) or recurse into children (if non-leaf).
+    void visitNode(
+      WorkItem node,
+      List<WorkItem> ancestors,
+    ) {
+      final currentDepth = ancestors.length + 1; // 1-indexed depth
 
-          final engineeringId = '$baseId-ewp';
-          final procurementId = '$baseId-proc';
-          final executionId = '$baseId-exec';
+      if (node.children.isEmpty) {
+        // Leaf node → generate EWP→Proc→Exec chain
+        _generateChainForLeaf(
+          leaf: node,
+          ancestors: ancestors,
+          depth: currentDepth,
+          methodology: normalizedMethodology,
+          designSpecifications: designSpecifications,
+          packages: packages,
+        );
+      } else {
+        // Non-leaf node → recurse into children
+        for (final child in node.children) {
+          visitNode(child, [...ancestors, node]);
+        }
+      }
+    }
 
-          // --- Fix 1.2: Import matching design specification rows ---
-          final matchedSpecs = _matchSpecificationsToWbs(
-            designSpecifications ?? [],
-            level2WbsId: level2.id,
-            level3WbsId: level3.id,
-            level3Title: level3.title,
-            level2Title: level2.title,
-          );
-
-          // Build EWP deliverables: defaults + spec-derived items
-          final deliverables = _buildEwpDeliverables(
-            procurementId: procurementId,
-            matchedSpecs: matchedSpecs,
-          );
-
-          // Track linked spec IDs on the package
-          final linkedSpecIds =
-              matchedSpecs.map((spec) => spec.id).toList();
-
-          packages.add(
-            WorkPackage(
-              id: engineeringId,
-              wbsItemId: level3.id,
-              wbsLevel2Id: level2.id,
-              wbsLevel2Title: level2.title,
-              sourceWbsLevel3Id: level3.id,
-              sourceWbsLevel3Title: level3.title,
-              packageLevel: 3,
-              packageCode: '$baseCode-EWP',
-              packageClassification: engineeringEwp,
-              childPackageIds: [procurementId, executionId],
-              linkedProcurementPackageIds: [procurementId],
-              linkedExecutionPackageIds: [executionId],
-              linkedDesignSpecificationIds: linkedSpecIds,
-              title: '${level3.title} Engineering Work Package',
-              description: level3.description,
-              type: 'design',
-              phase: 'design',
-              discipline: level3.framework,
-              releaseStatus: 'draft',
-              deliverables: deliverables,
-              estimateBasis: _defaultEstimateBasis(methodology),
-            ),
-          );
-
-          // --- Fix 1.1: Derive procurement scope from EWP deliverables ---
-          final procurementScopeFromDeliverables = deliverables
-              .where((d) => d.requiredForProcurement)
-              .map((d) => d.title)
-              .join('; ');
-
-          final scopeDefinition = procurementScopeFromDeliverables.isNotEmpty
-              ? 'Requires: $procurementScopeFromDeliverables'
-              : level3.description;
-
-          packages.add(
-            WorkPackage(
-              id: procurementId,
-              wbsItemId: level3.id,
-              wbsLevel2Id: level2.id,
-              wbsLevel2Title: level2.title,
-              sourceWbsLevel3Id: level3.id,
-              sourceWbsLevel3Title: level3.title,
-              packageLevel: 3,
-              packageCode: '$baseCode-PROC',
-              packageClassification: procurementPackage,
-              parentPackageId: engineeringId,
-              childPackageIds: [executionId],
-              linkedEngineeringPackageIds: [engineeringId],
-              linkedExecutionPackageIds: [executionId],
-              linkedDesignSpecificationIds: linkedSpecIds,
-              title: '${level3.title} Procurement Package',
-              description: level3.description,
-              type: 'procurement',
-              phase: 'execution',
-              discipline: level3.framework,
-              releaseStatus: 'draft',
-              procurementBreakdown: PackageProcurementBreakdown(
-                category: _inferProcurementCategory(level3),
-                scopeDefinition: scopeDefinition,
-                activities: const [
-                  'scope_definition',
-                  'rfq_rfp',
-                  'bid_evaluation',
-                  'award',
-                  'fabrication_or_configuration',
-                  'delivery',
-                ],
-              ),
-              estimateBasis: _defaultEstimateBasis(methodology),
-            ),
-          );
-
-          packages.add(
-            WorkPackage(
-              id: executionId,
-              wbsItemId: level3.id,
-              wbsLevel2Id: level2.id,
-              wbsLevel2Title: level2.title,
-              sourceWbsLevel3Id: level3.id,
-              sourceWbsLevel3Title: level3.title,
-              packageLevel: 3,
-              packageCode: '$baseCode-EXEC',
-              packageClassification: executionClassification,
-              parentPackageId: procurementId,
-              linkedEngineeringPackageIds: [engineeringId],
-              linkedProcurementPackageIds: [procurementId],
-              linkedDesignSpecificationIds: linkedSpecIds,
-              title: '${level3.title} $executionLabel',
-              description: level3.description,
-              type: executionType,
-              phase: 'execution',
-              discipline: level3.framework,
-              areaOrSystem: level2.title,
-              releaseStatus: 'draft',
-              estimateBasis: _defaultEstimateBasis(methodology),
-            ),
-          );
+    // Start recursion from each root WBS item
+    for (final root in wbsTree) {
+      if (root.children.isEmpty) {
+        // Root is itself a leaf (shallow WBS)
+        _generateChainForLeaf(
+          leaf: root,
+          ancestors: const [],
+          depth: 1,
+          methodology: normalizedMethodology,
+          designSpecifications: designSpecifications,
+          packages: packages,
+        );
+      } else {
+        for (final child in root.children) {
+          visitNode(child, [root]);
         }
       }
     }
@@ -180,14 +83,269 @@ class IntegratedWorkPackageService {
         .toList();
   }
 
+  /// Generates the EWP → Procurement → Execution chain for a single
+  /// leaf WBS node at any depth level. The [ancestors] list provides
+  /// the chain of parent WBS items from root to the leaf's parent.
+  static void _generateChainForLeaf({
+    required WorkItem leaf,
+    required List<WorkItem> ancestors,
+    required int depth,
+    required String methodology,
+    required List<DesignSpecificationPlanRow>? designSpecifications,
+    required List<WorkPackage> packages,
+  }) {
+    final isAgile = methodology == 'agile';
+
+    // Determine the nearest Level-2 ancestor for WBS linkage fields
+    final level2Ancestor = ancestors.length >= 2
+        ? ancestors[1]
+        : (ancestors.isNotEmpty ? ancestors.first : leaf);
+    final level2Id = level2Ancestor.id;
+    final level2Title = level2Ancestor.title;
+
+    final baseId = _stableId(leaf.id.isNotEmpty
+        ? leaf.id
+        : '${level2Title}_${leaf.title}');
+    final baseCode = _packageCode(level2Title, leaf.title);
+
+    final executionClassification = isAgile
+        ? agileIterationPackage
+        : (_looksLikeConstruction(leaf)
+            ? constructionCwp
+            : implementationWorkPackage);
+    final executionType = executionClassification == constructionCwp
+        ? 'construction'
+        : 'execution';
+    final executionLabel = executionClassification == constructionCwp
+        ? 'Construction Work Package'
+        : (executionClassification == agileIterationPackage
+            ? 'Agile Iteration Package'
+            : 'Implementation Work Package');
+
+    // Phase 4: Commissioning packages for construction CWPs
+    final isConstructionCwp = executionClassification == constructionCwp;
+    final preCommissioningId = '$baseId-precomm';
+    final commissioningId = '$baseId-comm';
+
+    final engineeringId = '$baseId-ewp';
+    final procurementId = '$baseId-proc';
+    final executionId = '$baseId-exec';
+
+    // --- Fix 1.2: Import matching design specification rows ---
+    // Collect all ancestor IDs and titles for comprehensive spec matching
+    final ancestorIds = ancestors.map((a) => a.id).toList();
+    final ancestorTitles = ancestors.map((a) => a.title).toList();
+    final matchedSpecs = _matchSpecificationsToWbsDeep(
+      designSpecifications ?? [],
+      leafId: leaf.id,
+      leafTitle: leaf.title,
+      ancestorIds: ancestorIds,
+      ancestorTitles: ancestorTitles,
+    );
+
+    // Build EWP deliverables: defaults + spec-derived items
+    final deliverables = _buildEwpDeliverables(
+      procurementId: procurementId,
+      matchedSpecs: matchedSpecs,
+    );
+
+    // Track linked spec IDs on the package
+    final linkedSpecIds =
+        matchedSpecs.map((spec) => spec.id).toList();
+
+    final procurementCategory = _inferProcurementCategory(leaf);
+
+    packages.add(
+      WorkPackage(
+        id: engineeringId,
+        wbsItemId: leaf.id,
+        wbsLevel2Id: level2Id,
+        wbsLevel2Title: level2Title,
+        sourceWbsLevel3Id: leaf.id,
+        sourceWbsLevel3Title: leaf.title,
+        packageLevel: depth,
+        packageCode: '$baseCode-EWP',
+        packageClassification: engineeringEwp,
+        childPackageIds: [procurementId, executionId],
+        linkedProcurementPackageIds: [procurementId],
+        linkedExecutionPackageIds: [executionId],
+        linkedDesignSpecificationIds: linkedSpecIds,
+        title: '${leaf.title} Engineering Work Package',
+        description: leaf.description,
+        type: 'design',
+        phase: 'design',
+        discipline: leaf.framework,
+        releaseStatus: 'draft',
+        deliverables: deliverables,
+        estimateBasis: _classificationAwareEstimateBasis(
+          packageClassification: engineeringEwp,
+          methodology: methodology,
+          procurementCategory: procurementCategory,
+        ),
+      ),
+    );
+
+    // --- Fix 1.1: Derive procurement scope from EWP deliverables ---
+    final procurementScopeFromDeliverables = deliverables
+        .where((d) => d.requiredForProcurement)
+        .map((d) => d.title)
+        .join('; ');
+
+    final scopeDefinition = procurementScopeFromDeliverables.isNotEmpty
+        ? 'Requires: $procurementScopeFromDeliverables'
+        : leaf.description;
+
+    packages.add(
+      WorkPackage(
+        id: procurementId,
+        wbsItemId: leaf.id,
+        wbsLevel2Id: level2Id,
+        wbsLevel2Title: level2Title,
+        sourceWbsLevel3Id: leaf.id,
+        sourceWbsLevel3Title: leaf.title,
+        packageLevel: depth,
+        packageCode: '$baseCode-PROC',
+        packageClassification: procurementPackage,
+        parentPackageId: engineeringId,
+        childPackageIds: [executionId],
+        linkedEngineeringPackageIds: [engineeringId],
+        linkedExecutionPackageIds: [executionId],
+        linkedDesignSpecificationIds: linkedSpecIds,
+        title: '${leaf.title} Procurement Package',
+        description: leaf.description,
+        type: 'procurement',
+        phase: 'execution',
+        discipline: leaf.framework,
+        releaseStatus: 'draft',
+        procurementBreakdown: PackageProcurementBreakdown(
+          category: procurementCategory,
+          scopeDefinition: scopeDefinition,
+          activities: const [
+            'scope_definition',
+            'rfq_rfp',
+            'bid_evaluation',
+            'award',
+            'fabrication_or_configuration',
+            'delivery',
+          ],
+        ),
+        estimateBasis: _classificationAwareEstimateBasis(
+          packageClassification: procurementPackage,
+          methodology: methodology,
+          procurementCategory: procurementCategory,
+        ),
+      ),
+    );
+
+    packages.add(
+      WorkPackage(
+        id: executionId,
+        wbsItemId: leaf.id,
+        wbsLevel2Id: level2Id,
+        wbsLevel2Title: level2Title,
+        sourceWbsLevel3Id: leaf.id,
+        sourceWbsLevel3Title: leaf.title,
+        packageLevel: depth,
+        packageCode: '$baseCode-EXEC',
+        packageClassification: executionClassification,
+        parentPackageId: procurementId,
+        linkedEngineeringPackageIds: [engineeringId],
+        linkedProcurementPackageIds: [procurementId],
+        linkedDesignSpecificationIds: linkedSpecIds,
+        title: '${leaf.title} $executionLabel',
+        description: leaf.description,
+        type: executionType,
+        phase: 'execution',
+        discipline: leaf.framework,
+        areaOrSystem: level2Title,
+        releaseStatus: 'draft',
+        estimateBasis: _classificationAwareEstimateBasis(
+          packageClassification: executionClassification,
+          methodology: methodology,
+          procurementCategory: procurementCategory,
+        ),
+      ),
+    );
+
+    // Phase 4: Add pre-commissioning and commissioning packages
+    // for construction work packages. These represent the testing,
+    // checking, and handover sequence after construction is complete.
+    if (isConstructionCwp) {
+      packages.add(
+        WorkPackage(
+          id: preCommissioningId,
+          wbsItemId: leaf.id,
+          wbsLevel2Id: level2Id,
+          wbsLevel2Title: level2Title,
+          sourceWbsLevel3Id: leaf.id,
+          sourceWbsLevel3Title: leaf.title,
+          packageLevel: depth,
+          packageCode: '$baseCode-PRECOMM',
+          packageClassification: preCommissioningPackage,
+          parentPackageId: executionId,
+          linkedEngineeringPackageIds: [engineeringId],
+          linkedProcurementPackageIds: [procurementId],
+          linkedDesignSpecificationIds: linkedSpecIds,
+          title: '${leaf.title} Pre-Commissioning',
+          description: 'Pre-commissioning checks and tests for ${leaf.title}. '
+              'Includes mechanical completion verification, pressure testing, '
+              'loop checking, and system walkthroughs.',
+          type: 'commissioning',
+          phase: 'execution',
+          discipline: leaf.framework,
+          areaOrSystem: level2Title,
+          releaseStatus: 'draft',
+          estimateBasis: _classificationAwareEstimateBasis(
+            packageClassification: preCommissioningPackage,
+            methodology: methodology,
+            procurementCategory: procurementCategory,
+          ),
+        ),
+      );
+
+      packages.add(
+        WorkPackage(
+          id: commissioningId,
+          wbsItemId: leaf.id,
+          wbsLevel2Id: level2Id,
+          wbsLevel2Title: level2Title,
+          sourceWbsLevel3Id: leaf.id,
+          sourceWbsLevel3Title: leaf.title,
+          packageLevel: depth,
+          packageCode: '$baseCode-COMM',
+          packageClassification: commissioningPackage,
+          parentPackageId: preCommissioningId,
+          linkedEngineeringPackageIds: [engineeringId],
+          linkedProcurementPackageIds: [procurementId],
+          linkedDesignSpecificationIds: linkedSpecIds,
+          title: '${leaf.title} Commissioning',
+          description: 'Commissioning and handover for ${leaf.title}. '
+              'Includes functional testing, performance verification, '
+              'punch list resolution, and final acceptance documentation.',
+          type: 'commissioning',
+          phase: 'launch',
+          discipline: leaf.framework,
+          areaOrSystem: level2Title,
+          releaseStatus: 'draft',
+          estimateBasis: _classificationAwareEstimateBasis(
+            packageClassification: commissioningPackage,
+            methodology: methodology,
+            procurementCategory: procurementCategory,
+          ),
+        ),
+      );
+    }
+  }
+
   // ------------------------------------------------------------------
   // Fix 1.2: Match design specification rows to WBS nodes
+  // Supports any WBS depth — matches against leaf node and all ancestors.
   // ------------------------------------------------------------------
 
-  /// Matches design specification rows to a WBS Level 3 node.
-  /// A spec row matches if its `wbsWorkPackageId` equals the Level 2 or
-  /// Level 3 WBS ID, OR if its title/discipline/area keywords overlap
-  /// with the WBS node titles.
+  /// Matches design specification rows to a WBS leaf node and its
+  /// ancestors. A spec row matches if its `wbsWorkPackageId` equals any
+  /// ancestor or leaf WBS ID, OR if its title/discipline/area keywords
+  /// overlap with the leaf or ancestor titles.
   static List<DesignSpecificationPlanRow> _matchSpecificationsToWbs(
     List<DesignSpecificationPlanRow> specs, {
     required String level2WbsId,
@@ -197,39 +355,85 @@ class IntegratedWorkPackageService {
   }) {
     if (specs.isEmpty) return [];
 
-    final level2Lower = level2Title.toLowerCase();
-    final level3Lower = level3Title.toLowerCase();
-    final level2Tokens = _tokenize(level2Lower);
-    final level3Tokens = _tokenize(level3Lower);
+    // Build a combined set of all ancestor + leaf IDs and titles
+    // for matching. The old API only passed level2/level3 but
+    // we also accept them for backward compatibility.
+    final allWbsIds = <String>{level2WbsId, level3WbsId};
+    final allTitlesLower = <String>{
+      level2Title.toLowerCase(),
+      level3Title.toLowerCase(),
+    };
+    final allTokens = <String>{
+      ..._tokenize(level2Title.toLowerCase()),
+      ..._tokenize(level3Title.toLowerCase()),
+    };
 
     return specs.where((spec) {
       // Direct WBS ID match (strongest signal)
-      if (spec.wbsWorkPackageId == level2WbsId ||
-          spec.wbsWorkPackageId == level3WbsId) {
+      if (allWbsIds.contains(spec.wbsWorkPackageId)) {
         return true;
       }
 
       // Title keyword overlap
       final specTitle = spec.title.toLowerCase();
       final specTokens = _tokenize(specTitle);
-      if (level3Tokens.any((t) => specTokens.contains(t)) ||
-          level2Tokens.any((t) => specTokens.contains(t))) {
+      if (allTokens.any((t) => specTokens.contains(t))) {
         return true;
       }
 
-      // Discipline/area keyword match
+      // Discipline/area keyword match against all ancestor titles
       final specDiscipline = spec.discipline.toLowerCase();
       final specArea = spec.area.toLowerCase();
       if (specDiscipline.isNotEmpty &&
-          (level2Lower.contains(specDiscipline) ||
-              level3Lower.contains(specDiscipline))) {
+          allTitlesLower.any((t) => t.contains(specDiscipline))) {
         return true;
       }
       if (specArea.isNotEmpty &&
-          (level2Lower.contains(specArea) ||
-              level3Lower.contains(specArea))) {
+          allTitlesLower.any((t) => t.contains(specArea))) {
         return true;
       }
+
+      return false;
+    }).toList();
+  }
+
+  /// Deep-aware spec matching for arbitrary WBS depth.
+  /// Matches against the leaf node ID/title AND all ancestor IDs/titles.
+  /// This supersedes [_matchSpecificationsToWbs] for the recursive generator.
+  static List<DesignSpecificationPlanRow> _matchSpecificationsToWbsDeep(
+    List<DesignSpecificationPlanRow> specs, {
+    required String leafId,
+    required String leafTitle,
+    required List<String> ancestorIds,
+    required List<String> ancestorTitles,
+  }) {
+    if (specs.isEmpty) return [];
+
+    final allWbsIds = <String>{leafId, ...ancestorIds};
+    final allTitlesLower = <String>{
+      leafTitle.toLowerCase(),
+      ...ancestorTitles.map((t) => t.toLowerCase()),
+    };
+    final allTokens = <String>{
+      ..._tokenize(leafTitle.toLowerCase()),
+      ...ancestorTitles.expand((t) => _tokenize(t.toLowerCase())),
+    };
+
+    return specs.where((spec) {
+      // Direct WBS ID match
+      if (allWbsIds.contains(spec.wbsWorkPackageId)) return true;
+
+      // Title keyword overlap
+      final specTokens = _tokenize(spec.title.toLowerCase());
+      if (allTokens.any((t) => specTokens.contains(t))) return true;
+
+      // Discipline/area keyword match against all titles
+      final specDiscipline = spec.discipline.toLowerCase();
+      final specArea = spec.area.toLowerCase();
+      if (specDiscipline.isNotEmpty &&
+          allTitlesLower.any((t) => t.contains(specDiscipline))) return true;
+      if (specArea.isNotEmpty &&
+          allTitlesLower.any((t) => t.contains(specArea))) return true;
 
       return false;
     }).toList();
@@ -456,7 +660,7 @@ class IntegratedWorkPackageService {
 
     // Check WBS linkage
     if (package.sourceWbsLevel3Id.trim().isEmpty) {
-      blockers.add('Package is not linked to a WBS Level 3 element.');
+      blockers.add('Package is not linked to a WBS element.');
     }
 
     return blockers;
@@ -545,7 +749,7 @@ class IntegratedWorkPackageService {
     final readiness = package.readiness;
 
     if (package.sourceWbsLevel3Id.trim().isEmpty) {
-      warnings.add('Package is not linked to a WBS Level 3 package candidate.');
+      warnings.add('Package is not linked to a WBS package candidate.');
     }
     if (package.wbsLevel2Id.trim().isEmpty) {
       warnings
@@ -642,6 +846,26 @@ class IntegratedWorkPackageService {
         // Fix 1.4: Warn if execution depends on unreleased EWP
         if (package.linkedEngineeringPackageIds.isNotEmpty) {
           // This will be checked at schedule level where we can access all packages
+        }
+      case preCommissioningPackage:
+        if (!readiness.ifcApproved) {
+          warnings.add('Pre-commissioning requires approved IFC/design inputs.');
+        }
+        if (!readiness.predecessorsComplete) {
+          warnings.add('Construction work must be complete before pre-commissioning.');
+        }
+        if (!readiness.resourcesAssigned) {
+          warnings.add('Commissioning resources are not assigned.');
+        }
+      case commissioningPackage:
+        if (!readiness.predecessorsComplete) {
+          warnings.add('Pre-commissioning must be complete before commissioning.');
+        }
+        if (!readiness.resourcesAssigned) {
+          warnings.add('Commissioning resources are not assigned.');
+        }
+        if (package.contractorOrCrew.trim().isEmpty) {
+          warnings.add('Handover acceptance authority is not designated.');
         }
     }
 
@@ -748,6 +972,18 @@ class IntegratedWorkPackageService {
           addIfPresent(id);
         }
         addIfPresent(package.parentPackageId);
+      case preCommissioningPackage:
+        // Pre-commissioning depends on the construction/execution package
+        addIfPresent(package.parentPackageId);
+        for (final id in package.linkedEngineeringPackageIds) {
+          addIfPresent(id);
+        }
+      case commissioningPackage:
+        // Commissioning depends on pre-commissioning
+        addIfPresent(package.parentPackageId);
+        for (final id in package.linkedEngineeringPackageIds) {
+          addIfPresent(id);
+        }
       default:
         break;
     }
@@ -755,29 +991,230 @@ class IntegratedWorkPackageService {
     return dependencies.toSet().toList();
   }
 
-  static int _defaultDurationDays(WorkPackage package) {
+  // ------------------------------------------------------------------
+  // Phase 3: Domain-Specific Estimation Engine
+  // Replaces hardcoded duration defaults with classification-aware
+  // estimation that populates PackageEstimateBasis fields properly.
+  // ------------------------------------------------------------------
+
+  /// Estimates duration for a work package using domain-specific models:
+  ///
+  /// **Engineering EWP**: Base 5 days + review allowance from estimateBasis.
+  /// **Procurement**: Lead time from procurementBreakdown.leadTimeDays,
+  ///   or category-based defaults (long lead: 30d, bulk: 14d, sub: 21d).
+  /// **Construction CWP**: Productivity-based: if productivityBasis and
+  ///   quantity are documented, calculates duration; otherwise falls back
+  ///   to scope-complexity heuristic.
+  /// **Agile Iteration**: Sprint-based: 1–2 week iterations.
+  /// **Implementation IWP**: Complexity-based heuristic.
+  static int estimateDurationDays(WorkPackage package) {
+    // If dates are already set, derive from those
     final plannedStart = DateTime.tryParse(package.plannedStart ?? '');
     final plannedEnd = DateTime.tryParse(package.plannedEnd ?? '');
     if (plannedStart != null && plannedEnd != null) {
       return (plannedEnd.difference(plannedStart).inDays + 1).clamp(1, 365);
     }
 
+    // If procurement lead time is explicitly set, use it
+    if (package.packageClassification == procurementPackage &&
+        package.procurementBreakdown.leadTimeDays > 0) {
+      return package.procurementBreakdown.leadTimeDays;
+    }
+
     switch (package.packageClassification) {
       case engineeringEwp:
-        return 5;
+        return _estimateEngineeringDuration(package);
       case procurementPackage:
-        return package.procurementBreakdown.category == 'longLeadEquipment'
-            ? 30
-            : 10;
+        return _estimateProcurementDuration(package);
       case constructionCwp:
-        return 10;
-      case implementationWorkPackage:
+        return _estimateConstructionDuration(package);
       case agileIterationPackage:
-        return 5;
+        return _estimateAgileDuration(package);
+      case implementationWorkPackage:
+        return _estimateImplementationDuration(package);
+      case commissioningPackage:
+        return _estimateCommissioningDuration(package);
+      case preCommissioningPackage:
+        return _estimatePreCommissioningDuration(package);
       default:
         return 5;
     }
   }
+
+  /// Engineering EWP duration: base + review allowance.
+  /// Review allowance is parsed from estimateBasis.reviewAllowance
+  /// (e.g., "3 days" → 3 days added to base).
+  static int _estimateEngineeringDuration(WorkPackage package) {
+    const baseDays = 5;
+    final reviewAllowance = _parseDayValue(package.estimateBasis.reviewAllowance);
+    return baseDays + reviewAllowance;
+  }
+
+  /// Procurement duration: category-based defaults with lead time
+  /// and review allowance adjustments.
+  static int _estimateProcurementDuration(WorkPackage package) {
+    final category = package.procurementBreakdown.category;
+    int baseDays;
+    switch (category) {
+      case 'longLeadEquipment':
+        baseDays = 30;
+      case 'bulkMaterials':
+        baseDays = 14;
+      case 'subcontract':
+        baseDays = 21;
+      case 'technology':
+        baseDays = 18;
+      case 'services':
+        baseDays = 12;
+      default:
+        baseDays = 10;
+    }
+    final reviewAllowance = _parseDayValue(package.estimateBasis.reviewAllowance);
+    return baseDays + reviewAllowance;
+  }
+
+  /// Construction CWP duration: productivity-based estimation.
+  /// If productivityBasis contains a rate like "10 units/day" and
+  /// the description contains a quantity hint like "50 units",
+  /// the duration is computed as quantity / rate.
+  /// Otherwise falls back to a complexity-based heuristic.
+  static int _estimateConstructionDuration(WorkPackage package) {
+    // Try productivity-based calculation
+    final prodBasis = package.estimateBasis.productivityBasis;
+    if (prodBasis.isNotEmpty) {
+      final productivityRate = _parseRateValue(prodBasis);
+      if (productivityRate > 0) {
+        final quantity = _parseQuantityHint(package.description);
+        if (quantity > 0) {
+          final days = (quantity / productivityRate).ceil();
+          final reviewAllowance =
+              _parseDayValue(package.estimateBasis.reviewAllowance);
+          return (days + reviewAllowance).clamp(1, 365);
+        }
+      }
+    }
+
+    // Fallback: complexity heuristic based on description length and keywords
+    final desc = package.description.toLowerCase();
+    final hasComplexKeywords = desc.contains('structural') ||
+        desc.contains('foundation') ||
+        desc.contains('heavy') ||
+        desc.contains('complex');
+    final hasModerateKeywords = desc.contains('install') ||
+        desc.contains('erect') ||
+        desc.contains('assemble');
+    if (hasComplexKeywords) return 15;
+    if (hasModerateKeywords) return 10;
+    return 7;
+  }
+
+  /// Agile iteration duration: sprint-based estimation.
+  /// Default is 10 working days (2-week sprint).
+  /// Can be overridden by resourceBasis (e.g., "1 sprint" or "5 days").
+  static int _estimateAgileDuration(WorkPackage package) {
+    final resourceBasis = package.estimateBasis.resourceBasis;
+    if (resourceBasis.isNotEmpty) {
+      final days = _parseDayValue(resourceBasis);
+      if (days > 0) return days;
+      final sprints = _parseSprintValue(resourceBasis);
+      if (sprints > 0) return sprints * 10; // 10 days per sprint
+    }
+    return 10; // Default 1 sprint
+  }
+
+  /// Implementation IWP duration: complexity-based heuristic.
+  static int _estimateImplementationDuration(WorkPackage package) {
+    final desc = package.description.toLowerCase();
+    final hasComplexKeywords = desc.contains('integration') ||
+        desc.contains('migration') ||
+        desc.contains('deployment') ||
+        desc.contains('configuration');
+    if (hasComplexKeywords) return 8;
+    return 5;
+  }
+
+  /// Pre-commissioning duration: depends on system complexity.
+  /// Typically 3-10 days for mechanical completion verification,
+  /// pressure testing, loop checking, and system walkthroughs.
+  static int _estimatePreCommissioningDuration(WorkPackage package) {
+    final desc = package.description.toLowerCase();
+    final hasComplexKeywords = desc.contains('structural') ||
+        desc.contains('piping') ||
+        desc.contains('electrical') ||
+        desc.contains('hvac');
+    final reviewAllowance =
+        _parseDayValue(package.estimateBasis.reviewAllowance);
+    final base = hasComplexKeywords ? 7 : 3;
+    return base + reviewAllowance;
+  }
+
+  /// Commissioning duration: functional testing and handover.
+  /// Typically 5-15 days depending on system complexity.
+  static int _estimateCommissioningDuration(WorkPackage package) {
+    final desc = package.description.toLowerCase();
+    final hasComplexKeywords = desc.contains('structural') ||
+        desc.contains('piping') ||
+        desc.contains('electrical') ||
+        desc.contains('hvac');
+    final reviewAllowance =
+        _parseDayValue(package.estimateBasis.reviewAllowance);
+    final base = hasComplexKeywords ? 10 : 5;
+    return base + reviewAllowance;
+  }
+
+  /// Parses a day value from a string like "3 days", "3d", "5 days review".
+  /// Returns 0 if no numeric value found.
+  static int _parseDayValue(String value) {
+    if (value.trim().isEmpty) return 0;
+    final match = RegExp(r'(\d+)\s*(?:days?|d\b)', caseSensitive: false)
+        .firstMatch(value);
+    if (match != null) return int.tryParse(match.group(1) ?? '0') ?? 0;
+    // Try bare number
+    return int.tryParse(value.trim()) ?? 0;
+  }
+
+  /// Parses a productivity rate from a string like "10 units/day",
+  /// "5 per day", "10u/d". Returns 0 if no rate found.
+  static double _parseRateValue(String value) {
+    if (value.trim().isEmpty) return 0;
+    // Pattern: "<number> units/day" or "<number> per day" or "<number>u/d"
+    final match = RegExp(r'(\d+(?:\.\d+)?)\s*(?:units?|u)?\s*/\s*(?:days?|d)',
+            caseSensitive: false)
+        .firstMatch(value);
+    if (match != null) return double.tryParse(match.group(1) ?? '0') ?? 0;
+    // Pattern: "<number> per day"
+    final match2 = RegExp(r'(\d+(?:\.\d+)?)\s+per\s+days?',
+            caseSensitive: false)
+        .firstMatch(value);
+    if (match2 != null) return double.tryParse(match2.group(1) ?? '0') ?? 0;
+    return 0;
+  }
+
+  /// Parses a quantity hint from a description like "50 units",
+  /// "100m", "200 sq ft". Returns 0 if no quantity found.
+  static double _parseQuantityHint(String description) {
+    if (description.trim().isEmpty) return 0;
+    final match = RegExp(r'(\d+(?:\.\d+)?)\s*(?:units?|m\b|sq|m2|ft2|kg|tons?)',
+            caseSensitive: false)
+        .firstMatch(description);
+    if (match != null) return double.tryParse(match.group(1) ?? '0') ?? 0;
+    return 0;
+  }
+
+  /// Parses a sprint count from a string like "2 sprints",
+  /// "3 iterations", "1 sprint". Returns 0 if not found.
+  static int _parseSprintValue(String value) {
+    if (value.trim().isEmpty) return 0;
+    final match = RegExp(r'(\d+)\s*(?:sprints?|iterations?)',
+            caseSensitive: false)
+        .firstMatch(value);
+    if (match != null) return int.tryParse(match.group(1) ?? '0') ?? 0;
+    return 0;
+  }
+
+  /// Legacy alias — kept for backward compatibility with existing callers.
+  static int _defaultDurationDays(WorkPackage package) =>
+      estimateDurationDays(package);
 
   static String _defaultPriority(WorkPackage package) {
     return package.packageClassification == procurementPackage &&
@@ -792,6 +1229,14 @@ class IntegratedWorkPackageService {
       if (basis.method.trim().isNotEmpty) 'Method: ${basis.method.trim()}',
       if (basis.sourceData.trim().isNotEmpty)
         'Source: ${basis.sourceData.trim()}',
+      if (basis.productivityBasis.trim().isNotEmpty)
+        'Productivity: ${basis.productivityBasis.trim()}',
+      if (basis.resourceBasis.trim().isNotEmpty)
+        'Resources: ${basis.resourceBasis.trim()}',
+      if (basis.procurementLeadTimeBasis.trim().isNotEmpty)
+        'Lead time: ${basis.procurementLeadTimeBasis.trim()}',
+      if (basis.reviewAllowance.trim().isNotEmpty)
+        'Review: ${basis.reviewAllowance.trim()}',
       if (basis.assumptions.isNotEmpty)
         'Assumptions: ${basis.assumptions.join('; ')}',
       if (basis.confidenceLevel.trim().isNotEmpty)
@@ -806,12 +1251,131 @@ class IntegratedWorkPackageService {
         : 'expert_judgment';
     return PackageEstimateBasis(
       method: method,
-      sourceData: 'Generated from WBS Level 3 package candidate.',
+      sourceData: 'Generated from WBS leaf node package candidate.',
       assumptions: const [
         'Initial package duration requires discipline review.',
       ],
       confidenceLevel: 'low',
     );
+  }
+
+  /// Creates a classification-aware estimate basis with domain-specific
+  /// fields pre-populated. Used during package chain generation so that
+  /// each package type gets appropriate estimation parameters.
+  static PackageEstimateBasis _classificationAwareEstimateBasis({
+    required String packageClassification,
+    required String methodology,
+    required String procurementCategory,
+  }) {
+    final isAgile = methodology.trim().toLowerCase() == 'agile';
+
+    switch (packageClassification) {
+      case engineeringEwp:
+        return PackageEstimateBasis(
+          method: 'expert_judgment',
+          sourceData: 'Engineering deliverable estimation.',
+          assumptions: const [
+            'Base duration: 5 working days.',
+            'Review allowance may extend duration.',
+          ],
+          productivityBasis: '',
+          resourceBasis: '1 discipline engineer',
+          workingCalendar: '5 days/week',
+          reviewAllowance: '2 days',
+          confidenceLevel: 'low',
+        );
+      case procurementPackage:
+        final leadTimeNote = procurementCategory == 'longLeadEquipment'
+            ? 'Long lead equipment: 30+ days typical.'
+            : (procurementCategory == 'bulkMaterials'
+                ? 'Bulk materials: 14+ days typical.'
+                : 'Standard procurement cycle.');
+        return PackageEstimateBasis(
+          method: 'parametric',
+          sourceData: 'Procurement category-based estimation.',
+          assumptions: [leadTimeNote, 'RFQ cycle: 5-10 days.'],
+          productivityBasis: '',
+          resourceBasis: '1 procurement specialist',
+          workingCalendar: '5 days/week',
+          procurementLeadTimeBasis: procurementCategory == 'longLeadEquipment'
+              ? '30 days manufacturing + 5 days shipping'
+              : '7-14 days standard delivery',
+          reviewAllowance: '3 days',
+          confidenceLevel: 'medium',
+        );
+      case constructionCwp:
+        return PackageEstimateBasis(
+          method: 'productivity_based',
+          sourceData: 'Construction productivity estimation.',
+          assumptions: const [
+            'Duration depends on scope quantity and crew productivity.',
+            'Weather and site access may affect schedule.',
+          ],
+          productivityBasis: 'To be determined by discipline engineer',
+          resourceBasis: '1 construction crew',
+          workingCalendar: '5 days/week',
+          reviewAllowance: '2 days',
+          confidenceLevel: 'low',
+        );
+      case agileIterationPackage:
+        return PackageEstimateBasis(
+          method: 'iteration_based',
+          sourceData: 'Agile velocity-based estimation.',
+          assumptions: const [
+            'Default sprint length: 2 weeks (10 working days).',
+            'Velocity to be calibrated from team capacity.',
+          ],
+          productivityBasis: '',
+          resourceBasis: '1 agile team',
+          workingCalendar: '5 days/week',
+          confidenceLevel: 'low',
+        );
+      case implementationWorkPackage:
+        return PackageEstimateBasis(
+          method: 'expert_judgment',
+          sourceData: 'Implementation complexity estimation.',
+          assumptions: const [
+            'Base duration: 5 working days.',
+            'Integration/migration tasks may extend duration.',
+          ],
+          productivityBasis: '',
+          resourceBasis: '1 implementation specialist',
+          workingCalendar: '5 days/week',
+          reviewAllowance: '1 day',
+          confidenceLevel: 'low',
+        );
+      case preCommissioningPackage:
+        return PackageEstimateBasis(
+          method: 'checklist_based',
+          sourceData: 'Pre-commissioning checklist estimation.',
+          assumptions: const [
+            'Duration depends on system complexity and number of test loops.',
+            'Mechanical completion verification required before commissioning.',
+          ],
+          productivityBasis: '',
+          resourceBasis: '1 commissioning engineer + 1 technician',
+          workingCalendar: '5 days/week',
+          reviewAllowance: '2 days',
+          confidenceLevel: 'medium',
+        );
+      case commissioningPackage:
+        return PackageEstimateBasis(
+          method: 'checklist_based',
+          sourceData: 'Commissioning and handover estimation.',
+          assumptions: const [
+            'Functional testing and performance verification required.',
+            'Punch list resolution may extend schedule.',
+            'Final acceptance documentation required for handover.',
+          ],
+          productivityBasis: '',
+          resourceBasis: '1 commissioning engineer + 1 technician + 1 QA',
+          workingCalendar: '5 days/week',
+          reviewAllowance: '3 days',
+          confidenceLevel: 'medium',
+        );
+      default:
+        return _defaultEstimateBasis(methodology);
+    }
   }
 
   static List<PackageDeliverable> _defaultEngineeringDeliverables() => [
@@ -878,5 +1442,98 @@ class IntegratedWorkPackageService {
       return 'technology';
     }
     return 'services';
+  }
+
+  // ------------------------------------------------------------------
+  // Phase 2.3: Package roll-up logic
+  // Aggregates child package costs and dates into parent packages.
+  // ------------------------------------------------------------------
+
+  /// Rolls up budgeted/actual costs and planned date ranges from
+  /// child packages to their parent packages.
+  ///
+  /// For each non-leaf package (i.e., packages whose `childPackageIds`
+  /// point to other existing packages), this computes:
+  /// - **budgetedCost**: sum of children's budgetedCost
+  /// - **actualCost**: sum of children's actualCost
+  /// - **plannedStart**: earliest plannedStart among children
+  /// - **plannedEnd**: latest plannedEnd among children
+  ///
+  /// Returns a new list with updated parent packages.
+  static List<WorkPackage> rollUpChildCostsAndDates(
+    List<WorkPackage> packages,
+  ) {
+    final packageById = <String, WorkPackage>{};
+    for (final p in packages) {
+      packageById[p.id] = p;
+    }
+
+    return packages.map((package) {
+      if (package.childPackageIds.isEmpty) return package;
+
+      // Resolve children
+      final children = package.childPackageIds
+          .map((id) => packageById[id])
+          .whereType<WorkPackage>()
+          .toList();
+
+      if (children.isEmpty) return package;
+
+      // Roll up costs
+      final rolledUpBudget = children
+          .fold<double>(0.0, (sum, c) => sum + c.budgetedCost);
+      final rolledUpActual = children
+          .fold<double>(0.0, (sum, c) => sum + c.actualCost);
+
+      // Roll up date range
+      final childStarts = children
+          .map((c) => DateTime.tryParse(c.plannedStart ?? ''))
+          .whereType<DateTime>()
+          .toList();
+      final childEnds = children
+          .map((c) => DateTime.tryParse(c.plannedEnd ?? ''))
+          .whereType<DateTime>()
+          .toList();
+
+      final earliestStart = childStarts.isNotEmpty
+          ? childStarts.reduce((a, b) => a.isBefore(b) ? a : b)
+          : null;
+      final latestEnd = childEnds.isNotEmpty
+          ? childEnds.reduce((a, b) => a.isAfter(b) ? a : b)
+          : null;
+
+      return package.copyWith(
+        budgetedCost: rolledUpBudget,
+        actualCost: rolledUpActual,
+        plannedStart: earliestStart?.toIso8601String().split('T').first,
+        plannedEnd: latestEnd?.toIso8601String().split('T').first,
+      );
+    }).toList();
+  }
+
+  /// Collects all descendant package IDs recursively from a root package.
+  /// Useful for finding the full subtree of a summary/parent package.
+  static Set<String> collectDescendantIds(
+    String rootId,
+    List<WorkPackage> allPackages,
+  ) {
+    final packageById = <String, WorkPackage>{};
+    for (final p in allPackages) {
+      packageById[p.id] = p;
+    }
+
+    final result = <String>{};
+    void visit(String id) {
+      final pkg = packageById[id];
+      if (pkg == null) return;
+      for (final childId in pkg.childPackageIds) {
+        if (result.add(childId)) {
+          visit(childId);
+        }
+      }
+    }
+
+    visit(rootId);
+    return result;
   }
 }
