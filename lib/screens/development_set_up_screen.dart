@@ -408,7 +408,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                       'Development Set Up for ${_defaultProjectLabel(projectData)}. This hub prepares digital workspaces, site access, tooling, automation, and proof-of-connectivity so execution can start without avoidable blockers.',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.84),
+                        color: Colors.white.withOpacity(0.84),
                         height: 1.5,
                       ),
                     ),
@@ -435,10 +435,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.10),
+                            color: Colors.white.withOpacity(0.10),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.14),
+                              color: Colors.white.withOpacity(0.14),
                             ),
                           ),
                           child: const Icon(
@@ -463,10 +463,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.10),
+                      color: Colors.white.withOpacity(0.10),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.14),
+                        color: Colors.white.withOpacity(0.14),
                       ),
                     ),
                     child: const Icon(
@@ -561,10 +561,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: resultColor.withValues(alpha: 0.12),
+                    color: resultColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(16),
                     border:
-                        Border.all(color: resultColor.withValues(alpha: 0.22)),
+                        Border.all(color: resultColor.withOpacity(0.22)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1365,9 +1365,9 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1377,7 +1377,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Colors.white.withValues(alpha: 0.72),
+              color: Colors.white.withOpacity(0.72),
             ),
           ),
           const SizedBox(height: 4),
@@ -1398,9 +1398,9 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
+        color: Colors.white.withOpacity(0.10),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        border: Border.all(color: Colors.white.withOpacity(0.14)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1424,9 +1424,9 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        border: Border.all(color: color.withOpacity(0.22)),
       ),
       child: Text(
         label,
@@ -1496,9 +1496,9 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           width: 74,
           height: 74,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withOpacity(0.12),
             shape: BoxShape.circle,
-            border: Border.all(color: color.withValues(alpha: 0.22)),
+            border: Border.all(color: color.withOpacity(0.22)),
           ),
           child: Icon(stage.icon, color: color, size: 28),
         ),
@@ -1910,11 +1910,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           labelText: 'Status',
           labelStyle: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
           filled: true,
-          fillColor: color.withValues(alpha: 0.12),
+          fillColor: color.withOpacity(0.12),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: color.withValues(alpha: 0.5)),
+            borderSide: BorderSide(color: color.withOpacity(0.5)),
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

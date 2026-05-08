@@ -171,7 +171,7 @@ class _LandingScreenState extends State<LandingScreen>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: LightModeColors.accent.withValues(alpha: 0.1),
+                  color: LightModeColors.accent.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -336,7 +336,7 @@ class _LandingScreenState extends State<LandingScreen>
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                _LpColors.purple.withValues(alpha: 0.15),
+                _LpColors.purple.withOpacity(0.15),
                 Colors.transparent,
               ],
             ),
@@ -353,7 +353,7 @@ class _LandingScreenState extends State<LandingScreen>
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                _LpColors.blue.withValues(alpha: 0.1),
+                _LpColors.blue.withOpacity(0.1),
                 Colors.transparent,
               ],
             ),
@@ -370,7 +370,7 @@ class _LandingScreenState extends State<LandingScreen>
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                _LpColors.green.withValues(alpha: 0.08),
+                _LpColors.green.withOpacity(0.08),
                 Colors.transparent,
               ],
             ),
@@ -387,7 +387,7 @@ class _LandingScreenState extends State<LandingScreen>
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                _LpColors.gold.withValues(alpha: 0.12),
+                _LpColors.gold.withOpacity(0.12),
                 Colors.transparent,
               ],
             ),
@@ -419,14 +419,14 @@ class _LandingScreenState extends State<LandingScreen>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 color: Colors.black
-                    .withValues(alpha: 0.6 + (_headerOpacity * 0.3)),
+                    .withOpacity(0.6 + (_headerOpacity * 0.3)),
                 border: Border.all(
                   color: Colors.white
-                      .withValues(alpha: 0.06 + (_headerOpacity * 0.06)),
+                      .withOpacity(0.06 + (_headerOpacity * 0.06)),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3 * _headerOpacity),
+                    color: Colors.black.withOpacity(0.3 * _headerOpacity),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -683,22 +683,22 @@ class _LandingScreenState extends State<LandingScreen>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: Colors.white.withOpacity(0.06),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(color: Colors.white.withOpacity(0.12)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.auto_awesome,
-                  size: 16, color: _LpColors.gold.withValues(alpha: 0.95)),
+                  size: 16, color: _LpColors.gold.withOpacity(0.95)),
               const SizedBox(width: 8),
               Text(
                 'AI-Powered Project Delivery',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.85),
+                  color: Colors.white.withOpacity(0.85),
                 ),
               ),
             ],
@@ -803,11 +803,11 @@ class _LandingScreenState extends State<LandingScreen>
             OutlinedButton(
               onPressed: () => _scrollTo(_howItWorksKey),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white.withValues(alpha: 0.9),
+                foregroundColor: Colors.white.withOpacity(0.9),
                 padding: const EdgeInsets.symmetric(
                     horizontal: 28, vertical: 16),
                 side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+                    color: Colors.white.withOpacity(0.2), width: 1.5),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -851,7 +851,7 @@ class _LandingScreenState extends State<LandingScreen>
             style: TextStyle(
               fontSize: isDesktop ? 18 : 16,
               fontWeight: FontWeight.w500,
-              color: Colors.white.withValues(alpha: 0.55),
+              color: Colors.white.withOpacity(0.55),
               height: 1.5,
             ),
           ),
@@ -859,22 +859,22 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: Colors.white.withOpacity(0.04),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.verified_rounded,
-                    size: 18, color: _LpColors.blue.withValues(alpha: 0.8)),
+                    size: 18, color: _LpColors.blue.withOpacity(0.8)),
                 const SizedBox(width: 8),
                 Text(
                   'Research & Validation: NSF I-Corps',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white.withOpacity(0.7),
                   ),
                 ),
               ],
@@ -910,10 +910,10 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.redAccent.withValues(alpha: 0.1),
+              color: Colors.redAccent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border:
-                  Border.all(color: Colors.redAccent.withValues(alpha: 0.2)),
+                  Border.all(color: Colors.redAccent.withOpacity(0.2)),
             ),
             child: const Text(
               'THE PROBLEM',
@@ -951,7 +951,7 @@ class _LandingScreenState extends State<LandingScreen>
             style: TextStyle(
               fontSize: isDesktop ? 18 : 16,
               height: 1.65,
-              color: Colors.white.withValues(alpha: 0.6),
+              color: Colors.white.withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 48),
@@ -976,10 +976,10 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: Colors.white.withOpacity(0.04),
               borderRadius: BorderRadius.circular(12),
               border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  Border.all(color: Colors.white.withOpacity(0.08)),
             ),
             child: Text(
               'The issue isn\'t execution. It\'s the lack of a system governing the full lifecycle.',
@@ -987,7 +987,7 @@ class _LandingScreenState extends State<LandingScreen>
               style: TextStyle(
                 fontSize: isDesktop ? 17 : 15,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.8),
+                color: Colors.white.withOpacity(0.8),
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -1025,10 +1025,10 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _LpColors.blue.withValues(alpha: 0.1),
+              color: _LpColors.blue.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border:
-                  Border.all(color: _LpColors.blue.withValues(alpha: 0.2)),
+                  Border.all(color: _LpColors.blue.withOpacity(0.2)),
             ),
             child: const Text(
               'THE SOLUTION',
@@ -1066,7 +1066,7 @@ class _LandingScreenState extends State<LandingScreen>
             style: TextStyle(
               fontSize: isDesktop ? 18 : 16,
               height: 1.65,
-              color: Colors.white.withValues(alpha: 0.6),
+              color: Colors.white.withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 48),
@@ -1154,10 +1154,10 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _LpColors.green.withValues(alpha: 0.1),
+              color: _LpColors.green.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border:
-                  Border.all(color: _LpColors.green.withValues(alpha: 0.2)),
+                  Border.all(color: _LpColors.green.withOpacity(0.2)),
             ),
             child: const Text(
               'HOW IT WORKS',
@@ -1255,10 +1255,10 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _LpColors.gold.withValues(alpha: 0.1),
+              color: _LpColors.gold.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border:
-                  Border.all(color: _LpColors.gold.withValues(alpha: 0.2)),
+                  Border.all(color: _LpColors.gold.withOpacity(0.2)),
             ),
             child: const Text(
               'DIFFERENTIATORS',
@@ -1337,10 +1337,10 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _LpColors.green.withValues(alpha: 0.1),
+              color: _LpColors.green.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border:
-                  Border.all(color: _LpColors.green.withValues(alpha: 0.2)),
+                  Border.all(color: _LpColors.green.withOpacity(0.2)),
             ),
             child: const Text(
               'OUTCOMES',
@@ -1400,7 +1400,7 @@ class _LandingScreenState extends State<LandingScreen>
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: _LpColors.green.withValues(alpha: 0.2)),
+                  color: _LpColors.green.withOpacity(0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1426,7 +1426,7 @@ class _LandingScreenState extends State<LandingScreen>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white.withOpacity(0.7),
                   ),
                 ),
               ],
@@ -1471,10 +1471,10 @@ class _LandingScreenState extends State<LandingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _LpColors.purple.withValues(alpha: 0.1),
+              color: _LpColors.purple.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border:
-                  Border.all(color: _LpColors.purple.withValues(alpha: 0.2)),
+                  Border.all(color: _LpColors.purple.withOpacity(0.2)),
             ),
             child: const Text(
               'WHO IT\'S FOR',
@@ -1547,10 +1547,10 @@ class _LandingScreenState extends State<LandingScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _LpColors.blue.withValues(alpha: 0.1),
+                  color: _LpColors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color: _LpColors.blue.withValues(alpha: 0.2)),
+                      color: _LpColors.blue.withOpacity(0.2)),
                 ),
                 child: const Text(
                   'ORIGIN & CREDIBILITY',
@@ -1588,7 +1588,7 @@ class _LandingScreenState extends State<LandingScreen>
                 style: TextStyle(
                   fontSize: isDesktop ? 17 : 15,
                   height: 1.65,
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: Colors.white.withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: 32),
@@ -1600,7 +1600,7 @@ class _LandingScreenState extends State<LandingScreen>
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: c.color.withValues(alpha: 0.1),
+                            color: c.color.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(c.icon, size: 20, color: c.color),
@@ -1660,7 +1660,7 @@ class _LandingScreenState extends State<LandingScreen>
             style: TextStyle(
               fontSize: isDesktop ? 18 : 16,
               height: 1.65,
-              color: Colors.white.withValues(alpha: 0.6),
+              color: Colors.white.withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 32),
@@ -1676,7 +1676,7 @@ class _LandingScreenState extends State<LandingScreen>
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: _LpColors.gold.withValues(alpha: 0.25)),
+                  color: _LpColors.gold.withOpacity(0.25)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1740,7 +1740,7 @@ class _LandingScreenState extends State<LandingScreen>
                 style: TextStyle(
                   fontSize: isDesktop ? 18 : 16,
                   height: 1.6,
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: Colors.white.withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: 36),
@@ -1773,7 +1773,7 @@ class _LandingScreenState extends State<LandingScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 16),
                       side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: Colors.white.withOpacity(0.2),
                           width: 1.5),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -1813,7 +1813,7 @@ class _LandingScreenState extends State<LandingScreen>
       decoration: BoxDecoration(
         color: const Color(0xFF050505),
         border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          top: BorderSide(color: Colors.white.withOpacity(0.06)),
         ),
       ),
       child: Column(
@@ -1883,7 +1883,7 @@ class _LandingScreenState extends State<LandingScreen>
               ],
             ),
           const SizedBox(height: 40),
-          Divider(color: Colors.white.withValues(alpha: 0.06)),
+          Divider(color: Colors.white.withOpacity(0.06)),
           const SizedBox(height: 20),
           // Bottom row
           isDesktop
@@ -1998,10 +1998,10 @@ class _GlassCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF141414), Color(0xFF080808)],
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        border: Border.all(color: Colors.white.withOpacity(0.07)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 40,
             offset: const Offset(0, 20),
           ),
@@ -2038,7 +2038,7 @@ class _PainPointCard extends StatelessWidget {
         color: _LpColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: painPoint.color.withValues(alpha: 0.12)),
+            color: painPoint.color.withOpacity(0.12)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2046,7 +2046,7 @@ class _PainPointCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: painPoint.color.withValues(alpha: 0.1),
+              color: painPoint.color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(painPoint.icon, size: 20, color: painPoint.color),
@@ -2089,7 +2089,7 @@ class _CapabilityCard extends StatelessWidget {
         color: _LpColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: capability.color.withValues(alpha: 0.12)),
+            color: capability.color.withOpacity(0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2097,7 +2097,7 @@ class _CapabilityCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: capability.color.withValues(alpha: 0.1),
+              color: capability.color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(capability.icon, size: 22, color: capability.color),
@@ -2146,7 +2146,7 @@ class _HowItWorksCard extends StatelessWidget {
         color: _LpColors.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: step.color.withValues(alpha: 0.15)),
+            color: step.color.withOpacity(0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2156,7 +2156,7 @@ class _HowItWorksCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: step.color.withValues(alpha: 0.12),
+                  color: step.color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(step.icon, size: 24, color: step.color),
@@ -2167,7 +2167,7 @@ class _HowItWorksCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: step.color.withValues(alpha: 0.7),
+                  color: step.color.withOpacity(0.7),
                   letterSpacing: 1,
                 ),
               ),
@@ -2229,7 +2229,7 @@ class _ComparisonCard extends StatelessWidget {
                     children: [
                       Icon(Icons.close_rounded,
                           size: 18,
-                          color: Colors.redAccent.withValues(alpha: 0.7)),
+                          color: Colors.redAccent.withOpacity(0.7)),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
@@ -2237,7 +2237,7 @@ class _ComparisonCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Colors.white.withValues(alpha: 0.45),
+                            color: Colors.white.withOpacity(0.45),
                             decoration: TextDecoration.lineThrough,
                           ),
                         ),
@@ -2248,7 +2248,7 @@ class _ComparisonCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Icon(Icons.arrow_forward_rounded,
-                      size: 18, color: _LpColors.gold.withValues(alpha: 0.7)),
+                      size: 18, color: _LpColors.gold.withOpacity(0.7)),
                 ),
                 // Ndu Project
                 Expanded(
@@ -2279,7 +2279,7 @@ class _ComparisonCard extends StatelessWidget {
                   children: [
                     Icon(Icons.close_rounded,
                         size: 16,
-                        color: Colors.redAccent.withValues(alpha: 0.7)),
+                        color: Colors.redAccent.withOpacity(0.7)),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
@@ -2287,7 +2287,7 @@ class _ComparisonCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: Colors.white.withOpacity(0.4),
                           decoration: TextDecoration.lineThrough,
                         ),
                       ),
@@ -2297,7 +2297,7 @@ class _ComparisonCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Icon(Icons.arrow_downward_rounded,
-                      size: 16, color: _LpColors.gold.withValues(alpha: 0.7)),
+                      size: 16, color: _LpColors.gold.withOpacity(0.7)),
                 ),
                 Row(
                   children: [
@@ -2342,7 +2342,7 @@ class _KeyPointCard extends StatelessWidget {
         color: _LpColors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: keyPoint.color.withValues(alpha: 0.12)),
+            color: keyPoint.color.withOpacity(0.12)),
       ),
       child: Row(
         children: [
@@ -2385,14 +2385,14 @@ class _OutcomeCard extends StatelessWidget {
         color: _LpColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: outcome.color.withValues(alpha: 0.12)),
+            color: outcome.color.withOpacity(0.12)),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: outcome.color.withValues(alpha: 0.1),
+              color: outcome.color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(outcome.icon, size: 22, color: outcome.color),
@@ -2434,14 +2434,14 @@ class _SegmentCard extends StatelessWidget {
         color: _LpColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: segment.color.withValues(alpha: 0.12)),
+            color: segment.color.withOpacity(0.12)),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: segment.color.withValues(alpha: 0.1),
+              color: segment.color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(segment.icon, size: 24, color: segment.color),
@@ -2500,7 +2500,7 @@ class _FooterColumn extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: Colors.white.withOpacity(0.45),
                   height: 1.3,
                 ),
               ),
@@ -2521,7 +2521,7 @@ class _SystemDiagramPainter extends CustomPainter {
     final glowPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          _LpColors.purple.withValues(alpha: 0.08),
+          _LpColors.purple.withOpacity(0.08),
           Colors.transparent,
         ],
       ).createShader(Rect.fromCircle(center: center, radius: mainRadius * 1.5));
@@ -2529,7 +2529,7 @@ class _SystemDiagramPainter extends CustomPainter {
 
     // Draw orbital ring
     final ringPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.06)
+      ..color = Colors.white.withOpacity(0.06)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, mainRadius, ringPaint);
@@ -2556,7 +2556,7 @@ class _SystemDiagramPainter extends CustomPainter {
       final nodeGlow = Paint()
         ..shader = RadialGradient(
           colors: [
-            phase.color.withValues(alpha: 0.3),
+            phase.color.withOpacity(0.3),
             Colors.transparent,
           ],
         ).createShader(Rect.fromCircle(center: nodeCenter, radius: nodeRadius * 2));
@@ -2568,15 +2568,15 @@ class _SystemDiagramPainter extends CustomPainter {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            phase.color.withValues(alpha: 0.25),
-            phase.color.withValues(alpha: 0.08),
+            phase.color.withOpacity(0.25),
+            phase.color.withOpacity(0.08),
           ],
         ).createShader(Rect.fromCircle(center: nodeCenter, radius: nodeRadius));
       canvas.drawCircle(nodeCenter, nodeRadius, nodeFill);
 
       // Node border
       final nodeBorder = Paint()
-        ..color = phase.color.withValues(alpha: 0.5)
+        ..color = phase.color.withOpacity(0.5)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
       canvas.drawCircle(nodeCenter, nodeRadius, nodeBorder);
@@ -2629,8 +2629,8 @@ class _SystemDiagramPainter extends CustomPainter {
         final arrowPaint = Paint()
           ..shader = LinearGradient(
             colors: [
-              phase.color.withValues(alpha: 0.5),
-              nextPhase.color.withValues(alpha: 0.5),
+              phase.color.withOpacity(0.5),
+              nextPhase.color.withOpacity(0.5),
             ],
           ).createShader(Rect.fromPoints(start, end))
           ..style = PaintingStyle.stroke
@@ -2661,7 +2661,7 @@ class _SystemDiagramPainter extends CustomPainter {
         arrowPath.lineTo(-arrowSize, -arrowSize / 2);
         arrowPath.lineTo(-arrowSize, arrowSize / 2);
         arrowPath.close();
-        canvas.drawPath(arrowPath, Paint()..color = nextPhase.color.withValues(alpha: 0.6));
+        canvas.drawPath(arrowPath, Paint()..color = nextPhase.color.withOpacity(0.6));
         canvas.restore();
       }
     }
@@ -2670,8 +2670,8 @@ class _SystemDiagramPainter extends CustomPainter {
     final centerPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          _LpColors.purple.withValues(alpha: 0.15),
-          _LpColors.gold.withValues(alpha: 0.08),
+          _LpColors.purple.withOpacity(0.15),
+          _LpColors.gold.withOpacity(0.08),
           Colors.transparent,
         ],
       ).createShader(Rect.fromCircle(center: center, radius: mainRadius * 0.45));
