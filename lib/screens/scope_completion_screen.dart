@@ -1065,7 +1065,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -1085,7 +1085,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               decoration: BoxDecoration(
-                color: impactColor.withValues(alpha: 0.1),
+                color: impactColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -1799,7 +1799,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -2233,7 +2233,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: categoryColor.withValues(alpha: 0.1),
+                color: categoryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -2253,7 +2253,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -2730,7 +2730,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               decoration: BoxDecoration(
-                color: typeColor.withValues(alpha: 0.1),
+                color: typeColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -2750,7 +2750,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               decoration: BoxDecoration(
-                color: impactColor.withValues(alpha: 0.1),
+                color: impactColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -2787,7 +2787,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -3622,7 +3622,7 @@ class _AiHelperButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Colors.black.withOpacity(0.1),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -3697,7 +3697,7 @@ class _ReadinessCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _background,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _accent.withValues(alpha: 0.18)),
+        border: Border.all(color: _accent.withOpacity(0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

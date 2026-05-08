@@ -381,7 +381,7 @@ class _StatusReportsScreenState extends State<StatusReportsScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
+            color: color.withOpacity(0.08),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 18, color: color),
