@@ -84,7 +84,26 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   static const List<String> _checkpointStatuses = [
     'Pending',
     'Aligned',
-    'Blocked'
+    'Blocked',
+    'Waived'
+  ];
+  static const List<String> _signalCategories = [
+    'Sponsor',
+    'Operations',
+    'Technical',
+    'Regulatory',
+  ];
+  static const List<String> _changeTypes = [
+    'Scope',
+    'Budget',
+    'Schedule',
+    'Quality'
+  ];
+  static const List<String> _changeStatuses = [
+    'Open',
+    'Approved',
+    'Rejected',
+    'Deferred'
   ];
 
   @override
@@ -427,6 +446,8 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
         .map((entry) {
           final details = entry.details;
           final owner = _extractField(details, 'Owner');
+          final refCode = _extractField(details, 'Ref');
+          final evidence = _extractField(details, 'Evidence');
           final status = entry.status?.trim().isNotEmpty == true
               ? entry.status!.trim()
               : _checkpointStatuses.first;
@@ -435,6 +456,8 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             title: entry.title.trim(),
             owner: owner,
             status: status,
+            refCode: refCode,
+            evidence: evidence,
           );
         })
         .where((item) => item.title.isNotEmpty)
@@ -445,6 +468,9 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
     if (entries == null) return [];
     return entries
         .map((entry) {
+          final details = entry.details;
+          final category = _extractField(details, 'Category');
+          final verifiedBy = _extractField(details, 'Verified');
           final status = entry.status?.trim().isNotEmpty == true
               ? entry.status!.trim()
               : _checkpointStatuses.first;
@@ -452,6 +478,8 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
             id: _newId(),
             label: entry.title.trim(),
             status: status,
+            category: _signalCategories.contains(category) ? category : 'Sponsor',
+            verifiedBy: verifiedBy,
           );
         })
         .where((item) => item.label.isNotEmpty)
@@ -461,10 +489,42 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   List<_ScopeChangeItem> _mapScopeChanges(List<LaunchEntry>? entries) {
     if (entries == null) return [];
     return entries
-        .map((entry) => _ScopeChangeItem(
-              id: _newId(),
-              detail: _entryText([entry]) ?? '',
-            ))
+        .map((entry) {
+          final details = entry.details;
+          final crId = _extractField(details, 'CR');
+          final changeType = _extractField(details, 'Type');
+          final impactLevel = _extractField(details, 'Impact');
+          final requestedBy = _extractField(details, 'Requested');
+          final statusStr = entry.status?.trim().isNotEmpty == true
+              ? entry.status!.trim()
+              : 'Open';
+          final matchedStatus = _changeStatuses
+                  .where((s) => s.toLowerCase() == statusStr.toLowerCase())
+                  .isNotEmpty
+              ? _changeStatuses.firstWhere(
+                  (s) => s.toLowerCase() == statusStr.toLowerCase())
+              : 'Open';
+          final matchedType = _changeTypes
+                  .where((t) => t.toLowerCase() == changeType.toLowerCase())
+                  .isNotEmpty
+              ? _changeTypes.firstWhere(
+                  (t) => t.toLowerCase() == changeType.toLowerCase())
+              : 'Scope';
+          return _ScopeChangeItem(
+            id: _newId(),
+            detail: entry.title.trim(),
+            crId: crId,
+            changeType: matchedType,
+            impactLevel: _impactLevels
+                    .where((i) => i.toLowerCase() == impactLevel.toLowerCase())
+                    .isNotEmpty
+                ? _impactLevels.firstWhere(
+                    (i) => i.toLowerCase() == impactLevel.toLowerCase())
+                : 'Medium',
+            requestedBy: requestedBy,
+            status: matchedStatus,
+          );
+        })
         .where((item) => item.detail.isNotEmpty)
         .toList();
   }
@@ -1129,6 +1189,66 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
     return item.actualDate!.isAfter(item.baselineDate!);
   }
 
+  Color _checkpointStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'aligned':
+        return const Color(0xFF059669);
+      case 'blocked':
+        return const Color(0xFFDC2626);
+      case 'waived':
+        return const Color(0xFFD97706);
+      case 'pending':
+        return const Color(0xFF9CA3AF);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  Color _signalCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'sponsor':
+        return const Color(0xFF7C3AED);
+      case 'operations':
+        return const Color(0xFF2563EB);
+      case 'technical':
+        return const Color(0xFF0D9488);
+      case 'regulatory':
+        return const Color(0xFFEA580C);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  Color _changeTypeColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'scope':
+        return const Color(0xFF7C3AED);
+      case 'budget':
+        return const Color(0xFFD97706);
+      case 'schedule':
+        return const Color(0xFF2563EB);
+      case 'quality':
+        return const Color(0xFF0D9488);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  Color _changeStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return const Color(0xFF059669);
+      case 'rejected':
+        return const Color(0xFFDC2626);
+      case 'deferred':
+        return const Color(0xFFD97706);
+      case 'open':
+        return const Color(0xFF2563EB);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
   String _formatDate(DateTime dt) {
     const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -1136,6 +1256,8 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
+
+  // ─── Work Package CRUD ─────────────────────────────────────────────
 
   void _showWorkPackageDialog([_WorkPackageItem? existing]) {
     final isEdit = existing != null;
@@ -1482,6 +1604,8 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
     );
   }
 
+  // ─── Checkpoint CRUD ────────────────────────────────────────────────
+
   Widget _buildSponsorAcceptanceCard(BuildContext context) {
     return _ContentCard(
       child: Column(
@@ -1502,207 +1626,933 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
           const SizedBox(height: 16),
           _buildTableTitle('Formal Acceptance Checkpoints'),
           const SizedBox(height: 10),
-          _buildResponsiveTable(
-            minWidth: 760,
-            child: Column(
+          _buildCheckpointsTable(context),
+          const SizedBox(height: 20),
+          _buildTableTitle('Acceptance Signals and Readiness Tags'),
+          const SizedBox(height: 10),
+          _buildAcceptanceTagsTable(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCheckpointsTable(BuildContext context) {
+    return _buildResponsiveTable(
+      minWidth: 1200,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F2937),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
               children: [
-                _buildTableHeader(
-                  const ['Checkpoint', 'Owner', 'Status', ''],
-                  columnWidths: const [4, 2, 2, 1],
-                ),
-                const SizedBox(height: 8),
-                if (_acceptanceCheckpoints.isEmpty)
-                  const _InlineEmptyState(
-                    title: 'No checkpoints yet',
-                    message:
-                        'List the acceptance checkpoints for sponsor sign-off.',
-                  )
-                else
-                  ..._acceptanceCheckpoints.asMap().entries.map(
-                        (entry) => _buildCheckpointRow(entry.value, entry.key),
-                      ),
+                Expanded(flex: 1, child: Text('Ref', style: _headerStyle)),
+                Expanded(flex: 3, child: Text('Checkpoint', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Approver', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Due Date', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Sign-off', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Status', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Evidence', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('', style: _headerStyle)),
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          TextButton.icon(
-            onPressed: _addCheckpoint,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add checkpoint'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF1F2937),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              backgroundColor: const Color(0xFFFFF3C4),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildTableTitle('Acceptance Signals and Readiness Tags'),
-          const SizedBox(height: 8),
-          if (_acceptanceTags.isEmpty)
-            const _InlineEmptyState(
-              title: 'No acceptance signals yet',
-              message: 'Add sponsor and operations acceptance signals.',
+          const SizedBox(height: 6),
+          if (_acceptanceCheckpoints.isEmpty)
+            _InlineEmptyState(
+              title: 'No checkpoints yet',
+              message: 'List the acceptance checkpoints for sponsor sign-off.',
+              icon: Icons.checklist_outlined,
             )
           else
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: _acceptanceTags
-                  .map((tag) => _buildAcceptanceTag(tag))
-                  .toList(),
-            ),
+            ..._acceptanceCheckpoints.asMap().entries.map(
+                  (entry) => _buildCheckpointDisplayRow(entry.value, entry.key),
+                ),
           const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: _addAcceptanceTag,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add acceptance signal'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF1F2937),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              backgroundColor: const Color(0xFFFFF3C4),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: () => _showCheckpointDialog(),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add checkpoint'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF1F2937),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  backgroundColor: const Color(0xFFFFF3C4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              if (_acceptanceCheckpoints.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => _duplicateAllCheckpoints(),
+                  icon: const Icon(Icons.content_copy_rounded, size: 16),
+                  label: const Text('Duplicate all'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B7280),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_acceptanceCheckpoints.length} checkpoint${_acceptanceCheckpoints.length != 1 ? 's' : ''}',
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF9CA3AF)),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCheckpointRow(_CheckpointItem item, int index) {
-    final statusItems = _dropdownItems(_checkpointStatuses, item.status);
-
-    return _TableRowShell(
-      isEven: index.isEven,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 4,
-            child: TextFormField(
-              key: ValueKey('checkpoint-title-${item.id}'),
-              initialValue: item.title,
-              decoration: _inputDecoration('Checkpoint'),
-              maxLines: 2,
-              onChanged: (value) =>
-                  _updateCheckpoint(item.copyWith(title: value)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: TextFormField(
-              key: ValueKey('checkpoint-owner-${item.id}'),
-              initialValue: item.owner,
-              decoration: _inputDecoration('Owner'),
-              onChanged: (value) =>
-                  _updateCheckpoint(item.copyWith(owner: value)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: DropdownButtonFormField<String>(
-              initialValue: _dropdownValue(statusItems, item.status),
-              decoration: _inputDecoration('Status', dense: true),
-              items: statusItems
-                  .map((status) =>
-                      DropdownMenuItem(value: status, child: Text(status)))
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                _updateCheckpoint(item.copyWith(status: value), notify: true);
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
-            onPressed: () => _deleteCheckpoint(item.id),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAcceptanceTag(_AcceptanceTagItem tag) {
-    final statusItems = _dropdownItems(_checkpointStatuses, tag.status);
+  Widget _buildCheckpointDisplayRow(_CheckpointItem item, int index) {
+    final statusColor = _checkpointStatusColor(item.status);
+    final isOverdue = item.dueDate != null &&
+        item.signOffDate == null &&
+        item.dueDate!.isBefore(DateTime.now());
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(16),
+        color: index.isEven ? Colors.white : const Color(0xFFFAFBFD),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 140,
-            child: TextFormField(
-              key: ValueKey('acceptance-tag-${tag.id}'),
-              initialValue: tag.label,
-              decoration: const InputDecoration(
-                hintText: 'Signal',
-                border: InputBorder.none,
-                isDense: true,
-              ),
+          // Ref
+          Expanded(
+            flex: 1,
+            child: Text(
+              item.refCode.isNotEmpty ? item.refCode : '—',
               style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF374151)),
-              onChanged: (value) =>
-                  _updateAcceptanceTag(tag.copyWith(label: value)),
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280),
+                  fontFamily: 'monospace'),
             ),
           ),
-          const SizedBox(width: 6),
-          DropdownButton<String>(
-            value: _dropdownValue(statusItems, tag.status),
-            underline: const SizedBox(),
-            onChanged: (value) {
-              if (value == null) return;
-              _updateAcceptanceTag(tag.copyWith(status: value), notify: true);
-            },
-            items: statusItems
-                .map((status) =>
-                    DropdownMenuItem(value: status, child: Text(status)))
-                .toList(),
+          // Checkpoint
+          Expanded(
+            flex: 3,
+            child: Text(
+              item.title.isNotEmpty ? item.title : 'Untitled',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: item.title.isNotEmpty
+                    ? const Color(0xFF111827)
+                    : const Color(0xFF9CA3AF),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF)),
-            onPressed: () => _deleteAcceptanceTag(tag.id),
+          // Approver
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.owner.isNotEmpty ? item.owner : '—',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Due Date
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.dueDate != null ? _formatDate(item.dueDate!) : '—',
+              style: TextStyle(
+                fontSize: 12,
+                color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF374151),
+                fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+          // Sign-off Date
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.signOffDate != null ? _formatDate(item.signOffDate!) : '—',
+              style: TextStyle(
+                fontSize: 12,
+                color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF374151),
+                fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+          // Status chip
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                item.status,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Evidence
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.evidence.isNotEmpty ? item.evidence : '—',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+          // Actions
+          Expanded(
+            flex: 1,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _actionIconButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit',
+                  onPressed: () => _showCheckpointDialog(item),
+                ),
+                _actionIconButton(
+                  icon: Icons.content_copy,
+                  tooltip: 'Duplicate',
+                  onPressed: () => _duplicateCheckpoint(item),
+                ),
+                _actionIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete',
+                  color: const Color(0xFFEF4444),
+                  onPressed: () => _confirmDeleteCheckpoint(item),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  List<String> _dropdownItems(Iterable<String> options, String currentValue) {
-    final seen = <String>{};
-    final normalized = <String>[];
+  void _showCheckpointDialog([_CheckpointItem? existing]) {
+    final isEdit = existing != null;
+    final titleCtl = TextEditingController(text: existing?.title ?? '');
+    final ownerCtl = TextEditingController(text: existing?.owner ?? '');
+    final refCodeCtl = TextEditingController(text: existing?.refCode ?? '');
+    final evidenceCtl = TextEditingController(text: existing?.evidence ?? '');
+    final notesCtl = TextEditingController(text: existing?.notes ?? '');
+    String status = existing?.status ?? _checkpointStatuses.first;
+    DateTime? dueDate = existing?.dueDate;
+    DateTime? signOffDate = existing?.signOffDate;
 
-    void add(String value) {
-      final trimmed = value.trim();
-      if (trimmed.isEmpty || !seen.add(trimmed)) return;
-      normalized.add(trimmed);
-    }
-
-    for (final option in options) {
-      add(option);
-    }
-    add(currentValue);
-
-    return normalized;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(isEdit ? Icons.edit_outlined : Icons.add_circle_outline,
+                  size: 22, color: const Color(0xFF4154F1)),
+              const SizedBox(width: 10),
+              Text(isEdit ? 'Edit Checkpoint' : 'Add Checkpoint',
+                  style: const TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Ref Code
+                  const _DialogLabel('Reference Code'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: refCodeCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. ACC-001',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    style: const TextStyle(fontFamily: 'monospace'),
+                  ),
+                  const SizedBox(height: 14),
+                  // Title
+                  const _DialogLabel('Checkpoint Description *'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: titleCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Describe the acceptance checkpoint',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 14),
+                  // Owner & Status
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Approver'),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: ownerCtl,
+                              decoration: const InputDecoration(
+                                hintText: 'Approver name',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Status'),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              value: status,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _checkpointStatuses
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => status = v);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Dates
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Due Date'),
+                            const SizedBox(height: 4),
+                            _DateField(
+                              initialDate: dueDate,
+                              onPicked: (d) =>
+                                  setDialogState(() => dueDate = d),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Sign-off Date'),
+                            const SizedBox(height: 4),
+                            _DateField(
+                              initialDate: signOffDate,
+                              onPicked: (d) =>
+                                  setDialogState(() => signOffDate = d),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Evidence
+                  const _DialogLabel('Evidence / Artifact'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: evidenceCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Reference to evidence or artifact',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Notes
+                  const _DialogLabel('Notes'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: notesCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Additional context or remarks',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final newItem = _CheckpointItem(
+                  id: existing?.id ?? _newId(),
+                  title: titleCtl.text.trim(),
+                  owner: ownerCtl.text.trim(),
+                  status: status,
+                  refCode: refCodeCtl.text.trim(),
+                  dueDate: dueDate,
+                  signOffDate: signOffDate,
+                  evidence: evidenceCtl.text.trim(),
+                  notes: notesCtl.text.trim(),
+                );
+                if (isEdit) {
+                  _updateCheckpoint(newItem, notify: true);
+                } else {
+                  setState(() => _acceptanceCheckpoints.add(newItem));
+                  _scheduleSave();
+                }
+                Navigator.of(ctx).pop();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF4154F1),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(isEdit ? 'Save Changes' : 'Add Checkpoint'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  String? _dropdownValue(List<String> items, String value) {
-    if (items.isEmpty) return null;
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return items.first;
-    return items.contains(trimmed) ? trimmed : items.first;
+  void _duplicateCheckpoint(_CheckpointItem item) {
+    setState(() {
+      _acceptanceCheckpoints.add(_CheckpointItem(
+        id: _newId(),
+        title: '${item.title} (copy)',
+        owner: item.owner,
+        status: item.status,
+        refCode: item.refCode,
+        dueDate: item.dueDate,
+        signOffDate: item.signOffDate,
+        evidence: item.evidence,
+        notes: item.notes,
+      ));
+    });
+    _scheduleSave();
   }
+
+  void _duplicateAllCheckpoints() {
+    setState(() {
+      for (final item in List.of(_acceptanceCheckpoints)) {
+        _acceptanceCheckpoints.add(_CheckpointItem(
+          id: _newId(),
+          title: '${item.title} (copy)',
+          owner: item.owner,
+          status: item.status,
+          refCode: item.refCode,
+          dueDate: item.dueDate,
+          signOffDate: item.signOffDate,
+          evidence: item.evidence,
+          notes: item.notes,
+        ));
+      }
+    });
+    _scheduleSave();
+  }
+
+  void _confirmDeleteCheckpoint(_CheckpointItem item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 10),
+            Text('Delete Checkpoint'),
+          ],
+        ),
+        content: Text(
+            'Are you sure you want to delete "${item.title.isNotEmpty ? item.title : 'this checkpoint'}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              _deleteCheckpoint(item.id);
+              Navigator.of(ctx).pop();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Acceptance Tags CRUD ───────────────────────────────────────────
+
+  Widget _buildAcceptanceTagsTable(BuildContext context) {
+    return _buildResponsiveTable(
+      minWidth: 900,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F2937),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              children: [
+                Expanded(flex: 3, child: Text('Signal', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Category', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Status', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Verified By', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Date', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('', style: _headerStyle)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (_acceptanceTags.isEmpty)
+            _InlineEmptyState(
+              title: 'No acceptance signals yet',
+              message: 'Add sponsor and operations acceptance signals.',
+              icon: Icons.verified_outlined,
+            )
+          else
+            ..._acceptanceTags.asMap().entries.map(
+                  (entry) => _buildAcceptanceTagDisplayRow(entry.value, entry.key),
+                ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: () => _showAcceptanceTagDialog(),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add signal'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF1F2937),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  backgroundColor: const Color(0xFFFFF3C4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              if (_acceptanceTags.isNotEmpty) ...[
+                const Spacer(),
+                Text(
+                  '${_acceptanceTags.length} signal${_acceptanceTags.length != 1 ? 's' : ''}',
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF9CA3AF)),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAcceptanceTagDisplayRow(_AcceptanceTagItem item, int index) {
+    final categoryColor = _signalCategoryColor(item.category);
+    final statusColor = _checkpointStatusColor(item.status);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: index.isEven ? Colors.white : const Color(0xFFFAFBFD),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+      ),
+      child: Row(
+        children: [
+          // Signal
+          Expanded(
+            flex: 3,
+            child: Text(
+              item.label.isNotEmpty ? item.label : 'Untitled',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: item.label.isNotEmpty
+                    ? const Color(0xFF111827)
+                    : const Color(0xFF9CA3AF),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Category chip
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: categoryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                item.category,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: categoryColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Status chip
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                item.status,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Verified By
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.verifiedBy.isNotEmpty ? item.verifiedBy : '—',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Date Verified
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.dateVerified != null ? _formatDate(item.dateVerified!) : '—',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+            ),
+          ),
+          // Actions
+          Expanded(
+            flex: 1,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _actionIconButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit',
+                  onPressed: () => _showAcceptanceTagDialog(item),
+                ),
+                _actionIconButton(
+                  icon: Icons.content_copy,
+                  tooltip: 'Duplicate',
+                  onPressed: () => _duplicateAcceptanceTag(item),
+                ),
+                _actionIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete',
+                  color: const Color(0xFFEF4444),
+                  onPressed: () => _confirmDeleteAcceptanceTag(item),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAcceptanceTagDialog([_AcceptanceTagItem? existing]) {
+    final isEdit = existing != null;
+    final labelCtl = TextEditingController(text: existing?.label ?? '');
+    final verifiedByCtl = TextEditingController(text: existing?.verifiedBy ?? '');
+    final notesCtl = TextEditingController(text: existing?.notes ?? '');
+    String status = existing?.status ?? _checkpointStatuses.first;
+    String category = existing?.category ?? _signalCategories.first;
+    DateTime? dateVerified = existing?.dateVerified;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(isEdit ? Icons.edit_outlined : Icons.add_circle_outline,
+                  size: 22, color: const Color(0xFF4154F1)),
+              const SizedBox(width: 10),
+              Text(isEdit ? 'Edit Signal' : 'Add Signal',
+                  style: const TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Label
+                  const _DialogLabel('Signal / Tag Name *'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: labelCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Name of the acceptance signal',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 14),
+                  // Category & Status
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Category'),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              value: category,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _signalCategories
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => category = v);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Status'),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              value: status,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _checkpointStatuses
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => status = v);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Verified By & Date
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Verified By'),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: verifiedByCtl,
+                              decoration: const InputDecoration(
+                                hintText: 'Person who verified',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Date Verified'),
+                            const SizedBox(height: 4),
+                            _DateField(
+                              initialDate: dateVerified,
+                              onPicked: (d) =>
+                                  setDialogState(() => dateVerified = d),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Notes
+                  const _DialogLabel('Notes'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: notesCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Additional context or remarks',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final newItem = _AcceptanceTagItem(
+                  id: existing?.id ?? _newId(),
+                  label: labelCtl.text.trim(),
+                  status: status,
+                  category: category,
+                  verifiedBy: verifiedByCtl.text.trim(),
+                  dateVerified: dateVerified,
+                  notes: notesCtl.text.trim(),
+                );
+                if (isEdit) {
+                  _updateAcceptanceTag(newItem, notify: true);
+                } else {
+                  setState(() => _acceptanceTags.add(newItem));
+                  _scheduleSave();
+                }
+                Navigator.of(ctx).pop();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF4154F1),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(isEdit ? 'Save Changes' : 'Add Signal'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _duplicateAcceptanceTag(_AcceptanceTagItem item) {
+    setState(() {
+      _acceptanceTags.add(_AcceptanceTagItem(
+        id: _newId(),
+        label: '${item.label} (copy)',
+        status: item.status,
+        category: item.category,
+        verifiedBy: item.verifiedBy,
+        dateVerified: item.dateVerified,
+        notes: item.notes,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _confirmDeleteAcceptanceTag(_AcceptanceTagItem item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 10),
+            Text('Delete Signal'),
+          ],
+        ),
+        content: Text(
+            'Are you sure you want to delete "${item.label.isNotEmpty ? item.label : 'this signal'}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              _deleteAcceptanceTag(item.id);
+              Navigator.of(ctx).pop();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Scope Changes CRUD ─────────────────────────────────────────────
 
   Widget _buildScopeChangeSummaryCard(BuildContext context) {
     return _ContentCard(
@@ -1724,40 +2574,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
           const SizedBox(height: 14),
           _buildTableTitle('Most Impactful Scope Changes'),
           const SizedBox(height: 8),
-          _buildResponsiveTable(
-            minWidth: 760,
-            child: Column(
-              children: [
-                _buildTableHeader(
-                  const ['Change Detail', ''],
-                  columnWidths: const [8, 1],
-                ),
-                const SizedBox(height: 8),
-                if (_scopeChanges.isEmpty)
-                  const _InlineEmptyState(
-                    title: 'No scope changes yet',
-                    message: 'Add the most impactful scope changes.',
-                  )
-                else
-                  ..._scopeChanges.asMap().entries.map(
-                        (entry) => _buildScopeChangeRow(entry.value, entry.key),
-                      ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: _addScopeChange,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add scope change'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF1F2937),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              backgroundColor: const Color(0xFFFFF3C4),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
+          _buildScopeChangesTable(context),
           const SizedBox(height: 14),
           _buildTableTitle('Change Control Metrics'),
           const SizedBox(height: 8),
@@ -1784,27 +2601,574 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
     );
   }
 
-  Widget _buildScopeChangeRow(_ScopeChangeItem item, int index) {
-    return _TableRowShell(
-      isEven: index.isEven,
-      child: Row(
+  Widget _buildScopeChangesTable(BuildContext context) {
+    return _buildResponsiveTable(
+      minWidth: 1200,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: TextFormField(
-              key: ValueKey('scope-change-${item.id}'),
-              initialValue: item.detail,
-              decoration: _inputDecoration('Scope change'),
-              maxLines: 2,
-              onChanged: (value) =>
-                  _updateScopeChange(item.copyWith(detail: value)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F2937),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              children: [
+                Expanded(flex: 1, child: Text('CR ID', style: _headerStyle)),
+                Expanded(flex: 3, child: Text('Change Description', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('Type', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('Impact', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Requested By', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Date Raised', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('Status', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('', style: _headerStyle)),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
-            onPressed: () => _deleteScopeChange(item.id),
+          const SizedBox(height: 6),
+          if (_scopeChanges.isEmpty)
+            _InlineEmptyState(
+              title: 'No scope changes yet',
+              message: 'Add the most impactful scope changes.',
+              icon: Icons.swap_horiz_outlined,
+            )
+          else
+            ..._scopeChanges.asMap().entries.map(
+                  (entry) => _buildScopeChangeDisplayRow(entry.value, entry.key),
+                ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: () => _showScopeChangeDialog(),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add scope change'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF1F2937),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  backgroundColor: const Color(0xFFFFF3C4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              if (_scopeChanges.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => _duplicateAllScopeChanges(),
+                  icon: const Icon(Icons.content_copy_rounded, size: 16),
+                  label: const Text('Duplicate all'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B7280),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_scopeChanges.length} change${_scopeChanges.length != 1 ? 's' : ''}',
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF9CA3AF)),
+                ),
+              ],
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildScopeChangeDisplayRow(_ScopeChangeItem item, int index) {
+    final typeColor = _changeTypeColor(item.changeType);
+    final impactColor = _impactColor(item.impactLevel);
+    final statusColor = _changeStatusColor(item.status);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: index.isEven ? Colors.white : const Color(0xFFFAFBFD),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+      ),
+      child: Row(
+        children: [
+          // CR ID
+          Expanded(
+            flex: 1,
+            child: Text(
+              item.crId.isNotEmpty ? item.crId : '—',
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280),
+                  fontFamily: 'monospace'),
+            ),
+          ),
+          // Change Description
+          Expanded(
+            flex: 3,
+            child: Text(
+              item.detail.isNotEmpty ? item.detail : 'Untitled',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: item.detail.isNotEmpty
+                    ? const Color(0xFF111827)
+                    : const Color(0xFF9CA3AF),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Type chip
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: typeColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                item.changeType,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: typeColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Impact chip
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: impactColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                item.impactLevel,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: impactColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Requested By
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.requestedBy.isNotEmpty ? item.requestedBy : '—',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Date Raised
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.dateRaised != null ? _formatDate(item.dateRaised!) : '—',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+            ),
+          ),
+          // Status chip
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                item.status,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Actions
+          Expanded(
+            flex: 1,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _actionIconButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit',
+                  onPressed: () => _showScopeChangeDialog(item),
+                ),
+                _actionIconButton(
+                  icon: Icons.content_copy,
+                  tooltip: 'Duplicate',
+                  onPressed: () => _duplicateScopeChange(item),
+                ),
+                _actionIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete',
+                  color: const Color(0xFFEF4444),
+                  onPressed: () => _confirmDeleteScopeChange(item),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showScopeChangeDialog([_ScopeChangeItem? existing]) {
+    final isEdit = existing != null;
+    final detailCtl = TextEditingController(text: existing?.detail ?? '');
+    final crIdCtl = TextEditingController(text: existing?.crId ?? '');
+    final requestedByCtl = TextEditingController(text: existing?.requestedBy ?? '');
+    final notesCtl = TextEditingController(text: existing?.notes ?? '');
+    String changeType = existing?.changeType ?? _changeTypes.first;
+    String impactLevel = existing?.impactLevel ?? _impactLevels[2]; // Medium
+    String status = existing?.status ?? _changeStatuses.first;
+    DateTime? dateRaised = existing?.dateRaised;
+    DateTime? decisionDate = existing?.decisionDate;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(isEdit ? Icons.edit_outlined : Icons.add_circle_outline,
+                  size: 22, color: const Color(0xFF4154F1)),
+              const SizedBox(width: 10),
+              Text(isEdit ? 'Edit Scope Change' : 'Add Scope Change',
+                  style: const TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // CR ID
+                  const _DialogLabel('Change Request ID'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: crIdCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. CR-001',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    style: const TextStyle(fontFamily: 'monospace'),
+                  ),
+                  const SizedBox(height: 14),
+                  // Detail
+                  const _DialogLabel('Change Description *'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: detailCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Describe the scope change',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 14),
+                  // Type + Impact + Status
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Type'),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              value: changeType,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _changeTypes
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => changeType = v);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Impact'),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              value: impactLevel,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _impactLevels
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => impactLevel = v);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Status'),
+                            const SizedBox(height: 4),
+                            DropdownButtonFormField<String>(
+                              value: status,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: _changeStatuses
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => status = v);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Requested By
+                  const _DialogLabel('Requested By'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: requestedByCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Who requested this change',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Dates
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Date Raised'),
+                            const SizedBox(height: 4),
+                            _DateField(
+                              initialDate: dateRaised,
+                              onPicked: (d) =>
+                                  setDialogState(() => dateRaised = d),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _DialogLabel('Decision Date'),
+                            const SizedBox(height: 4),
+                            _DateField(
+                              initialDate: decisionDate,
+                              onPicked: (d) =>
+                                  setDialogState(() => decisionDate = d),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Notes
+                  const _DialogLabel('Notes'),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: notesCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Additional context or remarks',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final newItem = _ScopeChangeItem(
+                  id: existing?.id ?? _newId(),
+                  detail: detailCtl.text.trim(),
+                  crId: crIdCtl.text.trim(),
+                  changeType: changeType,
+                  impactLevel: impactLevel,
+                  requestedBy: requestedByCtl.text.trim(),
+                  dateRaised: dateRaised,
+                  status: status,
+                  decisionDate: decisionDate,
+                  notes: notesCtl.text.trim(),
+                );
+                if (isEdit) {
+                  _updateScopeChange(newItem, notify: true);
+                } else {
+                  setState(() => _scopeChanges.add(newItem));
+                  _scheduleSave();
+                }
+                Navigator.of(ctx).pop();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF4154F1),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(isEdit ? 'Save Changes' : 'Add Change'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _duplicateScopeChange(_ScopeChangeItem item) {
+    setState(() {
+      _scopeChanges.add(_ScopeChangeItem(
+        id: _newId(),
+        detail: '${item.detail} (copy)',
+        crId: item.crId,
+        changeType: item.changeType,
+        impactLevel: item.impactLevel,
+        requestedBy: item.requestedBy,
+        dateRaised: item.dateRaised,
+        status: item.status,
+        decisionDate: item.decisionDate,
+        notes: item.notes,
+      ));
+    });
+    _scheduleSave();
+  }
+
+  void _duplicateAllScopeChanges() {
+    setState(() {
+      for (final item in List.of(_scopeChanges)) {
+        _scopeChanges.add(_ScopeChangeItem(
+          id: _newId(),
+          detail: '${item.detail} (copy)',
+          crId: item.crId,
+          changeType: item.changeType,
+          impactLevel: item.impactLevel,
+          requestedBy: item.requestedBy,
+          dateRaised: item.dateRaised,
+          status: item.status,
+          decisionDate: item.decisionDate,
+          notes: item.notes,
+        ));
+      }
+    });
+    _scheduleSave();
+  }
+
+  void _confirmDeleteScopeChange(_ScopeChangeItem item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 10),
+            Text('Delete Scope Change'),
+          ],
+        ),
+        content: Text(
+            'Are you sure you want to delete "${item.detail.isNotEmpty ? item.detail : 'this change'}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              _deleteScopeChange(item.id);
+              Navigator.of(ctx).pop();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Shared UI Helpers ──────────────────────────────────────────────
+
+  InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
+    return InputDecoration(
+      hintText: hintText,
+      isDense: dense,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: dense ? 8 : 12,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF93C5FD)),
       ),
     );
   }
@@ -2027,74 +3391,10 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
-    return InputDecoration(
-      hintText: hintText,
-      isDense: dense,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: dense ? 8 : 12,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF93C5FD)),
-      ),
-    );
-  }
-
-  Widget _buildTableHeader(List<String> labels, {List<int>? columnWidths}) {
-    final widths =
-        columnWidths ?? List<int>.filled(labels.length, 1, growable: false);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEF2F7),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFDDE3EA)),
-      ),
-      child: Row(
-        children: List.generate(labels.length, (index) {
-          return Expanded(
-            flex: widths[index],
-            child: Text(
-              labels[index],
-              textAlign:
-                  labels[index].isEmpty ? TextAlign.center : TextAlign.left,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF374151),
-                letterSpacing: 0.1,
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
+  // ─── Data mutation helpers ──────────────────────────────────────────
 
   void _addWorkPackage() {
-    setState(() {
-      _workPackages.add(_WorkPackageItem(
-        id: _newId(),
-        title: '',
-        owner: '',
-        milestone: '',
-        status: _workStatuses.first,
-        impact: _impactLevels.first,
-      ));
-    });
-    _scheduleSave();
+    _showWorkPackageDialog();
   }
 
   void _updateWorkPackage(_WorkPackageItem item, {bool notify = false}) {
@@ -2113,15 +3413,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   }
 
   void _addCheckpoint() {
-    setState(() {
-      _acceptanceCheckpoints.add(_CheckpointItem(
-        id: _newId(),
-        title: '',
-        owner: '',
-        status: _checkpointStatuses.first,
-      ));
-    });
-    _scheduleSave();
+    _showCheckpointDialog();
   }
 
   void _updateCheckpoint(_CheckpointItem item, {bool notify = false}) {
@@ -2142,14 +3434,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   }
 
   void _addAcceptanceTag() {
-    setState(() {
-      _acceptanceTags.add(_AcceptanceTagItem(
-        id: _newId(),
-        label: '',
-        status: _checkpointStatuses.first,
-      ));
-    });
-    _scheduleSave();
+    _showAcceptanceTagDialog();
   }
 
   void _updateAcceptanceTag(_AcceptanceTagItem item, {bool notify = false}) {
@@ -2168,16 +3453,16 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   }
 
   void _addScopeChange() {
-    setState(() {
-      _scopeChanges.add(_ScopeChangeItem(id: _newId(), detail: ''));
-    });
-    _scheduleSave();
+    _showScopeChangeDialog();
   }
 
-  void _updateScopeChange(_ScopeChangeItem item) {
+  void _updateScopeChange(_ScopeChangeItem item, {bool notify = false}) {
     final index = _scopeChanges.indexWhere((entry) => entry.id == item.id);
     if (index == -1) return;
     _scopeChanges[index] = item;
+    if (notify && mounted) {
+      setState(() {});
+    }
     _scheduleSave();
   }
 
@@ -2295,6 +3580,8 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   }
 }
 
+// ─── Widget Classes ────────────────────────────────────────────────────────
+
 class _ContentCard extends StatelessWidget {
   final Widget child;
 
@@ -2360,30 +3647,6 @@ class _AiHelperButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _TableRowShell extends StatelessWidget {
-  const _TableRowShell({
-    required this.isEven,
-    required this.child,
-  });
-
-  final bool isEven;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: isEven ? Colors.white : const Color(0xFFFAFBFD),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: child,
     );
   }
 }
@@ -2528,6 +3791,8 @@ class _InlineEmptyState extends StatelessWidget {
   }
 }
 
+// ─── Data Model Classes ────────────────────────────────────────────────────
+
 class _WorkPackageItem {
   _WorkPackageItem({
     required this.id,
@@ -2634,19 +3899,43 @@ class _CheckpointItem {
     required this.title,
     required this.owner,
     required this.status,
+    this.refCode = '',
+    this.dueDate,
+    this.signOffDate,
+    this.evidence = '',
+    this.notes = '',
   });
 
   final String id;
   final String title;
   final String owner;
   final String status;
+  final String refCode;
+  final DateTime? dueDate;
+  final DateTime? signOffDate;
+  final String evidence;
+  final String notes;
 
-  _CheckpointItem copyWith({String? title, String? owner, String? status}) {
+  _CheckpointItem copyWith({
+    String? title,
+    String? owner,
+    String? status,
+    String? refCode,
+    DateTime? dueDate,
+    DateTime? signOffDate,
+    String? evidence,
+    String? notes,
+  }) {
     return _CheckpointItem(
       id: id,
       title: title ?? this.title,
       owner: owner ?? this.owner,
       status: status ?? this.status,
+      refCode: refCode ?? this.refCode,
+      dueDate: dueDate ?? this.dueDate,
+      signOffDate: signOffDate ?? this.signOffDate,
+      evidence: evidence ?? this.evidence,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -2655,6 +3944,11 @@ class _CheckpointItem {
         'title': title,
         'owner': owner,
         'status': status,
+        'refCode': refCode,
+        'dueDate': dueDate?.toIso8601String(),
+        'signOffDate': signOffDate?.toIso8601String(),
+        'evidence': evidence,
+        'notes': notes,
       };
 
   static List<_CheckpointItem> fromList(dynamic data) {
@@ -2667,8 +3961,18 @@ class _CheckpointItem {
         title: map['title']?.toString() ?? '',
         owner: map['owner']?.toString() ?? '',
         status: map['status']?.toString() ?? 'Pending',
+        refCode: map['refCode']?.toString() ?? '',
+        dueDate: _parseDate(map['dueDate']),
+        signOffDate: _parseDate(map['signOffDate']),
+        evidence: map['evidence']?.toString() ?? '',
+        notes: map['notes']?.toString() ?? '',
       );
     }).toList();
+  }
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    return DateTime.tryParse(v.toString());
   }
 }
 
@@ -2677,17 +3981,36 @@ class _AcceptanceTagItem {
     required this.id,
     required this.label,
     required this.status,
+    this.category = 'Sponsor',
+    this.verifiedBy = '',
+    this.dateVerified,
+    this.notes = '',
   });
 
   final String id;
   final String label;
   final String status;
+  final String category;
+  final String verifiedBy;
+  final DateTime? dateVerified;
+  final String notes;
 
-  _AcceptanceTagItem copyWith({String? label, String? status}) {
+  _AcceptanceTagItem copyWith({
+    String? label,
+    String? status,
+    String? category,
+    String? verifiedBy,
+    DateTime? dateVerified,
+    String? notes,
+  }) {
     return _AcceptanceTagItem(
       id: id,
       label: label ?? this.label,
       status: status ?? this.status,
+      category: category ?? this.category,
+      verifiedBy: verifiedBy ?? this.verifiedBy,
+      dateVerified: dateVerified ?? this.dateVerified,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -2695,6 +4018,10 @@ class _AcceptanceTagItem {
         'id': id,
         'label': label,
         'status': status,
+        'category': category,
+        'verifiedBy': verifiedBy,
+        'dateVerified': dateVerified?.toIso8601String(),
+        'notes': notes,
       };
 
   static List<_AcceptanceTagItem> fromList(dynamic data) {
@@ -2706,24 +4033,81 @@ class _AcceptanceTagItem {
             DateTime.now().microsecondsSinceEpoch.toString(),
         label: map['label']?.toString() ?? '',
         status: map['status']?.toString() ?? 'Pending',
+        category: map['category']?.toString() ?? 'Sponsor',
+        verifiedBy: map['verifiedBy']?.toString() ?? '',
+        dateVerified: _parseDate(map['dateVerified']),
+        notes: map['notes']?.toString() ?? '',
       );
     }).toList();
+  }
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    return DateTime.tryParse(v.toString());
   }
 }
 
 class _ScopeChangeItem {
-  _ScopeChangeItem({required this.id, required this.detail});
+  _ScopeChangeItem({
+    required this.id,
+    required this.detail,
+    this.crId = '',
+    this.changeType = 'Scope',
+    this.impactLevel = 'Medium',
+    this.requestedBy = '',
+    this.dateRaised,
+    this.status = 'Open',
+    this.decisionDate,
+    this.notes = '',
+  });
 
   final String id;
   final String detail;
+  final String crId;
+  final String changeType;
+  final String impactLevel;
+  final String requestedBy;
+  final DateTime? dateRaised;
+  final String status;
+  final DateTime? decisionDate;
+  final String notes;
 
-  _ScopeChangeItem copyWith({String? detail}) {
-    return _ScopeChangeItem(id: id, detail: detail ?? this.detail);
+  _ScopeChangeItem copyWith({
+    String? detail,
+    String? crId,
+    String? changeType,
+    String? impactLevel,
+    String? requestedBy,
+    DateTime? dateRaised,
+    String? status,
+    DateTime? decisionDate,
+    String? notes,
+  }) {
+    return _ScopeChangeItem(
+      id: id,
+      detail: detail ?? this.detail,
+      crId: crId ?? this.crId,
+      changeType: changeType ?? this.changeType,
+      impactLevel: impactLevel ?? this.impactLevel,
+      requestedBy: requestedBy ?? this.requestedBy,
+      dateRaised: dateRaised ?? this.dateRaised,
+      status: status ?? this.status,
+      decisionDate: decisionDate ?? this.decisionDate,
+      notes: notes ?? this.notes,
+    );
   }
 
   Map<String, dynamic> toMap() => {
         'id': id,
         'detail': detail,
+        'crId': crId,
+        'changeType': changeType,
+        'impactLevel': impactLevel,
+        'requestedBy': requestedBy,
+        'dateRaised': dateRaised?.toIso8601String(),
+        'status': status,
+        'decisionDate': decisionDate?.toIso8601String(),
+        'notes': notes,
       };
 
   static List<_ScopeChangeItem> fromList(dynamic data) {
@@ -2734,8 +4118,21 @@ class _ScopeChangeItem {
         id: map['id']?.toString() ??
             DateTime.now().microsecondsSinceEpoch.toString(),
         detail: map['detail']?.toString() ?? '',
+        crId: map['crId']?.toString() ?? '',
+        changeType: map['changeType']?.toString() ?? 'Scope',
+        impactLevel: map['impactLevel']?.toString() ?? 'Medium',
+        requestedBy: map['requestedBy']?.toString() ?? '',
+        dateRaised: _parseDate(map['dateRaised']),
+        status: map['status']?.toString() ?? 'Open',
+        decisionDate: _parseDate(map['decisionDate']),
+        notes: map['notes']?.toString() ?? '',
       );
     }).toList();
+  }
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    return DateTime.tryParse(v.toString());
   }
 }
 
