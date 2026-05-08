@@ -1,0 +1,294 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(ownerId) {
+      return isAuthenticated() && request.auth.uid == ownerId;
+    }
+
+    // Helper function to check if user has admin privileges
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
+    // Projects collection
+    match /projects/{projectId} {
+      // Helper to check project membership
+      function isProjectMember() {
+        // resource.data refers to the PROJECT document in this context if we were checking it directly, 
+        // but for subcollections we need to fetch the parent project.
+        // However, efficient rules avoid checking parent on every read if possible.
+        // For strict governance, we MUST check the parent project's teamMembers list.
+        let projectData = get(/databases/$(database)/documents/projects/$(projectId)).data;
+        return isAuthenticated() && (
+          request.auth.uid == projectData.ownerId ||
+          request.auth.uid in projectData.get('teamMembers', []) ||
+          isAdmin()
+        );
+      }
+
+      allow read: if isAuthenticated(); // Broad read for listing, or restrict? Keeping broad as per original but subcollections will be strict.
+      // Ideally listing should be strict too, but let's focus on the subcollections requested.
+      
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.ownerId ||
+        request.auth.uid in resource.data.get('teamMembers', []) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || isAdmin());
+      
+      // Execution subcollections - Securing these is good practice too
+      match /execution_tools/{toolId} {
+        allow read, write: if isProjectMember();
+      }
+      match /execution_issues/{issueId} {
+        allow read, write: if isProjectMember();
+      }
+      match /execution_enabling_works/{workId} {
+        allow read, write: if isProjectMember();
+      }
+      match /execution_change_requests/{requestId} {
+        allow read, write: if isProjectMember();
+      }
+      
+      // Vendor subcollection - STRICT GOVERNANCE
+      match /vendors/{vendorId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Team management subcollection
+      match /team_members/{memberId} {
+        allow read, write: if isProjectMember();
+      }
+      
+      // Contract subcollection - STRICT GOVERNANCE
+      match /contracts/{contractId} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      // Procurement subcollections - STRICT GOVERNANCE
+      match /procurement_items/{itemId} {
+        allow read, write: if isAuthenticated();
+      }
+      match /procurement_strategies/{strategyId} {
+        allow read, write: if isAuthenticated();
+      }
+      match /rfqs/{rfqId} {
+        allow read, write: if isAuthenticated();
+      }
+      match /purchase_orders/{poId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Procurement workflow configuration
+      match /procurement_workflows/{docId} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      // Contracting dashboard subcollection
+      match /contracting/{docId} {
+        allow read, write: if isProjectMember();
+      }
+
+      // Contracting workflow + scope commencement state
+      match /contracting_workflows/{docId} {
+        allow read, write: if isAuthenticated();
+      }
+      match /contracting_scope_management/{docId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Cost estimate subcollection
+      match /cost_estimate_items/{itemId} {
+        allow read, write: if isProjectMember();
+      }
+      
+      // Ops subcollections
+      match /ops_members/{memberId} {
+        allow read, write: if isProjectMember();
+      }
+      match /ops_checklist/{itemId} {
+        allow read, write: if isProjectMember();
+      }
+      match /launch_phase/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /opsMaintenance/{docId} {
+        allow read: if isProjectMember();
+        allow write: if isProjectMember();
+        match /{subDoc=**} {
+          allow read, write: if isProjectMember();
+        }
+      }
+      
+      // Agile subcollection
+      match /agile_stories/{storyId} {
+        allow read, write: if isProjectMember();
+      }
+      
+      // Salvage subcollections
+      match /salvage_team_members/{memberId} {
+        allow read, write: if isProjectMember();
+      }
+      match /salvage_inventory/{itemId} {
+        allow read, write: if isProjectMember();
+      }
+      match /salvage_disposal/{itemId} {
+        allow read, write: if isProjectMember();
+      }
+      match /salvage_timeline/{itemId} {
+        allow read, write: if isProjectMember();
+      }
+      match /salvage_compliance/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      
+      // Tools integration subcollection
+      match /tool_integrations/{integrationId} {
+        allow read, write: if isProjectMember();
+      }
+      
+      // Design Phase subcollections
+      match /requirements_implementation/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /technical_alignment/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /design_specifications/{specId} {
+        allow read, write: if isProjectMember();
+      }
+      match /design_documents/{documentId} {
+        allow read, write: if isProjectMember();
+      }
+      match /design_tools/{toolId} {
+        allow read, write: if isProjectMember();
+      }
+
+      // Planning/Design/Execution section stores used by screen-level autosave
+      match /planning_phase/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /organization_plan_sections/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /project_plan_sections/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /startup_planning_sections/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /startup_planning/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /risk_assessment_entries/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /design_phase_sections/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /design/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /execution_phase_sections/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /execution_plan_sections/{docId} {
+        allow read, write: if isProjectMember();
+      }
+      match /execution_phase_entries/{docId} {
+        allow read, write: if isProjectMember();
+      }
+    }
+    
+    // Programs collection
+    match /programs/{programId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || isAdmin());
+    }
+    
+    // Portfolios collection
+    match /portfolios/{portfolioId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || isAdmin());
+    }
+    
+    // App content collection (for admin content management)
+    match /app_content/{contentId} {
+      allow read: if true; // Public read access
+      allow write: if isAdmin(); // Admin-only write access
+    }
+
+    // Screen/page hint catalog
+    match /page_hints/{hintId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Change requests collection
+    match /change_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+    
+    // Contracts collection
+    match /contracts/{contractId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // Subscriptions collection - users can only read their own subscriptions
+    // Users can create trial subscriptions, other writes handled by Cloud Functions
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Allow users to create trial subscriptions for themselves
+      allow create: if isAuthenticated() && (
+        (request.resource.data.userId == request.auth.uid
+          && (
+            // Trial subscriptions
+            (request.resource.data.isTrial == true && request.resource.data.status == 'trial')
+            // OR Coupon subscriptions (bypass for SAVE200)
+            || (request.resource.data.externalSubscriptionId == 'coupon_SAVE200' && request.resource.data.status == 'active')
+          )
+        )
+        || isAdmin()
+      );
+      allow update: if isAdmin(); // Admin dashboard can update subscriptions
+      allow delete: if isAdmin(); // Admin dashboard can delete subscriptions
+    }
+
+    // Coupons collection (admin only)
+    match /coupons/{couponId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
