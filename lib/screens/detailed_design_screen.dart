@@ -11,6 +11,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/detailed_design_table_widget.dart';
+import 'package:ndu_project/widgets/execution_phase_ui.dart';
 
 class DetailedDesignScreen extends StatefulWidget {
   const DetailedDesignScreen({super.key});
@@ -356,9 +357,13 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
 
   Widget _buildPackageRegister() {
     if (_isLoading) {
-      return _PanelShell(
+      return ExecutionPanelShell(
         title: 'Design package register',
         subtitle: 'Traceable artifacts and approvals',
+        collapsible: true,
+        initiallyExpanded: true,
+        headerIcon: Icons.folder_special_outlined,
+        headerIconColor: const Color(0xFF2563EB),
         child: const Center(
           child: Padding(
             padding: EdgeInsets.all(24.0),
@@ -370,9 +375,13 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
 
     final filteredComponents = _filterComponents(_components);
 
-    return _PanelShell(
+    return ExecutionPanelShell(
       title: 'Design package register',
       subtitle: 'Traceable artifacts and approvals',
+      collapsible: true,
+      initiallyExpanded: true,
+      headerIcon: Icons.folder_special_outlined,
+      headerIconColor: const Color(0xFF2563EB),
       trailing: _actionButton(Icons.filter_list, 'Filter'),
       child: DetailedDesignTableWidget(
         components: filteredComponents,
@@ -415,9 +424,13 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
   }
 
   Widget _buildReviewPanel() {
-    return _PanelShell(
+    return ExecutionPanelShell(
       title: 'Design review pulse',
       subtitle: 'Readiness by workstream',
+      collapsible: true,
+      initiallyExpanded: true,
+      headerIcon: Icons.pulse_outlined,
+      headerIconColor: const Color(0xFF10B981),
       child: const Center(
         child: Padding(
           padding: EdgeInsets.all(24.0),
@@ -429,9 +442,13 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
   }
 
   Widget _buildDecisionPanel() {
-    return _PanelShell(
+    return ExecutionPanelShell(
       title: 'Decision log',
       subtitle: 'Open decisions needing closure',
+      collapsible: true,
+      initiallyExpanded: true,
+      headerIcon: Icons.gavel_outlined,
+      headerIconColor: const Color(0xFFEF4444),
       child: const Center(
         child: Padding(
           padding: EdgeInsets.all(24.0),
@@ -443,9 +460,13 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
   }
 
   Widget _buildArtifactsPanel() {
-    return _PanelShell(
+    return ExecutionPanelShell(
       title: 'Artifact readiness',
       subtitle: 'Design assets staged for handoff',
+      collapsible: true,
+      initiallyExpanded: true,
+      headerIcon: Icons.inventory_2_outlined,
+      headerIconColor: const Color(0xFF6366F1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
@@ -619,59 +640,6 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PanelShell extends StatelessWidget {
-  const _PanelShell({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-    this.trailing,
-  });
-
-  final String title;
-  final String subtitle;
-  final Widget child;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    Text(subtitle,
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF64748B))),
-                  ],
-                ),
-              ),
-              if (trailing != null) trailing!,
-            ],
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
       ),
     );
   }
