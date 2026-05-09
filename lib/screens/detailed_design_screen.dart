@@ -152,38 +152,17 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
             const SizedBox(height: 20),
             _buildStatsRow(isNarrow),
             const SizedBox(height: 24),
-            if (isNarrow)
-              Column(
-                children: [
-                  _buildPackageRegister(),
-                  const SizedBox(height: 20),
-                  _buildReviewPanel(),
-                  const SizedBox(height: 20),
-                  _buildDecisionPanel(),
-                  const SizedBox(height: 20),
-                  _buildArtifactsPanel(),
-                ],
-              )
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: _buildPackageRegister()),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      children: [
-                        _buildReviewPanel(),
-                        const SizedBox(height: 20),
-                        _buildDecisionPanel(),
-                        const SizedBox(height: 20),
-                        _buildArtifactsPanel(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            Column(
+              children: [
+                _buildPackageRegister(),
+                const SizedBox(height: 20),
+                _buildReviewPanel(),
+                const SizedBox(height: 20),
+                _buildDecisionPanel(),
+                const SizedBox(height: 20),
+                _buildArtifactsPanel(),
+              ],
+            ),
             const SizedBox(height: 24),
             LaunchPhaseNavigation(
               backLabel: 'Back: Vendor Tracking',
@@ -335,21 +314,11 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           const Color(0xFF6366F1)),
     ];
 
-    if (isNarrow) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: stats.map((stat) => _buildStatCard(stat)).toList(),
-      );
-    }
-
-    return Row(
+    return Column(
       children: stats
-          .map((stat) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: _buildStatCard(stat),
-                ),
+          .map((stat) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildStatCard(stat),
               ))
           .toList(),
     );
