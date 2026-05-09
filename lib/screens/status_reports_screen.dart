@@ -321,6 +321,10 @@ class _StatusReportsScreenState extends State<StatusReportsScreen> {
           'three questions for every stakeholder: Where are we? What is blocking us? '
           'What do we need from you? Reports should be concise, action-oriented, and '
           'tied directly to deliverable data for consistency.',
+      collapsible: true,
+      initiallyExpanded: true,
+      headerIcon: Icons.description_outlined,
+      headerIconColor: const Color(0xFF0EA5E9),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
