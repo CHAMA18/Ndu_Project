@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/design_deliverables_screen.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -380,6 +381,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Specialized Design',
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
           const PlanningPhaseHeader(
