@@ -23,6 +23,7 @@ import 'package:ndu_project/widgets/design_phase_stable_shell.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
 
@@ -508,6 +509,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Technical Alignment',
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
           const PlanningPhaseHeader(
