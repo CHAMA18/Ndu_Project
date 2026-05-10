@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/models/user_role.dart';
+import 'package:ndu_project/providers/user_role_provider.dart';
 import 'package:ndu_project/screens/technical_alignment_screen.dart';
 import 'package:ndu_project/screens/ui_ux_design_screen.dart';
 import 'package:ndu_project/services/architecture_service.dart';
@@ -48,15 +50,56 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   final List<String> _sectionStatusOptions = const [
     'Not started',
     'In progress',
+    'In review',
     'At risk',
-    'Ready'
+    'Blocked',
+    'Ready',
+    'Approved'
   ];
   final List<String> _itemStatusOptions = const [
     'Not started',
     'In progress',
+    'In review',
     'Blocked',
-    'Done'
+    'Ready',
+    'Done',
+    'Approved'
   ];
+
+  String get _currentProjectId {
+    final provider = ProjectDataInherited.maybeOf(context);
+    return provider?.projectData.projectId ?? '';
+  }
+
+  bool get _canCreateSetup {
+    final role = context.roleProvider;
+    final projectId = _currentProjectId;
+    return role.hasPermission(Permission.createContent) ||
+        (projectId.isNotEmpty && role.canEditProject(projectId));
+  }
+
+  bool get _canEditSetup {
+    final role = context.roleProvider;
+    final projectId = _currentProjectId;
+    return role.hasPermission(Permission.editAnyContent) ||
+        (projectId.isNotEmpty && role.canEditProject(projectId));
+  }
+
+  bool get _canDeleteSetup {
+    final role = context.roleProvider;
+    final projectId = _currentProjectId;
+    return role.hasPermission(Permission.deleteAnyContent) ||
+        (projectId.isNotEmpty && role.canDeleteProject(projectId));
+  }
+
+  void _showPermissionSnackBar(String action) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('You do not have permission to $action.'),
+        backgroundColor: const Color(0xFFB91C1C),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -121,30 +164,41 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return [
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-env-dev',
-        title: 'Provision Dev workspace on AWS Server',
+        title: 'Provision controlled development workspace',
         owner: owners.first,
         targetDate: _nextDateLabel(2),
         status: hasTechContext ? 'Done' : 'In progress',
-        notes: 'Access URL and seed credentials for the core delivery team.',
+        notes:
+            'Repository, developer workstation standards, package registry, secrets access, local runbook, and onboarding path are available to approved team members.',
       ),
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-env-stage',
-        title: 'Prepare staging handoff environment',
+        title: 'Prepare integration and staging environment parity',
         owner: owners.length > 1 ? owners[1] : owners.first,
         targetDate: _nextDateLabel(4),
         status: projectData.designDeliverablesData.register.isNotEmpty
             ? 'In progress'
             : 'Not started',
-        notes: 'Mirror integrations and configuration needed for smoke tests.',
+        notes:
+            'Configuration, feature flags, test data, service endpoints, observability, and approval checkpoints match the intended release path.',
       ),
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-env-site',
-        title: 'Confirm physical site access, venue keys, and site fencing',
+        title: 'Confirm field, vendor, and physical site readiness',
         owner: owners.length > 2 ? owners[2] : owners.first,
         targetDate: _nextDateLabel(5),
         status: hasStakeholders ? 'In progress' : 'Not started',
         notes:
-            'Track physical access constraints alongside digital environments.',
+            'Site access, permits, safety induction, keys, network drops, devices, vendor contacts, and escalation route are controlled like digital environments.',
+      ),
+      _SetupChecklistItem(
+        id: '${DateTime.now().microsecondsSinceEpoch}-env-prod',
+        title: 'Define production access and release guardrails',
+        owner: owners.first,
+        targetDate: _nextDateLabel(7),
+        status: 'Not started',
+        notes:
+            'Least-privilege access, change windows, rollback authority, release approvers, support handover, and emergency access are documented before implementation.',
       ),
     ];
   }
@@ -155,30 +209,41 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return [
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-build-build',
-        title: 'Configure build validation and artifact packaging',
+        title: 'Establish canonical build and artifact provenance',
         owner: owners.first,
         targetDate: _nextDateLabel(3),
         status: _architectureNodeCount > 0 ? 'In progress' : 'Not started',
         notes:
-            'Ensure generated artifacts are consistent with design deliverables.',
+            'Builds are reproducible, versioned, signed where required, linked to source commits, and stored in an approved artifact registry.',
       ),
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-build-test',
-        title: 'Prepare smoke tests and mock scenario validation',
+        title: 'Prepare automated quality and smoke test gates',
         owner: owners.length > 1 ? owners[1] : owners.first,
         targetDate: _nextDateLabel(4),
         status: projectData.planningRequirementItems.isNotEmpty
             ? 'In progress'
             : 'Not started',
-        notes: 'Cover API endpoint fixtures and venue readiness scenarios.',
+        notes:
+            'Unit, integration, contract, accessibility, security, performance, and operational smoke checks have clear pass/fail criteria.',
       ),
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-build-deploy',
-        title: 'Define deploy promotion and rollback checkpoints',
+        title: 'Define deployment, promotion, and rollback workflow',
         owner: owners.length > 2 ? owners[2] : owners.first,
         targetDate: _nextDateLabel(6),
         status: 'Not started',
-        notes: 'Include approvals for both digital and physical releases.',
+        notes:
+            'Promotion rules, manual approvals, release notes, rollback steps, database changes, feature flags, and incident communications are rehearsed.',
+      ),
+      _SetupChecklistItem(
+        id: '${DateTime.now().microsecondsSinceEpoch}-build-metrics',
+        title: 'Instrument delivery metrics and operational telemetry',
+        owner: owners.first,
+        targetDate: _nextDateLabel(8),
+        status: 'Not started',
+        notes:
+            'Lead time, deployment frequency, change failure, recovery time, build health, test pass rate, SLOs, alerts, and logs are visible.',
       ),
     ];
   }
@@ -189,29 +254,39 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return [
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-tool-ide',
-        title: 'IDE and Git Repo access',
+        title: 'Developer tools, repository access, and onboarding pack',
         owner: owners.first,
         targetDate: _nextDateLabel(1),
         status: 'Done',
         notes:
-            'Developer workspace access and repository permissions verified.',
+            'IDE setup, repository permissions, branch policy, commit signing, code review rules, and first-run instructions are verified.',
       ),
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-tool-ci',
-        title: 'Automation runner and package signing',
+        title: 'CI/CD runners, security scanners, and package signing',
         owner: owners.length > 1 ? owners[1] : owners.first,
         targetDate: _nextDateLabel(3),
         status: 'In progress',
-        notes: 'CI tokens, package registry, and deployment secrets staged.',
+        notes:
+            'Build runners, SAST/SCA/secrets scans, dependency cache, package signing, registry permissions, and service credentials are governed.',
       ),
       _SetupChecklistItem(
         id: '${DateTime.now().microsecondsSinceEpoch}-tool-crane',
-        title: 'Crane and site rigging availability',
+        title: 'Specialist equipment and field tooling availability',
         owner: owners.length > 2 ? owners[2] : owners.first,
         targetDate: _nextDateLabel(5),
         status: 'Not started',
         notes:
-            'Physical tooling readiness tracked with the same governance standard.',
+            'Devices, test kits, network equipment, site safety assets, lifting/rigging tools, vendor tools, and calibration evidence are assigned.',
+      ),
+      _SetupChecklistItem(
+        id: '${DateTime.now().microsecondsSinceEpoch}-tool-support',
+        title: 'Support model, knowledge base, and escalation routes',
+        owner: owners.first,
+        targetDate: _nextDateLabel(6),
+        status: 'Not started',
+        notes:
+            'Runbooks, environment ownership, contact rota, incident channels, service desk categories, and handover artefacts are ready.',
       ),
     ];
   }
@@ -233,17 +308,17 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     }
     if (_envSummaryController.text.trim().isEmpty) {
       _envSummaryController.text =
-          'Provision dev and staging access for ${_defaultProjectLabel(projectData)} and track physical site readiness in the same ledger.';
+          'Prepare development, integration, staging, production, and field workspaces for ${_defaultProjectLabel(projectData)} with access control, configuration parity, test data, observability, and evidence for the selected delivery model.';
       changed = true;
     }
     if (_buildSummaryController.text.trim().isEmpty) {
       _buildSummaryController.text =
-          'Prepare build, test, and deploy controls so the team can validate both software changes and site-facing readiness checks.';
+          'Establish the end-to-end path from source control to release: build, test, security scan, artifact management, deployment, approval, rollback, and operational monitoring.';
       changed = true;
     }
     if (_toolingSummaryController.text.trim().isEmpty) {
       _toolingSummaryController.text =
-          'Verify licensing, ownership, and operating readiness for software tooling and physical equipment.';
+          'Verify that engineering tools, collaboration channels, licenses, credentials, field equipment, support contacts, and runbooks are available before development execution starts.';
       changed = true;
     }
     if (_envStatus == 'Not started') {
@@ -395,7 +470,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Readiness & Environment Preparation',
+                      'Development Readiness Control Center',
                       style: TextStyle(
                         fontSize: isMobile ? 24 : 28,
                         fontWeight: FontWeight.w800,
@@ -405,7 +480,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Development Set Up for ${_defaultProjectLabel(projectData)}. This hub prepares digital workspaces, site access, tooling, automation, and proof-of-connectivity so execution can start without avoidable blockers.',
+                      'Development Set Up for ${_defaultProjectLabel(projectData)}. This hub proves that people, environments, repositories, pipelines, test data, security controls, field access, and release governance are ready for waterfall gates, hybrid increments, and agile flow.',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withOpacity(0.84),
@@ -489,9 +564,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
             children: [
               _buildMetricPill(
                   'Provisioned Spaces', '${snapshot.provisionedSpaces}/3'),
-              _buildMetricPill('Licensed Tools', '${snapshot.activeLicenses}'),
+              _buildMetricPill('Active Tools', '${snapshot.activeLicenses}'),
               _buildMetricPill('Channels Ready', '${snapshot.invitedChannels}'),
-              _buildMetricPill('AI Signals', '${snapshot.aiSignalCount}'),
+              _buildMetricPill(
+                  'Readiness Gates', '${_setupReadinessGates.length}'),
               _buildMetricPill(
                   'Architecture Nodes', '${snapshot.architectureNodeCount}'),
             ],
@@ -504,6 +580,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   Widget _buildTopSection(_DevelopmentSetupSnapshot snapshot, bool isMobile) {
     return Column(
       children: [
+        _buildDeliveryModelSetupMatrix(),
+        const SizedBox(height: 20),
+        _buildSetupReadinessGateTable(),
+        const SizedBox(height: 20),
         _buildEnvironmentProvisioningCard(snapshot),
         const SizedBox(height: 20),
         _buildRepositoryCard(snapshot),
@@ -515,6 +595,8 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
       _DevelopmentSetupSnapshot snapshot, bool isMobile) {
     return Column(
       children: [
+        _buildDevSecOpsControlTable(),
+        const SizedBox(height: 20),
         _buildToolingCard(snapshot),
         const SizedBox(height: 20),
         _buildPipelineCard(snapshot),
@@ -525,6 +607,8 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   Widget _buildOperationalReadinessGrid(_DevelopmentSetupSnapshot snapshot) {
     return Column(
       children: [
+        _buildEvidenceAndMetricsTable(),
+        const SizedBox(height: 20),
         _buildTestDataCard(snapshot),
         const SizedBox(height: 20),
         _buildChannelsCard(snapshot),
@@ -532,6 +616,242 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
         _buildSecurityCard(snapshot),
       ],
     );
+  }
+
+  Widget _buildDeliveryModelSetupMatrix() {
+    return _buildDashboardPanel(
+      title: 'Delivery Model Setup Standard',
+      subtitle:
+          'Defines what Development Set Up must contain for predictive, hybrid, agile, flow-based, and scaled delivery models.',
+      icon: Icons.account_tree_outlined,
+      child: _buildReadOnlyDataTable(
+        columns: const [
+          _ReadOnlyColumn('Model', 180),
+          _ReadOnlyColumn('Setup Emphasis', 320),
+          _ReadOnlyColumn('Required Development Setup Evidence', 430),
+          _ReadOnlyColumn('Operating Cadence', 260),
+          _ReadOnlyColumn('Exit Criteria', 320),
+        ],
+        rows: _deliveryModelSetupStandards
+            .map(
+              (item) => [
+                item.model,
+                item.emphasis,
+                item.evidence,
+                item.cadence,
+                item.exitCriteria,
+              ],
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildSetupReadinessGateTable() {
+    return _buildDashboardPanel(
+      title: 'Development Setup Readiness Gate',
+      subtitle:
+          'Stage-gate quality for day-one development, regardless of whether execution is waterfall, hybrid, or agile.',
+      icon: Icons.fact_check_outlined,
+      child: _buildReadOnlyDataTable(
+        columns: const [
+          _ReadOnlyColumn('Gate', 220),
+          _ReadOnlyColumn('What Must Be True', 440),
+          _ReadOnlyColumn('Evidence', 360),
+          _ReadOnlyColumn('Primary Owner', 180),
+          _ReadOnlyColumn('Decision', 150),
+        ],
+        rows: _setupReadinessGates
+            .map(
+              (item) => [
+                item.gate,
+                item.standard,
+                item.evidence,
+                item.owner,
+                item.decision,
+              ],
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildDevSecOpsControlTable() {
+    return _buildDashboardPanel(
+      title: 'DevSecOps And Toolchain Controls',
+      subtitle:
+          'Minimum controls for reliable delivery, secure software development, and audit-ready tooling.',
+      icon: Icons.security_outlined,
+      child: _buildReadOnlyDataTable(
+        columns: const [
+          _ReadOnlyColumn('Control Area', 230),
+          _ReadOnlyColumn('Setup Requirement', 430),
+          _ReadOnlyColumn('Automation / Tooling Evidence', 360),
+          _ReadOnlyColumn('Risk If Missing', 300),
+        ],
+        rows: _devSecOpsControls
+            .map(
+              (item) => [
+                item.area,
+                item.requirement,
+                item.evidence,
+                item.risk,
+              ],
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildEvidenceAndMetricsTable() {
+    return _buildDashboardPanel(
+      title: 'Evidence, Metrics, And Operational Handover',
+      subtitle:
+          'Connects setup work to measurable delivery capability and production/service readiness.',
+      icon: Icons.insights_outlined,
+      child: _buildReadOnlyDataTable(
+        columns: const [
+          _ReadOnlyColumn('Evidence Object', 240),
+          _ReadOnlyColumn('Why It Matters', 390),
+          _ReadOnlyColumn('Metric / Signal', 270),
+          _ReadOnlyColumn('Waterfall Evidence', 280),
+          _ReadOnlyColumn('Agile / Hybrid Evidence', 300),
+        ],
+        rows: _setupEvidenceRows
+            .map(
+              (item) => [
+                item.object,
+                item.why,
+                item.metric,
+                item.waterfallEvidence,
+                item.agileEvidence,
+              ],
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyDataTable({
+    required List<_ReadOnlyColumn> columns,
+    required List<List<String>> rows,
+  }) {
+    final totalWidth = columns.fold<double>(
+      0,
+      (total, column) => total + column.width,
+    );
+
+    return Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: totalWidth,
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    for (final column in columns)
+                      SizedBox(
+                        width: column.width,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            column.label.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (int rowIndex = 0; rowIndex < rows.length; rowIndex++) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: rowIndex.isEven
+                        ? Colors.white
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (int cellIndex = 0;
+                          cellIndex < columns.length;
+                          cellIndex++)
+                        SizedBox(
+                          width: columns[cellIndex].width,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            child: cellIndex == columns.length - 1 &&
+                                    _isDecisionLabel(rows[rowIndex][cellIndex])
+                                ? Align(
+                                    alignment: Alignment.topLeft,
+                                    child: _buildStatusTag(
+                                      rows[rowIndex][cellIndex],
+                                      _decisionColor(rows[rowIndex][cellIndex]),
+                                    ),
+                                  )
+                                : Text(
+                                    rows[rowIndex][cellIndex],
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      height: 1.45,
+                                      fontWeight: cellIndex == 0
+                                          ? FontWeight.w800
+                                          : FontWeight.w500,
+                                      color: cellIndex == 0
+                                          ? const Color(0xFF0F172A)
+                                          : const Color(0xFF475569),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (rowIndex != rows.length - 1) const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isDecisionLabel(String value) {
+    return const ['Ready', 'Conditional', 'At risk', 'Blocked'].contains(value);
+  }
+
+  Color _decisionColor(String value) {
+    switch (value) {
+      case 'Ready':
+        return AppSemanticColors.success;
+      case 'Blocked':
+      case 'At risk':
+        return const Color(0xFFDC2626);
+      default:
+        return const Color(0xFFF59E0B);
+    }
   }
 
   Widget _buildSmokeTestSection(_DevelopmentSetupSnapshot snapshot) {
@@ -563,8 +883,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                   decoration: BoxDecoration(
                     color: resultColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(16),
-                    border:
-                        Border.all(color: resultColor.withOpacity(0.22)),
+                    border: Border.all(color: resultColor.withOpacity(0.22)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,7 +903,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                           fontSize: 28,
                           fontWeight: FontWeight.w900,
                           color: resultColor,
-                          letterSpacing: 1.0,
+                          letterSpacing: 0,
                         ),
                       ),
                     ],
@@ -841,6 +1160,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           _LabeledTextArea(
             label: 'Provisioning notes',
             controller: _envSummaryController,
+            enabled: _canEditSetup || _canCreateSetup,
             hintText:
                 'Capture access URLs, site locations, provisioning dependencies, and readiness notes.',
           ),
@@ -1068,6 +1388,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           _LabeledTextArea(
             label: 'Tooling notes',
             controller: _toolingSummaryController,
+            enabled: _canEditSetup || _canCreateSetup,
             hintText:
                 'Capture licensing caveats, provisioning blockers, and support contacts.',
           ),
@@ -1117,6 +1438,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           _LabeledTextArea(
             label: 'Pipeline notes',
             controller: _buildSummaryController,
+            enabled: _canEditSetup || _canCreateSetup,
             hintText:
                 'Document gating checks, promotion strategy, approvals, and rollback coverage.',
           ),
@@ -1670,6 +1992,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   }
 
   Future<void> _saveToFirestore() async {
+    if (!_canCreateSetup && !_canEditSetup) return;
     final projectId = _projectId();
     if (projectId == null || projectId.isEmpty) return;
     final payload = {
@@ -1760,11 +2083,19 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   }
 
   void _addEnvChecklistItem() {
+    if (!_canCreateSetup) {
+      _showPermissionSnackBar('add setup checklist items');
+      return;
+    }
     setState(() => _envChecklist.add(_SetupChecklistItem.empty()));
     _scheduleSave();
   }
 
   void _updateEnvChecklistItem(_SetupChecklistItem updated) {
+    if (!_canEditSetup) {
+      _showPermissionSnackBar('edit setup checklist items');
+      return;
+    }
     final index = _envChecklist.indexWhere((item) => item.id == updated.id);
     if (index == -1) return;
     setState(() => _envChecklist[index] = updated);
@@ -1772,16 +2103,28 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   }
 
   void _deleteEnvChecklistItem(String id) {
+    if (!_canDeleteSetup) {
+      _showPermissionSnackBar('delete setup checklist items');
+      return;
+    }
     setState(() => _envChecklist.removeWhere((item) => item.id == id));
     _scheduleSave();
   }
 
   void _addBuildChecklistItem() {
+    if (!_canCreateSetup) {
+      _showPermissionSnackBar('add setup checklist items');
+      return;
+    }
     setState(() => _buildChecklist.add(_SetupChecklistItem.empty()));
     _scheduleSave();
   }
 
   void _updateBuildChecklistItem(_SetupChecklistItem updated) {
+    if (!_canEditSetup) {
+      _showPermissionSnackBar('edit setup checklist items');
+      return;
+    }
     final index = _buildChecklist.indexWhere((item) => item.id == updated.id);
     if (index == -1) return;
     setState(() => _buildChecklist[index] = updated);
@@ -1789,16 +2132,28 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   }
 
   void _deleteBuildChecklistItem(String id) {
+    if (!_canDeleteSetup) {
+      _showPermissionSnackBar('delete setup checklist items');
+      return;
+    }
     setState(() => _buildChecklist.removeWhere((item) => item.id == id));
     _scheduleSave();
   }
 
   void _addToolingChecklistItem() {
+    if (!_canCreateSetup) {
+      _showPermissionSnackBar('add setup checklist items');
+      return;
+    }
     setState(() => _toolingChecklist.add(_SetupChecklistItem.empty()));
     _scheduleSave();
   }
 
   void _updateToolingChecklistItem(_SetupChecklistItem updated) {
+    if (!_canEditSetup) {
+      _showPermissionSnackBar('edit setup checklist items');
+      return;
+    }
     final index = _toolingChecklist.indexWhere((item) => item.id == updated.id);
     if (index == -1) return;
     setState(() => _toolingChecklist[index] = updated);
@@ -1806,6 +2161,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   }
 
   void _deleteToolingChecklistItem(String id) {
+    if (!_canDeleteSetup) {
+      _showPermissionSnackBar('delete setup checklist items');
+      return;
+    }
     setState(() => _toolingChecklist.removeWhere((item) => item.id == id));
     _scheduleSave();
   }
@@ -1875,6 +2234,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           _LabeledTextArea(
             label: 'Readiness notes',
             controller: summaryController,
+            enabled: _canEditSetup || _canCreateSetup,
             hintText: helperText,
           ),
           const SizedBox(height: 16),
@@ -1903,9 +2263,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                           fontSize: 12, fontWeight: FontWeight.w600)),
                 ))
             .toList(),
-        onChanged: (value) {
-          if (value != null) onChanged(value);
-        },
+        onChanged: _canEditSetup
+            ? (value) {
+                if (value != null) onChanged(value);
+              }
+            : null,
         decoration: InputDecoration(
           labelText: 'Status',
           labelStyle: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
@@ -1962,7 +2324,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
             ),
             TextButton.icon(
-              onPressed: onAddItem,
+              onPressed: _canCreateSetup ? onAddItem : null,
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Add item'),
               style: TextButton.styleFrom(
@@ -1993,6 +2355,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                       value: item.title,
                       fieldKey: '${item.id}_title',
                       hintText: 'Checklist item',
+                      enabled: _canEditSetup,
                       onChanged: (value) =>
                           onUpdateItem(item.copyWith(title: value)),
                     ),
@@ -2000,6 +2363,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                       value: item.owner,
                       fieldKey: '${item.id}_owner',
                       hintText: 'Owner',
+                      enabled: _canEditSetup,
                       onChanged: (value) =>
                           onUpdateItem(item.copyWith(owner: value)),
                     ),
@@ -2007,6 +2371,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                       value: item.targetDate,
                       fieldKey: '${item.id}_date',
                       hintText: 'YYYY-MM-DD',
+                      enabled: _canEditSetup,
                       onChanged: (value) =>
                           onUpdateItem(item.copyWith(targetDate: value)),
                     ),
@@ -2014,6 +2379,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                       value: item.status,
                       fieldKey: '${item.id}_status',
                       options: _itemStatusOptions,
+                      enabled: _canEditSetup,
                       onChanged: (value) =>
                           onUpdateItem(item.copyWith(status: value)),
                     ),
@@ -2021,10 +2387,12 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
                       value: item.notes,
                       fieldKey: '${item.id}_notes',
                       hintText: 'Notes',
+                      enabled: _canEditSetup,
                       onChanged: (value) =>
                           onUpdateItem(item.copyWith(notes: value)),
                     ),
                     _DeleteCell(
+                      enabled: _canDeleteSetup,
                       onPressed: () async {
                         final confirmed =
                             await _confirmDelete('checklist item');
@@ -2563,16 +2931,304 @@ class _SmokeCheck {
   final String detail;
 }
 
+class _ReadOnlyColumn {
+  const _ReadOnlyColumn(this.label, this.width);
+
+  final String label;
+  final double width;
+}
+
+class _DeliveryModelSetupStandard {
+  const _DeliveryModelSetupStandard({
+    required this.model,
+    required this.emphasis,
+    required this.evidence,
+    required this.cadence,
+    required this.exitCriteria,
+  });
+
+  final String model;
+  final String emphasis;
+  final String evidence;
+  final String cadence;
+  final String exitCriteria;
+}
+
+class _SetupReadinessGate {
+  const _SetupReadinessGate({
+    required this.gate,
+    required this.standard,
+    required this.evidence,
+    required this.owner,
+    required this.decision,
+  });
+
+  final String gate;
+  final String standard;
+  final String evidence;
+  final String owner;
+  final String decision;
+}
+
+class _DevSecOpsControl {
+  const _DevSecOpsControl({
+    required this.area,
+    required this.requirement,
+    required this.evidence,
+    required this.risk,
+  });
+
+  final String area;
+  final String requirement;
+  final String evidence;
+  final String risk;
+}
+
+class _SetupEvidenceRow {
+  const _SetupEvidenceRow({
+    required this.object,
+    required this.why,
+    required this.metric,
+    required this.waterfallEvidence,
+    required this.agileEvidence,
+  });
+
+  final String object;
+  final String why;
+  final String metric;
+  final String waterfallEvidence;
+  final String agileEvidence;
+}
+
+const List<_DeliveryModelSetupStandard> _deliveryModelSetupStandards = [
+  _DeliveryModelSetupStandard(
+    model: 'Waterfall / Predictive',
+    emphasis:
+        'Controlled baseline before build starts; strong audit trail and signed stage-gate evidence.',
+    evidence:
+        'Environment plan, approved toolchain, access matrix, configuration baseline, test strategy, deployment plan, rollback plan, support handover, and acceptance gate checklist.',
+    cadence:
+        'Formal setup review before design/build gate and controlled changes through change authority.',
+    exitCriteria:
+        'All mandatory environments, access, tools, test data, and release controls approved before implementation begins.',
+  ),
+  _DeliveryModelSetupStandard(
+    model: 'Hybrid',
+    emphasis:
+        'Formal governance around phase boundaries with iterative setup for incremental product delivery.',
+    evidence:
+        'Rolling-wave environment plan, integrated backlog links, release train calendar, dependency board, setup risk log, change-control path, and increment readiness checklist.',
+    cadence:
+        'Gate reviews at phase boundaries plus sprint/release readiness checks inside each phase.',
+    exitCriteria:
+        'Governance artefacts are controlled while teams can build, test, demo, and release approved increments.',
+  ),
+  _DeliveryModelSetupStandard(
+    model: 'Scrum',
+    emphasis:
+        'Team can create a usable Increment that meets Definition of Done every Sprint.',
+    evidence:
+        'Repository access, local run instructions, Definition of Done quality gates, product backlog links, CI checks, test data, demo environment, and release checklist.',
+    cadence:
+        'Validated before sprint planning and inspected through daily build health, sprint review, and retrospective improvements.',
+    exitCriteria:
+        'Ready backlog items can be built, integrated, tested, reviewed, and potentially released without hidden setup blockers.',
+  ),
+  _DeliveryModelSetupStandard(
+    model: 'Kanban / Flow',
+    emphasis:
+        'Stable service policies, pull criteria, WIP limits, fast feedback, and operational visibility.',
+    evidence:
+        'Intake policy, workflow states, service classes, WIP limits, environment ownership, deployment policy, blocker aging view, and incident channel.',
+    cadence:
+        'Continuous readiness monitored through flow metrics, blocker reviews, replenishment, and service delivery reviews.',
+    exitCriteria:
+        'Work items can enter flow only when setup evidence, owner, risk class, and release path are explicit.',
+  ),
+  _DeliveryModelSetupStandard(
+    model: 'Scaled Agile / Portfolio',
+    emphasis:
+        'Shared platform readiness, cross-team dependency ownership, and integrated release governance.',
+    evidence:
+        'Platform environment map, architecture runway, shared Definition of Done, program board, enabler backlog, integration cadence, SLOs, and release train readiness.',
+    cadence:
+        'Program increment readiness, system demos, dependency syncs, inspect-and-adapt, and release management reviews.',
+    exitCriteria:
+        'Teams share a deployable baseline, dependencies are owned, and the platform can absorb committed features.',
+  ),
+];
+
+const List<_SetupReadinessGate> _setupReadinessGates = [
+  _SetupReadinessGate(
+    gate: 'People And Access',
+    standard:
+        'Every contributor has the correct repository, environment, collaboration, service desk, and field access using least privilege.',
+    evidence:
+        'Access matrix, role-to-permission map, MFA status, onboarding checklist, vendor access record, and emergency access owner.',
+    owner: 'Delivery Lead',
+    decision: 'Conditional',
+  ),
+  _SetupReadinessGate(
+    gate: 'Environment Parity',
+    standard:
+        'Development, integration, staging, production, and physical/field environments are named, owned, configured, observable, and recoverable.',
+    evidence:
+        'Environment register, configuration source of truth, secrets inventory, endpoint list, smoke test result, and rollback route.',
+    owner: 'Platform Owner',
+    decision: 'Conditional',
+  ),
+  _SetupReadinessGate(
+    gate: 'Source And Artifact Control',
+    standard:
+        'All code, scripts, infrastructure definitions, configuration, database changes, and release artefacts are versioned and traceable.',
+    evidence:
+        'Repository policy, branch strategy, code review rules, artifact registry, tagging convention, and provenance record.',
+    owner: 'Engineering Lead',
+    decision: 'Ready',
+  ),
+  _SetupReadinessGate(
+    gate: 'Quality And Security Gates',
+    standard:
+        'Automated checks provide fast feedback on build health, tests, vulnerabilities, secrets, dependencies, accessibility, performance, and compliance.',
+    evidence:
+        'Pipeline logs, quality thresholds, SAST/SCA/secrets scans, test reports, acceptance evidence, and waiver workflow.',
+    owner: 'QA / Security',
+    decision: 'Conditional',
+  ),
+  _SetupReadinessGate(
+    gate: 'Release And Operations',
+    standard:
+        'Promotion, approvals, rollback, incident response, monitoring, support ownership, and handover are rehearsed before execution begins.',
+    evidence:
+        'Release checklist, deployment runbook, monitoring dashboard, alert routes, support rota, known-error log, and operational acceptance sign-off.',
+    owner: 'DevOps / Ops',
+    decision: 'At risk',
+  ),
+];
+
+const List<_DevSecOpsControl> _devSecOpsControls = [
+  _DevSecOpsControl(
+    area: 'Version Control',
+    requirement:
+        'Use source control for application code, infrastructure, configuration, database changes, scripts, test assets, and release documentation.',
+    evidence:
+        'Repository list, branch protections, pull request policy, signed commits/tags, and CODEOWNERS or reviewer rules.',
+    risk:
+        'Untraceable changes, undocumented releases, configuration drift, and inability to reproduce builds.',
+  ),
+  _DevSecOpsControl(
+    area: 'Continuous Integration',
+    requirement:
+        'Maintain fast, repeatable builds that run on every meaningful change and keep the mainline deployable.',
+    evidence:
+        'Build pipeline, test suite, dependency cache, build status badges, failure alerts, and agreed fix-forward/revert policy.',
+    risk:
+        'Late integration failures, unstable releases, hidden defects, and long stabilization phases.',
+  ),
+  _DevSecOpsControl(
+    area: 'Security By Design',
+    requirement:
+        'Integrate security requirements, threat considerations, dependency checks, secrets detection, and vulnerability response into setup.',
+    evidence:
+        'Threat model, SAST/SCA/secrets scan output, secure coding standard, vulnerability triage route, and exception/waiver record.',
+    risk:
+        'Vulnerabilities become release blockers or production incidents rather than managed engineering work.',
+  ),
+  _DevSecOpsControl(
+    area: 'Test Data Management',
+    requirement:
+        'Provide representative, privacy-safe, resettable test data and mocks that do not constrain automated validation.',
+    evidence:
+        'Seed scripts, data dictionary, masking rules, synthetic data set, refresh process, and contract/mocking service.',
+    risk:
+        'Manual testing bottlenecks, privacy exposure, unreliable tests, and poor coverage of real workflows.',
+  ),
+  _DevSecOpsControl(
+    area: 'Observability',
+    requirement:
+        'Instrument logs, metrics, traces, SLOs, alert routes, and dashboards before teams depend on the environment.',
+    evidence:
+        'Monitoring dashboard, alert rules, telemetry schema, runbook links, sample incident, and service health checks.',
+    risk:
+        'Teams cannot diagnose setup issues, release failures, performance regressions, or service-impacting incidents.',
+  ),
+  _DevSecOpsControl(
+    area: 'Release Automation',
+    requirement:
+        'Automate deployable artifact promotion while preserving approvals, segregation of duties, rollback, and audit evidence.',
+    evidence:
+        'Deployment pipeline, approval gates, environment promotion rules, rollback test, release notes, and deployment audit log.',
+    risk:
+        'Manual release errors, slow recovery, inconsistent environments, and weak governance evidence.',
+  ),
+];
+
+const List<_SetupEvidenceRow> _setupEvidenceRows = [
+  _SetupEvidenceRow(
+    object: 'Environment Register',
+    why:
+        'Creates one source of truth for where development, testing, staging, production, and field work occurs.',
+    metric: 'Provisioning lead time; environment availability; drift findings.',
+    waterfallEvidence: 'Environment management plan and stage-gate approval.',
+    agileEvidence:
+        'Team setup board, environment owner tags, and sprint readiness check.',
+  ),
+  _SetupEvidenceRow(
+    object: 'Pipeline Health',
+    why:
+        'Shows whether code can move from commit to validated artifact without manual heroics.',
+    metric:
+        'Build duration, test pass rate, lead time for change, failed deployment recovery time.',
+    waterfallEvidence: 'Build verification report and test readiness sign-off.',
+    agileEvidence:
+        'CI dashboard, Definition of Done gate, and deployment readiness signal.',
+  ),
+  _SetupEvidenceRow(
+    object: 'Security And Compliance Baseline',
+    why:
+        'Prevents security, privacy, and compliance obligations from being discovered late in delivery.',
+    metric:
+        'Critical vulnerability count, waiver age, scan coverage, secrets findings.',
+    waterfallEvidence:
+        'Security control checklist, approval memo, and risk acceptance log.',
+    agileEvidence:
+        'Security acceptance criteria, automated scans, and backlog remediation items.',
+  ),
+  _SetupEvidenceRow(
+    object: 'Operational Readiness',
+    why:
+        'Confirms that released work can be monitored, supported, recovered, and handed over.',
+    metric:
+        'Alert coverage, runbook coverage, incident response time, support acceptance defects.',
+    waterfallEvidence: 'Operational acceptance test and handover sign-off.',
+    agileEvidence:
+        'Runbook story, support review, release checklist, and production telemetry review.',
+  ),
+  _SetupEvidenceRow(
+    object: 'Flow And Governance',
+    why:
+        'Balances agility with control by making work intake, approvals, WIP, dependencies, and changes visible.',
+    metric:
+        'Cycle time, blocker age, WIP, change approval latency, dependency aging.',
+    waterfallEvidence:
+        'Integrated master schedule, change log, and dependency register.',
+    agileEvidence:
+        'Kanban board, program board, dependency sync, and retrospective improvement actions.',
+  ),
+];
+
 class _LabeledTextArea extends StatelessWidget {
   const _LabeledTextArea({
     required this.label,
     required this.controller,
     required this.hintText,
+    this.enabled = true,
   });
 
   final String label;
   final TextEditingController controller;
   final String hintText;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -2587,6 +3243,7 @@ class _LabeledTextArea extends StatelessWidget {
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          enabled: enabled,
           maxLines: 3,
           decoration: InputDecoration(
             hintText: hintText,
@@ -2630,7 +3287,7 @@ class _EditableTable extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 0.7,
+                        letterSpacing: 0,
                         color: Color(0xFF6B7280)),
                   ),
                 ))
@@ -2705,18 +3362,21 @@ class _TextCell extends StatelessWidget {
     required this.fieldKey,
     required this.onChanged,
     this.hintText,
+    this.enabled = true,
   });
 
   final String value;
   final String fieldKey;
   final ValueChanged<String> onChanged;
   final String? hintText;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       key: ValueKey(fieldKey),
       initialValue: value,
+      enabled: enabled,
       decoration: InputDecoration(
         hintText: hintText,
         isDense: true,
@@ -2737,12 +3397,14 @@ class _DateCell extends StatelessWidget {
     required this.fieldKey,
     required this.onChanged,
     this.hintText,
+    this.enabled = true,
   });
 
   final String value;
   final String fieldKey;
   final ValueChanged<String> onChanged;
   final String? hintText;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -2757,19 +3419,21 @@ class _DateCell extends StatelessWidget {
     return InkWell(
       key: ValueKey(fieldKey),
       borderRadius: BorderRadius.circular(8),
-      onTap: () async {
-        final parsed = _tryParseDate(displayText);
-        final now = DateTime.now();
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: parsed ?? DateTime(now.year, now.month, now.day),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
-        );
-        if (picked == null) return;
-        final formatted = _formatDate(picked);
-        onChanged(formatted);
-      },
+      onTap: enabled
+          ? () async {
+              final parsed = _tryParseDate(displayText);
+              final now = DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: parsed ?? DateTime(now.year, now.month, now.day),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2100),
+              );
+              if (picked == null) return;
+              final formatted = _formatDate(picked);
+              onChanged(formatted);
+            }
+          : null,
       child: InputDecorator(
         decoration: InputDecoration(
           isDense: true,
@@ -2816,12 +3480,14 @@ class _DropdownCell extends StatelessWidget {
     required this.fieldKey,
     required this.options,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String value;
   final String fieldKey;
   final List<String> options;
   final ValueChanged<String> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -2832,9 +3498,11 @@ class _DropdownCell extends StatelessWidget {
       items: options
           .map((option) => DropdownMenuItem(value: option, child: Text(option)))
           .toList(),
-      onChanged: (value) {
-        if (value != null) onChanged(value);
-      },
+      onChanged: enabled
+          ? (value) {
+              if (value != null) onChanged(value);
+            }
+          : null,
       decoration: InputDecoration(
         isDense: true,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -2848,14 +3516,15 @@ class _DropdownCell extends StatelessWidget {
 }
 
 class _DeleteCell extends StatelessWidget {
-  const _DeleteCell({required this.onPressed});
+  const _DeleteCell({required this.onPressed, this.enabled = true});
 
   final VoidCallback onPressed;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      onPressed: onPressed,
+      onPressed: enabled ? onPressed : null,
       icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
     );
   }

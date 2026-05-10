@@ -1397,7 +1397,8 @@ class ScheduleActivity {
   // Work package linkage
   String workPackageId;
   String workPackageTitle;
-  String workPackageType; // 'design' | 'construction' | 'execution' | 'agile' | 'procurement' | 'delivery'
+  String
+      workPackageType; // 'design' | 'construction' | 'execution' | 'agile' | 'procurement' | 'delivery'
   String phase; // 'design' | 'execution' | 'launch'
   // WBS Level 2 parent for rollup
   String wbsLevel2Id;
@@ -1405,7 +1406,8 @@ class ScheduleActivity {
   // Procurement linkage
   String contractId;
   String vendorId;
-  String procurementStatus; // 'not_started' | 'rfq' | 'evaluating' | 'awarded' | 'contracted'
+  String
+      procurementStatus; // 'not_started' | 'rfq' | 'evaluating' | 'awarded' | 'contracted'
   String? procurementRfqDate;
   String? procurementAwardDate;
   String? contractStartDate;
@@ -1545,10 +1547,9 @@ class ScheduleActivity {
           ? (json['actualCost'] as num).toDouble()
           : double.tryParse(json['actualCost']?.toString() ?? '') ?? 0,
       estimatingBasis: json['estimatingBasis']?.toString() ?? '',
-      dependencyIds: (json['dependencyIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      dependencyIds:
+          (json['dependencyIds'] as List?)?.map((e) => e.toString()).toList() ??
+              [],
       isCriticalPath: json['isCriticalPath'] == true,
       totalFloat: json['totalFloat'] is num
           ? (json['totalFloat'] as num).round()
@@ -2796,7 +2797,8 @@ class CostEstimateItem {
   String workPackageTitle;
   String phase; // 'design' | 'execution' | 'launch'
   // Estimating method fields
-  String estimatingMethod; // 'bottoms_up' | 'top_down' | 'unit_rate' | 'analogous'
+  String
+      estimatingMethod; // 'bottoms_up' | 'top_down' | 'unit_rate' | 'analogous'
   String estimatingBasis;
   double unitRate;
   int quantity;
@@ -2902,9 +2904,11 @@ class WorkPackage {
   String wbsLevel2Title;
   String title;
   String description;
-  String type; // 'design' | 'construction' | 'execution' | 'agile' | 'procurement' | 'delivery'
+  String
+      type; // 'design' | 'construction' | 'execution' | 'agile' | 'procurement' | 'delivery'
   String phase; // 'design' | 'execution' | 'launch'
-  String status; // 'planned' | 'in_progress' | 'complete' | 'blocked' | 'on_hold'
+  String
+      status; // 'planned' | 'in_progress' | 'complete' | 'blocked' | 'on_hold'
   String owner;
   String discipline;
   String? plannedStart;
@@ -3010,14 +3014,11 @@ class WorkPackage {
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      contractIds: (json['contractIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
-      vendorIds: (json['vendorIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      contractIds:
+          (json['contractIds'] as List?)?.map((e) => e.toString()).toList() ??
+              [],
+      vendorIds:
+          (json['vendorIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
       requirementIds: (json['requirementIds'] as List?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -4156,7 +4157,11 @@ class DesignDeliverablePipelineItem {
 
   factory DesignDeliverablePipelineItem.fromJson(Map<String, dynamic> json) {
     return DesignDeliverablePipelineItem(
-      label: json['label']?.toString() ?? '',
+      label: json['label']?.toString() ??
+          json['deliverable']?.toString() ??
+          json['name']?.toString() ??
+          json['title']?.toString() ??
+          '',
       status: json['status']?.toString() ?? '',
     );
   }
@@ -4203,10 +4208,16 @@ class DesignDeliverableRegisterItem {
 
   factory DesignDeliverableRegisterItem.fromJson(Map<String, dynamic> json) {
     return DesignDeliverableRegisterItem(
-      name: json['name']?.toString() ?? '',
+      name: json['name']?.toString() ??
+          json['title']?.toString() ??
+          json['deliverable']?.toString() ??
+          '',
       owner: json['owner']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      due: json['due']?.toString() ?? '',
+      due: json['due']?.toString() ??
+          json['dueDate']?.toString() ??
+          json['due_date']?.toString() ??
+          '',
       risk: json['risk']?.toString() ?? '',
     );
   }
