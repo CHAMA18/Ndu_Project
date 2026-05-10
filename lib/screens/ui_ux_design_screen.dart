@@ -9,6 +9,7 @@ import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -702,6 +703,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'UI/UX Design',
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
           const PlanningPhaseHeader(
