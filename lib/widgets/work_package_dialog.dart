@@ -105,7 +105,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
       _status = wp.status;
       _packageClassification = wp.packageClassification;
       _releaseStatus = wp.releaseStatus;
-      _wbsLevel2Id = wp.wbsLevel2Id.isNotEmpty ? wp.wbsLevel2Id : null;
+      _wbsLevel2Id = wp.wbsLevel2Id.isNotEmpty ? wp.wbsLevel2Id : '';
       _plannedStart = wp.plannedStart;
       _plannedEnd = wp.plannedEnd;
     }
@@ -123,7 +123,8 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
     };
     const _allowedClassifications = {
       'engineeringEwp', 'procurementPackage', 'constructionCwp',
-      'implementationWorkPackage', 'agileIterationPackage', ''
+      'implementationWorkPackage', 'agileIterationPackage',
+      'preCommissioningPackage', 'commissioningPackage', ''
     };
     const _allowedReleaseStatuses = {
       'draft', 'ready_for_review', 'released', 'blocked'
@@ -144,7 +145,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
           .where((id) => id.isNotEmpty)
           .toSet();
       if (!wbsIds.contains(_wbsLevel2Id)) {
-        _wbsLevel2Id = null;
+        _wbsLevel2Id = '';
       }
     }
   }
@@ -318,23 +319,42 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                   decoration: const InputDecoration(labelText: 'Description'),
                   maxLines: 3,
                 ),
-                if (widget.wbsLevel2Options.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: _wbsLevel2Id,
-                    decoration: const InputDecoration(labelText: 'WBS Level 2'),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: '',
-                        child: Text('None'),
-                      ),
-                      ...widget.wbsLevel2Options
-                          .map((opt) => DropdownMenuItem<String>(
-                                value: opt['id'] ?? '',
-                                child: Text(opt['title'] ?? ''),
-                              )),
-                    ],
-                    onChanged: (v) => setState(() => _wbsLevel2Id = v),
-                  ),
+                // Deduplicate WBS Level 2 options and filter out empty IDs
+                // to prevent DropdownButton assertion failures.
+                ...() {
+                  final seenIds = <String>{};
+                  final uniqueOpts = <Map<String, String>>[];
+                  for (final opt in widget.wbsLevel2Options) {
+                    final id = (opt['id'] ?? '').trim();
+                    if (id.isEmpty || seenIds.contains(id)) continue;
+                    seenIds.add(id);
+                    uniqueOpts.add(opt);
+                  }
+                  if (uniqueOpts.isEmpty) return <Widget>[];
+                  return [
+                    DropdownButtonFormField<String>(
+                      initialValue: (_wbsLevel2Id != null &&
+                              _wbsLevel2Id!.isNotEmpty &&
+                              seenIds.contains(_wbsLevel2Id))
+                          ? _wbsLevel2Id
+                          : '',
+                      decoration:
+                          const InputDecoration(labelText: 'WBS Level 2'),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('None'),
+                        ),
+                        for (final opt in uniqueOpts)
+                          DropdownMenuItem<String>(
+                            value: (opt['id'] ?? '').trim(),
+                            child: Text(opt['title'] ?? ''),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => _wbsLevel2Id = v),
+                    ),
+                  ];
+                }(),
                 Row(
                   children: [
                     Expanded(
@@ -412,6 +432,12 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                           DropdownMenuItem(
                               value: 'agileIterationPackage',
                               child: Text('Agile Iteration Package')),
+                          DropdownMenuItem(
+                              value: 'preCommissioningPackage',
+                              child: Text('Pre-Commissioning Package')),
+                          DropdownMenuItem(
+                              value: 'commissioningPackage',
+                              child: Text('Commissioning Package')),
                         ],
                         onChanged: (v) {
                           setState(() => _packageClassification = v ?? '');

@@ -635,6 +635,28 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     _handleActivityChanged();
   }
 
+  /// Resolves a raw activity ID (from `data.scheduleActivities`) to the
+  /// corresponding in-memory `_activityRows` ID. During
+  /// `_loadScheduleActivities()`, row IDs may be remapped (e.g. wbsId
+  /// overrides the original id), so raw activity IDs from the data model
+  /// may not match. This helper tries both the raw id and the wbsId.
+  String? _resolveActivityRowId(String rawId, String wbsId) {
+    // Try direct match first
+    if (_activityRows.any((row) => row.id == rawId)) return rawId;
+    // Try matching by wbsId
+    if (wbsId.isNotEmpty) {
+      final byWbs = _activityRows
+          .where((row) => row.wbsId == wbsId || row.id == wbsId)
+          .toList();
+      if (byWbs.length == 1) return byWbs.first.id;
+    }
+    // Try matching by original id stored in the row's wbsId field
+    for (final row in _activityRows) {
+      if (row.wbsId == rawId) return row.id;
+    }
+    return null;
+  }
+
   Future<void> _editTask(String taskId) async {
     final index = _activityRows.indexWhere((row) => row.id == taskId);
     if (index == -1) return;
@@ -690,10 +712,27 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   Future<_TaskDraft?> _showTaskDialog({_ScheduleRow? row}) async {
     final data = ProjectDataHelper.getData(context);
-    final wbsItems = _flattenWbsItems(data.wbsTree);
-    final predecessorOptions = _activityRows
-        .where((candidate) => row == null || candidate.id != row.id)
-        .toList();
+    final rawWbsItems = _flattenWbsItems(data.wbsTree);
+    // Deduplicate WBS items by ID and filter out items with empty IDs.
+    // Duplicate or empty IDs cause DropdownButton assertion failures.
+    final seenWbsIds = <String>{};
+    final wbsItems = <Map<String, String>>[];
+    for (final item in rawWbsItems) {
+      final id = (item['id'] ?? '').trim();
+      if (id.isEmpty || seenWbsIds.contains(id)) continue;
+      seenWbsIds.add(id);
+      wbsItems.add(item);
+    }
+    // Deduplicate predecessor options by ID to prevent duplicate
+    // DropdownMenuItem values (causes assertion failure).
+    final seenPredIds = <String>{};
+    final predecessorOptions = <_ScheduleRow>[];
+    for (final candidate in _activityRows) {
+      if (row != null && candidate.id == row.id) continue;
+      if (candidate.id.trim().isEmpty || seenPredIds.contains(candidate.id)) continue;
+      seenPredIds.add(candidate.id);
+      predecessorOptions.add(candidate);
+    }
     String? selectedWbsRawId =
         row != null && row.wbsId.trim().isNotEmpty ? row.wbsId.trim() : null;
     final availableWbsIds = wbsItems
@@ -779,16 +818,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               value: '',
                               child: Text('None'),
                             ),
-                            ...wbsItems.map(
-                              (item) => DropdownMenuItem<String>(
-                                value: (item['id'] ?? '').trim(),
+                            for (final item in wbsItems)
+                              DropdownMenuItem<String>(
+                                value: item['id'] ?? '',
                                 child: Text(
                                   (item['title'] ?? '').trim().isEmpty
                                       ? 'Untitled'
                                       : (item['title'] ?? '').trim(),
                                 ),
                               ),
-                            ),
                           ],
                           onChanged: (value) {
                             final raw = (value ?? '').trim();
@@ -2434,7 +2472,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             // Navigate to work package detail
           },
           onActivityTap: (activity) {
-            _editTask(activity.id);
+            // Resolve through _activityRows — the in-memory rows may have
+            // remapped IDs (e.g. wbsId overrides) that differ from the
+            // raw scheduleActivities data. Direct lookup avoids stale-ID
+            // mismatches that cause DropdownButton assertion failures.
+            final rowId = _resolveActivityRowId(activity.id, activity.wbsId);
+            if (rowId != null) _editTask(rowId);
           },
         );
       case 1:
@@ -2442,7 +2485,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           scheduleActivities: data.scheduleActivities,
           workPackages: data.workPackages,
           onActivityTap: (activity) {
-            _editTask(activity.id);
+            final rowId = _resolveActivityRowId(activity.id, activity.wbsId);
+            if (rowId != null) _editTask(rowId);
           },
           selectedActivityId: _selectedTaskId,
           hoveredActivityId: _hoveredTaskId,
@@ -3370,8 +3414,17 @@ class _TimelineList extends StatelessWidget {
               final priorityValue = _normalizeSchedulePriority(row.priority);
               final predecessorCandidates =
                   rows.where((candidate) => candidate.id != row.id).toList();
+              // Deduplicate predecessor candidates by ID to prevent
+              // DropdownButton assertion failures from duplicate values.
+              final seenPredIds = <String>{};
+              final uniquePredecessorCandidates = <_ScheduleRow>[];
+              for (final c in predecessorCandidates) {
+                if (c.id.trim().isEmpty || seenPredIds.contains(c.id)) continue;
+                seenPredIds.add(c.id);
+                uniquePredecessorCandidates.add(c);
+              }
               final predecessorIds =
-                  predecessorCandidates.map((item) => item.id).toSet();
+                  uniquePredecessorCandidates.map((item) => item.id).toSet();
               final predecessorValue =
                   predecessorIds.contains(row.predecessorId)
                       ? row.predecessorId
@@ -3431,7 +3484,7 @@ class _TimelineList extends StatelessWidget {
                             value: null,
                             child: Text('None'),
                           ),
-                          ...predecessorCandidates.map((candidate) {
+                          ...uniquePredecessorCandidates.map((candidate) {
                             final label =
                                 candidate.titleController.text.trim().isEmpty
                                     ? 'Untitled task'
