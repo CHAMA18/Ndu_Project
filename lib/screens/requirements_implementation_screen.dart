@@ -22,6 +22,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/requirements_traceability_dashboard.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
 class RequirementsImplementationScreen extends StatefulWidget {
   const RequirementsImplementationScreen({super.key});
@@ -704,6 +705,7 @@ class _RequirementsImplementationScreenState
 
     return ResponsiveScaffold(
       activeItemLabel: 'Design Specifications',
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
           const PlanningPhaseHeader(

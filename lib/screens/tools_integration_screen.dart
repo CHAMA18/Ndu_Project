@@ -11,6 +11,7 @@ import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
 class ToolsIntegrationScreen extends StatefulWidget {
   const ToolsIntegrationScreen({super.key});
@@ -249,6 +250,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Tools Integration',
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(isNarrow ? 16 : 32),
