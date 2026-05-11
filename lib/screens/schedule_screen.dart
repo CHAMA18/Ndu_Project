@@ -801,11 +801,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             final isCreate = row == null;
             return AlertDialog(
               title: Text(isCreate ? 'Create Task' : 'Edit Task'),
-              content: SizedBox(
-                width: 640,
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: 720,
+                  maxWidth: MediaQuery.of(context).size.width * 0.85,
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (wbsItems.isNotEmpty)
                         DropdownButtonFormField<String>(
@@ -948,7 +953,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               initialValue: priority,
@@ -992,7 +997,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                   labelText: 'Progress %'),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: TextField(
                               controller: hoursController,
@@ -1012,7 +1017,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                   labelText: 'Start Date (YYYY-MM-DD)'),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: TextField(
                               controller: dueDateController,

@@ -299,13 +299,18 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
 
     return AlertDialog(
       title: Text(isEdit ? 'Edit Work Package' : 'Create Work Package'),
-      content: SizedBox(
-        width: 600,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: 720,
+          maxWidth: MediaQuery.of(context).size.width * 0.85,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextFormField(
                   controller: _titleController,
@@ -365,7 +370,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: TextFormField(
                         controller: _sourceWbsLevel3TitleController,
@@ -376,28 +381,19 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _contractIdsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Contract IDs',
-                          helperText: 'Comma-separated contract references',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _vendorIdsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Vendor IDs',
-                          helperText: 'Comma-separated vendor references',
-                        ),
-                      ),
-                    ),
-                  ],
+                TextFormField(
+                  controller: _contractIdsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Contract IDs',
+                    helperText: 'Comma-separated contract references',
+                  ),
+                ),
+                TextFormField(
+                  controller: _vendorIdsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Vendor IDs',
+                    helperText: 'Comma-separated vendor references',
+                  ),
                 ),
                 Row(
                   children: [
@@ -408,7 +404,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                             const InputDecoration(labelText: 'Package Code'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         initialValue: _packageClassification.isEmpty
@@ -444,29 +440,26 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _releaseStatus,
-                        decoration:
-                            const InputDecoration(labelText: 'Release Status'),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'draft', child: Text('Draft')),
-                          DropdownMenuItem(
-                              value: 'ready_for_review',
-                              child: Text('Ready for Review')),
-                          DropdownMenuItem(
-                              value: 'released', child: Text('Released')),
-                          DropdownMenuItem(
-                              value: 'blocked', child: Text('Blocked')),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _releaseStatus = v);
-                        },
-                      ),
-                    ),
                   ],
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: _releaseStatus,
+                  decoration:
+                      const InputDecoration(labelText: 'Release Status'),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'draft', child: Text('Draft')),
+                    DropdownMenuItem(
+                        value: 'ready_for_review',
+                        child: Text('Ready for Review')),
+                    DropdownMenuItem(
+                        value: 'released', child: Text('Released')),
+                    DropdownMenuItem(
+                        value: 'blocked', child: Text('Blocked')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _releaseStatus = v);
+                  },
                 ),
                 Row(
                   children: [
@@ -494,7 +487,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         initialValue: _phase,
@@ -512,29 +505,26 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _status,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'planned', child: Text('Planned')),
-                          DropdownMenuItem(
-                              value: 'in_progress', child: Text('In Progress')),
-                          DropdownMenuItem(
-                              value: 'complete', child: Text('Complete')),
-                          DropdownMenuItem(
-                              value: 'blocked', child: Text('Blocked')),
-                          DropdownMenuItem(
-                              value: 'on_hold', child: Text('On Hold')),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _status = v);
-                        },
-                      ),
-                    ),
                   ],
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: _status,
+                  decoration: const InputDecoration(labelText: 'Status'),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'planned', child: Text('Planned')),
+                    DropdownMenuItem(
+                        value: 'in_progress', child: Text('In Progress')),
+                    DropdownMenuItem(
+                        value: 'complete', child: Text('Complete')),
+                    DropdownMenuItem(
+                        value: 'blocked', child: Text('Blocked')),
+                    DropdownMenuItem(
+                        value: 'on_hold', child: Text('On Hold')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _status = v);
+                  },
                 ),
                 Row(
                   children: [
@@ -545,7 +535,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                             const InputDecoration(labelText: 'Area / System'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: TextFormField(
                         controller: _contractorOrCrewController,
@@ -563,7 +553,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                         decoration: const InputDecoration(labelText: 'Owner'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: TextFormField(
                         controller: _disciplineController,
@@ -590,7 +580,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: TextFormField(
                         readOnly: true,
@@ -638,7 +628,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                                 labelText: 'Estimation Method'),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: _estimateConfidenceController,
@@ -676,7 +666,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                                 labelText: 'Procurement Category'),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: _procurementLeadTimeController,
@@ -846,7 +836,7 @@ class _ReadinessCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 260,
+      width: 320,
       child: CheckboxListTile(
         dense: true,
         contentPadding: EdgeInsets.zero,
