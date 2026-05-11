@@ -51,7 +51,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   bool _autoImportAttempted = false;
   bool _notesExpanded = false;
 
-  String _timelineView = 'Months';
   String? _selectedTaskId;
   String? _hoveredTaskId;
   int _selectedMainTab =
@@ -2498,14 +2497,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         );
       case 2:
         return _TimelineWorkspaceCard(
-          selectedTab: 0, // Force List view
-          onTabChanged: (_) {},
-          timelineView: _timelineView,
-          onTimelineViewChanged: (value) {
-            if (value != null) {
-              setState(() => _timelineView = value);
-            }
-          },
           onPickStartDate: _pickStartDate,
           startDate: _scheduleStartDate,
           onValidate: _validateSchedule,
@@ -2519,14 +2510,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         );
       case 3:
         return _TimelineWorkspaceCard(
-          selectedTab: 1, // Force Board view
-          onTabChanged: (_) {},
-          timelineView: _timelineView,
-          onTimelineViewChanged: (value) {
-            if (value != null) {
-              setState(() => _timelineView = value);
-            }
-          },
           onPickStartDate: _pickStartDate,
           startDate: _scheduleStartDate,
           onValidate: _validateSchedule,
@@ -2795,20 +2778,12 @@ class _WbsNodeTile extends StatelessWidget {
 
 class _TimelineWorkspaceCard extends StatelessWidget {
   const _TimelineWorkspaceCard({
-    required this.selectedTab,
-    required this.onTabChanged,
-    required this.timelineView,
-    required this.onTimelineViewChanged,
     required this.onPickStartDate,
     required this.startDate,
     required this.onValidate,
     required this.child,
   });
 
-  final int selectedTab;
-  final ValueChanged<int> onTabChanged;
-  final String timelineView;
-  final ValueChanged<String?> onTimelineViewChanged;
   final VoidCallback onPickStartDate;
   final DateTime? startDate;
   final VoidCallback onValidate;
@@ -2816,30 +2791,6 @@ class _TimelineWorkspaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const tabs = ['Gantt', 'List', 'Board'];
-    final isCompact = MediaQuery.sizeOf(context).width < 980;
-
-    final tabChips = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (int i = 0; i < tabs.length; i++)
-          ChoiceChip(
-            label: Text(tabs[i]),
-            selected: selectedTab == i,
-            onSelected: (_) => onTabChanged(i),
-            selectedColor: const Color(0xFFF59E0B),
-            labelStyle: TextStyle(
-              color: selectedTab == i
-                  ? const Color(0xFF111827)
-                  : const Color(0xFF4B5563),
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-      ],
-    );
-
     final controls = Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -2852,25 +2803,6 @@ class _TimelineWorkspaceCard extends StatelessWidget {
             startDate == null
                 ? 'Start Date'
                 : 'Start: ${_formatDate(startDate!)}',
-          ),
-        ),
-        Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppSemanticColors.border),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: timelineView == 'Months' ? timelineView : 'Months',
-              onChanged: onTimelineViewChanged,
-              isDense: true,
-              items: const [
-                DropdownMenuItem(value: 'Months', child: Text('Months')),
-              ],
-            ),
           ),
         ),
         OutlinedButton.icon(
@@ -2891,28 +2823,20 @@ class _TimelineWorkspaceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Project Timeline',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF111827),
-            ),
+          Row(
+            children: [
+              const Text(
+                'Project Timeline',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const Spacer(),
+              controls,
+            ],
           ),
-          const SizedBox(height: 10),
-          if (isCompact) ...[
-            tabChips,
-            const SizedBox(height: 8),
-            controls,
-          ] else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: tabChips),
-                const SizedBox(width: 12),
-                controls,
-              ],
-            ),
           const SizedBox(height: 16),
           child,
         ],
@@ -2957,395 +2881,6 @@ class _SectionEmpty extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-// ignore: unused_element
-class _TimelineGantt extends StatelessWidget {
-  const _TimelineGantt({
-    required this.computed,
-    required this.selectedTaskId,
-    required this.hoveredTaskId,
-    required this.onTaskTap,
-    required this.onTaskHover,
-  });
-
-  final _ComputedSchedule computed;
-  final String? selectedTaskId;
-  final String? hoveredTaskId;
-  final ValueChanged<String?> onTaskTap;
-  final ValueChanged<String?> onTaskHover;
-
-  static const double _leftColumnWidth = 280;
-  static const double _chartHeightPerRow = 44;
-
-  @override
-  Widget build(BuildContext context) {
-    final start = computed.minDate ?? DateTime.now();
-    final end = computed.maxDate ?? start;
-    final monthSegments = _generateMonthSegments(start, end);
-    final totalDays = end.difference(start).inDays + 1;
-    final timelineWidth = (totalDays * 2.6).clamp(800.0, 2400.0);
-    final pxPerDay = timelineWidth / totalDays;
-    final chartHeight = computed.items.length * _chartHeightPerRow + 32;
-    final totalChartWidth = _leftColumnWidth + timelineWidth + 2;
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Container(
-        width: totalChartWidth,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppSemanticColors.border),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: const BoxDecoration(
-                border:
-                    Border(bottom: BorderSide(color: AppSemanticColors.border)),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(
-                    width: _leftColumnWidth,
-                    child: Text(
-                      'Task',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: timelineWidth,
-                    child: SizedBox(
-                      height: 18,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Row(
-                          children: monthSegments.map((segment) {
-                            final segmentWidth = segment.dayCount * pxPerDay;
-                            return SizedBox(
-                              width: segmentWidth,
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 6),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    segment.label,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF374151),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: chartHeight,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _GanttGridPainter(
-                        leftColumnWidth: _leftColumnWidth,
-                        rowHeight: _chartHeightPerRow,
-                        rowCount: computed.items.length,
-                        monthSegments: monthSegments,
-                        pxPerDay: pxPerDay,
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _DependencyPainter(
-                        items: computed.items,
-                        leftColumnWidth: _leftColumnWidth,
-                        rowHeight: _chartHeightPerRow,
-                        startDate: start,
-                        pxPerDay: pxPerDay,
-                        selectedTaskId: selectedTaskId,
-                        hoveredTaskId: hoveredTaskId,
-                      ),
-                    ),
-                  ),
-                  for (int index = 0; index < computed.items.length; index++)
-                    _GanttRow(
-                      item: computed.items[index],
-                      index: index,
-                      startDate: start,
-                      leftColumnWidth: _leftColumnWidth,
-                      rowHeight: _chartHeightPerRow,
-                      pxPerDay: pxPerDay,
-                      isSelected: selectedTaskId == computed.items[index].id,
-                      onTap: () => onTaskTap(computed.items[index].id),
-                      onEnter: () => onTaskHover(computed.items[index].id),
-                      onExit: () => onTaskHover(null),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GanttRow extends StatelessWidget {
-  const _GanttRow({
-    required this.item,
-    required this.index,
-    required this.startDate,
-    required this.leftColumnWidth,
-    required this.rowHeight,
-    required this.pxPerDay,
-    required this.isSelected,
-    required this.onTap,
-    required this.onEnter,
-    required this.onExit,
-  });
-
-  final _ComputedItem item;
-  final int index;
-  final DateTime startDate;
-  final double leftColumnWidth;
-  final double rowHeight;
-  final double pxPerDay;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final VoidCallback onEnter;
-  final VoidCallback onExit;
-
-  @override
-  Widget build(BuildContext context) {
-    final top = index * rowHeight + 6;
-    final leftOffset = item.startDate.difference(startDate).inDays * pxPerDay;
-    final durationDays = item.durationDays == 0 ? 1 : item.durationDays;
-    final width = (durationDays * pxPerDay).clamp(18.0, 600.0);
-
-    return Positioned(
-      left: 0,
-      right: 0,
-      top: top,
-      height: rowHeight - 10,
-      child: Row(
-        children: [
-          SizedBox(
-            width: leftColumnWidth,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF111827),
-                      ),
-                    ),
-                  ),
-                  if (item.isCritical)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEE2E2),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'CP',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFB91C1C),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned(
-                  left: leftOffset,
-                  top: 3,
-                  child: MouseRegion(
-                    onEnter: (_) => onEnter(),
-                    onExit: (_) => onExit(),
-                    child: GestureDetector(
-                      onTap: onTap,
-                      child: Container(
-                        height: rowHeight - 16,
-                        width: width,
-                        decoration: BoxDecoration(
-                          color: item.isCritical
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFF3B82F6),
-                          borderRadius: BorderRadius.circular(8),
-                          border: isSelected
-                              ? Border.all(
-                                  color: const Color(0xFFF59E0B), width: 2)
-                              : null,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${(item.progress * 100).round()}%',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GanttGridPainter extends CustomPainter {
-  const _GanttGridPainter({
-    required this.leftColumnWidth,
-    required this.rowHeight,
-    required this.rowCount,
-    required this.monthSegments,
-    required this.pxPerDay,
-  });
-
-  final double leftColumnWidth;
-  final double rowHeight;
-  final int rowCount;
-  final List<_TimelineSegment> monthSegments;
-  final double pxPerDay;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rowPaint = Paint()
-      ..color = const Color(0xFFE5E7EB)
-      ..strokeWidth = 1;
-
-    for (int row = 0; row <= rowCount; row++) {
-      final y = row * rowHeight;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), rowPaint);
-    }
-
-    final dividerPaint = Paint()
-      ..color = const Color(0xFFD1D5DB)
-      ..strokeWidth = 1;
-
-    double x = leftColumnWidth;
-    canvas.drawLine(Offset(x, 0), Offset(x, size.height), dividerPaint);
-    for (final segment in monthSegments) {
-      x += segment.dayCount * pxPerDay;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), dividerPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GanttGridPainter oldDelegate) => false;
-}
-
-class _DependencyPainter extends CustomPainter {
-  const _DependencyPainter({
-    required this.items,
-    required this.leftColumnWidth,
-    required this.rowHeight,
-    required this.startDate,
-    required this.pxPerDay,
-    required this.selectedTaskId,
-    required this.hoveredTaskId,
-  });
-
-  final List<_ComputedItem> items;
-  final double leftColumnWidth;
-  final double rowHeight;
-  final DateTime startDate;
-  final double pxPerDay;
-  final String? selectedTaskId;
-  final String? hoveredTaskId;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (selectedTaskId == null && hoveredTaskId == null) return;
-
-    final focusIds = <String>{};
-    if (selectedTaskId != null) focusIds.add(selectedTaskId!);
-    if (hoveredTaskId != null) focusIds.add(hoveredTaskId!);
-
-    final byId = {for (final item in items) item.id: item};
-
-    final paint = Paint()
-      ..color = const Color(0xFFF59E0B)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    for (final targetId in focusIds) {
-      final target = byId[targetId];
-      if (target == null) continue;
-
-      final targetRow = items.indexWhere((element) => element.id == target.id);
-      final targetY = targetRow * rowHeight + (rowHeight / 2);
-      final targetX = leftColumnWidth +
-          target.startDate.difference(startDate).inDays * pxPerDay;
-
-      for (final predecessorId in target.predecessorIds) {
-        final predecessor = byId[predecessorId];
-        if (predecessor == null) continue;
-
-        final predecessorRow =
-            items.indexWhere((element) => element.id == predecessor.id);
-        final predecessorY = predecessorRow * rowHeight + (rowHeight / 2);
-        final predecessorWidth =
-            (predecessor.durationDays == 0 ? 1 : predecessor.durationDays) *
-                pxPerDay;
-        final predecessorX = leftColumnWidth +
-            predecessor.startDate.difference(startDate).inDays * pxPerDay +
-            predecessorWidth;
-
-        final path = Path()
-          ..moveTo(predecessorX, predecessorY)
-          ..lineTo(predecessorX + 12, predecessorY)
-          ..lineTo(predecessorX + 12, targetY)
-          ..lineTo(targetX, targetY);
-        canvas.drawPath(path, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DependencyPainter oldDelegate) {
-    return oldDelegate.selectedTaskId != selectedTaskId ||
-        oldDelegate.hoveredTaskId != hoveredTaskId ||
-        oldDelegate.items != items;
   }
 }
 
@@ -4815,35 +4350,6 @@ _ComputedSchedule _computeSchedule(List<_ScheduleRow> rows, DateTime start) {
   );
 }
 
-class _TimelineSegment {
-  const _TimelineSegment({required this.label, required this.dayCount});
-
-  final String label;
-  final int dayCount;
-}
-
-List<_TimelineSegment> _generateMonthSegments(DateTime start, DateTime end) {
-  final segments = <_TimelineSegment>[];
-  final inclusiveEnd = DateTime(end.year, end.month, end.day);
-  DateTime cursor = DateTime(start.year, start.month, 1);
-
-  while (!cursor.isAfter(inclusiveEnd)) {
-    final bucketStart = cursor.isBefore(start) ? start : cursor;
-    final nextMonth = DateTime(cursor.year, cursor.month + 1, 1);
-    final bucketEnd = nextMonth.subtract(const Duration(days: 1));
-    final actualEnd =
-        bucketEnd.isAfter(inclusiveEnd) ? inclusiveEnd : bucketEnd;
-    final dayCount = actualEnd.difference(bucketStart).inDays + 1;
-
-    segments.add(
-      _TimelineSegment(label: _formatMonth(cursor), dayCount: dayCount),
-    );
-    cursor = nextMonth;
-  }
-
-  return segments;
-}
-
 DateTime? _parseDate(String raw) {
   final value = raw.trim();
   if (value.isEmpty) return null;
@@ -4855,24 +4361,6 @@ String _formatDate(DateTime date) {
   final month = date.month.toString().padLeft(2, '0');
   final day = date.day.toString().padLeft(2, '0');
   return '$year-$month-$day';
-}
-
-String _formatMonth(DateTime date) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[date.month - 1]} ${date.year}';
 }
 
 String _titleCase(String value) {
