@@ -120,8 +120,8 @@ class _ExecutionPlanScreenState extends State<ExecutionPlanScreen> {
                           const _AiTipCard(),
                           _YellowActionButton(
                             label: 'Next',
-                            onPressed: () =>
-                                PlanningPhaseNavigation.goToNext(context, 'execution_plan_construction_plan'),
+                            onPressed: () => PlanningPhaseNavigation.goToNext(
+                                context, 'execution_plan_construction_plan'),
                           ),
                         ],
                       ),
@@ -1272,7 +1272,8 @@ class _EarlyWorksTable extends StatelessWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Early work item deleted successfully')),
+                    const SnackBar(
+                        content: Text('Early work item deleted successfully')),
                   );
                 }
               } catch (e) {
@@ -1367,7 +1368,7 @@ class _EarlyWorksTable extends StatelessWidget {
                 if (isEdit) {
                   await ExecutionService.updateEarlyWork(
                     projectId: projectId,
-                    toolId: tool.id,
+                    workId: tool.id,
                     tool: toolController.text,
                     description: descriptionController.text,
                     source: sourceController.text,
@@ -2706,7 +2707,8 @@ class _MobileIssueManagementActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Define how issues will be identified, escalated, and resolved during execution.',
+          text:
+              'Define how issues will be identified, escalated, and resolved during execution.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -3302,7 +3304,8 @@ class _MobileLessonsLearnedActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Capture insights from past projects to avoid repeating mistakes and improve future performance.',
+          text:
+              'Capture insights from past projects to avoid repeating mistakes and improve future performance.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -3735,7 +3738,8 @@ class _MobileBestPracticesActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Document proven approaches and methodologies for the team to follow consistently.',
+          text:
+              'Document proven approaches and methodologies for the team to follow consistently.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -3937,7 +3941,8 @@ class _MobileConstructionPlanActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Outline the construction sequencing, resource allocation, and safety protocols.',
+          text:
+              'Outline the construction sequencing, resource allocation, and safety protocols.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -4441,7 +4446,8 @@ class _MobileInfrastructurePlanActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Plan infrastructure requirements including temporary facilities, utilities, and logistics.',
+          text:
+              'Plan infrastructure requirements including temporary facilities, utilities, and logistics.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -5621,7 +5627,8 @@ class _MobileStakeholderIdentificationActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Identify all parties affected by or influencing execution, and map their interests and influence levels.',
+          text:
+              'Identify all parties affected by or influencing execution, and map their interests and influence levels.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -5805,8 +5812,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content:
-                            Text('Interface entry deleted successfully')),
+                        content: Text('Interface entry deleted successfully')),
                   );
                 }
               } catch (e) {
@@ -5814,33 +5820,29 @@ class _InterfaceRegisterTable extends StatelessWidget {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content:
-                            Text('Error deleting interface entry: $e')),
+                        content: Text('Error deleting interface entry: $e')),
                   );
                 }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  static void _showInterfaceDialog(BuildContext context,
-      InterfaceRegisterModel? entry, String projectId) {
+  static void _showInterfaceDialog(
+      BuildContext context, InterfaceRegisterModel? entry, String projectId) {
     final isEdit = entry != null;
     final interfaceIdController =
         TextEditingController(text: entry?.interfaceId ?? '');
     final interfaceNameController =
         TextEditingController(text: entry?.interfaceName ?? '');
     String interfaceType = entry?.interfaceType ?? 'Physical';
-    final partyAController =
-        TextEditingController(text: entry?.partyA ?? '');
-    final partyBController =
-        TextEditingController(text: entry?.partyB ?? '');
+    final partyAController = TextEditingController(text: entry?.partyA ?? '');
+    final partyBController = TextEditingController(text: entry?.partyB ?? '');
     String status = entry?.status ?? 'Active';
     String frequency = entry?.frequency ?? 'Daily';
     final commentsController =
@@ -5867,9 +5869,8 @@ class _InterfaceRegisterTable extends StatelessWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(isEdit
-              ? 'Edit Interface Entry'
-              : 'Add New Interface Entry'),
+          title:
+              Text(isEdit ? 'Edit Interface Entry' : 'Add New Interface Entry'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -5881,16 +5882,14 @@ class _InterfaceRegisterTable extends StatelessWidget {
                 const SizedBox(height: 12),
                 TextField(
                     controller: interfaceNameController,
-                    decoration: const InputDecoration(
-                        labelText: 'Interface Name *')),
+                    decoration:
+                        const InputDecoration(labelText: 'Interface Name *')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: interfaceType,
-                  decoration:
-                      const InputDecoration(labelText: 'Type *'),
+                  decoration: const InputDecoration(labelText: 'Type *'),
                   items: interfaceTypes
-                      .map((t) =>
-                          DropdownMenuItem(value: t, child: Text(t)))
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                       .toList(),
                   onChanged: (v) =>
                       setState(() => interfaceType = v ?? 'Physical'),
@@ -5898,42 +5897,33 @@ class _InterfaceRegisterTable extends StatelessWidget {
                 const SizedBox(height: 12),
                 TextField(
                     controller: partyAController,
-                    decoration:
-                        const InputDecoration(labelText: 'Party A *')),
+                    decoration: const InputDecoration(labelText: 'Party A *')),
                 const SizedBox(height: 12),
                 TextField(
                     controller: partyBController,
-                    decoration:
-                        const InputDecoration(labelText: 'Party B *')),
+                    decoration: const InputDecoration(labelText: 'Party B *')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: status,
-                  decoration:
-                      const InputDecoration(labelText: 'Status *'),
+                  decoration: const InputDecoration(labelText: 'Status *'),
                   items: statuses
-                      .map((s) =>
-                          DropdownMenuItem(value: s, child: Text(s)))
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
-                  onChanged: (v) =>
-                      setState(() => status = v ?? 'Active'),
+                  onChanged: (v) => setState(() => status = v ?? 'Active'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: frequency,
-                  decoration:
-                      const InputDecoration(labelText: 'Frequency *'),
+                  decoration: const InputDecoration(labelText: 'Frequency *'),
                   items: frequencies
-                      .map((f) =>
-                          DropdownMenuItem(value: f, child: Text(f)))
+                      .map((f) => DropdownMenuItem(value: f, child: Text(f)))
                       .toList(),
-                  onChanged: (v) =>
-                      setState(() => frequency = v ?? 'Daily'),
+                  onChanged: (v) => setState(() => frequency = v ?? 'Daily'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                     controller: commentsController,
-                    decoration:
-                        const InputDecoration(labelText: 'Comments'),
+                    decoration: const InputDecoration(labelText: 'Comments'),
                     maxLines: 3),
               ],
             ),
@@ -5951,8 +5941,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                     partyBController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content:
-                            Text('Please fill in all required fields')),
+                        content: Text('Please fill in all required fields')),
                   );
                   return;
                 }
@@ -6037,8 +6026,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
-              child: Text(
-                  'Error loading interface entries: ${snapshot.error}',
+              child: Text('Error loading interface entries: ${snapshot.error}',
                   style: const TextStyle(color: Colors.red)),
             ),
           );
@@ -6064,8 +6052,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
             TextStyle? style}) {
           return Container(
             color: isHeader ? const Color(0xFFF3F4F6) : Colors.white,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             child: Text(
               text,
               textAlign: align,
@@ -6096,10 +6083,8 @@ class _InterfaceRegisterTable extends StatelessWidget {
                 9: FixedColumnWidth(100),
               },
               border: const TableBorder(
-                horizontalInside:
-                    BorderSide(color: Color(0xFFE5E7EB)),
-                verticalInside:
-                    BorderSide(color: Color(0xFFE5E7EB)),
+                horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
+                verticalInside: BorderSide(color: Color(0xFFE5E7EB)),
                 top: BorderSide(color: Color(0xFFE5E7EB)),
                 bottom: BorderSide(color: Color(0xFFE5E7EB)),
                 left: BorderSide(color: Color(0xFFE5E7EB)),
@@ -6108,8 +6093,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
               children: [
                 TableRow(
                   children: [
-                    buildCell('No',
-                        isHeader: true, align: TextAlign.center),
+                    buildCell('No', isHeader: true, align: TextAlign.center),
                     buildCell('Interface ID', isHeader: true),
                     buildCell('Name', isHeader: true),
                     buildCell('Type', isHeader: true),
@@ -6146,8 +6130,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                     final item = entry.value;
                     return TableRow(
                       children: [
-                        buildCell('${index + 1}',
-                            align: TextAlign.center),
+                        buildCell('${index + 1}', align: TextAlign.center),
                         buildCell(item.interfaceId),
                         buildCell(item.interfaceName),
                         buildCell(item.interfaceType),
@@ -6165,16 +6148,13 @@ class _InterfaceRegisterTable extends StatelessWidget {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.edit,
-                                    size: 18,
-                                    color: Color(0xFF64748B)),
-                                onPressed: () =>
-                                    showEditDialog(context, item),
+                                    size: 18, color: Color(0xFF64748B)),
+                                onPressed: () => showEditDialog(context, item),
                                 tooltip: 'Edit',
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete,
-                                    size: 18,
-                                    color: Color(0xFFEF4444)),
+                                    size: 18, color: Color(0xFFEF4444)),
                                 onPressed: () =>
                                     showDeleteDialog(context, item),
                                 tooltip: 'Delete',
@@ -6237,7 +6217,8 @@ class _MobileInterfaceManagementActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Define clear ownership for each interface to prevent coordination gaps between parties.',
+          text:
+              'Define clear ownership for each interface to prevent coordination gaps between parties.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -6421,8 +6402,8 @@ class _CommunicationPlanTable extends StatelessWidget {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content: Text(
-                            'Communication entry deleted successfully')),
+                        content:
+                            Text('Communication entry deleted successfully')),
                   );
                 }
               } catch (e) {
@@ -6430,23 +6411,22 @@ class _CommunicationPlanTable extends StatelessWidget {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text(
-                            'Error deleting communication entry: $e')),
+                        content:
+                            Text('Error deleting communication entry: $e')),
                   );
                 }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  static void _showCommunicationDialog(BuildContext context,
-      CommunicationPlanModel? entry, String projectId) {
+  static void _showCommunicationDialog(
+      BuildContext context, CommunicationPlanModel? entry, String projectId) {
     final isEdit = entry != null;
     final stakeholderController =
         TextEditingController(text: entry?.stakeholder ?? '');
@@ -6454,8 +6434,7 @@ class _CommunicationPlanTable extends StatelessWidget {
         TextEditingController(text: entry?.infoType ?? '');
     String frequency = entry?.frequency ?? 'Weekly';
     String channel = entry?.channel ?? 'Email';
-    final ownerController =
-        TextEditingController(text: entry?.owner ?? '');
+    final ownerController = TextEditingController(text: entry?.owner ?? '');
     String status = entry?.status ?? 'Planned';
     final commentsController =
         TextEditingController(text: entry?.comments ?? '');
@@ -6500,49 +6479,38 @@ class _CommunicationPlanTable extends StatelessWidget {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: frequency,
-                  decoration:
-                      const InputDecoration(labelText: 'Frequency *'),
+                  decoration: const InputDecoration(labelText: 'Frequency *'),
                   items: frequencies
-                      .map((f) =>
-                          DropdownMenuItem(value: f, child: Text(f)))
+                      .map((f) => DropdownMenuItem(value: f, child: Text(f)))
                       .toList(),
-                  onChanged: (v) =>
-                      setState(() => frequency = v ?? 'Weekly'),
+                  onChanged: (v) => setState(() => frequency = v ?? 'Weekly'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: channel,
-                  decoration:
-                      const InputDecoration(labelText: 'Channel *'),
+                  decoration: const InputDecoration(labelText: 'Channel *'),
                   items: channels
-                      .map((c) =>
-                          DropdownMenuItem(value: c, child: Text(c)))
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
-                  onChanged: (v) =>
-                      setState(() => channel = v ?? 'Email'),
+                  onChanged: (v) => setState(() => channel = v ?? 'Email'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                     controller: ownerController,
-                    decoration:
-                        const InputDecoration(labelText: 'Owner *')),
+                    decoration: const InputDecoration(labelText: 'Owner *')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: status,
-                  decoration:
-                      const InputDecoration(labelText: 'Status *'),
+                  decoration: const InputDecoration(labelText: 'Status *'),
                   items: statuses
-                      .map((s) =>
-                          DropdownMenuItem(value: s, child: Text(s)))
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
-                  onChanged: (v) =>
-                      setState(() => status = v ?? 'Planned'),
+                  onChanged: (v) => setState(() => status = v ?? 'Planned'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                     controller: commentsController,
-                    decoration:
-                        const InputDecoration(labelText: 'Comments'),
+                    decoration: const InputDecoration(labelText: 'Comments'),
                     maxLines: 3),
               ],
             ),
@@ -6559,8 +6527,7 @@ class _CommunicationPlanTable extends StatelessWidget {
                     ownerController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content:
-                            Text('Please fill in all required fields')),
+                        content: Text('Please fill in all required fields')),
                   );
                   return;
                 }
@@ -6670,8 +6637,7 @@ class _CommunicationPlanTable extends StatelessWidget {
             TextStyle? style}) {
           return Container(
             color: isHeader ? const Color(0xFFF3F4F6) : Colors.white,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             child: Text(
               text,
               textAlign: align,
@@ -6701,10 +6667,8 @@ class _CommunicationPlanTable extends StatelessWidget {
                 8: FixedColumnWidth(100),
               },
               border: const TableBorder(
-                horizontalInside:
-                    BorderSide(color: Color(0xFFE5E7EB)),
-                verticalInside:
-                    BorderSide(color: Color(0xFFE5E7EB)),
+                horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
+                verticalInside: BorderSide(color: Color(0xFFE5E7EB)),
                 top: BorderSide(color: Color(0xFFE5E7EB)),
                 bottom: BorderSide(color: Color(0xFFE5E7EB)),
                 left: BorderSide(color: Color(0xFFE5E7EB)),
@@ -6713,8 +6677,7 @@ class _CommunicationPlanTable extends StatelessWidget {
               children: [
                 TableRow(
                   children: [
-                    buildCell('No',
-                        isHeader: true, align: TextAlign.center),
+                    buildCell('No', isHeader: true, align: TextAlign.center),
                     buildCell('Stakeholder', isHeader: true),
                     buildCell('Info Type', isHeader: true),
                     buildCell('Frequency', isHeader: true),
@@ -6749,8 +6712,7 @@ class _CommunicationPlanTable extends StatelessWidget {
                     final item = entry.value;
                     return TableRow(
                       children: [
-                        buildCell('${index + 1}',
-                            align: TextAlign.center),
+                        buildCell('${index + 1}', align: TextAlign.center),
                         buildCell(item.stakeholder),
                         buildCell(item.infoType),
                         buildCell(item.frequency),
@@ -6767,16 +6729,13 @@ class _CommunicationPlanTable extends StatelessWidget {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.edit,
-                                    size: 18,
-                                    color: Color(0xFF64748B)),
-                                onPressed: () =>
-                                    showEditDialog(context, item),
+                                    size: 18, color: Color(0xFF64748B)),
+                                onPressed: () => showEditDialog(context, item),
                                 tooltip: 'Edit',
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete,
-                                    size: 18,
-                                    color: Color(0xFFEF4444)),
+                                    size: 18, color: Color(0xFFEF4444)),
                                 onPressed: () =>
                                     showDeleteDialog(context, item),
                                 tooltip: 'Delete',
@@ -6840,7 +6799,8 @@ class _MobileCommunicationPlanActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'Match communication frequency to stakeholder influence — high-influence stakeholders need more frequent updates.',
+          text:
+              'Match communication frequency to stakeholder influence — high-influence stakeholders need more frequent updates.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
@@ -6957,8 +6917,8 @@ class _InterfaceManagementPlanFormState
     };
     final success = await ProjectDataHelper.updateAndSave(
       context: context,
-      checkpoint: _resolveExecutionCheckpoint(
-          'execution_interface_management_plan'),
+      checkpoint:
+          _resolveExecutionCheckpoint('execution_interface_management_plan'),
       dataUpdater: (data) => data.copyWith(
         planningNotes: {
           ...data.planningNotes,
@@ -7019,8 +6979,7 @@ class _InterfaceManagementPlanFormState
           controller: _responsibilityMatrixController,
           decoration: const InputDecoration(
             labelText: 'Responsibility Matrix',
-            hintText:
-                'Define roles and responsibilities for each interface...',
+            hintText: 'Define roles and responsibilities for each interface...',
             border: OutlineInputBorder(),
           ),
           maxLines: 3,
@@ -7116,8 +7075,7 @@ class _InterfaceManagementPlanSection extends StatelessWidget {
               const SizedBox(height: 4),
               if (projectId != null)
                 StreamBuilder<List<InterfaceRegisterModel>>(
-                  stream:
-                      ExecutionService.streamInterfaceRegister(projectId),
+                  stream: ExecutionService.streamInterfaceRegister(projectId),
                   builder: (context, snapshot) {
                     final count = snapshot.data?.length ?? 0;
                     return Text(
@@ -7212,7 +7170,8 @@ class _MobileInterfaceManagementPlanActions extends StatelessWidget {
         const _InfoBadge(),
         const SizedBox(height: 20),
         const _AiTipCard(
-          text: 'A well-defined escalation procedure prevents interface conflicts from stalling project progress.',
+          text:
+              'A well-defined escalation procedure prevents interface conflicts from stalling project progress.',
         ),
         const SizedBox(height: 20),
         _YellowActionButton(
