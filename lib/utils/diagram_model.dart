@@ -58,7 +58,7 @@ const Map<String, DiagramNodeTypeStyle> diagramNodeStyles = {
     fill: Color(0xFFD1FAE5),
     border: Color(0xFF059669),
     text: Color(0xFF064E3B),
-    icon: Icons.milestone_rounded,
+    icon: Icons.flag_rounded,
   ),
   'risk': DiagramNodeTypeStyle(
     fill: Color(0xFFFEE2E2),
@@ -107,7 +107,8 @@ class DiagramNode {
   final String id;
   final String label;
   final String type; // e.g., start, process, decision, system, output, end
-  const DiagramNode({required this.id, required this.label, this.type = 'process'});
+  const DiagramNode(
+      {required this.id, required this.label, this.type = 'process'});
 }
 
 class DiagramEdge {
