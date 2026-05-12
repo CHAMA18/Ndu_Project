@@ -15,7 +15,6 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
 class ToolsIntegrationScreen extends StatefulWidget {
   const ToolsIntegrationScreen({super.key});
