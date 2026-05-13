@@ -16,6 +16,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class LaunchChecklistScreen extends StatefulWidget {
   const LaunchChecklistScreen({super.key});
@@ -396,7 +397,14 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPremiumHeader(context, projectId),
+          const PlanningPhaseHeader(
+            title: 'Launch Checklist',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                    _buildPremiumHeader(context, projectId),
           const SizedBox(height: 32),
           _buildSectionIntro(),
           const SizedBox(height: 28),

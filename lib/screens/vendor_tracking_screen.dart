@@ -18,6 +18,7 @@ import 'package:ndu_project/widgets/vendors_table_widget.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class VendorTrackingScreen extends StatefulWidget {
   const VendorTrackingScreen({super.key});
@@ -153,7 +154,14 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(isNarrow, policy),
+            const PlanningPhaseHeader(
+            title: 'Vendor Tracking',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+          _buildHeader(isNarrow, policy),
             const SizedBox(height: 16),
             _buildFilterChips(),
             const SizedBox(height: 14),

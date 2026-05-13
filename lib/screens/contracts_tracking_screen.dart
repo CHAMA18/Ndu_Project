@@ -18,6 +18,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class ContractsTrackingScreen extends StatefulWidget {
   const ContractsTrackingScreen({super.key});
@@ -379,7 +380,14 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
             if (_isLoading) const SizedBox(height: 16),
-            _buildHeader(isNarrow),
+            const PlanningPhaseHeader(
+            title: 'Contracts Tracking',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+          _buildHeader(isNarrow),
             const SizedBox(height: 16),
             _buildFilterChips(),
             const SizedBox(height: 20),

@@ -11,6 +11,7 @@ import 'package:ndu_project/screens/launch_checklist_screen.dart';
 import 'package:ndu_project/screens/scope_completion_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class RiskTrackingWorkspaceScreen extends StatefulWidget {
   const RiskTrackingWorkspaceScreen({super.key});
@@ -407,7 +408,14 @@ class _RiskTrackingWorkspaceScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(),
+                  const PlanningPhaseHeader(
+            title: 'Risk Tracking Workspace',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                                    _buildHeader(),
                   const SizedBox(height: 24),
                   _buildFilterChips(),
                   const SizedBox(height: 24),

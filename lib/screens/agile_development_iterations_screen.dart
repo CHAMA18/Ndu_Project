@@ -19,6 +19,7 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class AgileDevelopmentIterationsScreen extends StatefulWidget {
   const AgileDevelopmentIterationsScreen({super.key});
@@ -190,7 +191,14 @@ class _AgileDevelopmentIterationsScreenState
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
-                        _buildPageHeader(context),
+                        const PlanningPhaseHeader(
+            title: 'Agile Development Iterations',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+          _buildPageHeader(context),
                         const SizedBox(height: 20),
                         _buildFilterChips(context),
                         const SizedBox(height: 24),

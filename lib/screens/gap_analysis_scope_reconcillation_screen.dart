@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/app_strings.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class GapAnalysisScopeReconcillationScreen extends StatefulWidget {
   const GapAnalysisScopeReconcillationScreen({
@@ -3927,7 +3928,14 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              _buildHeader(context, scenarios.length),
+              const PlanningPhaseHeader(
+            title: 'Gap Analysis and Scope Reconciliation',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                            _buildHeader(context, scenarios.length),
               const SizedBox(height: 16),
               _buildControls(),
               const SizedBox(height: 16),

@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/status_reports_widget.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 /// Dedicated screen for managing stakeholder status reports during the
 /// execution phase. Status reports are the primary communication vehicle
@@ -252,7 +253,14 @@ class _StatusReportsScreenState extends State<StatusReportsScreen> {
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_loading) const SizedBox(height: 16),
-            _buildHeader(),
+            const PlanningPhaseHeader(
+            title: 'Status Reports',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+          _buildHeader(),
             const SizedBox(height: 20),
             _buildInfoPanel(),
             const SizedBox(height: 20),
