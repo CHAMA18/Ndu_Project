@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class ScopeCompletionScreen extends StatefulWidget {
   const ScopeCompletionScreen({super.key});
@@ -702,7 +703,14 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Overview'),
+          const PlanningPhaseHeader(
+            title: 'Scope Completion',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                    _buildSectionHeader('Overview'),
           const SizedBox(height: 16),
           _buildLabeledField(
             label: 'Scope completion overview',

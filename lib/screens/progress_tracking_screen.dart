@@ -20,6 +20,7 @@ import 'package:ndu_project/widgets/recurring_deliverables_widget.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/status_reports_widget.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class ProgressTrackingScreen extends StatefulWidget {
   const ProgressTrackingScreen({super.key});
@@ -404,7 +405,14 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_loading) const SizedBox(height: 16),
-            _buildHeader(),
+            const PlanningPhaseHeader(
+            title: 'Progress Tracking',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+          _buildHeader(),
             const SizedBox(height: 20),
             if (_loading)
               const Center(
