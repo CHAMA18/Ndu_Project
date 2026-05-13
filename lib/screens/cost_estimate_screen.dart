@@ -18,6 +18,7 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/s_curve_chart.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/services/forecast_service.dart';
 
 class CostEstimateScreen extends StatefulWidget {
   const CostEstimateScreen({super.key});
@@ -4805,11 +4806,18 @@ class _CostVsScheduleWorkspace extends StatelessWidget {
     }
 
     final double ac = totalActual;
-    final double cpi = ac > 0 ? ev / ac : 0;
-    final double spi = pvAtNow > 0 ? ev / pvAtNow : 0;
     final double cv = ev - ac;
     final double sv = ev - pvAtNow;
-    final double eac = cpi > 0 ? bac / cpi : bac;
+
+    final forecast = ForecastService.calculateEac(
+      bac: bac,
+      ev: ev,
+      ac: ac,
+      pv: pvAtNow,
+    );
+    final double cpi = ac > 0 ? ev / ac : 1.0;
+    final double spi = pvAtNow > 0 ? ev / pvAtNow : 1.0;
+    final double eac = forecast.eac;
 
     final bool hasData = bac > 0 || totalActual > 0;
 
@@ -4843,6 +4851,8 @@ class _CostVsScheduleWorkspace extends StatelessWidget {
               cv: cv,
               sv: sv,
               eac: eac,
+              etc: forecast.etc,
+              tcpii: forecast.tcpii,
             ),
           ],
           const SizedBox(height: 16),
@@ -4971,6 +4981,8 @@ class _EarnedValueMetricsRow extends StatelessWidget {
     required this.cv,
     required this.sv,
     required this.eac,
+    required this.etc,
+    required this.tcpii,
   });
 
   final double bac;
@@ -4982,6 +4994,8 @@ class _EarnedValueMetricsRow extends StatelessWidget {
   final double cv;
   final double sv;
   final double eac;
+  final double etc;
+  final double tcpii;
 
   @override
   Widget build(BuildContext context) {
@@ -4998,6 +5012,8 @@ class _EarnedValueMetricsRow extends StatelessWidget {
           _evmMetric('CV', formatCurrency(cv), cv >= 0 ? const Color(0xFF059669) : const Color(0xFFDC2626)),
           _evmMetric('SV', formatCurrency(sv), sv >= 0 ? const Color(0xFF059669) : const Color(0xFFDC2626)),
           _evmMetric('EAC', formatCurrency(eac), const Color(0xFF7C3AED)),
+          _evmMetric('ETC', formatCurrency(etc), const Color(0xFF9333EA)),
+          _evmMetric('TCPI', tcpii.toStringAsFixed(2), const Color(0xFF0891B2)),
         ],
       ),
     );

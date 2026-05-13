@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class RiskTrackingScreen extends StatefulWidget {
   const RiskTrackingScreen({super.key});
@@ -298,7 +299,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(isNarrow),
+            const PlanningPhaseHeader(
+            title: 'Risk Tracking',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                        _buildHeader(isNarrow),
             const SizedBox(height: 20),
             _buildStatsRow(isNarrow),
             const SizedBox(height: 24),

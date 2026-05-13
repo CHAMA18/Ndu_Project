@@ -10,6 +10,7 @@ import 'package:ndu_project/services/salvage_service.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class SalvageDisposalTeamScreen extends StatefulWidget {
   const SalvageDisposalTeamScreen({super.key});
@@ -878,7 +879,14 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(isNarrow),
+            const PlanningPhaseHeader(
+            title: 'Salvage and Disposal Team',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                        _buildHeader(isNarrow),
             const SizedBox(height: 24),
             _buildTabBar(),
             const SizedBox(height: 24),

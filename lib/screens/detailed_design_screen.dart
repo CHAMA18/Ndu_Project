@@ -12,6 +12,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/detailed_design_table_widget.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 /// ────────────────────────────────────────────────────────────────
 /// Design Specifications Screen
@@ -371,7 +372,14 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(isNarrow),
+            const PlanningPhaseHeader(
+            title: 'Detailed Design',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+          _buildHeader(isNarrow),
             const SizedBox(height: 20),
             _buildMethodologySelector(),
             const SizedBox(height: 20),
