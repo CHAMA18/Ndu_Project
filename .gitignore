@@ -8,3 +8,5 @@ build/
 .firebase/
 .zed/
 .codex/
+android/
+ios/

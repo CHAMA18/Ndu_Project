@@ -9,6 +9,8 @@ class AgileTask {
   String taskDescription; // Prose description
   String acceptanceCriteria; // "." bullet format
   String iterationNotes; // Prose, no bullets, manual input only
+  String epicId;
+  String featureId;
 
   AgileTask({
     String? id,
@@ -20,6 +22,8 @@ class AgileTask {
     this.taskDescription = '',
     this.acceptanceCriteria = '',
     this.iterationNotes = '',
+    this.epicId = '',
+    this.featureId = '',
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   AgileTask copyWith({
@@ -31,6 +35,8 @@ class AgileTask {
     String? taskDescription,
     String? acceptanceCriteria,
     String? iterationNotes,
+    String? epicId,
+    String? featureId,
   }) {
     return AgileTask(
       id: id,
@@ -42,6 +48,8 @@ class AgileTask {
       taskDescription: taskDescription ?? this.taskDescription,
       acceptanceCriteria: acceptanceCriteria ?? this.acceptanceCriteria,
       iterationNotes: iterationNotes ?? this.iterationNotes,
+      epicId: epicId ?? this.epicId,
+      featureId: featureId ?? this.featureId,
     );
   }
 
@@ -55,6 +63,8 @@ class AgileTask {
         'taskDescription': taskDescription,
         'acceptanceCriteria': acceptanceCriteria,
         'iterationNotes': iterationNotes,
+        'epicId': epicId,
+        'featureId': featureId,
       };
 
   factory AgileTask.fromJson(Map<String, dynamic> json) {
@@ -74,6 +84,8 @@ class AgileTask {
       taskDescription: json['taskDescription']?.toString() ?? '',
       acceptanceCriteria: json['acceptanceCriteria']?.toString() ?? '',
       iterationNotes: json['iterationNotes']?.toString() ?? '',
+      epicId: json['epicId']?.toString() ?? '',
+      featureId: json['featureId']?.toString() ?? '',
     );
   }
 }

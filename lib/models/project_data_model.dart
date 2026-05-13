@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/models/project_activity.dart';
 import 'package:ndu_project/models/staffing_row.dart';
+import 'package:ndu_project/models/control_account_model.dart';
+import 'package:ndu_project/models/obs_element_model.dart';
+import 'package:ndu_project/models/cbs_element_model.dart';
 
 /// Comprehensive project data model that captures all information across the application flow
 class ProjectDataModel {
@@ -177,6 +180,13 @@ class ProjectDataModel {
   // Quality Management Data
   QualityManagementData? qualityManagementData;
 
+  // Control Accounts
+  List<ControlAccount> controlAccounts;
+
+  // OBS and CBS
+  List<ObsElement> obsElements;
+  List<CbsElement> cbsElements;
+
   // Metadata
   bool isBasicPlanProject;
   Map<String, int> aiUsageCounts;
@@ -293,6 +303,9 @@ class ProjectDataModel {
     List<PlanningDashboardItem>? outOfScopeItems,
     List<PlanningDashboardItem>? assumptionItems,
     List<PlanningDashboardItem>? constraintItems,
+    List<ControlAccount>? controlAccounts,
+    List<ObsElement>? obsElements,
+    List<CbsElement>? cbsElements,
   })  : potentialSolutions = potentialSolutions ?? [],
         solutionRisks = solutionRisks ?? [],
         contractors = contractors ?? [],
@@ -327,6 +340,9 @@ class ProjectDataModel {
         launchChecklistItems = launchChecklistItems ?? [],
         costEstimateItems = costEstimateItems ?? [],
         workPackages = workPackages ?? [],
+        controlAccounts = controlAccounts ?? [],
+        obsElements = obsElements ?? [],
+        cbsElements = cbsElements ?? [],
         designDeliverablesData =
             designDeliverablesData ?? DesignDeliverablesData(),
         projectRoles = projectRoles ?? [],
@@ -449,6 +465,9 @@ class ProjectDataModel {
     List<StakeholderEntry>? stakeholderEntries,
     List<EngagementPlanEntry>? engagementPlanEntries,
     QualityManagementData? qualityManagementData,
+    List<ControlAccount>? controlAccounts,
+    List<ObsElement>? obsElements,
+    List<CbsElement>? cbsElements,
 
     // New Fields
     List<PlanningDashboardItem>? withinScopeItems,
@@ -584,6 +603,9 @@ class ProjectDataModel {
           engagementPlanEntries ?? this.engagementPlanEntries,
       qualityManagementData:
           qualityManagementData ?? this.qualityManagementData,
+      controlAccounts: controlAccounts ?? this.controlAccounts,
+      obsElements: obsElements ?? this.obsElements,
+      cbsElements: cbsElements ?? this.cbsElements,
 
       // New Fields copy
       withinScopeItems: resolveDashboardItems(
@@ -732,6 +754,9 @@ class ProjectDataModel {
       'designManagementData': designManagementData?.toJson(),
       'executionPhaseData': executionPhaseData?.toJson(),
       'workPackages': workPackages.map((wp) => wp.toJson()).toList(),
+      'controlAccounts': controlAccounts.map((ca) => ca.toJson()).toList(),
+      'obsElements': obsElements.map((o) => o.toJson()).toList(),
+      'cbsElements': cbsElements.map((c) => c.toJson()).toList(),
 
       // New Structured Data persistence
       'withinScopeItems': withinScopeItems.map((x) => x.toJson()).toList(),
@@ -1045,6 +1070,10 @@ class ProjectDataModel {
           ? QualityManagementData.fromJson(json['qualityManagementData'])
           : null,
       workPackages: safeParseList('workPackages', WorkPackage.fromJson),
+      controlAccounts:
+          safeParseList('controlAccounts', ControlAccount.fromJson),
+      obsElements: safeParseList('obsElements', ObsElement.fromJson),
+      cbsElements: safeParseList('cbsElements', CbsElement.fromJson),
 
       // Load New Structured Data
       withinScopeItems: parseDashboardItems('withinScopeItems'),
@@ -1380,6 +1409,7 @@ class WorkItem {
   String framework;
   List<WorkItem> children;
   List<String> dependencies;
+  String controlAccountId;
 
   WorkItem({
     String? id,
@@ -1390,6 +1420,7 @@ class WorkItem {
     this.framework = '',
     List<WorkItem>? children,
     List<String>? dependencies,
+    this.controlAccountId = '',
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         children = children ?? [],
         dependencies = dependencies ?? [];
@@ -1403,6 +1434,7 @@ class WorkItem {
         'framework': framework,
         'children': children.map((c) => c.toJson()).toList(),
         'dependencies': dependencies,
+        'controlAccountId': controlAccountId,
       };
 
   factory WorkItem.fromJson(Map<String, dynamic> json) {
@@ -1420,7 +1452,40 @@ class WorkItem {
       dependencies:
           (json['dependencies'] as List?)?.map((d) => d.toString()).toList() ??
               [],
+      controlAccountId: json['controlAccountId']?.toString() ?? '',
     );
+  }
+}
+
+enum ProgressMeasurementMethod {
+  zeroHundred,
+  fiftyFifty,
+  percentComplete,
+  unitsComplete,
+  milestoneGate,
+  earnedValue,
+  physical,
+  other;
+
+  String get label {
+    switch (this) {
+      case zeroHundred:
+        return '0/100';
+      case fiftyFifty:
+        return '50/50';
+      case percentComplete:
+        return '% Complete';
+      case unitsComplete:
+        return 'Units Complete';
+      case milestoneGate:
+        return 'Milestone Gate';
+      case earnedValue:
+        return 'Earned Value';
+      case physical:
+        return 'Physical';
+      case other:
+        return 'Other';
+    }
   }
 }
 
@@ -1466,6 +1531,8 @@ class ScheduleActivity {
   List<String> dependencyIds; // Multiple dependencies
   bool isCriticalPath;
   int totalFloat;
+  String controlAccountId;
+  String progressMeasurementMethod; // 'zeroHundred' | 'fiftyFifty' | 'percentComplete' | ...
 
   ScheduleActivity({
     String? id,
@@ -1502,6 +1569,8 @@ class ScheduleActivity {
     List<String>? dependencyIds,
     this.isCriticalPath = false,
     this.totalFloat = 0,
+    this.controlAccountId = '',
+    this.progressMeasurementMethod = '',
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         predecessorIds = predecessorIds ?? [],
         dependencyIds = dependencyIds ?? [];
@@ -1541,6 +1610,8 @@ class ScheduleActivity {
         'dependencyIds': dependencyIds,
         'isCriticalPath': isCriticalPath,
         'totalFloat': totalFloat,
+        'controlAccountId': controlAccountId,
+        'progressMeasurementMethod': progressMeasurementMethod,
       };
 
   factory ScheduleActivity.fromJson(Map<String, dynamic> json) {
@@ -1600,6 +1671,9 @@ class ScheduleActivity {
       totalFloat: json['totalFloat'] is num
           ? (json['totalFloat'] as num).round()
           : int.tryParse(json['totalFloat']?.toString() ?? '') ?? 0,
+      controlAccountId: json['controlAccountId']?.toString() ?? '',
+      progressMeasurementMethod:
+          json['progressMeasurementMethod']?.toString() ?? '',
     );
   }
 }
@@ -2468,6 +2542,7 @@ class ExecutionRiskItem {
   final String associatedMitigation;
   final String createdAt;
   final String lastModified;
+  final String controlAccountId;
 
   const ExecutionRiskItem({
     required this.id,
@@ -2487,6 +2562,7 @@ class ExecutionRiskItem {
     this.associatedMitigation = '',
     this.createdAt = '',
     this.lastModified = '',
+    this.controlAccountId = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -2507,6 +2583,7 @@ class ExecutionRiskItem {
         'associatedMitigation': associatedMitigation,
         'createdAt': createdAt,
         'lastModified': lastModified,
+        'controlAccountId': controlAccountId,
       };
 
   factory ExecutionRiskItem.fromJson(Map<String, dynamic> json) {
@@ -2528,6 +2605,7 @@ class ExecutionRiskItem {
       associatedMitigation: json['associatedMitigation']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
       lastModified: json['lastModified']?.toString() ?? '',
+      controlAccountId: json['controlAccountId']?.toString() ?? '',
     );
   }
 }
@@ -3164,6 +3242,8 @@ class CostItem {
   double estimatedCost;
   double roiPercent;
   Map<int, double> npvByYear;
+  String controlAccountId;
+  String cbsId;
 
   CostItem({
     this.item = '',
@@ -3171,6 +3251,8 @@ class CostItem {
     this.estimatedCost = 0.0,
     this.roiPercent = 0.0,
     Map<int, double>? npvByYear,
+    this.controlAccountId = '',
+    this.cbsId = '',
   }) : npvByYear = npvByYear ?? {};
 
   Map<String, dynamic> toJson() => {
@@ -3180,6 +3262,8 @@ class CostItem {
         'roiPercent': roiPercent,
         'npvByYear':
             npvByYear.map((key, value) => MapEntry(key.toString(), value)),
+        'controlAccountId': controlAccountId,
+        'cbsId': cbsId,
       };
 
   factory CostItem.fromJson(Map<String, dynamic> json) {
@@ -3203,6 +3287,8 @@ class CostItem {
           ? (json['roiPercent'] as num).toDouble()
           : 0.0,
       npvByYear: convertedNpv,
+      controlAccountId: json['controlAccountId']?.toString() ?? '',
+      cbsId: json['cbsId']?.toString() ?? '',
     );
   }
 }
@@ -3245,6 +3331,8 @@ class CostEstimateItem {
   String contractId;
   String quoteReference;
   String reconciliationReference;
+  String controlAccountId;
+  String cbsId;
 
   CostEstimateItem({
     String? id,
@@ -3277,6 +3365,8 @@ class CostEstimateItem {
     this.contractId = '',
     this.quoteReference = '',
     this.reconciliationReference = '',
+    this.controlAccountId = '',
+    this.cbsId = '',
   }) : id = id ?? _generateId();
 
   double get pertMean => (rangeLow > 0 && rangeHigh > 0 && amount > 0)
@@ -3316,6 +3406,8 @@ class CostEstimateItem {
         'contractId': contractId,
         'quoteReference': quoteReference,
         'reconciliationReference': reconciliationReference,
+        'controlAccountId': controlAccountId,
+        'cbsId': cbsId,
       };
 
   factory CostEstimateItem.fromJson(Map<String, dynamic> json) {
@@ -3364,6 +3456,8 @@ class CostEstimateItem {
       quoteReference: json['quoteReference']?.toString() ?? '',
       reconciliationReference:
           json['reconciliationReference']?.toString() ?? '',
+      controlAccountId: json['controlAccountId']?.toString() ?? '',
+      cbsId: json['cbsId']?.toString() ?? '',
     );
   }
 
@@ -3426,10 +3520,8 @@ class WorkPackage {
   PackageProcurementBreakdown procurementBreakdown;
   List<String> readinessWarnings;
   String notes;
+  String controlAccountId;
 
-  /// Whether this EWP has been released for execution.
-  /// An EWP is releasable when all required deliverables are complete
-  /// and readiness checks pass (Guide Step 2).
   bool get isReleasedForExecution =>
       releaseStatus == 'released' || releaseStatus == 'complete';
 
@@ -3479,6 +3571,7 @@ class WorkPackage {
     PackageProcurementBreakdown? procurementBreakdown,
     List<String>? readinessWarnings,
     this.notes = '',
+    this.controlAccountId = '',
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         childPackageIds = childPackageIds ?? [],
         linkedEngineeringPackageIds = linkedEngineeringPackageIds ?? [],
@@ -3544,6 +3637,7 @@ class WorkPackage {
         'procurementBreakdown': procurementBreakdown.toJson(),
         'readinessWarnings': readinessWarnings,
         'notes': notes,
+        'controlAccountId': controlAccountId,
       };
 
   factory WorkPackage.fromJson(Map<String, dynamic> json) {
@@ -3650,6 +3744,7 @@ class WorkPackage {
               .toList() ??
           [],
       notes: json['notes']?.toString() ?? '',
+      controlAccountId: json['controlAccountId']?.toString() ?? '',
     );
   }
 
