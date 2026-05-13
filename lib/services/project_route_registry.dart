@@ -27,7 +27,14 @@ import 'package:ndu_project/screens/issue_management_screen.dart';
 import 'package:ndu_project/screens/lessons_learned_screen.dart';
 import 'package:ndu_project/screens/startup_planning_screen.dart';
 import 'package:ndu_project/screens/deliverables_roadmap_screen.dart';
+import 'package:ndu_project/screens/deliverable_roadmap_subsections_screen.dart';
 import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
+import 'package:ndu_project/screens/agile_delivery_model_screen.dart';
+import 'package:ndu_project/screens/agile_team_structure_screen.dart';
+import 'package:ndu_project/screens/agile_epics_features_screen.dart';
+import 'package:ndu_project/screens/agile_sprint_calendar_screen.dart';
+import 'package:ndu_project/screens/agile_release_plan_screen.dart';
+import 'package:ndu_project/screens/agile_backlog_governance_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
 
@@ -53,6 +60,13 @@ class ProjectRouteRegistry {
     'design': () => const DesignPlanningScreen(),
     'technology': () => const PlanningTechnologyScreen(),
     'interface_management': () => const InterfaceManagementScreen(),
+    'agile_delivery_model': () => const AgileDeliveryModelScreen(),
+    'agile_team_structure': () => const AgileTeamStructureScreen(),
+    'agile_epics_features': () => const AgileEpicsFeaturesScreen(),
+    'agile_sprint_calendar': () => const AgileSprintCalendarScreen(),
+    'agile_map_out': () => const DeliverableRoadmapAgileMapOutScreen(),
+    'agile_release_plan': () => const AgileReleasePlanScreen(),
+    'agile_backlog_governance': () => const AgileBacklogGovernanceScreen(),
     'risk_assessment': () => const RiskAssessmentScreen(),
     'contracts': () => const PlanningContractingScreen(),
     'procurement': () => const PlanningProcurementScreen(),

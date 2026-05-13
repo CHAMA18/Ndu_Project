@@ -14,6 +14,7 @@ import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/models/scope_tracking_item.dart';
 import 'package:ndu_project/widgets/scope_tracking_table_widget.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class ScopeTrackingImplementationScreen extends StatefulWidget {
   const ScopeTrackingImplementationScreen({super.key});
@@ -278,7 +279,14 @@ class _ScopeTrackingImplementationScreenState
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
-                        _buildPageHeader(context),
+                        const PlanningPhaseHeader(
+            title: 'Scope Tracking Implementation',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+          _buildPageHeader(context),
                         const SizedBox(height: 20),
                         _buildFilterChips(context),
                         const SizedBox(height: 24),

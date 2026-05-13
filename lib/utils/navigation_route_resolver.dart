@@ -31,6 +31,19 @@ import 'package:ndu_project/screens/scope_tracking_plan_screen.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_solutions_screen.dart';
+import 'package:ndu_project/screens/execution_plan_details_screen.dart';
+import 'package:ndu_project/screens/execution_enabling_work_plan_screen.dart';
+import 'package:ndu_project/screens/execution_issue_management_screen.dart';
+import 'package:ndu_project/screens/execution_plan_lessons_learned_screen.dart';
+import 'package:ndu_project/screens/execution_plan_best_practices_screen.dart';
+import 'package:ndu_project/screens/execution_plan_construction_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_infrastructure_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_agile_delivery_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_stakeholder_identification_screen.dart';
+import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
+import 'package:ndu_project/screens/execution_plan_communication_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_interface_management_plan_screen.dart';
 import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/design_planning_screen.dart';
@@ -71,6 +84,12 @@ import 'package:ndu_project/screens/recurring_deliverables_screen.dart';
 import 'package:ndu_project/screens/status_reports_screen.dart';
 import 'package:ndu_project/screens/detailed_design_screen.dart';
 import 'package:ndu_project/screens/agile_development_iterations_screen.dart';
+import 'package:ndu_project/screens/agile_delivery_model_screen.dart';
+import 'package:ndu_project/screens/agile_team_structure_screen.dart';
+import 'package:ndu_project/screens/agile_epics_features_screen.dart';
+import 'package:ndu_project/screens/agile_sprint_calendar_screen.dart';
+import 'package:ndu_project/screens/agile_release_plan_screen.dart';
+import 'package:ndu_project/screens/agile_backlog_governance_screen.dart';
 import 'package:ndu_project/screens/scope_tracking_implementation_screen.dart';
 import 'package:ndu_project/screens/stakeholder_alignment_screen.dart';
 import 'package:ndu_project/screens/update_ops_maintenance_plans_screen.dart';
@@ -126,6 +145,8 @@ class NavigationRouteResolver {
     'planning_schedule': 'schedule',
     'planning_execution_plan_interface_overview':
         'execution_plan_interface_management_overview',
+    'deliverable_roadmap_agile_map_out': 'agile_map_out',
+    'agile_delivery_plan': 'agile_delivery_model',
   };
 
   static String _normalizeCheckpoint(String checkpoint) {
@@ -323,8 +344,24 @@ class NavigationRouteResolver {
         return const ExecutionPlanConstructionPlanScreen();
       case 'execution_plan_infrastructure_plan':
         return const ExecutionPlanInfrastructurePlanScreen();
+      case 'agile_delivery_model':
+        return const AgileDeliveryModelScreen();
       case 'execution_plan_agile_delivery_plan':
         return const ExecutionPlanAgileDeliveryPlanScreen();
+      case 'agile_team_structure':
+        return const AgileTeamStructureScreen();
+      case 'agile_epics_features':
+        return const AgileEpicsFeaturesScreen();
+      case 'agile_sprint_calendar':
+        return const AgileSprintCalendarScreen();
+      case 'agile_map_out':
+        return const DeliverableRoadmapAgileMapOutScreen();
+      case 'deliverable_roadmap_agile_map_out':
+        return const DeliverableRoadmapAgileMapOutScreen();
+      case 'agile_release_plan':
+        return const AgileReleasePlanScreen();
+      case 'agile_backlog_governance':
+        return const AgileBacklogGovernanceScreen();
       case 'deliverables_roadmap_overview':
         return const DeliverablesRoadmapOverviewScreen();
       case 'deliverables_roadmap_detailed':
@@ -364,8 +401,6 @@ class NavigationRouteResolver {
       case 'deliverables_roadmap':
       case 'deliverable_roadmap':
         return const DeliverablesRoadmapScreen();
-      case 'deliverable_roadmap_agile_map_out':
-        return const DeliverableRoadmapAgileMapOutScreen();
       case 'agile_project_baseline':
         return const AgileProjectBaselineScreen();
       case 'project_baseline':

@@ -631,6 +631,7 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
   Widget _buildMinimalWebScreen(double padding) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SafeArea(
         child: Center(
           child: Padding(

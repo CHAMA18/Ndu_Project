@@ -10,6 +10,19 @@ import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/quality_management_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_solutions_screen.dart';
+import 'package:ndu_project/screens/execution_plan_details_screen.dart';
+import 'package:ndu_project/screens/execution_enabling_work_plan_screen.dart';
+import 'package:ndu_project/screens/execution_issue_management_screen.dart';
+import 'package:ndu_project/screens/execution_plan_lessons_learned_screen.dart';
+import 'package:ndu_project/screens/execution_plan_best_practices_screen.dart';
+import 'package:ndu_project/screens/execution_plan_construction_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_infrastructure_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_agile_delivery_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_stakeholder_identification_screen.dart';
+import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
+import 'package:ndu_project/screens/execution_plan_communication_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_interface_management_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_overview_screen.dart';
 import 'package:ndu_project/screens/design_planning_screen.dart';
 import 'package:ndu_project/screens/planning_technology_screen.dart';
@@ -31,6 +44,12 @@ import 'package:ndu_project/screens/deliverables_roadmap_overview_screen.dart';
 import 'package:ndu_project/screens/deliverables_roadmap_detailed_screen.dart';
 import 'package:ndu_project/screens/document_review_matrix_screen.dart';
 import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
+import 'package:ndu_project/screens/agile_delivery_model_screen.dart';
+import 'package:ndu_project/screens/agile_team_structure_screen.dart';
+import 'package:ndu_project/screens/agile_epics_features_screen.dart';
+import 'package:ndu_project/screens/agile_sprint_calendar_screen.dart';
+import 'package:ndu_project/screens/agile_release_plan_screen.dart';
+import 'package:ndu_project/screens/agile_backlog_governance_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
@@ -111,6 +130,47 @@ class PlanningPhaseNavigation {
       title: 'Interface Management',
       builder: (_) => const InterfaceManagementScreen(),
     ),
+    // Agile Wireframe Section — before Execution Plan
+    PlanningPage(
+      id: 'agile_delivery_model',
+      title: 'Agile Delivery Model',
+      builder: (_) => const AgileDeliveryModelScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_team_structure',
+      title: 'Agile Team Structure',
+      builder: (_) => const AgileTeamStructureScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_epics_features',
+      title: 'Epics & Features',
+      builder: (_) => const AgileEpicsFeaturesScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_sprint_calendar',
+      title: 'Sprint Cadence & Calendar',
+      builder: (_) => const AgileSprintCalendarScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_map_out',
+      title: 'Agile Map Out',
+      builder: (_) => const DeliverableRoadmapAgileMapOutScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_release_plan',
+      title: 'Release Plan',
+      builder: (_) => const AgileReleasePlanScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_project_baseline',
+      title: 'Agile Project Baseline',
+      builder: (_) => const AgileProjectBaselineScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_backlog_governance',
+      title: 'Backlog Governance',
+      builder: (_) => const AgileBacklogGovernanceScreen(),
+    ),
     // Execution Plan — full flow matching sidebar order
     PlanningPage(
       id: 'execution_plan',
@@ -147,12 +207,12 @@ class PlanningPhaseNavigation {
     ),
     PlanningPage(
       id: 'execution_issue_management',
-      title: 'Issue Management',
+      title: 'Execution Issue Management',
       builder: (_) => const ExecutionIssueManagementScreen(),
     ),
     PlanningPage(
       id: 'execution_plan_stakeholder_identification',
-      title: 'Stakeholder Identification',
+      title: 'Execution Stakeholder Identification',
       builder: (_) => const ExecutionPlanStakeholderIdentificationScreen(),
     ),
     PlanningPage(
@@ -172,7 +232,7 @@ class PlanningPhaseNavigation {
     ),
     PlanningPage(
       id: 'execution_plan_lessons_learned',
-      title: 'Lessons Learned',
+      title: 'Execution Lessons Learned',
       builder: (_) => const ExecutionPlanLessonsLearnedScreen(),
     ),
     PlanningPage(
@@ -182,7 +242,7 @@ class PlanningPhaseNavigation {
     ),
     PlanningPage(
       id: 'execution_plan_interface_management',
-      title: 'Interface Management',
+      title: 'Execution Interface Management',
       builder: (_) => const ExecutionPlanInterfaceManagementScreen(),
     ),
     PlanningPage(
@@ -192,12 +252,12 @@ class PlanningPhaseNavigation {
     ),
     PlanningPage(
       id: 'execution_plan_interface_management_plan',
-      title: 'Interface Management Plan',
+      title: 'Execution Interface Management Plan',
       builder: (_) => const ExecutionPlanInterfaceManagementPlanScreen(),
     ),
     PlanningPage(
       id: 'execution_plan_interface_management_overview',
-      title: 'Interface Management Overview',
+      title: 'Execution Interface Management Overview',
       builder: (_) => const ExecutionPlanInterfaceManagementOverviewScreen(),
     ),
     PlanningPage(

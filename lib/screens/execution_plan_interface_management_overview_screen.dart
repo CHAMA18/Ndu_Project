@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/ai_diagram_panel.dart';
+import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/screens/staff_team_screen.dart';
@@ -36,7 +37,7 @@ class ExecutionPlanInterfaceManagementOverviewScreen extends StatelessWidget {
               openWidth: AppBreakpoints.sidebarWidth(context),
               child: const InitiationLikeSidebar(
                   activeItemLabel:
-                      'Execution Plan - Interface Management Overview'),
+                      'Execution Interface Management Overview'),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -46,7 +47,9 @@ class ExecutionPlanInterfaceManagementOverviewScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const PlanningPhaseHeader(title: 'Execution Plan'),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
+                    const CrossReferenceNote(standalonePage: 'Interface Management'),
+                    const SizedBox(height: 24),
                     const _ExecutionPlanDetailsSection(),
                     const SizedBox(height: 32),
                     const _InterfaceManagementSection(),
@@ -398,7 +401,7 @@ class _OverviewAiEditorState extends State<_OverviewAiEditor> {
         AiSuggestingTextField(
           fieldLabel: 'Execution Plan Details',
           hintText: 'Input your notes here...',
-          sectionLabel: 'Execution Plan - Interface Management Overview',
+          sectionLabel: 'Execution Interface Management Overview',
           showLabel: false,
           initialText: ProjectDataHelper.getData(context)
               .planningNotes['execution_plan_interface_overview'],

@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/team_meetings_resource_grid.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart' as launch;
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class TeamMeetingsScreen extends StatefulWidget {
   const TeamMeetingsScreen({super.key});
@@ -226,8 +227,13 @@ class _TeamMeetingsScreenState extends State<TeamMeetingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(context),
-            const SizedBox(height: 20),
+            const PlanningPhaseHeader(
+            title: 'Team Meetings',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
             if (_loading)
               const Center(
                   child: Padding(

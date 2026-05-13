@@ -604,7 +604,7 @@ class _AgileProjectBaselineScreenState
             DraggableSidebar(
               openWidth: AppBreakpoints.sidebarWidth(context),
               child: const InitiationLikeSidebar(
-                activeItemLabel: 'Agile Project Baseline',
+                activeItemLabel: 'Agile Wireframe - Project Baseline',
               ),
             ),
             Expanded(

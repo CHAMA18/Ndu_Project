@@ -25,6 +25,19 @@ import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_solutions_screen.dart';
+import 'package:ndu_project/screens/execution_plan_details_screen.dart';
+import 'package:ndu_project/screens/execution_enabling_work_plan_screen.dart';
+import 'package:ndu_project/screens/execution_issue_management_screen.dart';
+import 'package:ndu_project/screens/execution_plan_lessons_learned_screen.dart';
+import 'package:ndu_project/screens/execution_plan_best_practices_screen.dart';
+import 'package:ndu_project/screens/execution_plan_construction_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_infrastructure_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_agile_delivery_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_stakeholder_identification_screen.dart';
+import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
+import 'package:ndu_project/screens/execution_plan_communication_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_interface_management_plan_screen.dart';
 import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
@@ -36,6 +49,12 @@ import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'package:ndu_project/screens/project_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
 import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
+import 'package:ndu_project/screens/agile_delivery_model_screen.dart';
+import 'package:ndu_project/screens/agile_team_structure_screen.dart';
+import 'package:ndu_project/screens/agile_epics_features_screen.dart';
+import 'package:ndu_project/screens/agile_sprint_calendar_screen.dart';
+import 'package:ndu_project/screens/agile_release_plan_screen.dart';
+import 'package:ndu_project/screens/agile_backlog_governance_screen.dart';
 import 'package:ndu_project/screens/stakeholder_management_screen.dart';
 import 'package:ndu_project/screens/lessons_learned_screen.dart';
 import 'package:ndu_project/screens/team_training_building_screen.dart';
@@ -166,16 +185,15 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     'Execution Early Works',
     'Execution Enabling Work Plan',
     'Execution Issue Management',
-    'Stakeholder Identification',
+    'Execution Stakeholder Identification',
     'Execution Plan - Construction Plan',
     'Execution Plan - Infrastructure Plan',
-    'Execution Plan - Agile Delivery Plan',
-    'Execution Plan - Lesson Learned',
+    'Execution Lessons Learned',
     'Execution Plan - Best Practices',
-    'Execution Plan - Interface Management',
+    'Execution Interface Management',
     'Execution Plan - Communication Plan',
-    'Execution Plan - Interface Management Plan',
-    'Execution Plan - Interface Management Overview',
+    'Execution Interface Management Plan',
+    'Execution Interface Management Overview',
   };
 
   static const Set<String> _technologyPlanningLabels = {
@@ -201,7 +219,17 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   static const Set<String> _deliverableRoadmapLabels = {
     'Deliverable Roadmap',
     'Roadmap Overview',
-    'Deliverable Roadmap - Agile Map Out',
+  };
+
+  static const Set<String> _agileWireframeLabels = {
+    'Agile Wireframe - Delivery Model',
+    'Agile Wireframe - Team Structure',
+    'Agile Wireframe - Epics & Features',
+    'Agile Wireframe - Sprint Calendar',
+    'Agile Wireframe - Agile Map Out',
+    'Agile Wireframe - Release Plan',
+    'Agile Wireframe - Project Baseline',
+    'Agile Wireframe - Backlog Governance',
   };
 
   static const Set<String> _projectPlanLabels = {
@@ -299,6 +327,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     'Design Planning',
     ..._technologyPlanningLabels,
     'Interface Management',
+    ..._agileWireframeLabels,
     ..._executionPlanLabels,
     'Risk Assessment',
     'Contract',
@@ -314,7 +343,6 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     'Security Management',
     ..._startUpPlanningLabels,
     ..._deliverableRoadmapLabels,
-    'Agile Project Baseline',
     ..._projectPlanLabels,
     'Project Baseline',
   };
@@ -347,6 +375,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   static bool? _sharedPunchlistExpanded;
   static bool? _sharedCostEstimateExpanded;
   static bool? _sharedProjectServicesExpanded;
+  static bool? _sharedAgileWireframeExpanded;
   static double _sharedScrollOffset = 0;
 
   bool _initiationExpanded = _sharedInitiationExpanded ?? true;
@@ -373,6 +402,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   late bool _punchlistExpanded = _sharedPunchlistExpanded ?? false;
   late bool _costEstimateExpanded = _sharedCostEstimateExpanded ?? false;
   late bool _projectServicesExpanded = _sharedProjectServicesExpanded ?? false;
+  late bool _agileWireframeExpanded = _sharedAgileWireframeExpanded ?? false;
   late final ScrollController _scrollController =
       ScrollController(initialScrollOffset: _sharedScrollOffset);
 
@@ -442,6 +472,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     expandIf(_deliverableRoadmapLabels, _deliverableRoadmapExpanded, () {
       _deliverableRoadmapExpanded = true;
       _sharedDeliverableRoadmapExpanded = true;
+    });
+    expandIf(_agileWireframeLabels, _agileWireframeExpanded, () {
+      _agileWireframeExpanded = true;
+      _sharedAgileWireframeExpanded = true;
     });
     expandIf(_projectPlanLabels, _projectPlanExpanded, () {
       _projectPlanExpanded = true;
@@ -626,7 +660,17 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       'quality_management',
     ];
 
-    if (planningPhaseCheckpoints.contains(checkpoint)) {
+    final agileWireframeCheckpoints = [
+      'agile_delivery_model',
+      'agile_team_structure',
+      'agile_epics_features',
+      'agile_sprint_calendar',
+      'agile_map_out',
+      'agile_release_plan',
+      'agile_backlog_governance',
+    ];
+    if (planningPhaseCheckpoints.contains(checkpoint) ||
+        agileWireframeCheckpoints.contains(checkpoint)) {
       _notifyPlanningPhaseRequirements();
     }
 
@@ -1008,6 +1052,41 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         'interface_management', const InterfaceManagementScreen());
   }
 
+  void _openAgileDeliveryModel() {
+    _navigateWithCheckpoint(
+        'agile_delivery_model', const AgileDeliveryModelScreen());
+  }
+
+  void _openAgileTeamStructure() {
+    _navigateWithCheckpoint(
+        'agile_team_structure', const AgileTeamStructureScreen());
+  }
+
+  void _openAgileEpicsFeatures() {
+    _navigateWithCheckpoint(
+        'agile_epics_features', const AgileEpicsFeaturesScreen());
+  }
+
+  void _openAgileSprintCalendar() {
+    _navigateWithCheckpoint(
+        'agile_sprint_calendar', const AgileSprintCalendarScreen());
+  }
+
+  void _openAgileMapOut() {
+    _navigateWithCheckpoint(
+        'agile_map_out', const DeliverableRoadmapAgileMapOutScreen());
+  }
+
+  void _openAgileReleasePlan() {
+    _navigateWithCheckpoint(
+        'agile_release_plan', const AgileReleasePlanScreen());
+  }
+
+  void _openAgileBacklogGovernance() {
+    _navigateWithCheckpoint(
+        'agile_backlog_governance', const AgileBacklogGovernanceScreen());
+  }
+
   void _openStartUpPlanning() {
     _navigateWithCheckpoint('startup_planning', const StartUpPlanningScreen());
   }
@@ -1368,8 +1447,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openDeliverableRoadmapAgileMapOut() {
-    _navigateWithCheckpoint('deliverable_roadmap_agile_map_out',
-        const DeliverableRoadmapAgileMapOutScreen());
+    _navigateWithCheckpoint(
+        'agile_map_out', const DeliverableRoadmapAgileMapOutScreen());
   }
 
   Future<void> _openExecutiveSummary() async {
@@ -2150,6 +2229,49 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isDisabled: lockInterfaceManagement,
         ),
         _buildSubExpandableHeader(
+          'Agile Wireframe',
+          expanded: _agileWireframeExpanded,
+          onTap: () => setState(() {
+            _agileWireframeExpanded = !_agileWireframeExpanded;
+            _sharedAgileWireframeExpanded = _agileWireframeExpanded;
+          }),
+          isActive: _activeIn(_agileWireframeLabels),
+        ),
+        if (_agileWireframeExpanded) ...[
+          _buildSubSubMenuItem('Agile Delivery Model',
+              onTap: _openAgileDeliveryModel,
+              isActive:
+                  widget.activeItemLabel == 'Agile Wireframe - Delivery Model'),
+          _buildSubSubMenuItem('Agile Team Structure',
+              onTap: _openAgileTeamStructure,
+              isActive:
+                  widget.activeItemLabel == 'Agile Wireframe - Team Structure'),
+          _buildSubSubMenuItem('Epics & Features',
+              onTap: _openAgileEpicsFeatures,
+              isActive:
+                  widget.activeItemLabel == 'Agile Wireframe - Epics & Features'),
+          _buildSubSubMenuItem('Sprint Cadence & Calendar',
+              onTap: _openAgileSprintCalendar,
+              isActive: widget.activeItemLabel ==
+                  'Agile Wireframe - Sprint Calendar'),
+          _buildSubSubMenuItem('Agile Map Out',
+              onTap: _openAgileMapOut,
+              isActive:
+                  widget.activeItemLabel == 'Agile Wireframe - Agile Map Out'),
+          _buildSubSubMenuItem('Release Plan',
+              onTap: _openAgileReleasePlan,
+              isActive:
+                  widget.activeItemLabel == 'Agile Wireframe - Release Plan'),
+          _buildSubSubMenuItem('Agile Project Baseline',
+              onTap: _openAgileProjectBaseline,
+              isActive: widget.activeItemLabel ==
+                  'Agile Wireframe - Project Baseline'),
+          _buildSubSubMenuItem('Backlog Governance',
+              onTap: _openAgileBacklogGovernance,
+              isActive: widget.activeItemLabel ==
+                  'Agile Wireframe - Backlog Governance'),
+        ],
+        _buildSubExpandableHeader(
           'Execution Plan',
           expanded: _executionPlanExpanded,
           onTap: () => setState(() {
@@ -2190,10 +2312,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             isActive: widget.activeItemLabel == 'Execution Issue Management',
           ),
           _buildSubSubMenuItem(
-            'Stakeholder Identification',
+            'Execution Stakeholder Identification',
             onTap: _openExecutionPlanStakeholderIdentification,
             isActive:
-                widget.activeItemLabel == 'Stakeholder Identification',
+                widget.activeItemLabel == 'Execution Stakeholder Identification',
           ),
           _buildSubSubMenuItem('Construction Plan',
               onTap: _openExecutionPlanConstructionPlan,
@@ -2203,15 +2325,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               onTap: _openExecutionPlanInfrastructurePlan,
               isActive: widget.activeItemLabel ==
                   'Execution Plan - Infrastructure Plan'),
-          _buildSubSubMenuItem('Agile Delivery Plan',
-              onTap: _openExecutionPlanAgileDeliveryPlan,
-              isActive: widget.activeItemLabel ==
-                  'Execution Plan - Agile Delivery Plan'),
           _buildSubSubMenuItem(
-            'Lessons Learned',
+            'Execution Lessons Learned',
             onTap: _openExecutionPlanLessonsLearned,
             isActive:
-                widget.activeItemLabel == 'Execution Plan - Lesson Learned',
+                widget.activeItemLabel == 'Execution Lessons Learned',
           ),
           _buildSubSubMenuItem(
             'Best Practices',
@@ -2220,10 +2338,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                 widget.activeItemLabel == 'Execution Plan - Best Practices',
           ),
           _buildSubSubMenuItem(
-            'Interface Management',
+            'Execution Interface Management',
             onTap: _openExecutionPlanInterfaceManagement,
             isActive: widget.activeItemLabel ==
-                'Execution Plan - Interface Management',
+                'Execution Interface Management',
           ),
           _buildSubSubMenuItem(
             'Communication Plan',
@@ -2232,16 +2350,16 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                 widget.activeItemLabel == 'Execution Plan - Communication Plan',
           ),
           _buildSubSubMenuItem(
-            'Interface Management Plan',
+            'Execution Interface Management Plan',
             onTap: _openExecutionPlanInterfaceManagementPlan,
             isActive: widget.activeItemLabel ==
-                'Execution Plan - Interface Management Plan',
+                'Execution Interface Management Plan',
           ),
           _buildSubSubMenuItem(
-            'Interface Management Overview',
+            'Execution Interface Management Overview',
             onTap: _openExecutionPlanInterfaceManagementOverview,
             isActive: widget.activeItemLabel ==
-                'Execution Plan - Interface Management Overview',
+                'Execution Interface Management Overview',
           ),
         ],
         _buildSubMenuItem('Risk Assessment',
@@ -2354,14 +2472,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               onTap: _openDeliverableRoadmap,
               isActive: widget.activeItemLabel == 'Deliverable Roadmap' ||
                   widget.activeItemLabel == 'Roadmap Overview'),
-          _buildSubSubMenuItem('Agile Map Out',
-              onTap: _openDeliverableRoadmapAgileMapOut,
-              isActive: widget.activeItemLabel ==
-                  'Deliverable Roadmap - Agile Map Out'),
         ],
-        _buildSubMenuItem('Agile Project Baseline',
-            onTap: _openAgileProjectBaseline,
-            isActive: widget.activeItemLabel == 'Agile Project Baseline'),
         _buildSubExpandableHeader(
           'Project Plan',
           expanded: _projectPlanExpanded,
@@ -2952,11 +3063,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         ),
       );
     }
-    if ('agile project baseline'.contains(query)) {
-      results.add(_buildMenuItem(
-          Icons.grid_view_outlined, 'Agile Project Baseline',
+    if ('agile project baseline'.contains(query) ||
+        'agile baseline'.contains(query)) {
+      results.add(_buildMenuItem(Icons.grid_view_outlined,
+          'Agile Project Baseline',
           onTap: _openAgileProjectBaseline,
-          isActive: widget.activeItemLabel == 'Agile Project Baseline'));
+          isActive: widget.activeItemLabel ==
+              'Agile Wireframe - Project Baseline'));
     }
     if ('project baseline'.contains(query) || 'baseline'.contains(query)) {
       results.add(
@@ -2984,13 +3097,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isActive: widget.activeItemLabel ==
               'Execution Plan - Infrastructure Plan'));
     }
-    if ('execution plan'.contains(query) ||
+    if ('agile delivery model'.contains(query) ||
         'agile delivery plan'.contains(query) ||
         'agile delivery'.contains(query)) {
-      results.add(_buildMenuItem(Icons.route_outlined, 'Agile Delivery Plan',
-          onTap: _openExecutionPlanAgileDeliveryPlan,
-          isActive: widget.activeItemLabel ==
-              'Execution Plan - Agile Delivery Plan'));
+      results.add(_buildMenuItem(Icons.route_outlined, 'Agile Delivery Model',
+          onTap: _openAgileDeliveryModel,
+          isActive:
+              widget.activeItemLabel == 'Agile Wireframe - Delivery Model'));
     }
     if ('schedule'.contains(query)) {
       results.add(_buildMenuItem(Icons.calendar_today_outlined, 'Schedule',
@@ -3019,6 +3132,43 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isDisabled: lockInterfaceManagement,
         ),
       );
+    }
+    if ('agile team structure'.contains(query) || 'squad'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.groups_outlined, 'Agile Team Structure',
+          onTap: _openAgileTeamStructure,
+          isActive: widget.activeItemLabel == 'Agile Wireframe - Team Structure'));
+    }
+    if ('epics'.contains(query) || 'features'.contains(query) ||
+        'user story'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.account_tree_outlined, 'Epics & Features',
+          onTap: _openAgileEpicsFeatures,
+          isActive: widget.activeItemLabel ==
+              'Agile Wireframe - Epics & Features'));
+    }
+    if ('sprint calendar'.contains(query) || 'sprint cadence'.contains(query) ||
+        'sprint'.contains(query) || 'iteration'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.calendar_month_outlined, 'Sprint Cadence & Calendar',
+          onTap: _openAgileSprintCalendar,
+          isActive: widget.activeItemLabel ==
+              'Agile Wireframe - Sprint Calendar'));
+    }
+    if ('release plan'.contains(query) || 'release'.contains(query) ||
+        'pi planning'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.rocket_launch_outlined, 'Release Plan',
+          onTap: _openAgileReleasePlan,
+          isActive: widget.activeItemLabel == 'Agile Wireframe - Release Plan'));
+    }
+    if ('backlog'.contains(query) || 'backlog governance'.contains(query) ||
+        'grooming'.contains(query) || 'refinement'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.list_alt_outlined, 'Backlog Governance',
+          onTap: _openAgileBacklogGovernance,
+          isActive: widget.activeItemLabel ==
+              'Agile Wireframe - Backlog Governance'));
     }
     if ('start-up planning'.contains(query) ||
         'startup planning'.contains(query) ||
@@ -3329,9 +3479,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         'agile map'.contains(query) ||
         'map out'.contains(query)) {
       results.add(_buildMenuItem(Icons.timeline_outlined, 'Agile Map Out',
-          onTap: _openDeliverableRoadmapAgileMapOut,
+          onTap: _openAgileMapOut,
           isActive:
-              widget.activeItemLabel == 'Deliverable Roadmap - Agile Map Out'));
+              widget.activeItemLabel == 'Agile Wireframe - Agile Map Out'));
     }
     if ('tools integration'.contains(query) ||
         'integration'.contains(query) ||

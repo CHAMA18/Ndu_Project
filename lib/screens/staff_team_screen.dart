@@ -17,6 +17,7 @@ import 'package:ndu_project/widgets/staff_team_resource_grid.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart' as launch;
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class StaffTeamScreen extends StatefulWidget {
   const StaffTeamScreen({super.key});
@@ -298,8 +299,13 @@ class _StaffTeamScreenState extends State<StaffTeamScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPremiumHeader(context),
-          const SizedBox(height: 32),
+          const PlanningPhaseHeader(
+            title: 'Staff Team',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
           _buildSectionIntro(),
           const SizedBox(height: 28),
           if (_loading)

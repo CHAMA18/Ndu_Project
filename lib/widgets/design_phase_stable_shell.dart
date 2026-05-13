@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
@@ -37,7 +38,12 @@ class DesignPhaseStableShell extends StatelessWidget {
         ),
         body: SafeArea(
           top: false,
-          child: child,
+          child: Stack(
+            children: [
+              child,
+              const KazAiChatBubble(positioned: true),
+            ],
+          ),
         ),
       );
     }
@@ -90,6 +96,7 @@ class DesignPhaseStableShell extends StatelessWidget {
           ],
         ),
       ),
+      floatingActionButton: const KazAiChatBubble(positioned: false),
     );
   }
 }

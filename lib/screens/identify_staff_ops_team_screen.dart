@@ -10,6 +10,7 @@ import 'package:ndu_project/services/ops_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class IdentifyStaffOpsTeamScreen extends StatefulWidget {
   const IdentifyStaffOpsTeamScreen({super.key});
@@ -64,7 +65,14 @@ class _IdentifyStaffOpsTeamScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(isNarrow),
+            const PlanningPhaseHeader(
+            title: 'Identify and Staff Ops Team',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                        _buildHeader(isNarrow),
             const SizedBox(height: 18),
             _buildStatsRow(isNarrow),
             const SizedBox(height: 24),
