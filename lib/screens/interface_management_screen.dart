@@ -23,7 +23,9 @@ enum _ImTab {
   architecture('Architecture'),
   raci('RACI & Governance'),
   risks('Risks & Decisions'),
-  handoff('Handoff Readiness');
+  handoff('Handoff Readiness'),
+  maturity('Maturity'),
+  audit('Audit Trail');
 
   const _ImTab(this.label);
   final String label;
@@ -307,6 +309,8 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
             _ImTab.raci => const _RaciGovernanceSection(),
             _ImTab.risks => const _RisksDecisionsSection(),
             _ImTab.handoff => const _HandoffReadinessSection(),
+            _ImTab.maturity => const _MaturitySection(),
+            _ImTab.audit => const _AuditTrailSection(),
           },
         ],
       ),
@@ -752,6 +756,8 @@ class _ImportFromTechButton extends StatelessWidget {
         final data = ProjectDataHelper.getData(context);
         final entries = List<InterfaceEntry>.from(data.interfaceEntries);
         final extIntegrations = data.externalIntegrations;
+        final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog);
+        final now = DateTime.now().toIso8601String();
 
         int added = 0;
         for (final ext in extIntegrations) {
@@ -761,7 +767,7 @@ class _ImportFromTechButton extends StatelessWidget {
               e.boundary.trim().toLowerCase() == name.toLowerCase());
           if (alreadyExists) continue;
 
-          entries.add(InterfaceEntry(
+          final newEntry = InterfaceEntry(
             boundary: name,
             owner: ext['description']?.toString() ?? '',
             interfaceType: 'Technical',
@@ -770,6 +776,14 @@ class _ImportFromTechButton extends StatelessWidget {
                 ? ext['status'].toString()
                 : 'Pending',
             notes: 'Imported from Technology Planning',
+          );
+          entries.add(newEntry);
+          logEntries.add(InterfaceChangeLogEntry(
+            interfaceId: newEntry.id,
+            interfaceName: name,
+            action: 'Imported',
+            newValue: name,
+            changedAt: now,
           ));
           added++;
         }
@@ -778,7 +792,10 @@ class _ImportFromTechButton extends StatelessWidget {
           await ProjectDataHelper.updateAndSave(
             context: context,
             checkpoint: 'interface_management',
-            dataUpdater: (d) => d.copyWith(interfaceEntries: entries),
+            dataUpdater: (d) => d.copyWith(
+              interfaceEntries: entries,
+              interfaceChangeLog: logEntries,
+            ),
           );
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -928,12 +945,24 @@ class _InterfaceRegisterRow extends StatelessWidget {
     if (confirm != true) return;
 
     final data = ProjectDataHelper.getData(context);
+    final entryToDelete = data.interfaceEntries.firstWhere((e) => e.id == id);
     final entries =
         data.interfaceEntries.where((e) => e.id != id).toList();
+    final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog);
+    logEntries.add(InterfaceChangeLogEntry(
+      interfaceId: entryToDelete.id,
+      interfaceName: entryToDelete.boundary.trim().isNotEmpty ? entryToDelete.boundary.trim() : 'Unnamed',
+      action: 'Deleted',
+      oldValue: entryToDelete.boundary,
+      changedAt: DateTime.now().toIso8601String(),
+    ));
     await ProjectDataHelper.updateAndSave(
       context: context,
       checkpoint: 'interface_management',
-      dataUpdater: (d) => d.copyWith(interfaceEntries: entries),
+      dataUpdater: (d) => d.copyWith(
+        interfaceEntries: entries,
+        interfaceChangeLog: logEntries,
+      ),
       showSnackbar: false,
     );
   }
@@ -962,16 +991,60 @@ class _InterfaceEntryDialog extends StatefulWidget {
       if (result == null) return;
       final data = ProjectDataHelper.getData(context);
       final entries = List<InterfaceEntry>.from(data.interfaceEntries);
+      final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog);
       final index = entries.indexWhere((e) => e.id == result.id);
-      if (index == -1) {
+      final isCreate = index == -1;
+      if (isCreate) {
         entries.add(result);
+        logEntries.add(InterfaceChangeLogEntry(
+          interfaceId: result.id,
+          interfaceName: result.boundary.trim().isNotEmpty ? result.boundary.trim() : 'Unnamed',
+          action: 'Created',
+          newValue: result.boundary,
+          changedAt: DateTime.now().toIso8601String(),
+        ));
       } else {
+        final old = entries[index];
         entries[index] = result;
+        // Create log entries for each changed field
+        final name = result.boundary.trim().isNotEmpty ? result.boundary.trim() : 'Unnamed';
+        final now = DateTime.now().toIso8601String();
+        final fields = <(String, String, String)>[
+          ('Boundary', old.boundary, result.boundary),
+          ('Interface Type', old.interfaceType, result.interfaceType),
+          ('Party A', old.partyA, result.partyA),
+          ('Party B', old.partyB, result.partyB),
+          ('Criticality', old.criticality, result.criticality),
+          ('Priority', old.priority, result.priority),
+          ('Data Flow', old.dataFlow, result.dataFlow),
+          ('Protocol', old.protocol, result.protocol),
+          ('Owner', old.owner, result.owner),
+          ('Status', old.status, result.status),
+          ('Cadence', old.cadence, result.cadence),
+          ('Notes', old.notes, result.notes),
+        ];
+        for (final (fieldName, oldVal, newVal) in fields) {
+          if (oldVal.trim() != newVal.trim()) {
+            final action = fieldName == 'Status' ? 'Status Changed' : 'Updated';
+            logEntries.add(InterfaceChangeLogEntry(
+              interfaceId: result.id,
+              interfaceName: name,
+              action: action,
+              fieldName: fieldName,
+              oldValue: oldVal,
+              newValue: newVal,
+              changedAt: now,
+            ));
+          }
+        }
       }
       ProjectDataHelper.updateAndSave(
         context: context,
         checkpoint: 'interface_management',
-        dataUpdater: (d) => d.copyWith(interfaceEntries: entries),
+        dataUpdater: (d) => d.copyWith(
+          interfaceEntries: entries,
+          interfaceChangeLog: logEntries,
+        ),
         showSnackbar: false,
       );
     });
@@ -1818,6 +1891,510 @@ class _RisksDecisionsSection extends StatelessWidget {
       return aOrder.compareTo(bOrder);
     });
     return sorted;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 6: Maturity Score
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _MaturitySection extends StatefulWidget {
+  const _MaturitySection();
+
+  @override
+  State<_MaturitySection> createState() => _MaturitySectionState();
+}
+
+class _MaturitySectionState extends State<_MaturitySection> {
+  bool _showAll = false;
+
+  int _calculateMaturityScore(InterfaceEntry entry) {
+    int score = 0;
+    if (entry.boundary.trim().isNotEmpty) score += 10;
+    if (entry.interfaceType.trim().isNotEmpty) score += 10;
+    if (entry.partyA.trim().isNotEmpty && entry.partyB.trim().isNotEmpty) score += 15;
+    if (entry.criticality.trim().isNotEmpty) score += 10;
+    if (entry.priority.trim().isNotEmpty) score += 10;
+    if (entry.dataFlow.trim().isNotEmpty) score += 10;
+    if (entry.protocol.trim().isNotEmpty) score += 10;
+    if (entry.owner.trim().isNotEmpty) score += 10;
+    if (!_isOpenStatus(entry.status)) score += 10;
+    if (entry.notes.trim().isNotEmpty) score += 5;
+    return score;
+  }
+
+  String _maturityLabel(int score) {
+    if (score <= 30) return 'Immature';
+    if (score <= 60) return 'Developing';
+    if (score <= 80) return 'Mature';
+    return 'Optimized';
+  }
+
+  Color _maturityColor(int score) {
+    if (score <= 30) return const Color(0xFFEF4444);
+    if (score <= 60) return const Color(0xFFF59E0B);
+    if (score <= 80) return const Color(0xFF2563EB);
+    return const Color(0xFF10B981);
+  }
+
+  Color _maturityBgColor(int score) {
+    if (score <= 30) return const Color(0xFFFEE2E2);
+    if (score <= 60) return const Color(0xFFFEF3C7);
+    if (score <= 80) return const Color(0xFFDBEAFE);
+    return const Color(0xFFD1FAE5);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = ProjectDataHelper.getDataListening(context);
+    final entries = data.interfaceEntries;
+
+    if (entries.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 12),
+        child: Text(
+          'Add interface entries to calculate maturity scores.',
+          style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+        ),
+      );
+    }
+
+    final scores = entries.map((e) => _calculateMaturityScore(e)).toList();
+    final avgScore = scores.isEmpty
+        ? 0.0
+        : scores.reduce((a, b) => a + b) / scores.length;
+    final avgRounded = avgScore.round();
+
+    // Breakdown by maturity level
+    final immature = scores.where((s) => s <= 30).length;
+    final developing = scores.where((s) => s > 30 && s <= 60).length;
+    final mature = scores.where((s) => s > 60 && s <= 80).length;
+    final optimized = scores.where((s) => s > 80).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Interface maturity measures how completely each interface is defined across key attributes — boundary, type, parties, criticality, priority, data flow, protocol, owner, status, and notes. A higher score indicates better readiness for coordination and handoff.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.5),
+        ),
+        const SizedBox(height: 24),
+
+        // Overall portfolio maturity gauge
+        Center(
+          child: Column(
+            children: [
+              SizedBox(
+                width: 160,
+                height: 160,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CircularProgressIndicator(
+                      value: avgRounded / 100,
+                      strokeWidth: 12,
+                      backgroundColor: const Color(0xFFE5E7EB),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          _maturityColor(avgRounded)),
+                    ),
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('$avgRounded',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                color: _maturityColor(avgRounded),
+                              )),
+                          Text(_maturityLabel(avgRounded),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _maturityColor(avgRounded),
+                              )),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('Portfolio Maturity Score',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Breakdown by maturity level
+        Row(
+          children: [
+            _MaturityBreakdownCard(
+                label: 'Immature', count: immature, color: const Color(0xFFEF4444)),
+            const SizedBox(width: 12),
+            _MaturityBreakdownCard(
+                label: 'Developing', count: developing, color: const Color(0xFFF59E0B)),
+            const SizedBox(width: 12),
+            _MaturityBreakdownCard(
+                label: 'Mature', count: mature, color: const Color(0xFF2563EB)),
+            const SizedBox(width: 12),
+            _MaturityBreakdownCard(
+                label: 'Optimized', count: optimized, color: const Color(0xFF10B981)),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Per-interface maturity bars
+        ...entries.asMap().entries.map((mapEntry) {
+          final index = mapEntry.key;
+          final entry = mapEntry.value;
+          final score = scores[index];
+          if (!_showAll && index >= 10) return const SizedBox.shrink();
+          return _MaturityBar(
+            name: entry.boundary.trim().isNotEmpty
+                ? entry.boundary.trim()
+                : 'Unnamed',
+            score: score,
+            color: _maturityColor(score),
+            bgColor: _maturityBgColor(score),
+            label: _maturityLabel(score),
+          );
+        }),
+
+        if (entries.length > 10) ...[
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: () => setState(() => _showAll = !_showAll),
+            icon: Icon(_showAll ? Icons.expand_less : Icons.expand_more, size: 18),
+            label: Text(_showAll ? 'Show Less' : 'Show All (${entries.length})'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MaturityBreakdownCard extends StatelessWidget {
+  const _MaturityBreakdownCard({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+
+  final String label;
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(color.withOpacity(0.08), Colors.white),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Text('$count',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                )),
+            const SizedBox(height: 2),
+            Text(label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MaturityBar extends StatelessWidget {
+  const _MaturityBar({
+    required this.name,
+    required this.score,
+    required this.color,
+    required this.bgColor,
+    required this.label,
+  });
+
+  final String name;
+  final int score;
+  final Color color;
+  final Color bgColor;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 5,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: score / 100,
+                backgroundColor: const Color(0xFFE5E7EB),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+                minHeight: 8,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 36,
+            child: Text('$score',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(color.withOpacity(0.15), Colors.white),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 7: Audit Trail
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AuditTrailSection extends StatelessWidget {
+  const _AuditTrailSection();
+
+  Color _actionColor(String action) {
+    switch (action) {
+      case 'Created':
+        return const Color(0xFF10B981);
+      case 'Updated':
+        return const Color(0xFF2563EB);
+      case 'Deleted':
+        return const Color(0xFFEF4444);
+      case 'Status Changed':
+        return const Color(0xFFF59E0B);
+      case 'Imported':
+        return const Color(0xFF8B5CF6);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  IconData _actionIcon(String action) {
+    switch (action) {
+      case 'Created':
+        return Icons.add_circle_outline;
+      case 'Updated':
+        return Icons.edit_outlined;
+      case 'Deleted':
+        return Icons.delete_outline;
+      case 'Status Changed':
+        return Icons.swap_horiz;
+      case 'Imported':
+        return Icons.download_outlined;
+      default:
+        return Icons.info_outline;
+    }
+  }
+
+  String _formatTimestamp(String iso) {
+    if (iso.isEmpty) return 'Unknown';
+    try {
+      final dt = DateTime.parse(iso);
+      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = ProjectDataHelper.getDataListening(context);
+    final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog)
+      ..sort((a, b) => b.changedAt.compareTo(a.changedAt));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'The audit trail records every change made to interface entries — creations, edits, deletions, status changes, and imports. Use this log to trace who changed what and when, supporting governance, compliance, and incident investigation.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.5),
+        ),
+        const SizedBox(height: 20),
+
+        if (logEntries.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text(
+              'No changes logged yet. Changes will appear here as you create, edit, or delete interface entries.',
+              style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+            ),
+          )
+        else ...[
+          // Header row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              border: Border.fromBorderSide(BorderSide(color: Color(0xFFE5E7EB))),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(width: 140, child: Text('Timestamp', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+                SizedBox(width: 12),
+                Expanded(flex: 2, child: Text('Interface', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+                SizedBox(width: 12),
+                SizedBox(width: 110, child: Text('Action', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+                SizedBox(width: 12),
+                Expanded(flex: 2, child: Text('Field', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+                SizedBox(width: 12),
+                Expanded(flex: 3, child: Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+              ],
+            ),
+          ),
+          // Log rows
+          ...logEntries.map((entry) {
+            final color = _actionColor(entry.action);
+            final icon = _actionIcon(entry.action);
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: Color(0xFFE5E7EB)),
+                  right: BorderSide(color: Color(0xFFE5E7EB)),
+                  bottom: BorderSide(color: Color(0xFFE5E7EB)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 140,
+                    child: Text(_formatTimestamp(entry.changedAt),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: Text(entry.interfaceName.trim().isNotEmpty ? entry.interfaceName.trim() : 'Unnamed',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827))),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 110,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Color.alphaBlend(color.withOpacity(0.12), Colors.white),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, size: 12, color: color),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(entry.action,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: color)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: Text(entry.fieldName.trim().isNotEmpty ? entry.fieldName.trim() : '-',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: _buildChangeValue(entry, color),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildChangeValue(InterfaceChangeLogEntry entry, Color color) {
+    if (entry.action == 'Created') {
+      return Text(entry.newValue.trim().isNotEmpty ? entry.newValue.trim() : '-',
+          style: TextStyle(fontSize: 11, color: color));
+    }
+    if (entry.action == 'Deleted') {
+      return Text(entry.oldValue.trim().isNotEmpty ? entry.oldValue.trim() : '-',
+          style: TextStyle(fontSize: 11, color: color));
+    }
+    // Updated / Status Changed / Imported
+    final oldV = entry.oldValue.trim();
+    final newV = entry.newValue.trim();
+    if (oldV.isEmpty && newV.isEmpty) return const Text('-', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)));
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+        children: [
+          if (oldV.isNotEmpty)
+            TextSpan(text: oldV, style: const TextStyle(decoration: TextDecoration.lineThrough, color: Color(0xFF9CA3AF))),
+          if (oldV.isNotEmpty && newV.isNotEmpty)
+            const TextSpan(text: ' → '),
+          if (newV.isNotEmpty)
+            TextSpan(text: newV, style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
   }
 }
 
