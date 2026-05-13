@@ -16,6 +16,7 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class UpdateOpsMaintenancePlansScreen extends StatefulWidget {
   const UpdateOpsMaintenancePlansScreen({super.key});
@@ -370,7 +371,14 @@ class _UpdateOpsMaintenancePlansScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPremiumHeader(context, projectId),
+          const PlanningPhaseHeader(
+            title: 'Update Ops and Maintenance Plans',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                    _buildPremiumHeader(context, projectId),
           const SizedBox(height: 32),
           _buildSectionIntro(),
           const SizedBox(height: 28),

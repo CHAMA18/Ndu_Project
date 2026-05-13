@@ -11,6 +11,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class TechnicalDebtManagementScreen extends StatefulWidget {
   const TechnicalDebtManagementScreen({super.key});
@@ -74,7 +75,14 @@ class _TechnicalDebtManagementScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(isNarrow),
+            const PlanningPhaseHeader(
+            title: 'Technical Debt Management',
+            showImportButton: false,
+            showContentButton: false,
+            showNavigationButtons: false,
+          ),
+          const SizedBox(height: 16),
+                        _buildHeader(isNarrow),
             const SizedBox(height: 16),
             _buildStatsRow(isNarrow),
             const SizedBox(height: 24),

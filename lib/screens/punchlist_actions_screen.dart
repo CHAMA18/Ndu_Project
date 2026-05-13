@@ -11,6 +11,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 class PunchlistActionsScreen extends StatefulWidget {
   const PunchlistActionsScreen({super.key});
@@ -195,6 +196,13 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const PlanningPhaseHeader(
+                          title: 'Punchlist Actions',
+                          showImportButton: false,
+                          showContentButton: false,
+                          showNavigationButtons: false,
+                        ),
+                        const SizedBox(height: 16),
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
