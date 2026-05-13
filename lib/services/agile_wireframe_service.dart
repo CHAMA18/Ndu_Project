@@ -1,0 +1,182 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:ndu_project/models/agile_release_plan.dart';
+
+class AgileWireframeService {
+  static final _firestore = FirebaseFirestore.instance;
+
+  static DocumentReference<Map<String, dynamic>> _agileDoc(
+      String projectId) {
+    return _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('planning_phase_entries')
+        .doc('agile_wireframe');
+  }
+
+  // ── Agile Team Structure ──
+
+  static Future<Map<String, dynamic>> loadTeamStructure(
+      String projectId) async {
+    try {
+      final snapshot = await _agileDoc(projectId).get();
+      if (!snapshot.exists) return {};
+      return (snapshot.data()?['teamStructure'] as Map<String, dynamic>?) ??
+          {};
+    } catch (error) {
+      debugPrint('AgileWireframeService.loadTeamStructure error: $error');
+      return {};
+    }
+  }
+
+  static Future<void> saveTeamStructure({
+    required String projectId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _agileDoc(projectId).set({
+        'teamStructure': data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('AgileWireframeService.saveTeamStructure error: $error');
+      rethrow;
+    }
+  }
+
+  // ── Delivery Model ──
+
+  static Future<Map<String, dynamic>> loadDeliveryModel(
+      String projectId) async {
+    try {
+      final snapshot = await _agileDoc(projectId).get();
+      if (!snapshot.exists) return {};
+      return (snapshot.data()?['deliveryModel'] as Map<String, dynamic>?) ??
+          {};
+    } catch (error) {
+      debugPrint('AgileWireframeService.loadDeliveryModel error: $error');
+      return {};
+    }
+  }
+
+  static Future<void> saveDeliveryModel({
+    required String projectId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _agileDoc(projectId).set({
+        'deliveryModel': data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('AgileWireframeService.saveDeliveryModel error: $error');
+      rethrow;
+    }
+  }
+
+  // ── Sprint Calendar ──
+
+  static Future<Map<String, dynamic>> loadSprintCalendar(
+      String projectId) async {
+    try {
+      final snapshot = await _agileDoc(projectId).get();
+      if (!snapshot.exists) return {};
+      return (snapshot.data()?['sprintCalendar'] as Map<String, dynamic>?) ??
+          {};
+    } catch (error) {
+      debugPrint('AgileWireframeService.loadSprintCalendar error: $error');
+      return {};
+    }
+  }
+
+  static Future<void> saveSprintCalendar({
+    required String projectId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _agileDoc(projectId).set({
+        'sprintCalendar': data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('AgileWireframeService.saveSprintCalendar error: $error');
+      rethrow;
+    }
+  }
+
+  // ── Backlog Governance ──
+
+  static Future<Map<String, dynamic>> loadBacklogGovernance(
+      String projectId) async {
+    try {
+      final snapshot = await _agileDoc(projectId).get();
+      if (!snapshot.exists) return {};
+      return (snapshot.data()?['backlogGovernance'] as Map<String, dynamic>?) ??
+          {};
+    } catch (error) {
+      debugPrint('AgileWireframeService.loadBacklogGovernance error: $error');
+      return {};
+    }
+  }
+
+  static Future<void> saveBacklogGovernance({
+    required String projectId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _agileDoc(projectId).set({
+        'backlogGovernance': data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('AgileWireframeService.saveBacklogGovernance error: $error');
+      rethrow;
+    }
+  }
+
+  // ── Release Plans ──
+
+  static CollectionReference<Map<String, dynamic>> _releasesCol(
+      String projectId) {
+    return _agileDoc(projectId).collection('releases');
+  }
+
+  static Future<List<AgileReleasePlan>> loadReleasePlans(
+      String projectId) async {
+    try {
+      final snapshot =
+          await _releasesCol(projectId).orderBy('releaseLabel').get();
+      return snapshot.docs
+          .map((doc) =>
+              AgileReleasePlan.fromJson({...doc.data(), 'id': doc.id}))
+          .toList();
+    } catch (error) {
+      debugPrint('AgileWireframeService.loadReleasePlans error: $error');
+      return [];
+    }
+  }
+
+  static Future<void> saveReleasePlan({
+    required String projectId,
+    required AgileReleasePlan plan,
+  }) async {
+    try {
+      await _releasesCol(projectId).doc(plan.id).set(plan.toJson());
+    } catch (error) {
+      debugPrint('AgileWireframeService.saveReleasePlan error: $error');
+      rethrow;
+    }
+  }
+
+  static Future<void> deleteReleasePlan({
+    required String projectId,
+    required String planId,
+  }) async {
+    try {
+      await _releasesCol(projectId).doc(planId).delete();
+    } catch (error) {
+      debugPrint('AgileWireframeService.deleteReleasePlan error: $error');
+      rethrow;
+    }
+  }
+}
