@@ -1,3 +1,5 @@
+import 'dart:math';
+
 /// Represents a risk factor from the risk register that can be quantified
 /// for risk-adjusted forecasting.
 class RiskFactor {
@@ -116,7 +118,7 @@ class ForecastService {
     final riskPenalty = totalRiskEmv > 0
         ? (totalRiskEmv / bac).clamp(0, 0.3) // Max 30% confidence penalty from risk
         : 0;
-    final confidence = (baseConfidence - riskPenalty).clamp(0, 1);
+    final confidence = (baseConfidence - riskPenalty).clamp(0, 1).toDouble();
 
     if (methodology == 'manual' && manualEac != null) {
       final eac = manualEac;
@@ -251,9 +253,9 @@ class ForecastService {
           ? (mostLikely - min) / (max - min)
           : 0.5;
       if (u < fc) {
-        return min + (max - min) * (u * fc).sqrt();
+        return min + (max - min) * sqrt(u * fc);
       } else {
-        return max - (max - min) * ((1 - u) * (1 - fc)).sqrt();
+        return max - (max - min) * sqrt((1 - u) * (1 - fc));
       }
     }
 
@@ -320,7 +322,7 @@ class ForecastService {
     final variance =
         values.map((v) => (v - mean) * (v - mean)).reduce((a, b) => a + b) /
             values.length;
-    return variance.sqrt();
+    return sqrt(variance);
   }
 }
 
