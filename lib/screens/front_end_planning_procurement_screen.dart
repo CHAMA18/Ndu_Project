@@ -28,6 +28,8 @@ import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
 import 'package:ndu_project/utils/front_end_planning_navigation.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/procurement/procurement_items_list_view.dart';
+import 'package:ndu_project/widgets/procurement/procurement_vendor_management.dart';
 
 enum ProcurementScreenMode { fep, planning }
 
@@ -132,11 +134,11 @@ class _FrontEndPlanningProcurementScreenState
       const <ProcurementAssignableMemberOption>[];
   final Set<String> _selectedVendorIds = {};
 
-  final List<_VendorHealthMetric> _vendorHealthMetrics = [];
+  final List<VendorHealthMetric> _vendorHealthMetrics = [];
 
-  final List<_VendorOnboardingTask> _vendorOnboardingTasks = [];
+  final List<VendorOnboardingTask> _vendorOnboardingTasks = [];
 
-  final List<_VendorRiskItem> _vendorRiskItems = [];
+  final List<VendorRiskItem> _vendorRiskItems = [];
 
   List<RfqModel> _rfqs = [];
 
@@ -275,11 +277,25 @@ class _FrontEndPlanningProcurementScreenState
     _setStateWhenSafe(() => _workflowLoading = true);
 
     try {
-      final snapshot = await _workflowCollection(projectId).get();
+      // Retry up to 3 times to guard against transient Firestore
+      // "INTERNAL ASSERTION FAILED" errors in SDK 12.x.
+      QuerySnapshot<Map<String, dynamic>>? snapshot;
+      for (var attempt = 1; attempt <= 3; attempt++) {
+        try {
+          snapshot = await _workflowCollection(projectId).get();
+          break;
+        } catch (e) {
+          final isAssertionError = e.toString().contains('INTERNAL ASSERTION') ||
+              e.toString().contains('Unexpected state');
+          if (!isAssertionError || attempt == 3) rethrow;
+          await Future<void>.delayed(Duration(milliseconds: 500 * (1 << (attempt - 1))));
+        }
+      }
+
       var global = _cloneWorkflowSteps(_defaultProcurementWorkflowTemplate);
       final overrides = <String, List<_ProcurementWorkflowStep>>{};
 
-      for (final doc in snapshot.docs) {
+      for (final doc in snapshot!.docs) {
         final data = doc.data();
         final scopeIdFromDoc = (data['scopeId'] ?? '').toString().trim();
         final normalizedScope = scopeIdFromDoc.isNotEmpty
@@ -316,8 +332,11 @@ class _FrontEndPlanningProcurementScreenState
       });
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString().contains('INTERNAL ASSERTION')
+          ? 'Network glitch while loading workflow — please refresh the page.'
+          : 'Unable to load procurement workflow. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to load procurement workflow: $e')),
+        SnackBar(content: Text(msg)),
       );
     } finally {
       _setStateWhenSafe(() => _workflowLoading = false);
@@ -3447,7 +3466,7 @@ class _FrontEndPlanningProcurementScreenState
         return _withSectionValidation(
           sectionKey: _itemsSectionKey,
           errorText: _itemsSectionErrorText(),
-          child: _ItemsListView(
+          child: ProcurementItemsListView(
             key: const ValueKey('procurement_items_list'),
             items: _items,
             trackableItems: _trackableItems,
@@ -3463,7 +3482,7 @@ class _FrontEndPlanningProcurementScreenState
         return _withSectionValidation(
           sectionKey: _vendorSectionKey,
           errorText: _vendorSectionErrorText(),
-          child: _VendorManagementView(
+          child: VendorManagementView(
             key: const ValueKey('procurement_vendor_management'),
             vendors: _filteredVendors,
             allVendors: _vendors,
@@ -8184,46 +8203,6 @@ class _RatingStars extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-extension _VendorUi on VendorModel {
-  bool get isApproved {
-    final value = status.toLowerCase();
-    return value == 'active' || value == 'approved';
-  }
-
-  bool get isPreferred {
-    final value = criticality.toLowerCase();
-    return value == 'high' || status.toLowerCase() == 'preferred';
-  }
-
-  String get contactLabel {
-    final email = createdByEmail.trim();
-    if (email.isNotEmpty) return email;
-    final name = createdByName.trim();
-    if (name.isNotEmpty) return name;
-    return '-';
-  }
-
-  int get ratingScore {
-    final raw = rating.trim().toUpperCase();
-    final parsed = int.tryParse(raw);
-    if (parsed != null) return parsed.clamp(1, 5);
-    switch (raw) {
-      case 'A':
-        return 5;
-      case 'B':
-        return 4;
-      case 'C':
-        return 3;
-      case 'D':
-        return 2;
-      case 'E':
-        return 1;
-      default:
-        return 3;
-    }
   }
 }
 

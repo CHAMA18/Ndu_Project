@@ -5,6 +5,7 @@ import 'package:ndu_project/screens/commerce_viability_screen.dart';
 import 'package:ndu_project/screens/vendor_account_close_out_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -443,71 +444,44 @@ class _SummarizeAccountRisksScreenState
   Future<void> _autoPopulateFromPriorPhases() async {
     if (_projectId == null) return;
     try {
-      final budgetRows = await LaunchPhaseService.loadBudgetRows(_projectId!);
-      final contracts = await LaunchPhaseService.loadExecutionContracts(_projectId!);
-      final deliverableRows = await LaunchPhaseService.loadDeliverableRows(_projectId!);
-      final scopeTracking = await LaunchPhaseService.loadScopeTrackingItems(_projectId!);
-      final riskSnapshot = await LaunchPhaseService.loadRiskTrackingSnapshot(_projectId!);
-
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
       if (!mounted) return;
 
+      // Pre-fill metrics from CrossPhaseData helpers
       final metricExisting = _metrics.map((m) => m.label).toSet();
       final newMetrics = <LaunchFinancialMetric>[];
 
-      double totalPlanned = 0;
-      double totalActual = 0;
-      for (final br in budgetRows) {
-        final planned = double.tryParse((br['plannedAmount'] ?? '').toString().replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
-        final actual = double.tryParse((br['actualAmount'] ?? '').toString().replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
-        totalPlanned += planned;
-        totalActual += actual;
-      }
-      if (totalPlanned > 0 && !metricExisting.contains('Total Budget')) {
+      if (cp.totalPlannedBudget > 0 && !metricExisting.contains('Total Budget')) {
         newMetrics.add(LaunchFinancialMetric(
           label: 'Total Budget',
-          value: '\$${totalPlanned.toStringAsFixed(0)}',
+          value: '\$${cp.totalPlannedBudget.toStringAsFixed(0)}',
           notes: 'Planned',
         ));
       }
-      if (totalActual > 0 && !metricExisting.contains('Actual Spend')) {
+      if (cp.totalActualBudget > 0 && !metricExisting.contains('Actual Spend')) {
         newMetrics.add(LaunchFinancialMetric(
           label: 'Actual Spend',
-          value: '\$${totalActual.toStringAsFixed(0)}',
+          value: '\$${cp.totalActualBudget.toStringAsFixed(0)}',
           notes: 'Actual',
         ));
       }
-      if (totalPlanned > 0 && !metricExisting.contains('Budget Variance')) {
-        final variance = totalPlanned - totalActual;
+      if ((cp.totalPlannedBudget > 0 || cp.totalActualBudget > 0) &&
+          !metricExisting.contains('Budget Variance')) {
         newMetrics.add(LaunchFinancialMetric(
           label: 'Budget Variance',
-          value: '\$${variance.toStringAsFixed(0)}',
-          notes: variance >= 0 ? 'Under budget' : 'Over budget',
+          value: '\$${cp.budgetVariance.toStringAsFixed(0)}',
+          notes: cp.budgetVariance >= 0 ? 'Under budget' : 'Over budget',
         ));
       }
-
-      double totalContractValue = 0;
-      for (final c in contracts) {
-        totalContractValue += double.tryParse(c.value.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
-      }
-      if (totalContractValue > 0 && !metricExisting.contains('Total Contract Value')) {
+      if (cp.totalContractValue > 0 && !metricExisting.contains('Total Contract Value')) {
         newMetrics.add(LaunchFinancialMetric(
           label: 'Total Contract Value',
-          value: '\$${totalContractValue.toStringAsFixed(0)}',
+          value: '\$${cp.totalContractValue.toStringAsFixed(0)}',
         ));
       }
-
-      final completedDeliverables = deliverableRows.where((d) {
-        final status = d['status']?.toString().toLowerCase() ?? '';
-        return status == 'completed' || status == 'done' || status == 'verified';
-      }).toList();
-      final completedScope = scopeTracking.where((s) {
-        final status = s.status.toLowerCase();
-        return status == 'verified' || status == 'completed' || status == 'done';
-      }).toList();
-
       if (!metricExisting.contains('Scope Completion')) {
-        final total = deliverableRows.length + scopeTracking.length;
-        final done = completedDeliverables.length + completedScope.length;
+        final total = cp.totalScopeCount;
+        final done = cp.totalCompletedScope;
         if (total > 0) {
           newMetrics.add(LaunchFinancialMetric(
             label: 'Scope Completion',
@@ -516,98 +490,92 @@ class _SummarizeAccountRisksScreenState
           ));
         }
       }
-
-      final riskItems = riskSnapshot['riskItems'];
-      if (riskItems is List) {
-        final openRisks = riskItems.whereType<Map>().where((r) {
-          final status = r['status']?.toString().toLowerCase() ?? '';
-          return status != 'closed' && status != 'resolved' && status != 'mitigated';
-        }).length;
-        if (openRisks > 0 && !metricExisting.contains('Active Risks')) {
-          newMetrics.add(LaunchFinancialMetric(
-            label: 'Active Risks',
-            value: '$openRisks',
-            notes: 'Requires monitoring',
-          ));
-        }
+      if (cp.openRiskItems.isNotEmpty && !metricExisting.contains('Active Risks')) {
+        newMetrics.add(LaunchFinancialMetric(
+          label: 'Active Risks',
+          value: '${cp.openRiskItems.length}',
+          notes: 'Requires monitoring',
+        ));
       }
       if (newMetrics.isNotEmpty) {
         setState(() => _metrics.addAll(newMetrics));
       }
 
+      // Pre-fill highlights from completed deliverables and scope
       final highlightExisting = _highlights.map((h) => h.title).toSet();
       final newHighlights = <LaunchHighlightItem>[];
-      for (final d in completedDeliverables) {
-        final title = d['title']?.toString() ?? '';
-        if (title.isNotEmpty && !highlightExisting.contains(title)) {
-          newHighlights.add(LaunchHighlightItem(
-            title: title,
-            details: 'Deliverable completed successfully',
-            category: 'Win',
-          ));
+      for (final d in cp.deliverableRows) {
+        final status = d['status']?.toString().toLowerCase() ?? '';
+        if (status == 'completed' || status == 'done' || status == 'verified') {
+          final title = d['title']?.toString() ?? '';
+          if (title.isNotEmpty && !highlightExisting.contains(title)) {
+            newHighlights.add(LaunchHighlightItem(
+              title: title,
+              details: 'Deliverable completed successfully',
+              category: 'Win',
+            ));
+          }
         }
       }
-      for (final s in completedScope) {
-        if (s.deliverable.isNotEmpty && !highlightExisting.contains(s.deliverable)) {
-          newHighlights.add(LaunchHighlightItem(
-            title: s.deliverable,
-            details: 'Scope item verified',
-            category: 'Win',
-          ));
+      for (final s in cp.scopeTracking) {
+        final status = s.status.toLowerCase();
+        if (status == 'verified' || status == 'completed' || status == 'done') {
+          if (s.deliverable.isNotEmpty && !highlightExisting.contains(s.deliverable)) {
+            newHighlights.add(LaunchHighlightItem(
+              title: s.deliverable,
+              details: 'Scope item verified',
+              category: 'Win',
+            ));
+          }
         }
       }
       if (newHighlights.isNotEmpty) {
         setState(() => _highlights.addAll(newHighlights));
       }
 
+      // Pre-fill top risks from open risk items
       final riskExisting = _topRisks.map((r) => r.title).toSet();
       final newRisks = <LaunchFollowUpItem>[];
-      if (riskItems is List) {
-        for (final ri in riskItems.whereType<Map>()) {
-          final m = Map<String, dynamic>.from(ri);
-          final title = m['title']?.toString() ?? m['risk']?.toString() ?? '';
-          if (title.isNotEmpty && !riskExisting.contains(title)) {
-            newRisks.add(LaunchFollowUpItem(
-              title: title,
-              details: m['description']?.toString() ?? m['details']?.toString() ?? '',
-              owner: m['owner']?.toString() ?? '',
-              status: m['status']?.toString() ?? 'Open',
-            ));
-          }
+      for (final ri in cp.openRiskItems) {
+        final title = ri['title']?.toString() ?? ri['risk']?.toString() ?? '';
+        if (title.isNotEmpty && !riskExisting.contains(title)) {
+          newRisks.add(LaunchFollowUpItem(
+            title: title,
+            details: ri['description']?.toString() ?? ri['details']?.toString() ?? '',
+            owner: ri['owner']?.toString() ?? '',
+            status: ri['status']?.toString() ?? 'Open',
+          ));
         }
       }
       if (newRisks.isNotEmpty) {
         setState(() => _topRisks.addAll(newRisks));
       }
 
+      // Pre-fill next 90 days from incomplete deliverables and mitigation plans
       final next90Existing = _next90Days.map((f) => f.title).toSet();
       final newNext90 = <LaunchFollowUpItem>[];
-      final incompleteDeliverables = deliverableRows.where((d) {
+      for (final d in cp.deliverableRows) {
         final status = d['status']?.toString().toLowerCase() ?? '';
-        return status != 'completed' && status != 'done' && status != 'verified';
-      }).toList();
-      for (final d in incompleteDeliverables) {
-        final title = d['title']?.toString() ?? '';
-        if (title.isNotEmpty && !next90Existing.contains('Complete: $title')) {
-          newNext90.add(LaunchFollowUpItem(
-            title: 'Complete: $title',
-            details: 'Deliverable pending completion',
-            status: 'Planned',
-          ));
-        }
-      }
-      if (riskItems is List) {
-        for (final mp in riskSnapshot['mitigationPlans']?.whereType<Map>() ?? []) {
-          final m = Map<String, dynamic>.from(mp);
-          final title = m['title']?.toString() ?? m['action']?.toString() ?? '';
-          if (title.isNotEmpty && !next90Existing.contains(title)) {
+        if (status != 'completed' && status != 'done' && status != 'verified') {
+          final title = d['title']?.toString() ?? '';
+          if (title.isNotEmpty && !next90Existing.contains('Complete: $title')) {
             newNext90.add(LaunchFollowUpItem(
-              title: title,
-              details: m['description']?.toString() ?? m['details']?.toString() ?? '',
-              owner: m['owner']?.toString() ?? '',
-              status: 'In Progress',
+              title: 'Complete: $title',
+              details: 'Deliverable pending completion',
+              status: 'Planned',
             ));
           }
+        }
+      }
+      for (final mp in cp.mitigationPlans) {
+        final title = mp['title']?.toString() ?? mp['action']?.toString() ?? '';
+        if (title.isNotEmpty && !next90Existing.contains(title)) {
+          newNext90.add(LaunchFollowUpItem(
+            title: title,
+            details: mp['description']?.toString() ?? mp['details']?.toString() ?? '',
+            owner: mp['owner']?.toString() ?? '',
+            status: 'In Progress',
+          ));
         }
       }
       if (newNext90.isNotEmpty) {
@@ -624,41 +592,13 @@ class _SummarizeAccountRisksScreenState
 
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
-    final data = ProjectDataHelper.getData(context);
-    var ctx = ProjectDataHelper.buildExecutivePlanContext(data,
-        sectionLabel: 'Project Summary');
-    if (ctx.trim().isEmpty) {
-      ctx = ProjectDataHelper.buildProjectContextScan(data,
-          sectionLabel: 'Project Summary');
-    }
-    if (ctx.trim().isEmpty) return;
-
-    if (_projectId != null) {
-      final budgetRows = await LaunchPhaseService.loadBudgetRows(_projectId!);
-      final deliverableRows = await LaunchPhaseService.loadDeliverableRows(_projectId!);
-      final riskSnapshot = await LaunchPhaseService.loadRiskTrackingSnapshot(_projectId!);
-      final contracts = await LaunchPhaseService.loadExecutionContracts(_projectId!);
-      if (mounted) {
-        final budgetSummary = budgetRows.isEmpty ? 'No budget data.' : budgetRows.map((b) => '- ${b['category'] ?? 'Unknown'}: planned ${b['plannedAmount'] ?? '0'}, actual ${b['actualAmount'] ?? '0'}').take(8).join('\n');
-        final deliverableSummary = deliverableRows.isEmpty ? 'No deliverable data.' : deliverableRows.map((d) => '- ${d['title'] ?? 'Untitled'} (status: ${d['status'] ?? 'Unknown'})').take(8).join('\n');
-        final riskItems = riskSnapshot['riskItems'] is List ? (riskSnapshot['riskItems'] as List).whereType<Map>().take(6).map((r) => '- ${r['title'] ?? r['risk'] ?? 'Unknown'} (status: ${r['status'] ?? 'Unknown'})').join('\n') : 'No risk tracking data.';
-        final contractsSummary = contracts.isEmpty ? 'No contract data.' : contracts.map((c) => '- ${c.contractName} (vendor: ${c.vendor}, value: ${c.value})').take(8).join('\n');
-        ctx = ProjectDataHelper.buildLaunchPhaseContext(
-          baseContext: ctx,
-          sectionLabel: 'Project Summary',
-          budgetSummary: budgetSummary,
-          deliverablesSummary: deliverableSummary,
-          riskTrackingSummary: riskItems,
-          contractsSummary: contractsSummary,
-        );
-      }
-    }
 
     setState(() => _isGenerating = true);
     Map<String, List<Map<String, dynamic>>> gen = {};
     try {
-      gen = await OpenAiServiceSecure().generateLaunchPhaseEntries(
-        context: ctx,
+      gen = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Project Summary',
         sections: const {
           'metrics':
               'Executive metrics with "label", "value", "notes"',
