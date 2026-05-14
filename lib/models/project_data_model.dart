@@ -1720,6 +1720,11 @@ class ScheduleActivity {
   String controlAccountId;
   String progressMeasurementMethod; // 'zeroHundred' | 'fiftyFifty' | 'percentComplete' | ...
 
+  // ── P3.5: Percent complete, resource assignments, cost ──
+  double percentComplete; // 0-1 for EVM calculation
+  List<String> resourceIds; // assigned team member/resource IDs
+  double estimatedCost; // cost-loaded schedule
+
   ScheduleActivity({
     String? id,
     this.wbsId = '',
@@ -1757,9 +1762,13 @@ class ScheduleActivity {
     this.totalFloat = 0,
     this.controlAccountId = '',
     this.progressMeasurementMethod = '',
+    this.percentComplete = 0,
+    List<String>? resourceIds,
+    this.estimatedCost = 0,
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         predecessorIds = predecessorIds ?? [],
-        dependencyIds = dependencyIds ?? [];
+        dependencyIds = dependencyIds ?? [],
+        resourceIds = resourceIds ?? [];
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -1798,6 +1807,9 @@ class ScheduleActivity {
         'totalFloat': totalFloat,
         'controlAccountId': controlAccountId,
         'progressMeasurementMethod': progressMeasurementMethod,
+        'percentComplete': percentComplete,
+        'resourceIds': resourceIds,
+        'estimatedCost': estimatedCost,
       };
 
   factory ScheduleActivity.fromJson(Map<String, dynamic> json) {
@@ -1860,6 +1872,17 @@ class ScheduleActivity {
       controlAccountId: json['controlAccountId']?.toString() ?? '',
       progressMeasurementMethod:
           json['progressMeasurementMethod']?.toString() ?? '',
+      // P3.5: percentComplete and resource fields
+      percentComplete: json['percentComplete'] is num
+          ? (json['percentComplete'] as num).toDouble().clamp(0, 1)
+          : 0,
+      resourceIds: (json['resourceIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      estimatedCost: json['estimatedCost'] is num
+          ? (json['estimatedCost'] as num).toDouble()
+          : 0,
     );
   }
 }
@@ -2654,6 +2677,34 @@ class RiskRegisterItem {
   String owner;
   String status;
 
+  // ── P3.6: Quantitative risk analysis fields ──
+  /// Numeric probability (0-1) for EMV and Monte Carlo calculations.
+  double probabilityNumeric;
+  /// Minimum cost impact if risk materializes.
+  double costImpactMin;
+  /// Most likely cost impact if risk materializes.
+  double costImpactMostLikely;
+  /// Maximum cost impact if risk materializes.
+  double costImpactMax;
+  /// Minimum schedule impact (days) if risk materializes.
+  int scheduleImpactMin;
+  /// Most likely schedule impact (days) if risk materializes.
+  int scheduleImpactMostLikely;
+  /// Maximum schedule impact (days) if risk materializes.
+  int scheduleImpactMax;
+  /// Control Account ID affected by this risk.
+  String controlAccountId;
+  /// CBS element ID for cost risk allocation.
+  String cbsId;
+  /// Whether this is a threat (negative) or opportunity (positive).
+  String riskType; // 'threat' | 'opportunity'
+  /// Risk response strategy category.
+  String responseStrategy; // 'avoid' | 'mitigate' | 'transfer' | 'accept' | 'exploit' | 'enhance' | 'share'
+  /// Residual probability after mitigation.
+  double? residualProbability;
+  /// Residual cost impact after mitigation.
+  double? residualCostImpact;
+
   RiskRegisterItem({
     this.riskName = '',
     this.description = '',
@@ -2667,7 +2718,40 @@ class RiskRegisterItem {
     this.projectRole = '',
     this.owner = '',
     this.status = '',
+    this.probabilityNumeric = 0,
+    this.costImpactMin = 0,
+    this.costImpactMostLikely = 0,
+    this.costImpactMax = 0,
+    this.scheduleImpactMin = 0,
+    this.scheduleImpactMostLikely = 0,
+    this.scheduleImpactMax = 0,
+    this.controlAccountId = '',
+    this.cbsId = '',
+    this.riskType = 'threat',
+    this.responseStrategy = 'accept',
+    this.residualProbability,
+    this.residualCostImpact,
   });
+
+  /// ── P3.6: Computed quantitative metrics ──
+  /// Expected Monetary Value = probability × most likely cost impact.
+  double get emv => probabilityNumeric * costImpactMostLikely;
+
+  /// PERT mean of cost impact = (min + 4×mostLikely + max) / 6.
+  double get pertCostImpact =>
+      (costImpactMin + 4 * costImpactMostLikely + costImpactMax) / 6;
+
+  /// PERT mean of schedule impact = (min + 4×mostLikely + max) / 6.
+  double get pertScheduleImpact =>
+      (scheduleImpactMin +
+          4 * scheduleImpactMostLikely +
+          scheduleImpactMax) /
+      6;
+
+  /// Residual EMV after mitigation.
+  double get residualEmv =>
+      (residualProbability ?? probabilityNumeric) *
+      (residualCostImpact ?? costImpactMostLikely);
 
   Map<String, dynamic> toJson() => {
         'riskName': riskName,
@@ -2682,9 +2766,27 @@ class RiskRegisterItem {
         'projectRole': projectRole,
         'owner': owner,
         'status': status,
+        'probabilityNumeric': probabilityNumeric,
+        'costImpactMin': costImpactMin,
+        'costImpactMostLikely': costImpactMostLikely,
+        'costImpactMax': costImpactMax,
+        'scheduleImpactMin': scheduleImpactMin,
+        'scheduleImpactMostLikely': scheduleImpactMostLikely,
+        'scheduleImpactMax': scheduleImpactMax,
+        'controlAccountId': controlAccountId,
+        'cbsId': cbsId,
+        'riskType': riskType,
+        'responseStrategy': responseStrategy,
+        'residualProbability': residualProbability,
+        'residualCostImpact': residualCostImpact,
       };
 
   factory RiskRegisterItem.fromJson(Map<String, dynamic> json) {
+    double toDouble(dynamic v) =>
+        (v is num) ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
+    int toInt(dynamic v) =>
+        (v is num) ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
+
     return RiskRegisterItem(
       riskName: json['riskName']?.toString() ?? json['risk']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
@@ -2706,6 +2808,23 @@ class RiskRegisterItem {
           json['projectRole']?.toString() ?? json['role']?.toString() ?? '',
       owner: json['owner']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
+      probabilityNumeric: toDouble(json['probabilityNumeric']),
+      costImpactMin: toDouble(json['costImpactMin']),
+      costImpactMostLikely: toDouble(json['costImpactMostLikely']),
+      costImpactMax: toDouble(json['costImpactMax']),
+      scheduleImpactMin: toInt(json['scheduleImpactMin']),
+      scheduleImpactMostLikely: toInt(json['scheduleImpactMostLikely']),
+      scheduleImpactMax: toInt(json['scheduleImpactMax']),
+      controlAccountId: json['controlAccountId']?.toString() ?? '',
+      cbsId: json['cbsId']?.toString() ?? '',
+      riskType: json['riskType']?.toString() ?? 'threat',
+      responseStrategy: json['responseStrategy']?.toString() ?? 'accept',
+      residualProbability: json['residualProbability'] is num
+          ? (json['residualProbability'] as num).toDouble()
+          : null,
+      residualCostImpact: json['residualCostImpact'] is num
+          ? (json['residualCostImpact'] as num).toDouble()
+          : null,
     );
   }
 }
