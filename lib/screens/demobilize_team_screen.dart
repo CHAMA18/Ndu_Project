@@ -4,6 +4,7 @@ import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/project_close_out_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -528,19 +529,16 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
         _isLoading = false;
         _hasLoaded = true;
       });
-      if (_teamRoster.isEmpty) {
-        final staff =
-            await LaunchPhaseService.loadExecutionStaffing(_projectId!);
-        if (staff.isNotEmpty) {
-          setState(() => _teamRoster.addAll(staff));
-          await _persistData();
-        }
-      }
-      final allEmpty = _teamRoster.isEmpty &&
+      if (_teamRoster.isEmpty &&
           _knowledgeTransfers.isEmpty &&
           _vendorOffboarding.isEmpty &&
-          _communications.isEmpty;
-      if (allEmpty) {
+          _communications.isEmpty) {
+        await _autoPopulateFromPriorPhases();
+      }
+      if (_teamRoster.isEmpty &&
+          _knowledgeTransfers.isEmpty &&
+          _vendorOffboarding.isEmpty &&
+          _communications.isEmpty) {
         await _populateFromAi();
       }
     } catch (e) {
@@ -565,37 +563,91 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
     }
   }
 
+  Future<void> _autoPopulateFromPriorPhases() async {
+    if (_projectId == null) return;
+    try {
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
+
+      if (!mounted) return;
+
+      // Pre-fill team roster from staffing
+      if (_teamRoster.isEmpty && cp.staffing.isNotEmpty) {
+        setState(() => _teamRoster.addAll(cp.staffing));
+      }
+
+      // Pre-fill knowledge transfers from team data
+      final ktExisting = _knowledgeTransfers.map((k) => k.topic).toSet();
+      final newKts = <LaunchKnowledgeTransfer>[];
+      for (final s in cp.staffing) {
+        if (s.name.isNotEmpty && !ktExisting.contains('KT: ${s.role}')) {
+          newKts.add(LaunchKnowledgeTransfer(
+            topic: 'KT: ${s.role}',
+            fromPerson: s.name,
+            status: 'Pending',
+          ));
+        }
+      }
+      if (newKts.isNotEmpty) {
+        setState(() => _knowledgeTransfers.addAll(newKts));
+      }
+
+      // Pre-fill vendor offboarding from vendors
+      final vendorExisting = _vendorOffboarding.map((v) => v.title).toSet();
+      final newVendors = <LaunchFollowUpItem>[];
+      for (final v in cp.vendors) {
+        if (v.vendorName.isNotEmpty && !vendorExisting.contains('Offboard: ${v.vendorName}')) {
+          newVendors.add(LaunchFollowUpItem(
+            title: 'Offboard: ${v.vendorName}',
+            details: 'Contract: ${v.contractRef}, Status: ${v.accountStatus}',
+            status: 'Pending',
+          ));
+        }
+      }
+      if (newVendors.isNotEmpty) {
+        setState(() => _vendorOffboarding.addAll(newVendors));
+      }
+
+      // Pre-fill communications from stakeholders
+      final commsExisting = _communications.map((c) => c.audience).toSet();
+      final newComms = <LaunchCommunicationItem>[];
+      for (final sh in cp.stakeholders) {
+        final name = sh['name'] ?? sh['stakeholder'] ?? '';
+        if (name.isNotEmpty && !commsExisting.contains(name)) {
+          newComms.add(LaunchCommunicationItem(
+            audience: name,
+            message: 'Project close-out notification',
+            status: 'Planned',
+          ));
+        }
+      }
+      // Add team-wide communication if there are team members
+      if (cp.staffing.isNotEmpty && !commsExisting.contains('All Team Members')) {
+        newComms.add(LaunchCommunicationItem(
+          audience: 'All Team Members',
+          message: 'Project wrap-up and debrief',
+          status: 'Planned',
+        ));
+      }
+      if (newComms.isNotEmpty) {
+        setState(() => _communications.addAll(newComms));
+      }
+
+      if (_teamRoster.isNotEmpty || newKts.isNotEmpty || newVendors.isNotEmpty || newComms.isNotEmpty) {
+        await _persistData();
+      }
+    } catch (e) {
+      debugPrint('Demobilize auto-populate error: $e');
+    }
+  }
+
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
-    final data = ProjectDataHelper.getData(context);
-    var ctx = ProjectDataHelper.buildExecutivePlanContext(data,
-        sectionLabel: 'Demobilize Team');
-    if (ctx.trim().isEmpty) {
-      ctx = ProjectDataHelper.buildProjectContextScan(data,
-          sectionLabel: 'Demobilize Team');
-    }
-    if (ctx.trim().isEmpty) return;
-
-    if (_projectId != null) {
-      final staff = await LaunchPhaseService.loadExecutionStaffing(_projectId!);
-      final vendors = await LaunchPhaseService.loadExecutionVendors(_projectId!);
-      if (mounted) {
-        final staffingSummary = staff.isEmpty ? 'No staffing data.' : staff.map((s) => '- ${s.name} (${s.role}, status: ${s.releaseStatus})').take(8).join('\n');
-        final vendorsSummary = vendors.isEmpty ? 'No vendor data.' : vendors.map((v) => '- ${v.vendorName} (status: ${v.accountStatus})').take(8).join('\n');
-        ctx = ProjectDataHelper.buildLaunchPhaseContext(
-          baseContext: ctx,
-          sectionLabel: 'Demobilize Team',
-          staffingSummary: staffingSummary,
-          vendorsSummary: vendorsSummary,
-        );
-      }
-    }
-
     setState(() => _isGenerating = true);
     Map<String, List<Map<String, dynamic>>> gen = {};
     try {
-      gen = await OpenAiServiceSecure().generateLaunchPhaseEntries(
-        context: ctx,
+      gen = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Demobilize Team',
         sections: const {
           'team_roster': 'Team members with "name", "role", "release_status"',
           'knowledge_transfer':

@@ -5,6 +5,7 @@ import 'package:ndu_project/screens/contract_close_out_screen.dart';
 import 'package:ndu_project/screens/summarize_account_risks_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -505,15 +506,19 @@ class _VendorAccountCloseOutScreenState
         _isLoading = false;
         _hasLoaded = true;
       });
-      if (_vendors.isEmpty) {
-        await _importVendors();
-      }
-      if (_vendors.isEmpty &&
+      final allEmpty = _vendors.isEmpty &&
           _accessItems.isEmpty &&
           _obligations.isEmpty &&
-          _closureChecklist.isEmpty) {
-        await _populateFromAi();
+          _closureChecklist.isEmpty;
+      if (allEmpty) {
+        await _autoPopulateFromPriorPhases();
       }
+
+      final stillEmpty = _vendors.isEmpty &&
+          _accessItems.isEmpty &&
+          _obligations.isEmpty &&
+          _closureChecklist.isEmpty;
+      if (stillEmpty) await _populateFromAi();
     } catch (e) {
       debugPrint('Vendor close-out load error: $e');
       if (mounted) setState(() => _isLoading = false);
@@ -535,37 +540,86 @@ class _VendorAccountCloseOutScreenState
     }
   }
 
+  Future<void> _autoPopulateFromPriorPhases() async {
+    if (_projectId == null) return;
+    try {
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
+      if (!mounted) return;
+
+      // Pre-fill vendors from cross-phase data
+      if (_vendors.isEmpty && cp.vendors.isNotEmpty) {
+        final existing = _vendors.map((v) => v.vendorName).toSet();
+        final newVendors = cp.vendors
+            .where((v) => !existing.contains(v.vendorName))
+            .toList();
+        if (newVendors.isNotEmpty) {
+          setState(() => _vendors.addAll(newVendors));
+        }
+      }
+
+      // Pre-fill access items from vendor + contract data
+      if (_accessItems.isEmpty) {
+        final newAccess = <LaunchAccessItem>[];
+        for (final v in cp.vendors.take(5)) {
+          newAccess.add(LaunchAccessItem(
+            system: 'Project Systems & Tools',
+            vendor: v.vendorName,
+            accessLevel: 'Standard',
+            status: 'Pending',
+          ));
+        }
+        for (final c in cp.contracts.take(3)) {
+          if (c.vendor.isNotEmpty) {
+            final alreadyAdded = newAccess.any((a) => a.vendor == c.vendor);
+            if (!alreadyAdded) {
+              newAccess.add(LaunchAccessItem(
+                system: 'Contract Systems',
+                vendor: c.vendor,
+                accessLevel: 'Standard',
+                status: 'Pending',
+              ));
+            }
+          }
+        }
+        if (newAccess.isNotEmpty) {
+          setState(() => _accessItems.addAll(newAccess));
+        }
+      }
+
+      // Pre-fill obligations from open risk items
+      if (_obligations.isEmpty && cp.openRiskItems.isNotEmpty) {
+        final newObligations = cp.openRiskItems
+            .map((r) => LaunchFollowUpItem(
+                  title: r['title']?.toString() ?? r['risk']?.toString() ?? '',
+                  details: r['description']?.toString() ?? r['details']?.toString() ?? '',
+                  owner: r['owner']?.toString() ?? '',
+                  status: r['status']?.toString() ?? 'Open',
+                ))
+            .where((o) => o.title.isNotEmpty)
+            .toList();
+        if (newObligations.isNotEmpty) {
+          setState(() => _obligations.addAll(newObligations));
+        }
+      }
+
+      final hasNewData = _vendors.isNotEmpty ||
+          _accessItems.isNotEmpty ||
+          _obligations.isNotEmpty;
+      if (hasNewData) await _persistData();
+    } catch (e) {
+      debugPrint('Vendor close-out auto-populate error: $e');
+    }
+  }
+
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
-    final data = ProjectDataHelper.getData(context);
-    var ctx = ProjectDataHelper.buildExecutivePlanContext(data,
-        sectionLabel: 'Vendor Account Close Out');
-    if (ctx.trim().isEmpty) {
-      ctx = ProjectDataHelper.buildProjectContextScan(data,
-          sectionLabel: 'Vendor Account Close Out');
-    }
-    if (ctx.trim().isEmpty) return;
-
-    if (_projectId != null) {
-      final vendors = await LaunchPhaseService.loadExecutionVendors(_projectId!);
-      final contracts = await LaunchPhaseService.loadExecutionContracts(_projectId!);
-      if (mounted) {
-        final vendorsSummary = vendors.isEmpty ? 'No vendor data.' : vendors.map((v) => '- ${v.vendorName} (status: ${v.accountStatus})').take(8).join('\n');
-        final contractsSummary = contracts.isEmpty ? 'No contract data.' : contracts.map((c) => '- ${c.contractName} (vendor: ${c.vendor})').take(8).join('\n');
-        ctx = ProjectDataHelper.buildLaunchPhaseContext(
-          baseContext: ctx,
-          sectionLabel: 'Vendor Account Close Out',
-          vendorsSummary: vendorsSummary,
-          contractsSummary: contractsSummary,
-        );
-      }
-    }
 
     setState(() => _isGenerating = true);
     Map<String, List<Map<String, dynamic>>> gen = {};
     try {
-      gen = await OpenAiServiceSecure().generateLaunchPhaseEntries(
-        context: ctx,
+      gen = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Vendor Account Close Out',
         sections: const {
           'vendors':
               'Vendors with "vendor_name", "contract_ref", "outstanding_items", "status"',

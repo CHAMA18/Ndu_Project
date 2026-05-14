@@ -4,6 +4,8 @@ import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/commerce_viability_screen.dart';
 import 'package:ndu_project/screens/project_close_out_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -35,6 +37,7 @@ class _ActualVsPlannedGapAnalysisScreenState
   List<LaunchFollowUpItem> _followUpActions = [];
 
   bool _isLoading = true;
+  bool _isGenerating = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
 
@@ -103,6 +106,13 @@ class _ActualVsPlannedGapAnalysisScreenState
             icon: Icons.autorenew_outlined,
             tone: ExecutionActionTone.secondary,
             onPressed: _autoPopulateFromPriorPhases,
+          ),
+          ExecutionActionItem(
+            label: _isGenerating ? 'Generating…' : 'AI Assist',
+            icon: Icons.auto_awesome_outlined,
+            tone: ExecutionActionTone.ai,
+            isLoading: _isGenerating,
+            onPressed: _isGenerating ? null : _populateFromAi,
           ),
         ],
       ),
@@ -528,6 +538,13 @@ class _ActualVsPlannedGapAnalysisScreenState
           _followUpActions.isEmpty) {
         await _autoPopulateFromPriorPhases();
       }
+      if (_scopeGaps.isEmpty &&
+          _milestoneVariances.isEmpty &&
+          _budgetVariances.isEmpty &&
+          _rootCauses.isEmpty &&
+          _followUpActions.isEmpty) {
+        await _populateFromAi();
+      }
     } catch (e) {
       debugPrint('Gap analysis load error: $e');
       if (mounted) setState(() => _isLoading = false);
@@ -553,16 +570,13 @@ class _ActualVsPlannedGapAnalysisScreenState
   Future<void> _autoPopulateFromPriorPhases() async {
     if (_projectId == null) return;
     try {
-      final scopeTracking = await LaunchPhaseService.loadScopeTrackingItems(_projectId!);
-      final budgetRows = await LaunchPhaseService.loadBudgetRows(_projectId!);
-      final sprints = await LaunchPhaseService.loadPlanningSprints(_projectId!);
-      final riskSnapshot = await LaunchPhaseService.loadRiskTrackingSnapshot(_projectId!);
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
 
       if (!mounted) return;
 
       final scopeGapExisting = _scopeGaps.map((g) => g.planned).toSet();
       final newScopeGaps = <LaunchGapItem>[];
-      for (final st in scopeTracking) {
+      for (final st in cp.scopeTracking) {
         if (st.deliverable.isNotEmpty && !scopeGapExisting.contains(st.deliverable)) {
           final status = st.status.toLowerCase();
           String gapStatus;
@@ -587,7 +601,7 @@ class _ActualVsPlannedGapAnalysisScreenState
 
       final milestoneExisting = _milestoneVariances.map((m) => m.milestone).toSet();
       final newMilestones = <LaunchMilestoneVariance>[];
-      for (final sp in sprints) {
+      for (final sp in cp.planningSprints) {
         final title = sp['title']?.toString() ?? sp['name']?.toString() ?? '';
         if (title.isNotEmpty && !milestoneExisting.contains(title)) {
           newMilestones.add(LaunchMilestoneVariance(
@@ -604,7 +618,7 @@ class _ActualVsPlannedGapAnalysisScreenState
 
       final budgetExisting = _budgetVariances.map((b) => b.category).toSet();
       final newBudgetVariances = <LaunchBudgetVariance>[];
-      for (final br in budgetRows) {
+      for (final br in cp.budgetRows) {
         final cat = br['category']?.toString() ?? '';
         if (cat.isNotEmpty && !budgetExisting.contains(cat)) {
           final planned = br['plannedAmount']?.toString() ?? '';
@@ -628,19 +642,15 @@ class _ActualVsPlannedGapAnalysisScreenState
 
       final rootCauseExisting = _rootCauses.map((r) => r.gap).toSet();
       final newRootCauses = <LaunchRootCauseItem>[];
-      final riskItems = riskSnapshot['riskItems'];
-      if (riskItems is List) {
-        for (final ri in riskItems.whereType<Map>()) {
-          final m = Map<String, dynamic>.from(ri);
-          final title = m['title']?.toString() ?? m['risk']?.toString() ?? '';
-          if (title.isNotEmpty && !rootCauseExisting.contains(title)) {
-            newRootCauses.add(LaunchRootCauseItem(
-              gap: title,
-              rootCause: m['cause']?.toString() ?? m['rootCause']?.toString() ?? '',
-              impact: m['impact']?.toString() ?? '',
-              status: 'Open',
-            ));
-          }
+      for (final ri in cp.openRiskItems) {
+        final title = ri['title']?.toString() ?? ri['risk']?.toString() ?? '';
+        if (title.isNotEmpty && !rootCauseExisting.contains(title)) {
+          newRootCauses.add(LaunchRootCauseItem(
+            gap: title,
+            rootCause: ri['cause']?.toString() ?? ri['rootCause']?.toString() ?? '',
+            impact: ri['impact']?.toString() ?? '',
+            status: 'Open',
+          ));
         }
       }
       if (newRootCauses.isNotEmpty) {
@@ -649,36 +659,26 @@ class _ActualVsPlannedGapAnalysisScreenState
 
       final followUpExisting = _followUpActions.map((f) => f.title).toSet();
       final newFollowUps = <LaunchFollowUpItem>[];
-      if (riskItems is List) {
-        for (final ri in riskItems.whereType<Map>()) {
-          final m = Map<String, dynamic>.from(ri);
-          final status = m['status']?.toString() ?? '';
-          if (status.toLowerCase() != 'closed' && status.toLowerCase() != 'resolved' && status.toLowerCase() != 'mitigated') {
-            final title = m['title']?.toString() ?? m['risk']?.toString() ?? '';
-            if (title.isNotEmpty && !followUpExisting.contains(title)) {
-              newFollowUps.add(LaunchFollowUpItem(
-                title: 'Monitor: $title',
-                details: m['description']?.toString() ?? m['details']?.toString() ?? '',
-                owner: m['owner']?.toString() ?? '',
-                status: 'Open',
-              ));
-            }
-          }
+      for (final ri in cp.openRiskItems) {
+        final title = ri['title']?.toString() ?? ri['risk']?.toString() ?? '';
+        if (title.isNotEmpty && !followUpExisting.contains(title)) {
+          newFollowUps.add(LaunchFollowUpItem(
+            title: 'Monitor: $title',
+            details: ri['description']?.toString() ?? ri['details']?.toString() ?? '',
+            owner: ri['owner']?.toString() ?? '',
+            status: 'Open',
+          ));
         }
       }
-      final mitigationPlans = riskSnapshot['mitigationPlans'];
-      if (mitigationPlans is List) {
-        for (final mp in mitigationPlans.whereType<Map>()) {
-          final m = Map<String, dynamic>.from(mp);
-          final title = m['title']?.toString() ?? m['action']?.toString() ?? '';
-          if (title.isNotEmpty && !followUpExisting.contains(title)) {
-            newFollowUps.add(LaunchFollowUpItem(
-              title: title,
-              details: m['description']?.toString() ?? m['details']?.toString() ?? '',
-              owner: m['owner']?.toString() ?? '',
-              status: 'Open',
-            ));
-          }
+      for (final mp in cp.mitigationPlans) {
+        final title = mp['title']?.toString() ?? mp['action']?.toString() ?? '';
+        if (title.isNotEmpty && !followUpExisting.contains(title)) {
+          newFollowUps.add(LaunchFollowUpItem(
+            title: title,
+            details: mp['description']?.toString() ?? mp['details']?.toString() ?? '',
+            owner: mp['owner']?.toString() ?? '',
+            status: 'Open',
+          ));
         }
       }
       if (newFollowUps.isNotEmpty) {
@@ -693,4 +693,85 @@ class _ActualVsPlannedGapAnalysisScreenState
     }
   }
 
+  Future<void> _populateFromAi() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+    Map<String, List<Map<String, dynamic>>> gen = {};
+    try {
+      gen = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Actual vs Planned Gap Analysis',
+        sections: const {
+          'scope_gaps': 'Scope gap items with "planned", "actual", "gap_description", "gap_status"',
+          'milestone_variances': 'Milestone variances with "milestone", "planned_date", "actual_date", "variance_days", "status"',
+          'budget_variances': 'Budget variance items with "category", "planned_amount", "actual_amount", "variance", "variance_percent"',
+          'root_causes': 'Root cause items with "gap", "root_cause", "impact", "corrective_action", "status"',
+          'follow_up_actions': 'Follow-up actions with "title", "details", "owner", "status"',
+        },
+        itemsPerSection: 3,
+      );
+    } catch (e) {
+      debugPrint('Gap analysis AI error: $e');
+    }
+    if (!mounted) return;
+    final hasData = _scopeGaps.isNotEmpty ||
+        _milestoneVariances.isNotEmpty ||
+        _budgetVariances.isNotEmpty ||
+        _rootCauses.isNotEmpty ||
+        _followUpActions.isNotEmpty;
+    if (hasData) {
+      setState(() => _isGenerating = false);
+      return;
+    }
+    setState(() {
+      _scopeGaps = (gen['scope_gaps'] ?? [])
+          .map((m) => LaunchGapItem(
+              planned: _s(m['planned']),
+              actual: _s(m['actual']),
+              gapDescription: _s(m['gap_description']),
+              gapStatus: _ns(m['gap_status'], 'Missed')))
+          .where((i) => i.planned.isNotEmpty)
+          .toList();
+      _milestoneVariances = (gen['milestone_variances'] ?? [])
+          .map((m) => LaunchMilestoneVariance(
+              milestone: _s(m['milestone']),
+              plannedDate: _s(m['planned_date']),
+              actualDate: _s(m['actual_date']),
+              varianceDays: _s(m['variance_days']),
+              status: _ns(m['status'], 'On Track')))
+          .where((i) => i.milestone.isNotEmpty)
+          .toList();
+      _budgetVariances = (gen['budget_variances'] ?? [])
+          .map((m) => LaunchBudgetVariance(
+              category: _s(m['category']),
+              plannedAmount: _s(m['planned_amount']),
+              actualAmount: _s(m['actual_amount']),
+              variance: _s(m['variance']),
+              variancePercent: _s(m['variance_percent'])))
+          .where((i) => i.category.isNotEmpty)
+          .toList();
+      _rootCauses = (gen['root_causes'] ?? [])
+          .map((m) => LaunchRootCauseItem(
+              gap: _s(m['gap']),
+              rootCause: _s(m['root_cause']),
+              impact: _s(m['impact']),
+              correctiveAction: _s(m['corrective_action']),
+              status: _ns(m['status'], 'Open')))
+          .where((i) => i.gap.isNotEmpty)
+          .toList();
+      _followUpActions = (gen['follow_up_actions'] ?? [])
+          .map((m) => LaunchFollowUpItem(
+              title: _s(m['title']),
+              details: _s(m['details']),
+              owner: _s(m['owner']),
+              status: _ns(m['status'], 'Open')))
+          .where((i) => i.title.isNotEmpty)
+          .toList();
+      _isGenerating = false;
+    });
+    await _persistData();
+  }
+
+  String _s(dynamic v) => (v ?? '').toString().trim();
+  String _ns(dynamic v, String fb) => _s(v).isEmpty ? fb : _s(v);
 }
