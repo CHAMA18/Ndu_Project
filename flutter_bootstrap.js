@@ -39,6 +39,6 @@ _flutter.loader.load({
   canvasKitVariant: "full",
   useLocalCanvasKit: true,
   serviceWorkerSettings: {
-    serviceWorkerVersion: "2292024550" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */
+    serviceWorkerVersion: "492468568" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */
   }
 });
