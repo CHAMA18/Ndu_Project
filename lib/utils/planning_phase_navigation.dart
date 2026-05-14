@@ -353,11 +353,6 @@ class PlanningPhaseNavigation {
       builder: (_) => const DeliverablesRoadmapScreen(),
     ),
     PlanningPage(
-      id: 'deliverable_roadmap_agile_map_out',
-      title: 'Agile Map Out',
-      builder: (_) => const DeliverableRoadmapAgileMapOutScreen(),
-    ),
-    PlanningPage(
       id: 'agile_project_baseline',
       title: 'Agile Project Baseline',
       builder: (_) => const AgileProjectBaselineScreen(),
