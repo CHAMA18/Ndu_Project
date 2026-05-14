@@ -8,6 +8,7 @@ import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -67,6 +68,13 @@ class _DeliverProjectClosureScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+            const PlanningPhaseHeader(
+              title: 'Deliver Project',
+              showImportButton: false,
+              showContentButton: false,
+              showNavigationButtons: false,
+            ),
+            const SizedBox(height: 16),
             _buildHeader(),
             const SizedBox(height: 20),
             _buildMetricsRow(),
