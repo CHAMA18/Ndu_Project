@@ -36,8 +36,6 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
   bool _suspendSave = false;
   bool _didSeedDefaults = false;
 
-  final Set<String> _selectedFilters = {'All items'};
-
   // User Journey Register
   List<_JourneyRow> _journeys = [];
 
@@ -548,8 +546,6 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   if (_isLoading) const SizedBox(height: 16),
                   _buildHeader(isNarrow),
                   const SizedBox(height: 16),
-                  _buildFilterChips(),
-                  const SizedBox(height: 20),
                   _buildStatsRow(isNarrow),
                   const SizedBox(height: 20),
                   _buildUXFrameworkGuide(),
@@ -598,197 +594,35 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = isNarrow || constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'UI/UX Design',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827)),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Manage user journeys, interface architecture, design system tokens, and usability validation for the project. '
-                  'Aligned with ISO 9241-210 Human-Centred Design, Nielsen Norman Group usability heuristics, '
-                  'and WCAG 2.1 accessibility standards. This register ensures experience design decisions remain '
-                  'traceable, testable, and reviewable throughout the design phase.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  _buildHeaderActions(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 20),
-                Flexible(child: _buildHeaderActions()),
-              ],
-            );
-          },
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'UI/UX Design',
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827)),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Manage user journeys, interface architecture, design system tokens, and usability validation for the project. '
+              'Aligned with ISO 9241-210 Human-Centred Design, Nielsen Norman Group usability heuristics, '
+              'and WCAG 2.1 accessibility standards. This register ensures experience design decisions remain '
+              'traceable, testable, and reviewable throughout the design phase.',
+              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add journey',
-            onPressed: () => _showJourneyDialog()),
-        _actionButton(Icons.upload_outlined, 'Import design tokens',
-            onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Import design tokens from Figma or JSON is available from the Design System Tokens register.')),
-          );
-        }),
-        _actionButton(Icons.description_outlined, 'Export spec',
-            onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Export specification is queued. Use the registers while export tools are finalized.')),
-          );
-        }),
-        _primaryButton('Start design review'),
-      ],
-    );
-  }
-
-  Widget _actionButton(IconData icon, String label, {VoidCallback? onPressed}) {
-    return OutlinedButton.icon(
-      onPressed: onPressed ?? () {},
-      icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
-      label: Text(label,
-          style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B))),
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _primaryButton(String label) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        setState(() {
-          _selectedFilters
-            ..clear()
-            ..add('Review pending');
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Design review started. Filter set to items pending review.')),
-        );
-      },
-      icon: const Icon(Icons.play_arrow, size: 18),
-      label: Text(label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  // ─── Filter Chips ────────────────────────────────────────────────
-
-  Widget _buildFilterChips() {
-    const filters = [
-      'All items',
-      'Journeys',
-      'Interfaces',
-      'Design system',
-      'Validation',
-      'Review pending',
-    ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return ChoiceChip(
-          label: Text(
-            filter,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF475569),
-            ),
-          ),
-          selected: selected,
-          selectedColor: const Color(0xFF111827),
-          backgroundColor: Colors.white,
-          shape: StadiumBorder(
-            side: BorderSide(color: const Color(0xFFE5E7EB)),
-          ),
-          onSelected: (value) {
-            setState(() {
-              if (value) {
-                if (filter == 'All items') {
-                  _selectedFilters
-                    ..clear()
-                    ..add(filter);
-                } else {
-                  _selectedFilters
-                    ..remove('All items')
-                    ..add(filter);
-                }
-              } else {
-                _selectedFilters.remove(filter);
-                if (_selectedFilters.isEmpty) {
-                  _selectedFilters.add('All items');
-                }
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  bool get _showJourneys =>
-      _selectedFilters.contains('All items') ||
-      _selectedFilters.contains('Journeys');
-  bool get _showInterfaces =>
-      _selectedFilters.contains('All items') ||
-      _selectedFilters.contains('Interfaces');
-  bool get _showDesignTokens =>
-      _selectedFilters.contains('All items') ||
-      _selectedFilters.contains('Design system');
-  bool get _showUsability =>
-      _selectedFilters.contains('All items') ||
-      _selectedFilters.contains('Validation');
-  bool get _showReviewGates =>
-      _selectedFilters.contains('All items') ||
-      _selectedFilters.contains('Review pending');
+  bool get _showJourneys => true;
+  bool get _showInterfaces => true;
+  bool get _showDesignTokens => true;
+  bool get _showUsability => true;
+  bool get _showReviewGates => true;
 
   // ─── Stats Row ────────────────────────────────────────────────────
 
