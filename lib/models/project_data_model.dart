@@ -1420,6 +1420,25 @@ class WorkItem {
   List<String> dependencies;
   String controlAccountId;
 
+  /// Formal WBS element code (e.g. "1.2.3.4") — canonical identifier for
+  /// cross-referencing with CBS, OBS, and Control Accounts.
+  String wbsCode;
+
+  /// WBS Dictionary fields: deliverable description, acceptance criteria,
+  /// and work package definition per the Integrated Project Controls guide.
+  String deliverableDescription;
+  String acceptanceCriteria;
+  String workPackageDefinition;
+
+  /// Relative weight (0-1) for progress rollup from children to parent.
+  double weight;
+
+  /// CBS element ID cross-reference — links this WBS node to its cost account.
+  String cbsId;
+
+  /// OBS element ID cross-reference — links this WBS node to its org unit.
+  String obsId;
+
   WorkItem({
     String? id,
     this.parentId = '',
@@ -1430,6 +1449,13 @@ class WorkItem {
     List<WorkItem>? children,
     List<String>? dependencies,
     this.controlAccountId = '',
+    this.wbsCode = '',
+    this.deliverableDescription = '',
+    this.acceptanceCriteria = '',
+    this.workPackageDefinition = '',
+    this.weight = 0,
+    this.cbsId = '',
+    this.obsId = '',
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         children = children ?? [],
         dependencies = dependencies ?? [];
@@ -1444,6 +1470,13 @@ class WorkItem {
         'children': children.map((c) => c.toJson()).toList(),
         'dependencies': dependencies,
         'controlAccountId': controlAccountId,
+        'wbsCode': wbsCode,
+        'deliverableDescription': deliverableDescription,
+        'acceptanceCriteria': acceptanceCriteria,
+        'workPackageDefinition': workPackageDefinition,
+        'weight': weight,
+        'cbsId': cbsId,
+        'obsId': obsId,
       };
 
   factory WorkItem.fromJson(Map<String, dynamic> json) {
@@ -1462,6 +1495,13 @@ class WorkItem {
           (json['dependencies'] as List?)?.map((d) => d.toString()).toList() ??
               [],
       controlAccountId: json['controlAccountId']?.toString() ?? '',
+      wbsCode: json['wbsCode']?.toString() ?? '',
+      deliverableDescription: json['deliverableDescription']?.toString() ?? '',
+      acceptanceCriteria: json['acceptanceCriteria']?.toString() ?? '',
+      workPackageDefinition: json['workPackageDefinition']?.toString() ?? '',
+      weight: (json['weight'] is num) ? (json['weight'] as num).toDouble() : 0,
+      cbsId: json['cbsId']?.toString() ?? '',
+      obsId: json['obsId']?.toString() ?? '',
     );
   }
 }
@@ -3531,6 +3571,11 @@ class WorkPackage {
   String notes;
   String controlAccountId;
 
+  /// Physical percent complete (0.0 - 1.0). Used for Earned Value calculation.
+  /// EV = percentComplete × budgetedCost.  This is the standard EVM approach
+  /// per the Integrated Project Controls guide.
+  double percentComplete;
+
   bool get isReleasedForExecution =>
       releaseStatus == 'released' || releaseStatus == 'complete';
 
@@ -3581,6 +3626,7 @@ class WorkPackage {
     List<String>? readinessWarnings,
     this.notes = '',
     this.controlAccountId = '',
+    this.percentComplete = 0,
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         childPackageIds = childPackageIds ?? [],
         linkedEngineeringPackageIds = linkedEngineeringPackageIds ?? [],
@@ -3647,6 +3693,7 @@ class WorkPackage {
         'readinessWarnings': readinessWarnings,
         'notes': notes,
         'controlAccountId': controlAccountId,
+        'percentComplete': percentComplete,
       };
 
   factory WorkPackage.fromJson(Map<String, dynamic> json) {
@@ -3754,6 +3801,9 @@ class WorkPackage {
           [],
       notes: json['notes']?.toString() ?? '',
       controlAccountId: json['controlAccountId']?.toString() ?? '',
+      percentComplete: (json['percentComplete'] is num)
+          ? (json['percentComplete'] as num).toDouble().clamp(0, 1)
+          : 0,
     );
   }
 
@@ -3802,6 +3852,8 @@ class WorkPackage {
     PackageProcurementBreakdown? procurementBreakdown,
     List<String>? readinessWarnings,
     String? notes,
+    String? controlAccountId,
+    double? percentComplete,
   }) {
     return WorkPackage(
       id: id,
@@ -3856,6 +3908,8 @@ class WorkPackage {
       procurementBreakdown: procurementBreakdown ?? this.procurementBreakdown,
       readinessWarnings: readinessWarnings ?? this.readinessWarnings,
       notes: notes ?? this.notes,
+      controlAccountId: controlAccountId ?? this.controlAccountId,
+      percentComplete: percentComplete ?? this.percentComplete,
     );
   }
 }

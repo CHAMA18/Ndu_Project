@@ -3,6 +3,12 @@ import 'package:ndu_project/models/project_data_model.dart';
 
 class ControlAccountService {
   /// Recalculate EVM metrics for all control accounts based on work package data.
+  ///
+  /// **P1.5 Fix**: Earned Value now uses the standard EVM formula:
+  ///   EV = percentComplete × budgetedCost  (for in_progress work packages)
+  ///   EV = budgetedCost                    (for complete work packages)
+  /// Previously, EV for in_progress WPs used actualCost/budgetedCost ratio,
+  /// which conflates actual cost with earned value — a violation of standard EVM.
   static List<ControlAccount> recalculateAll({
     required List<ControlAccount> accounts,
     required List<WorkPackage> workPackages,
@@ -30,6 +36,21 @@ class ControlAccountService {
   }
 
   /// Recalculate a single control account's EVM from its linked items.
+  ///
+  /// Uses standard EVM formulas per the Integrated Project Controls guide:
+  /// - BAC = Σ(WP.budgetedCost)
+  /// - EV = Σ(WP.percentComplete × WP.budgetedCost)  [standard earned value]
+  /// - AC = Σ(WP.actualCost)
+  /// - PV = Σ(plannedValueByPeriod up to current month)
+  /// - CPI = EV / AC
+  /// - SPI = EV / PV
+  /// - EAC = BAC / CPI  (CPI-based; composite formula available via ForecastService)
+  /// - ETC = EAC - AC
+  /// - VAC = BAC - EAC
+  /// - CV  = EV - AC
+  /// - SV  = EV - PV
+  /// - TCPI(BAC) = (BAC - EV) / (BAC - AC)
+  /// - TCPI(EAC) = (BAC - EV) / (EAC - AC)
   static ControlAccount _recalculateOne({
     required ControlAccount account,
     required List<WorkPackage> workPackages,
@@ -39,15 +60,23 @@ class ControlAccountService {
     final double bac =
         workPackages.fold<double>(0, (s, wp) => s + wp.budgetedCost);
 
+    // ── P1.5 Fix: Standard EV calculation using percentComplete × BAC ──
     double ev = 0;
     for (final wp in workPackages) {
       if (wp.status == 'complete') {
         ev += wp.budgetedCost;
       } else if (wp.status == 'in_progress') {
-        ev += wp.budgetedCost > 0
-            ? (wp.actualCost / wp.budgetedCost).clamp(0, 1) * wp.budgetedCost
-            : 0;
+        // Standard EVM: EV = % complete × BAC for this work package
+        // Use percentComplete if available (> 0), otherwise fall back to
+        // a conservative 50/50 rule for legacy data without percentComplete.
+        if (wp.percentComplete > 0) {
+          ev += wp.percentComplete.clamp(0, 1) * wp.budgetedCost;
+        } else {
+          // 50/50 rule: 50% earned when started, 100% when complete
+          ev += wp.budgetedCost * 0.5;
+        }
       }
+      // 'planned' status: EV = 0 (no work done yet)
     }
 
     final double ac =
@@ -62,6 +91,10 @@ class ControlAccountService {
     final double eac = cpi > 0 ? bac / cpi : bac;
     final double etc = eac - ac;
     final double vac = bac - eac;
+    final double cv = ev - ac;
+    final double sv = ev - pvAtNow;
+    final double tcpii = (bac - ac) > 0 ? (bac - ev) / (bac - ac) : 1.0;
+    final double tcpis = (eac - ac) > 0 ? (bac - ev) / (eac - ac) : 1.0;
 
     return account.copyWith(
       budgetAtCompletion: bac,
@@ -72,6 +105,10 @@ class ControlAccountService {
       eac: eac,
       etc: etc,
       vac: vac,
+      cv: cv,
+      sv: sv,
+      tcpii: tcpii,
+      tcpis: tcpis,
       lastRecalculated: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -106,6 +143,13 @@ class ControlAccountService {
     return cpi > 0 ? bac / cpi : bac;
   }
 
+  /// Compute EAC using composite CPI×SPI formula for schedule-critical projects.
+  /// EAC = AC + [(BAC - EV) / (CPI × SPI)]
+  static double computeEacComposite(double bac, double ev, double ac, double cpi, double spi) {
+    final denominator = cpi * spi;
+    return denominator > 0 ? ac + ((bac - ev) / denominator) : bac;
+  }
+
   /// Compute ETC (Estimate to Complete).
   static double computeEtc(double eac, double actualCost) {
     return eac - actualCost;
@@ -116,6 +160,16 @@ class ControlAccountService {
     return bac - eac;
   }
 
+  /// Compute CV (Cost Variance = EV - AC).
+  static double computeCv(double earnedValue, double actualCost) {
+    return earnedValue - actualCost;
+  }
+
+  /// Compute SV (Schedule Variance = EV - PV).
+  static double computeSv(double earnedValue, double plannedValue) {
+    return earnedValue - plannedValue;
+  }
+
   /// TCPI based on BAC (to-complete performance index).
   static double computeTcpii(double bac, double ev, double ac) {
     return (bac - ac) > 0 ? (bac - ev) / (bac - ac) : 1.0;
@@ -124,5 +178,11 @@ class ControlAccountService {
   /// TCPI based on EAC (to-complete performance index using EAC).
   static double computeTcpis(double bac, double ev, double eac, double ac) {
     return (eac - ac) > 0 ? (bac - ev) / (eac - ac) : 1.0;
+  }
+
+  /// Compute risk-adjusted EAC using risk adjustment factor.
+  /// EAC_risk = EAC × (1 + riskAdjustment)
+  static double computeRiskAdjustedEac(double eac, double riskAdjustment) {
+    return eac * (1 + riskAdjustment);
   }
 }
