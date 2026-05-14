@@ -128,8 +128,11 @@ class _ProjectFrameworkNextScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final projectData = ProjectDataHelper.getProvider(context).projectData;
 
-      // Populate from planning goals (preferred)
-      if (projectData.planningGoals.isNotEmpty) {
+      // Populate from planning goals (preferred) - only if they have actual content
+      final hasPlanningGoalContent = projectData.planningGoals.any(
+        (g) => g.title.isNotEmpty || g.description.isNotEmpty,
+      );
+      if (hasPlanningGoalContent) {
         for (int i = 0; i < projectData.planningGoals.length && i < 3; i++) {
           final goal = projectData.planningGoals[i];
           _goalTitleControllers[i].text = goal.title;
