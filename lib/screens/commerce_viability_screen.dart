@@ -5,6 +5,7 @@ import 'package:ndu_project/screens/actual_vs_planned_gap_analysis_screen.dart';
 import 'package:ndu_project/screens/summarize_account_risks_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -529,16 +530,13 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
   Future<void> _autoPopulateFromPriorPhases() async {
     if (_projectId == null) return;
     try {
-      final contracts = await LaunchPhaseService.loadExecutionContracts(_projectId!);
-      final budgetRows = await LaunchPhaseService.loadBudgetRows(_projectId!);
-      final staff = await LaunchPhaseService.loadExecutionStaffing(_projectId!);
-      final riskSnapshot = await LaunchPhaseService.loadRiskTrackingSnapshot(_projectId!);
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
 
       if (!mounted) return;
 
       final warrantyExisting = _warranties.map((w) => w.item).toSet();
       final newWarranties = <LaunchWarrantyItem>[];
-      for (final c in contracts) {
+      for (final c in cp.contracts) {
         if (c.contractName.isNotEmpty && !warrantyExisting.contains(c.contractName)) {
           newWarranties.add(LaunchWarrantyItem(
             item: c.contractName,
@@ -554,7 +552,7 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
 
       final opsCostExisting = _opsCosts.map((c) => c.category).toSet();
       final newOpsCosts = <LaunchOpsCostItem>[];
-      for (final s in staff) {
+      for (final s in cp.staffing) {
         if (s.name.isNotEmpty && !opsCostExisting.contains(s.name)) {
           newOpsCosts.add(LaunchOpsCostItem(
             category: 'Staff: ${s.name}',
@@ -562,7 +560,7 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
           ));
         }
       }
-      for (final br in budgetRows) {
+      for (final br in cp.budgetRows) {
         final cat = br['category']?.toString() ?? '';
         if (cat.isNotEmpty && !opsCostExisting.contains(cat)) {
           final planned = br['plannedAmount']?.toString() ?? '';
@@ -583,28 +581,20 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
       final metricExisting = _financialMetrics.map((m) => m.label).toSet();
       final newMetrics = <LaunchFinancialMetric>[];
 
-      double totalPlanned = 0;
-      double totalActual = 0;
-      for (final br in budgetRows) {
-        final planned = double.tryParse((br['plannedAmount'] ?? '').toString().replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
-        final actual = double.tryParse((br['actualAmount'] ?? '').toString().replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
-        totalPlanned += planned;
-        totalActual += actual;
-      }
-      if (totalPlanned > 0 && !metricExisting.contains('Total Planned Budget')) {
+      if (cp.totalPlannedBudget > 0 && !metricExisting.contains('Total Planned Budget')) {
         newMetrics.add(LaunchFinancialMetric(
           label: 'Total Planned Budget',
-          value: '\$${totalPlanned.toStringAsFixed(0)}',
+          value: '\$${cp.totalPlannedBudget.toStringAsFixed(0)}',
         ));
       }
-      if (totalActual > 0 && !metricExisting.contains('Total Actual Spend')) {
+      if (cp.totalActualBudget > 0 && !metricExisting.contains('Total Actual Spend')) {
         newMetrics.add(LaunchFinancialMetric(
           label: 'Total Actual Spend',
-          value: '\$${totalActual.toStringAsFixed(0)}',
+          value: '\$${cp.totalActualBudget.toStringAsFixed(0)}',
         ));
       }
-      if (totalPlanned > 0 && !metricExisting.contains('Budget Variance')) {
-        final variance = totalPlanned - totalActual;
+      if (cp.totalPlannedBudget > 0 && !metricExisting.contains('Budget Variance')) {
+        final variance = cp.budgetVariance;
         newMetrics.add(LaunchFinancialMetric(
           label: 'Budget Variance',
           value: '\$${variance.toStringAsFixed(0)}',
@@ -612,14 +602,10 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
         ));
       }
 
-      double totalContractValue = 0;
-      for (final c in contracts) {
-        totalContractValue += double.tryParse(c.value.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
-      }
-      if (totalContractValue > 0 && !metricExisting.contains('Total Contract Value')) {
+      if (cp.totalContractValue > 0 && !metricExisting.contains('Total Contract Value')) {
         newMetrics.add(LaunchFinancialMetric(
           label: 'Total Contract Value',
-          value: '\$${totalContractValue.toStringAsFixed(0)}',
+          value: '\$${cp.totalContractValue.toStringAsFixed(0)}',
         ));
       }
       if (newMetrics.isNotEmpty) {
@@ -628,18 +614,14 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
 
       final recExisting = _recommendations.map((r) => r.title).toSet();
       final newRecs = <LaunchFollowUpItem>[];
-      final mitigationPlans = riskSnapshot['mitigationPlans'];
-      if (mitigationPlans is List) {
-        for (final mp in mitigationPlans.whereType<Map>()) {
-          final m = Map<String, dynamic>.from(mp);
-          final title = m['title']?.toString() ?? m['action']?.toString() ?? '';
-          if (title.isNotEmpty && !recExisting.contains(title)) {
-            newRecs.add(LaunchFollowUpItem(
-              title: title,
-              details: m['description']?.toString() ?? m['details']?.toString() ?? '',
-              status: 'Open',
-            ));
-          }
+      for (final mp in cp.mitigationPlans) {
+        final title = mp['title']?.toString() ?? mp['action']?.toString() ?? '';
+        if (title.isNotEmpty && !recExisting.contains(title)) {
+          newRecs.add(LaunchFollowUpItem(
+            title: title,
+            details: mp['description']?.toString() ?? mp['details']?.toString() ?? '',
+            status: 'Open',
+          ));
         }
       }
       if (newRecs.isNotEmpty) {
@@ -656,41 +638,12 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
 
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
-    final data = ProjectDataHelper.getData(context);
-    var ctx = ProjectDataHelper.buildExecutivePlanContext(data,
-        sectionLabel: 'Commerce Viability');
-    if (ctx.trim().isEmpty) {
-      ctx = ProjectDataHelper.buildProjectContextScan(data,
-          sectionLabel: 'Commerce Viability');
-    }
-    if (ctx.trim().isEmpty) return;
-
-    if (_projectId != null) {
-      final contracts = await LaunchPhaseService.loadExecutionContracts(_projectId!);
-      final budgetRows = await LaunchPhaseService.loadBudgetRows(_projectId!);
-      final staff = await LaunchPhaseService.loadExecutionStaffing(_projectId!);
-      final riskSnapshot = await LaunchPhaseService.loadRiskTrackingSnapshot(_projectId!);
-      if (mounted) {
-        final contractsSummary = contracts.isEmpty ? 'No contract data.' : contracts.map((c) => '- ${c.contractName} (vendor: ${c.vendor}, value: ${c.value})').take(8).join('\n');
-        final budgetSummary = budgetRows.isEmpty ? 'No budget data.' : budgetRows.map((b) => '- ${b['category'] ?? 'Unknown'}: planned ${b['plannedAmount'] ?? '0'}, actual ${b['actualAmount'] ?? '0'}').take(8).join('\n');
-        final staffingSummary = staff.isEmpty ? 'No staffing data.' : staff.map((s) => '- ${s.name} (${s.role})').take(8).join('\n');
-        final riskItems = riskSnapshot['riskItems'] is List ? (riskSnapshot['riskItems'] as List).whereType<Map>().take(6).map((r) => '- ${r['title'] ?? r['risk'] ?? 'Unknown'} (status: ${r['status'] ?? 'Unknown'})').join('\n') : 'No risk tracking data.';
-        ctx = ProjectDataHelper.buildLaunchPhaseContext(
-          baseContext: ctx,
-          sectionLabel: 'Commerce Viability',
-          contractsSummary: contractsSummary,
-          budgetSummary: budgetSummary,
-          staffingSummary: staffingSummary,
-          riskTrackingSummary: riskItems,
-        );
-      }
-    }
-
     setState(() => _isGenerating = true);
     Map<String, List<Map<String, dynamic>>> gen = {};
     try {
-      gen = await OpenAiServiceSecure().generateLaunchPhaseEntries(
-        context: ctx,
+      gen = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Commerce Viability',
         sections: const {
           'financial_metrics':
               'ROI metrics with "label", "value", "notes"',
