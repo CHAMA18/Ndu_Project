@@ -600,11 +600,15 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
         _generatedAt = DateTime.now();
       });
 
-      // D4 — Persist to Firestore (best-effort)
+      // D4 — Persist to Firestore
       final provider = ProjectDataInherited.maybeOf(context);
       final pid = provider?.projectData.projectId;
       if (pid != null && pid.isNotEmpty) {
-        _DiagramPersistence.save(projectId: pid, sectionKey: _sectionKey, diagram: result);
+        await _DiagramPersistence.save(
+          projectId: pid,
+          sectionKey: _sectionKey,
+          diagram: result,
+        );
       }
     } catch (e) {
       if (!mounted) return;

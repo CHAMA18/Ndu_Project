@@ -9,6 +9,7 @@ import 'package:ndu_project/services/agile_wireframe_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
@@ -231,6 +232,17 @@ class _AgileSprintCalendarScreenState
                         },
                       ),
                     ],
+                    const SizedBox(height: 24),
+                    LaunchPhaseNavigation(
+                      backLabel: PlanningPhaseNavigation.backLabel(
+                          'agile_sprint_calendar'),
+                      nextLabel: PlanningPhaseNavigation.nextLabel(
+                          'agile_sprint_calendar'),
+                      onBack: () => PlanningPhaseNavigation.goToPrevious(
+                          context, 'agile_sprint_calendar'),
+                      onNext: () => PlanningPhaseNavigation.goToNext(
+                          context, 'agile_sprint_calendar'),
+                    ),
                     const SizedBox(height: 48),
                   ],
                 ),
