@@ -44,9 +44,6 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   final _saveDebouncer = _Debouncer();
   bool _saving = false;
 
-  // Filter state
-  final Set<String> _selectedFilters = {'All deliverables'};
-
   // CRUD state for acceptance evidence
   List<_AcceptanceEvidenceRow> _acceptanceEvidence = [];
   // CRUD state for handoff governance
@@ -707,27 +704,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
 
   // ── Filter logic ──────────────────────────────────────────────────────
 
-  List<DesignDeliverableRegisterItem> get _filteredRegister {
-    if (_selectedFilters.contains('All deliverables')) return _data.register;
-    return _data.register.where((r) {
-      final status = r.status.trim().toLowerCase();
-      final risk = r.risk.trim().toLowerCase();
-      if (_selectedFilters.contains('In progress') &&
-          (status == 'in progress' || status == 'pending')) {
-        return true;
-      }
-      if (_selectedFilters.contains('In review') && status == 'in review') {
-        return true;
-      }
-      if (_selectedFilters.contains('Approved') && status == 'approved') {
-        return true;
-      }
-      if (_selectedFilters.contains('At risk') && risk == 'high') {
-        return true;
-      }
-      return false;
-    }).toList();
-  }
+  List<DesignDeliverableRegisterItem> get _filteredRegister => _data.register;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BUILD
@@ -759,10 +736,6 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                   if (_loading) const SizedBox(height: 16),
                   _buildHeader(),
                   const SizedBox(height: 16),
-                  _buildFilterChips(),
-                  const SizedBox(height: 20),
-                  _buildStatsRow(),
-                  const SizedBox(height: 20),
                   _buildFrameworkGuide(),
                   const SizedBox(height: 24),
                   _buildDeliverableRegister(),
@@ -820,71 +793,26 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Design Deliverables',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827)),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Track deliverable authoring, acceptance evidence, approval gates, and handoff readiness across the design lifecycle. '
-                  'Aligned with PMI PMBOK 7th Ed. Deliverables and Quality processes, ISO/IEC/IEEE 15288:2023 design output controls, '
-                  'and PRINCE2 Managing Product Delivery. This register ensures every design artefact is traceable, verified, '
-                  'and approved before build authorization.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  _buildHeaderActions(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 20),
-                Flexible(child: _buildHeaderActions()),
-              ],
-            );
-          },
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Design Deliverables',
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827)),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Track deliverable authoring, acceptance evidence, approval gates, and handoff readiness across the design lifecycle. '
+              'Aligned with PMI PMBOK 7th Ed. Deliverables and Quality processes, ISO/IEC/IEEE 15288:2023 design output controls, '
+              'and PRINCE2 Managing Product Delivery. This register ensures every design artefact is traceable, verified, '
+              'and approved before build authorization.',
+              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+            ),
+          ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add deliverable',
-            onPressed: () => _showAddDeliverableDialog()),
-        _actionButton(Icons.description_outlined, 'Export register',
-            onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Export register is queued. Use the register table while export tools are finalized.')),
-          );
-        }),
-        _primaryButton('Start review'),
       ],
     );
   }
@@ -895,176 +823,14 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       onPressed: onPressed ?? () {},
       icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
       label: Text(label,
-          style: TextStyle(
+          style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: Color(0xFF64748B))),
       style: OutlinedButton.styleFrom(
         side: const BorderSide(color: Color(0xFFE2E8F0)),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _primaryButton(String label) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        setState(() {
-          _selectedFilters
-            ..clear()
-            ..add('In review');
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Review started. Filter set to deliverables in review.')),
-        );
-      },
-      icon: const Icon(Icons.play_arrow, size: 18),
-      label: Text(label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // FILTER CHIPS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildFilterChips() {
-    const filters = [
-      'All deliverables',
-      'In progress',
-      'In review',
-      'Approved',
-      'At risk'
-    ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return ChoiceChip(
-          label: Text(
-            filter,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF475569),
-            ),
-          ),
-          selected: selected,
-          selectedColor: const Color(0xFF111827),
-          backgroundColor: Colors.white,
-          shape: StadiumBorder(
-            side: BorderSide(color: const Color(0xFFE5E7EB)),
-          ),
-          onSelected: (value) {
-            setState(() {
-              if (value) {
-                if (filter == 'All deliverables') {
-                  _selectedFilters
-                    ..clear()
-                    ..add(filter);
-                } else {
-                  _selectedFilters
-                    ..remove('All deliverables')
-                    ..add(filter);
-                }
-              } else {
-                _selectedFilters.remove(filter);
-                if (_selectedFilters.isEmpty) {
-                  _selectedFilters.add('All deliverables');
-                }
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STATS ROW
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildStatsRow() {
-    final m = _data.metrics;
-    final total = _data.register.length;
-    final stats = [
-      _StatCardData(
-          'Active Deliverables', '${m.active}', '$total total', const Color(0xFF0EA5E9)),
-      _StatCardData(
-          'Total Items', '$total', 'All statuses', const Color(0xFF10B981)),
-      _StatCardData(
-          'In Review', '${m.inReview}', 'Awaiting approval', const Color(0xFFF97316)),
-      _StatCardData(
-          'At Risk', '${m.atRisk}',
-          m.atRisk > 0 ? 'Require attention' : 'All stable', const Color(0xFF6366F1)),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 720;
-        if (compact) {
-          return Column(
-            children: [
-              for (int i = 0; i < stats.length; i++) ...[
-                SizedBox(
-                    width: double.infinity, child: _buildStatCard(stats[i])),
-                if (i < stats.length - 1) const SizedBox(height: 12),
-              ],
-            ],
-          );
-        }
-        return Row(
-          children: [
-            for (int i = 0; i < stats.length; i++) ...[
-              Expanded(child: _buildStatCard(stats[i])),
-              if (i < stats.length - 1) const SizedBox(width: 12),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(data.value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: data.color)),
-          const SizedBox(height: 6),
-          Text(data.label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          const SizedBox(height: 6),
-          Text(data.supporting,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: data.color)),
-        ],
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -2173,15 +1939,6 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DATA CLASSES
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-class _StatCardData {
-  const _StatCardData(this.label, this.value, this.supporting, this.color);
-  final String label;
-  final String value;
-  final String supporting;
-  final Color color;
-}
 
 class _AcceptanceEvidenceRow {
   _AcceptanceEvidenceRow({

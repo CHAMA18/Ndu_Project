@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/agile_wireframe_service.dart';
@@ -206,8 +207,8 @@ class _AgileBacklogGovernanceScreenState
       final end = text.lastIndexOf('}');
       if (start == -1 || end == -1) return {};
       final jsonStr = text.substring(start, end + 1);
-      final Map<String, dynamic> parsed = Map<String, dynamic>.from(
-          JsonDecoder().convert(jsonStr) as Map);
+      final Map<String, dynamic> parsed =
+          Map<String, dynamic>.from(jsonDecode(jsonStr) as Map);
       return parsed.map((k, v) => MapEntry(k, v.toString()));
     } catch (_) {
       return {};
@@ -353,130 +354,4 @@ class _FieldConfig {
   });
 }
 
-class JsonDecoder {
-  dynamic convert(String source) {
-    return _parseValue(source, 0).value;
-  }
 
-  _Result _parseValue(String s, int i) {
-    i = _skipWhitespace(s, i);
-    if (i >= s.length) throw FormatException('Unexpected end');
-    final c = s[i];
-    if (c == '[') return _parseArray(s, i);
-    if (c == '{') return _parseObject(s, i);
-    if (c == '"') return _parseString(s, i);
-    if (c == 't' || c == 'f') return _parseBool(s, i);
-    if (c == 'n') return _parseNull(s, i);
-    return _parseNumber(s, i);
-  }
-
-  _Result _parseArray(String s, int i) {
-    i++;
-    final list = <dynamic>[];
-    i = _skipWhitespace(s, i);
-    if (i < s.length && s[i] == ']') return _Result(list, i + 1);
-    while (true) {
-      final r = _parseValue(s, i);
-      list.add(r.value);
-      i = _skipWhitespace(s, r.end);
-      if (i >= s.length) throw FormatException('Unexpected end of array');
-      if (s[i] == ']') return _Result(list, i + 1);
-      if (s[i] != ',') throw FormatException('Expected , or ]');
-      i++;
-    }
-  }
-
-  _Result _parseObject(String s, int i) {
-    i++;
-    final map = <String, dynamic>{};
-    i = _skipWhitespace(s, i);
-    if (i < s.length && s[i] == '}') return _Result(map, i + 1);
-    while (true) {
-      final keyR = _parseString(s, i);
-      i = _skipWhitespace(s, keyR.end);
-      if (i >= s.length || s[i] != ':') throw FormatException('Expected :');
-      i++;
-      final valR = _parseValue(s, i);
-      map[keyR.value as String] = valR.value;
-      i = _skipWhitespace(s, valR.end);
-      if (i >= s.length) throw FormatException('Unexpected end of object');
-      if (s[i] == '}') return _Result(map, i + 1);
-      if (s[i] != ',') throw FormatException('Expected , or }');
-      i++;
-    }
-  }
-
-  _Result _parseString(String s, int i) {
-    i++;
-    final buf = StringBuffer();
-    while (i < s.length) {
-      final c = s[i];
-      if (c == '"') return _Result(buf.toString(), i + 1);
-      if (c == '\\') {
-        i++;
-        if (i < s.length) {
-          final esc = s[i];
-          if (esc == '"') buf.write('"');
-          else if (esc == '\\') buf.write('\\');
-          else if (esc == '/') buf.write('/');
-          else if (esc == 'n') buf.write('\n');
-          else if (esc == 'r') buf.write('\r');
-          else if (esc == 't') buf.write('\t');
-          else buf.write(esc);
-        }
-        i++;
-      } else {
-        buf.write(c);
-        i++;
-      }
-    }
-    throw FormatException('Unterminated string');
-  }
-
-  _Result _parseNumber(String s, int i) {
-    final start = i;
-    if (s[i] == '-') i++;
-    while (i < s.length && _isDigit(s[i])) i++;
-    if (i < s.length && s[i] == '.') {
-      i++;
-      while (i < s.length && _isDigit(s[i])) i++;
-    }
-    if (i < s.length && (s[i] == 'e' || s[i] == 'E')) {
-      i++;
-      if (i < s.length && (s[i] == '+' || s[i] == '-')) i++;
-      while (i < s.length && _isDigit(s[i])) i++;
-    }
-    final numStr = s.substring(start, i);
-    if (numStr.contains('.') || numStr.contains('e') || numStr.contains('E')) {
-      return _Result(double.parse(numStr), i);
-    }
-    return _Result(int.parse(numStr), i);
-  }
-
-  _Result _parseBool(String s, int i) {
-    if (s.startsWith('true', i)) return _Result(true, i + 4);
-    if (s.startsWith('false', i)) return _Result(false, i + 5);
-    throw FormatException('Expected boolean');
-  }
-
-  _Result _parseNull(String s, int i) {
-    if (s.startsWith('null', i)) return _Result(null, i + 4);
-    throw FormatException('Expected null');
-  }
-
-  bool _isDigit(String s, [int? i]) {
-    final c = i != null ? s.codeUnitAt(i) : s.codeUnitAt(0);
-    return c >= 48 && c <= 57;
-  }
-
-  int _skipWhitespace(String s, int i) {
-    while (i < s.length && s.codeUnitAt(i) <= 32) i++;
-    return i;
-  }
-}
-
-class _Result {
-  final dynamic value;
-  final int end;
-  _Result(this.value, this.end);
-}

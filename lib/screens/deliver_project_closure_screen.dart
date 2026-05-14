@@ -4,6 +4,7 @@ import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/transition_to_prod_team_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
@@ -514,20 +515,19 @@ class _DeliverProjectClosureScreenState
         _hasLoaded = true;
       });
 
-      if (_scopeItems.isEmpty) {
-        final scopeImport =
-            await LaunchPhaseService.loadScopeTrackingItems(_projectId!);
-        if (scopeImport.isNotEmpty) {
-          setState(() => _scopeItems = scopeImport);
-          await _persistData();
-        }
-      }
-
       final allEmpty = _scopeItems.isEmpty &&
           _milestones.isEmpty &&
           _outstandingItems.isEmpty &&
           _riskFollowUps.isEmpty;
-      if (allEmpty) await _populateFromAi();
+      if (allEmpty) {
+        await _autoPopulateFromPriorPhases();
+      }
+
+      final stillEmpty = _scopeItems.isEmpty &&
+          _milestones.isEmpty &&
+          _outstandingItems.isEmpty &&
+          _riskFollowUps.isEmpty;
+      if (stillEmpty) await _populateFromAi();
     } catch (e) {
       debugPrint('Deliver project load error: $e');
       if (mounted) setState(() => _isLoading = false);
@@ -552,41 +552,81 @@ class _DeliverProjectClosureScreenState
     }
   }
 
+  Future<void> _autoPopulateFromPriorPhases() async {
+    if (_projectId == null) return;
+    try {
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
+      if (!mounted) return;
+
+      // Pre-fill scope items from cross-phase scope tracking
+      if (_scopeItems.isEmpty && cp.scopeTracking.isNotEmpty) {
+        final existing = _scopeItems.map((s) => s.deliverable).toSet();
+        final newItems = cp.scopeTracking
+            .where((s) => !existing.contains(s.deliverable))
+            .toList();
+        if (newItems.isNotEmpty) {
+          setState(() => _scopeItems.addAll(newItems));
+        }
+      }
+
+      // Pre-fill milestones from planning sprints
+      if (_milestones.isEmpty && cp.planningSprints.isNotEmpty) {
+        final newMilestones = cp.planningSprints
+            .map((s) => LaunchMilestone(
+                  title: 'Sprint ${s['sprintNumber'] ?? s['name'] ?? '?'}: ${s['goal'] ?? s['title'] ?? ''}',
+                  status: _normalizeSprintStatus(s['status']),
+                ))
+            .where((m) => m.title.isNotEmpty)
+            .toList();
+        if (newMilestones.isNotEmpty) {
+          setState(() => _milestones.addAll(newMilestones));
+        }
+      }
+
+      // Pre-fill risk follow-ups from open risk items
+      if (_riskFollowUps.isEmpty && cp.openRiskItems.isNotEmpty) {
+        final existing = _riskFollowUps.map((r) => r.title).toSet();
+        final newRisks = cp.openRiskItems
+            .where((r) => !existing.contains(r['title']?.toString() ?? r['risk']?.toString() ?? ''))
+            .map((r) => LaunchFollowUpItem(
+                  title: r['title']?.toString() ?? r['risk']?.toString() ?? '',
+                  details: r['description']?.toString() ?? r['details']?.toString() ?? '',
+                  owner: r['owner']?.toString() ?? '',
+                  status: r['status']?.toString() ?? 'Open',
+                ))
+            .where((r) => r.title.isNotEmpty)
+            .toList();
+        if (newRisks.isNotEmpty) {
+          setState(() => _riskFollowUps.addAll(newRisks));
+        }
+      }
+
+      final hasNewData = _scopeItems.isNotEmpty ||
+          _milestones.isNotEmpty ||
+          _riskFollowUps.isNotEmpty;
+      if (hasNewData) await _persistData();
+    } catch (e) {
+      debugPrint('Deliver project auto-populate error: $e');
+    }
+  }
+
+  String _normalizeSprintStatus(dynamic status) {
+    final s = (status ?? '').toString().toLowerCase();
+    if (s == 'completed' || s == 'done') return 'Complete';
+    if (s == 'in progress' || s == 'active') return 'In Progress';
+    return 'Pending';
+  }
+
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
-    final projectData = ProjectDataHelper.getData(context);
-    var contextText = ProjectDataHelper.buildExecutivePlanContext(projectData,
-        sectionLabel: 'Deliver Project Closure');
-    if (contextText.trim().isEmpty) {
-      contextText = ProjectDataHelper.buildProjectContextScan(projectData,
-          sectionLabel: 'Deliver Project Closure');
-    }
-    if (contextText.trim().isEmpty) return;
-
-    if (_projectId != null) {
-      final scopeTracking = await LaunchPhaseService.loadScopeTrackingItems(_projectId!);
-      final deliverableRows = await LaunchPhaseService.loadDeliverableRows(_projectId!);
-      final riskSnapshot = await LaunchPhaseService.loadRiskTrackingSnapshot(_projectId!);
-      if (mounted) {
-        final scopeSummary = scopeTracking.isEmpty ? 'No scope tracking data.' : scopeTracking.map((s) => '- ${s.deliverable} (status: ${s.status})').take(8).join('\n');
-        final deliverableSummary = deliverableRows.isEmpty ? 'No deliverable data.' : deliverableRows.map((d) => '- ${d['title'] ?? 'Untitled'} (status: ${d['status'] ?? 'Unknown'})').take(8).join('\n');
-        final riskItems = riskSnapshot['riskItems'] is List ? (riskSnapshot['riskItems'] as List).whereType<Map>().take(6).map((r) => '- ${r['title'] ?? r['risk'] ?? 'Unknown'} (status: ${r['status'] ?? 'Unknown'})').join('\n') : 'No risk tracking data.';
-        contextText = ProjectDataHelper.buildLaunchPhaseContext(
-          baseContext: contextText,
-          sectionLabel: 'Deliver Project Closure',
-          scopeTrackingSummary: scopeSummary,
-          deliverablesSummary: deliverableSummary,
-          riskTrackingSummary: riskItems,
-        );
-      }
-    }
 
     setState(() => _isGenerating = true);
 
     Map<String, List<Map<String, dynamic>>> generated = {};
     try {
-      generated = await OpenAiServiceSecure().generateLaunchPhaseEntries(
-        context: contextText,
+      generated = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Deliver Project Closure',
         sections: const {
           'scope_acceptance':
               'Scope acceptance items with "deliverable", "acceptance_criteria", "status"',

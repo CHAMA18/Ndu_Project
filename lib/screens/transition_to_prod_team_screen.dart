@@ -5,6 +5,7 @@ import 'package:ndu_project/screens/contract_close_out_screen.dart';
 import 'package:ndu_project/screens/deliver_project_closure_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -523,15 +524,19 @@ class _TransitionToProdTeamScreenState
         _hasLoaded = true;
       });
 
-      if (_teamRoster.isEmpty) {
-        await _autoImportStaffing();
-      }
-
       final allEmpty = _teamRoster.isEmpty &&
           _handoverChecklist.isEmpty &&
           _knowledgeTransfers.isEmpty &&
           _signOffs.isEmpty;
-      if (allEmpty) await _populateFromAi();
+      if (allEmpty) {
+        await _autoPopulateFromPriorPhases();
+      }
+
+      final stillEmpty = _teamRoster.isEmpty &&
+          _handoverChecklist.isEmpty &&
+          _knowledgeTransfers.isEmpty &&
+          _signOffs.isEmpty;
+      if (stillEmpty) await _populateFromAi();
     } catch (e) {
       debugPrint('Transition load error: $e');
       if (mounted) setState(() => _isLoading = false);
@@ -539,17 +544,77 @@ class _TransitionToProdTeamScreenState
     _suspendSave = false;
   }
 
-  Future<void> _autoImportStaffing() async {
+  Future<void> _autoPopulateFromPriorPhases() async {
     if (_projectId == null) return;
     try {
-      final staff = await LaunchPhaseService.loadExecutionStaffing(_projectId!);
-      if (staff.isNotEmpty && mounted) {
-        setState(() {
-          _teamRoster.addAll(staff);
-        });
-        await _persistData();
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
+      if (!mounted) return;
+
+      // Pre-fill team roster from staffing
+      if (_teamRoster.isEmpty && cp.staffing.isNotEmpty) {
+        final existing = _teamRoster.map((m) => m.name).toSet();
+        final newMembers = cp.staffing
+            .where((m) => !existing.contains(m.name))
+            .toList();
+        if (newMembers.isNotEmpty) {
+          setState(() => _teamRoster.addAll(newMembers));
+        }
       }
-    } catch (_) {}
+
+      // Pre-fill sign-offs from stakeholders
+      if (_signOffs.isEmpty && cp.stakeholders.isNotEmpty) {
+        final newSignOffs = cp.stakeholders
+            .map((s) => LaunchApproval(
+                  stakeholder: s['name'] ?? s['title'] ?? '',
+                  role: s['role'] ?? '',
+                  status: 'Pending',
+                ))
+            .where((s) => s.stakeholder.isNotEmpty)
+            .toList();
+        if (newSignOffs.isNotEmpty) {
+          setState(() => _signOffs.addAll(newSignOffs));
+        }
+      }
+
+      // Pre-fill handover items from deliverable rows
+      if (_handoverChecklist.isEmpty && cp.deliverableRows.isNotEmpty) {
+        final newHandover = cp.deliverableRows
+            .map((d) => LaunchHandoverItem(
+                  category: 'Documentation',
+                  item: 'Handover: ${d['title'] ?? 'Untitled'}',
+                  status: d['status']?.toString().toLowerCase() == 'completed' ? 'Complete' : 'Pending',
+                ))
+            .where((h) => h.item.isNotEmpty)
+            .toList();
+        if (newHandover.isNotEmpty) {
+          setState(() => _handoverChecklist.addAll(newHandover));
+        }
+      }
+
+      // Pre-fill knowledge transfer from staffing roles
+      if (_knowledgeTransfers.isEmpty && cp.staffing.isNotEmpty) {
+        final newKt = cp.staffing
+            .where((m) => m.name.isNotEmpty && m.role.isNotEmpty)
+            .take(5)
+            .map((m) => LaunchKnowledgeTransfer(
+                  topic: '${m.role} knowledge handover',
+                  fromPerson: m.name,
+                  status: 'Pending',
+                ))
+            .toList();
+        if (newKt.isNotEmpty) {
+          setState(() => _knowledgeTransfers.addAll(newKt));
+        }
+      }
+
+      final hasNewData = _teamRoster.isNotEmpty ||
+          _handoverChecklist.isNotEmpty ||
+          _knowledgeTransfers.isNotEmpty ||
+          _signOffs.isNotEmpty;
+      if (hasNewData) await _persistData();
+    } catch (e) {
+      debugPrint('Transition auto-populate error: $e');
+    }
   }
 
   Future<void> _persistData() async {
@@ -569,36 +634,13 @@ class _TransitionToProdTeamScreenState
 
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
-    final projectData = ProjectDataHelper.getData(context);
-    var contextText = ProjectDataHelper.buildExecutivePlanContext(
-      projectData,
-      sectionLabel: 'Transition to Production Team',
-    );
-    if (contextText.trim().isEmpty) {
-      contextText = ProjectDataHelper.buildProjectContextScan(
-        projectData,
-        sectionLabel: 'Transition to Production Team',
-      );
-    }
-    if (contextText.trim().isEmpty) return;
-
-    if (_projectId != null) {
-      final staff = await LaunchPhaseService.loadExecutionStaffing(_projectId!);
-      if (mounted) {
-        final staffingSummary = staff.isEmpty ? 'No staffing data.' : staff.map((s) => '- ${s.name} (${s.role}, status: ${s.releaseStatus})').take(8).join('\n');
-        contextText = ProjectDataHelper.buildLaunchPhaseContext(
-          baseContext: contextText,
-          sectionLabel: 'Transition to Production Team',
-          staffingSummary: staffingSummary,
-        );
-      }
-    }
 
     setState(() => _isGenerating = true);
     Map<String, List<Map<String, dynamic>>> generated = {};
     try {
-      generated = await OpenAiServiceSecure().generateLaunchPhaseEntries(
-        context: contextText,
+      generated = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Transition to Production Team',
         sections: const {
           'team_roster': 'Production team members with "name", "role", "contact", "release_status"',
           'handover_checklist':
