@@ -5,6 +5,7 @@ import 'package:ndu_project/screens/transition_to_prod_team_screen.dart';
 import 'package:ndu_project/screens/vendor_account_close_out_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -474,17 +475,19 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
         _isLoading = false;
         _hasLoaded = true;
       });
-      if (_contracts.isEmpty) {
-        await _importContracts();
-        if (!mounted) return;
-        setState(() {});
-      }
-      if (_contracts.isEmpty &&
+      final allEmpty = _contracts.isEmpty &&
           _closeOutSteps.isEmpty &&
           _signOffs.isEmpty &&
-          _financialSummary.isEmpty) {
-        await _populateFromAi();
+          _financialSummary.isEmpty;
+      if (allEmpty) {
+        await _autoPopulateFromPriorPhases();
       }
+
+      final stillEmpty = _contracts.isEmpty &&
+          _closeOutSteps.isEmpty &&
+          _signOffs.isEmpty &&
+          _financialSummary.isEmpty;
+      if (stillEmpty) await _populateFromAi();
     } catch (e) {
       debugPrint('Contract close-out load error: $e');
       if (mounted) setState(() => _isLoading = false);
@@ -507,37 +510,100 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
     }
   }
 
+  Future<void> _autoPopulateFromPriorPhases() async {
+    if (_projectId == null) return;
+    try {
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
+      if (!mounted) return;
+
+      // Pre-fill contracts from cross-phase data
+      if (_contracts.isEmpty && cp.contracts.isNotEmpty) {
+        final existing = _contracts.map((c) => c.contractName).toSet();
+        final newContracts = cp.contracts
+            .where((c) => !existing.contains(c.contractName))
+            .toList();
+        if (newContracts.isNotEmpty) {
+          setState(() => _contracts.addAll(newContracts));
+        }
+      }
+
+      // Pre-fill financial summary from budget calculations
+      if (_financialSummary.isEmpty) {
+        final newMetrics = <LaunchFinancialMetric>[];
+        if (cp.totalPlannedBudget > 0) {
+          newMetrics.add(LaunchFinancialMetric(
+            label: 'Total Planned Budget',
+            value: '\$${cp.totalPlannedBudget.toStringAsFixed(0)}',
+            notes: 'From budget tracking',
+          ));
+        }
+        if (cp.totalActualBudget > 0) {
+          newMetrics.add(LaunchFinancialMetric(
+            label: 'Total Actual Spend',
+            value: '\$${cp.totalActualBudget.toStringAsFixed(0)}',
+            notes: 'From budget tracking',
+          ));
+        }
+        if (cp.totalPlannedBudget > 0 || cp.totalActualBudget > 0) {
+          newMetrics.add(LaunchFinancialMetric(
+            label: 'Budget Variance',
+            value: '\$${cp.budgetVariance.toStringAsFixed(0)}',
+            notes: cp.budgetVariance >= 0 ? 'Under budget' : 'Over budget',
+          ));
+        }
+        if (cp.totalContractValue > 0) {
+          newMetrics.add(LaunchFinancialMetric(
+            label: 'Total Contract Value',
+            value: '\$${cp.totalContractValue.toStringAsFixed(0)}',
+            notes: 'From execution contracts',
+          ));
+        }
+        if (newMetrics.isNotEmpty) {
+          setState(() => _financialSummary.addAll(newMetrics));
+        }
+      }
+
+      // Pre-fill close-out steps based on contract count
+      if (_closeOutSteps.isEmpty && cp.contracts.isNotEmpty) {
+        final newSteps = <LaunchCloseOutStep>[];
+        for (final c in cp.contracts.take(3)) {
+          newSteps.add(LaunchCloseOutStep(
+            step: 'Verify deliverables accepted: ${c.contractName}',
+            contractRef: c.contractRef,
+            status: 'Pending',
+          ));
+        }
+        newSteps.add(LaunchCloseOutStep(
+          step: 'Confirm all payments settled',
+          status: 'Pending',
+        ));
+        newSteps.add(LaunchCloseOutStep(
+          step: 'Validate warranty and SLA documentation',
+          status: 'Pending',
+        ));
+        if (newSteps.isNotEmpty) {
+          setState(() => _closeOutSteps.addAll(newSteps));
+        }
+      }
+
+      final hasNewData = _contracts.isNotEmpty ||
+          _financialSummary.isNotEmpty ||
+          _closeOutSteps.isNotEmpty;
+      if (hasNewData) await _persistData();
+    } catch (e) {
+      debugPrint('Contract close-out auto-populate error: $e');
+    }
+  }
+
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
-    final data = ProjectDataHelper.getData(context);
-    var ctx = ProjectDataHelper.buildExecutivePlanContext(data,
-        sectionLabel: 'Contract Close Out');
-    if (ctx.trim().isEmpty) {
-      ctx = ProjectDataHelper.buildProjectContextScan(data,
-          sectionLabel: 'Contract Close Out');
-    }
-    if (ctx.trim().isEmpty) return;
-
-    if (_projectId != null) {
-      final contracts = await LaunchPhaseService.loadExecutionContracts(_projectId!);
-      final budgetRows = await LaunchPhaseService.loadBudgetRows(_projectId!);
-      if (mounted) {
-        final contractsSummary = contracts.isEmpty ? 'No contract data.' : contracts.map((c) => '- ${c.contractName} (vendor: ${c.vendor}, value: ${c.value}, status: ${c.closeOutStatus})').take(8).join('\n');
-        final budgetSummary = budgetRows.isEmpty ? 'No budget data.' : budgetRows.map((b) => '- ${b['category'] ?? 'Unknown'}: planned ${b['plannedAmount'] ?? '0'}, actual ${b['actualAmount'] ?? '0'}').take(8).join('\n');
-        ctx = ProjectDataHelper.buildLaunchPhaseContext(
-          baseContext: ctx,
-          sectionLabel: 'Contract Close Out',
-          contractsSummary: contractsSummary,
-          budgetSummary: budgetSummary,
-        );
-      }
-    }
 
     setState(() => _isGenerating = true);
     Map<String, List<Map<String, dynamic>>> gen = {};
     try {
-      gen = await OpenAiServiceSecure().generateLaunchPhaseEntries(
-        context: ctx,
+      gen = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Contract Close Out',
         sections: const {
           'financial_summary':
               'Financial metrics with "label", "value", "notes"',
