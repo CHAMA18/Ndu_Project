@@ -36,6 +36,7 @@ if (!window._flutter) {
 _flutter.buildConfig = {"engineRevision":"3e4e8b379e1dfedb1fd05673cb1f9509ce980d08","wasmHashes":{"wimp.wasm":"396f73350fc024aadbf9dae226e9726e2b1800c641a9a60d72ddc48edcbead98","experimental_webparagraph/canvaskit.wasm":"aa268b430244c255eff7a99ac0625cdc3e5b18c2b20d489033c4c78c9d908a14","skwasm.wasm":"e0e32edc3b3a8fe7c40ecc2df30a1393e69af51fb15d29bd83a14f61da53e8b8","chromium/canvaskit.wasm":"fb237dc7d1ea6e24c74f4a10eee582b8a8a73fec95526ff4ae8bdfaa7139e40d","skwasm_heavy.wasm":"d9ff50a33a5e580da3f2c25fa545aed7fff8e2f8432ca3cd2c694809688febf5","canvaskit.wasm":"5c3c5a9d6b0b1cbd0949a0ed7b9527d3d98d88a134132bb0ce9a3ac9397f5631"},"builds":[{"compileTarget":"dart2js","renderer":"canvaskit","mainJsPath":"main.dart.js"},{}]};
 
 _flutter.loader.load({
+  canvasKitVariant: "full",
   serviceWorkerSettings: {
     serviceWorkerVersion: "2292024550" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */
   }
