@@ -7378,8 +7378,15 @@ $escaped
         .map((entry) => '"${entry.key}": "${_escape(entry.value)}"')
         .join(',\n  ');
     return '''
-Using the project inputs below, generate $itemsPerSection entries for each section key in the sections map.
-Each entry must include a concise title, optional details, and optional status.
+You are a senior project management analyst preparing Launch Phase deliverables.
+The project has progressed through Initiation → Front End Planning → Planning → Design → Execution → Launch.
+Use ALL the prior phase data below to generate entries that are specific, realistic, and consistent with the project context.
+
+Rules:
+- Reference actual project names, team members, vendors, contracts, milestones, and risks wherever possible.
+- Derive entries from prior phase outputs (e.g., if a contract exists in Execution, reference it in Contract Close Out).
+- Generate $itemsPerSection entries per section.
+- Each entry must include a concise title, relevant details, and a realistic status.
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -7387,8 +7394,8 @@ Return ONLY valid JSON with this exact structure:
     "section_key": [
       {
         "title": "Short item title",
-        "details": "Supporting details",
-        "status": "Optional status"
+        "details": "Supporting details referencing prior phase data",
+        "status": "Realistic status value"
       }
     ]
   }
@@ -7399,7 +7406,7 @@ Sections:
   $sectionJson
 }
 
-Project context:
+Project context (includes data from ALL prior phases):
 """
 $escaped
 """
