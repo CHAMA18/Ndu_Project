@@ -31,6 +31,7 @@ class _AgileBacklogGovernanceScreenState
   final Map<String, TextEditingController> _controllers = {};
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _pendingSave = false;
   bool _isGenerating = false;
   Timer? _autoSaveDebounce;
 
@@ -141,7 +142,7 @@ class _AgileBacklogGovernanceScreenState
   }
 
   Future<void> _performSave() async {
-    if (_isSaving) return;
+    if (_isSaving) { _pendingSave = true; return; }
     setState(() => _isSaving = true);
     try {
       final pid = _projectId;
@@ -159,6 +160,7 @@ class _AgileBacklogGovernanceScreenState
       }
     } catch (_) {}
     if (mounted) setState(() => _isSaving = false);
+    if (_pendingSave) { _pendingSave = false; _performSave(); }
   }
 
   Future<void> _generateWithAI() async {

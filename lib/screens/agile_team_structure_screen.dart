@@ -50,6 +50,7 @@ class _AgileTeamStructureScreenState
   final Map<String, List<TextEditingController>> _teamControllers = {};
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _pendingSave = false;
   bool _isGenerating = false;
   Timer? _autoSaveDebounce;
 
@@ -129,7 +130,7 @@ class _AgileTeamStructureScreenState
   }
 
   Future<void> _performSave() async {
-    if (_isSaving) return;
+    if (_isSaving) { _pendingSave = true; return; }
     setState(() => _isSaving = true);
     try {
       await _saveData();
@@ -141,6 +142,7 @@ class _AgileTeamStructureScreenState
       }
     } catch (_) {}
     if (mounted) setState(() => _isSaving = false);
+    if (_pendingSave) { _pendingSave = false; _performSave(); }
   }
 
   Future<void> _saveData() async {

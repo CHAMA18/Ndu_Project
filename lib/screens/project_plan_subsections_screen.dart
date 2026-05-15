@@ -1502,6 +1502,7 @@ class _DetailedScheduleState extends State<ProjectPlanDetailedScheduleScreen> {
   String? _selectedTaskId;
   String? _hoveredTaskId;
   Timer? _saveDebounce;
+  void Function()? _pendingSaveAction; // G5 Fix: track pending action for flush
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
 
@@ -1515,7 +1516,11 @@ class _DetailedScheduleState extends State<ProjectPlanDetailedScheduleScreen> {
   void dispose() {
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
+    // G5 Fix: flush any pending debounced save before disposal
+    final action = _pendingSaveAction;
     _saveDebounce?.cancel();
+    _pendingSaveAction = null;
+    if (action != null) action();
     super.dispose();
   }
 
@@ -1631,7 +1636,7 @@ class _DetailedScheduleState extends State<ProjectPlanDetailedScheduleScreen> {
 
   Future<void> _syncToScheduleScreen() async {
     _saveDebounce?.cancel();
-    _saveDebounce = Timer(const Duration(milliseconds: 800), () async {
+    void saveAction() async {
       final activities = _tasks
           .map((t) => ScheduleActivity(
                 id: t.id,
@@ -1660,6 +1665,11 @@ class _DetailedScheduleState extends State<ProjectPlanDetailedScheduleScreen> {
         ),
         showSnackbar: false,
       );
+    }
+    _pendingSaveAction = saveAction; // G5 Fix: track pending action for flush
+    _saveDebounce = Timer(const Duration(milliseconds: 800), () {
+      _pendingSaveAction = null;
+      saveAction();
     });
   }
 
@@ -3249,6 +3259,7 @@ class _CondensedSummaryState extends State<ProjectPlanCondensedSummaryScreen> {
   bool _isGenerating = false;
   String? _undoBeforeAi;
   Timer? _saveDebounce;
+  void Function()? _pendingSaveAction; // G5 Fix: track pending action for flush
   DateTime? _lastSavedAt;
 
   _SummaryData _summaryData = _SummaryData.empty();
@@ -3262,7 +3273,11 @@ class _CondensedSummaryState extends State<ProjectPlanCondensedSummaryScreen> {
 
   @override
   void dispose() {
+    // G5 Fix: flush any pending debounced save before disposal
+    final action = _pendingSaveAction;
     _saveDebounce?.cancel();
+    _pendingSaveAction = null;
+    if (action != null) action();
     _summaryController.removeListener(_handleSummaryChanged);
     _summaryController.dispose();
     super.dispose();
@@ -3270,7 +3285,11 @@ class _CondensedSummaryState extends State<ProjectPlanCondensedSummaryScreen> {
 
   void _handleSummaryChanged() {
     _saveDebounce?.cancel();
-    _saveDebounce = Timer(const Duration(milliseconds: 700), _persistSummary);
+    _pendingSaveAction = _persistSummary; // G5 Fix: track for flush
+    _saveDebounce = Timer(const Duration(milliseconds: 700), () {
+      _pendingSaveAction = null;
+      _persistSummary();
+    });
   }
 
   void _loadData() {
