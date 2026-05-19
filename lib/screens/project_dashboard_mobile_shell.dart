@@ -15,7 +15,7 @@ import '../services/project_navigation_service.dart';
 import '../services/project_service.dart';
 import '../utils/navigation_route_resolver.dart';
 import 'initiation_phase_screen.dart';
-import 'program_dashboard_screen.dart';
+import 'program_dashboard_mobile_screen.dart';
 import 'portfolio_dashboard_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ class _ProjectDashboardMobileShellState
   void _navigateToProgram() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const ProgramDashboardScreen()),
+      MaterialPageRoute(builder: (_) => const ProgramDashboardMobileScreen()),
     );
   }
 
