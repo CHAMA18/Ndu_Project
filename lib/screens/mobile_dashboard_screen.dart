@@ -8,7 +8,7 @@ import '../models/program_model.dart';
 import '../services/project_service.dart';
 import '../services/program_service.dart';
 import 'project_dashboard_screen.dart';
-import 'program_dashboard_screen.dart';
+import 'program_dashboard_mobile_screen.dart';
 
 class MobileDashboardScreen extends StatelessWidget {
   const MobileDashboardScreen({super.key});
@@ -163,7 +163,7 @@ class MobileDashboardScreen extends StatelessWidget {
                     TextButton(
                       onPressed: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ProgramDashboardScreen()),
+                        MaterialPageRoute(builder: (_) => const ProgramDashboardMobileScreen()),
                       ),
                       style: TextButton.styleFrom(
                         minimumSize: const Size(72, 36),
