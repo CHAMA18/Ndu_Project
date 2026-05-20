@@ -1,7 +1,6 @@
 import 'package:ndu_project/screens/execution_enabling_work_plan_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -49,75 +48,63 @@ class ExecutionPlanDetailsScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: activeItemLabel,
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: InitiationLikeSidebar(activeItemLabel: activeItemLabel),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context)),
+            const SizedBox(height: 32),
+            if (showPlanDetails) ...[
+              const SectionIntro(title: 'Execution Plan Details'),
+              const SizedBox(height: 28),
+              ExecutionPlanForm(
+                title: 'Execution Plan Details',
+                hintText: 'Input your notes here...',
+                noteKey: 'execution_plan_details',
+              ),
+              const SizedBox(height: 40),
+            ],
+            if (showPlanDetails && !showEarlyWorks) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.end,
                   children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    if (showPlanDetails) ...[
-                      const SectionIntro(title: 'Execution Plan Details'),
-                      const SizedBox(height: 28),
-                      ExecutionPlanForm(
-                        title: 'Execution Plan Details',
-                        hintText: 'Input your notes here...',
-                        noteKey: 'execution_plan_details',
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                    if (showPlanDetails && !showEarlyWorks) ...[
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Wrap(
-                          spacing: 16,
-                          runSpacing: 12,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            const InfoBadge(),
-                            const AiTipCard(),
-                            YellowActionButton(
-                              label: 'Next',
-                              onPressed: () =>
-                                  ExecutionPlanDetailsScreen.openEarlyWorks(
-                                      context),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 56),
-                    ],
-                    if (showEarlyWorks) ...[
-                      const SectionIntro(title: 'Execution Early Works'),
-                      const SizedBox(height: 24),
-                      const ExecutionPlanForm(
-                        title: 'Execution Early Works',
-                        hintText:
-                            'Outline early works scope, sequencing, and handoffs.',
-                        noteKey: 'execution_early_works',
-                      ),
-                      const SizedBox(height: 32),
-                      const _EarlyWorksSection(),
-                      const SizedBox(height: 56),
-                    ],
+                    const InfoBadge(),
+                    const AiTipCard(),
+                    YellowActionButton(
+                      label: 'Next',
+                      onPressed: () =>
+                          ExecutionPlanDetailsScreen.openEarlyWorks(
+                              context),
+                    ),
                   ],
                 ),
               ),
-            ),
+              const SizedBox(height: 56),
+            ],
+            if (showEarlyWorks) ...[
+              const SectionIntro(title: 'Execution Early Works'),
+              const SizedBox(height: 24),
+              const ExecutionPlanForm(
+                title: 'Execution Early Works',
+                hintText:
+                    'Outline early works scope, sequencing, and handoffs.',
+                noteKey: 'execution_early_works',
+              ),
+              const SizedBox(height: 32),
+              const _EarlyWorksSection(),
+              const SizedBox(height: 56),
+            ],
           ],
         ),
       ),

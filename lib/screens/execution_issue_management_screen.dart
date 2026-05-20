@@ -1,7 +1,6 @@
 import 'package:ndu_project/screens/execution_plan_lessons_learned_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -22,44 +21,31 @@ class ExecutionIssueManagementScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Issue Management',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Issue Management'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(title: 'Execution Issue Management'),
+                                const SizedBox(height: 16),
+            const CrossReferenceNote(standalonePage: 'Issue Management'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Issue Management',
+              hintText:
+                  'Summarize issue tracking, escalation paths, and mitigation cadence.',
+              noteKey: 'execution_issue_management',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(title: 'Execution Issue Management'),
-                                        const SizedBox(height: 16),
-                    const CrossReferenceNote(standalonePage: 'Issue Management'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Issue Management',
-                      hintText:
-                          'Summarize issue tracking, escalation paths, and mitigation cadence.',
-                      noteKey: 'execution_issue_management',
-                    ),
-                    const SizedBox(height: 32),
-                    const _IssuesManagementSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _IssuesManagementSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),
