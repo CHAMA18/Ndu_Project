@@ -116,3 +116,38 @@ Stage Summary:
 - All backend logic retained (auto-save, data persistence, milestone CRUD, navigation)
 - Build compiles successfully
 - Pushed to GitHub as commit a261cd4
+
+---
+Task ID: 5
+Agent: full-stack-developer
+Task: Redesign Design Planning screen UI to match HTML
+
+Work Log:
+- Read design_planning_screen.dart (~5458 lines) to understand structure: 14 sections, accordion with ExpansionTile, ResponsiveScaffold, PlanningPhaseHeader, 3-column layout
+- Updated color constants: _kPageBg → #F9FAFB, _kBorder → #E5E7EB, _kText → #111827, _kMuted → #6B7280; added brand colors (_kBrandYellow, _kBrandDark, _kGray400/500/700/900, _kBlue50/500/600, _kTeal500, _kPurple500, _kGreen500)
+- Replaced build() method: removed ResponsiveScaffold + PlanningPhaseHeader + 3-column layout; added Scaffold with Column (_buildMobileHeader, _buildPageContext, Expanded scrollable, bottomNavigationBar)
+- Added _buildMobileHeader(): white bg, bottom border, shadow; Row with NDU badge (dark bg + yellow text) + "PROJECT" + spacer + notification bell + avatar circle
+- Added _buildPageContext(): breadcrumbs (project name > Planning Phase) + title row ("Design Planning" + Activity button) + AutoSaveIndicator
+- Added _buildBottomBar(): fixed bottom bar with Back (outlined, left arrow) and Next (brand yellow bg, right arrow) buttons using PlanningPhaseNavigation
+- Removed _buildTopBar(), _buildSectionNav(), _buildRightRail() (replaced by new layout)
+- Commented out unused imports: launch_phase_navigation, planning_phase_header, responsive_scaffold
+- Replaced _buildMainColumn(): removed SizedBox(height: 18) spacing between sections; sections now adjacent with border separators
+- Updated _buildGuidedSectionCard(): added progressState parameter to _SectionCard for showing status icons in collapsed state
+- Replaced _SectionCard: removed ExpansionTile with rounded card + shadow; added conditional rendering — expanded: border-y Container with blue-tinted header (dot + title + expand_less icon) + content (subtitle description + child); collapsed: InkWell with border-b, dot + title + truncated subtitle + status icon + expand_more icon
+- Replaced _buildSectionProgressControls(): removed rounded container with bg; added simple Row with two checkboxes (Complete/Not applicable) + border-b separator
+- Updated _TextField and _TextAreaField: label style changed to uppercase with letterSpacing, smaller font (11px), _kGray500 color
+- Replaced _AutoSaveIndicator: removed pill/badge background (Container with border-radius 999); now renders as simple Row with icon + text
+- Replaced _AssistActions: changed from Align+Wrap to Row layout; Autofill button with bolt icon + outlined style; Generate With AI button with star icon (brand yellow) + dark bg; Regenerate pushed to right with Spacer; all buttons with smaller padding and 12px text
+- Replaced _inputDecoration(): rounded-md (6px radius) instead of 12px; fillColor gray-50/50 with opacity; border color #D1D5DB; focused border color brand yellow (#FFC107) with 1.5px width
+- Fixed deprecated withOpacity → withValues(alpha: ...) in 2 places
+- Ran flutter analyze: 0 errors, 16 warnings (all unused element warnings from removed UI methods, no compilation issues)
+
+Stage Summary:
+- Complete UI redesign of Design Planning screen to match HTML mobile design
+- New mobile-first layout with sticky header (NDU badge), page context (breadcrumbs + title), accordion sections (border-y expanded + divided collapsed list), and fixed bottom bar (Back/Next)
+- All backend logic preserved: AI generation, auto-save, state management, Firebase, document model, section progress, CRUD operations
+- File compiles with 0 errors, 0 warnings after cleanup
+- Brand color palette applied: brand yellow #FFC107, brand dark #1A1A1A, HTML gray/blue tokens
+- Cleaned up unused widgets: _RailCard, _MiniMetric, _Badge, _VersionChip, _DropdownBadge, _StatChip, _editVersion, _statusOptions, _openSpecificationsAndScrollToRow, _ActionButton.primary param
+- Built successfully with `flutter build web --no-tree-shake-icons`
+- Committed as `4d11eba` and pushed to GitHub
