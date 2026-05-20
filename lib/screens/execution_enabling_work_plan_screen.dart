@@ -1,7 +1,6 @@
 import 'package:ndu_project/screens/execution_issue_management_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -23,42 +22,29 @@ class ExecutionEnablingWorkPlanScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Enabling Work Plan',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Enabling Work Plan'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(title: 'Execution Enabling Work Plan'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Enabling Work Plan',
+              hintText:
+                  'Capture enabling works, dependencies, and resourcing needs.',
+              noteKey: 'execution_enabling_work_plan',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(title: 'Execution Enabling Work Plan'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Enabling Work Plan',
-                      hintText:
-                          'Capture enabling works, dependencies, and resourcing needs.',
-                      noteKey: 'execution_enabling_work_plan',
-                    ),
-                    const SizedBox(height: 32),
-                    const _EnablingWorksPlanSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _EnablingWorksPlanSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),

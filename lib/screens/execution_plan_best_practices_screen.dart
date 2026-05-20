@@ -1,8 +1,7 @@
 import 'package:ndu_project/screens/execution_plan_lessons_learned_screen.dart';
 import 'package:ndu_project/screens/execution_plan_construction_plan_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -23,43 +22,30 @@ class ExecutionPlanBestPracticesScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Plan - Best Practices',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Plan - Best Practices'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Plan - Best Practices'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Plan - Best Practices',
+              hintText:
+                  'Document the best practices to follow during execution.',
+              noteKey: 'execution_best_practices',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Plan - Best Practices'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Plan - Best Practices',
-                      hintText:
-                          'Document the best practices to follow during execution.',
-                      noteKey: 'execution_best_practices',
-                    ),
-                    const SizedBox(height: 32),
-                    const _BestPracticesSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _BestPracticesSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),

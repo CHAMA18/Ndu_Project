@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -24,46 +23,32 @@ class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Stakeholder Identification',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel:
-                      'Execution Stakeholder Identification'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Stakeholder Identification'),
+                                const SizedBox(height: 16),
+            const CrossReferenceNote(standalonePage: 'Stakeholder Management'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Stakeholder Identification',
+              hintText:
+                  'Capture stakeholder groups, engagement strategies, and key concerns.',
+              noteKey: 'execution_stakeholder_identification',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Stakeholder Identification'),
-                                        const SizedBox(height: 16),
-                    const CrossReferenceNote(standalonePage: 'Stakeholder Management'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Stakeholder Identification',
-                      hintText:
-                          'Capture stakeholder groups, engagement strategies, and key concerns.',
-                      noteKey: 'execution_stakeholder_identification',
-                    ),
-                    const SizedBox(height: 32),
-                    const _StakeholderIdentificationSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _StakeholderIdentificationSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),
