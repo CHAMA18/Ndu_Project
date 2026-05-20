@@ -23,10 +23,6 @@ class DesignPhaseStableShell extends StatelessWidget {
     if (isMobile) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: UnifiedScaffoldAppBar(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          title: activeLabel,
-        ),
         drawer: Drawer(
           width: AppBreakpoints.sidebarWidth(context),
           child: SafeArea(
@@ -37,11 +33,22 @@ class DesignPhaseStableShell extends StatelessWidget {
           ),
         ),
         body: SafeArea(
-          top: false,
-          child: Stack(
+          top: true,
+          child: Column(
             children: [
-              child,
-              const KazAiChatBubble(positioned: true),
+              UnifiedPhaseHeader(
+                title: activeLabel,
+                showDrawerButton: true,
+                showActivityLogAction: true,
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    child,
+                    const KazAiChatBubble(positioned: true),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -64,30 +71,10 @@ class DesignPhaseStableShell extends StatelessWidget {
             Expanded(
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 20,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x0F000000),
-                            blurRadius: 12,
-                            offset: Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: UnifiedPhaseHeader(
-                        title: activeLabel,
-                        showActivityLogAction: true,
-                      ),
-                    ),
+                  UnifiedPhaseHeader(
+                    title: activeLabel,
+                    showDrawerButton: false,
+                    showActivityLogAction: true,
                   ),
                   Expanded(child: child),
                 ],

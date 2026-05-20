@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/program_workspace_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 /// Responsive scaffold for ProgramWorkspaceSidebar-based screens.
 /// - Desktop/Tablet: persistent sidebar
@@ -28,9 +27,6 @@ class ProgramWorkspaceScaffold extends StatelessWidget {
     if (isMobile) {
       return Scaffold(
         backgroundColor: bgColor,
-        appBar: showSidebar
-            ? UnifiedScaffoldAppBar(backgroundColor: bgColor)
-            : null,
         drawer: showSidebar
             ? Drawer(
                 width: AppBreakpoints.sidebarWidth(context),
@@ -38,7 +34,7 @@ class ProgramWorkspaceScaffold extends StatelessWidget {
               )
             : null,
         body: SafeArea(
-          top: !showSidebar,
+          top: true,
           child: Stack(
             children: [
               body,

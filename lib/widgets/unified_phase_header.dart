@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/services/auth_nav.dart';
@@ -13,66 +14,149 @@ class UnifiedPhaseHeader extends StatelessWidget {
     required this.title,
     this.scaffoldKey,
     this.onBackPressed,
+    this.onForwardPressed,
     this.trailingActions = const <Widget>[],
     this.showActivityLogAction = true,
     this.onOpenActivityLog,
     this.backgroundColor = Colors.white,
+    this.showDrawerButton = true,
   });
 
   final String title;
   final GlobalKey<ScaffoldState>? scaffoldKey;
   final VoidCallback? onBackPressed;
+  final VoidCallback? onForwardPressed;
   final List<Widget> trailingActions;
   final bool showActivityLogAction;
   final VoidCallback? onOpenActivityLog;
   final Color backgroundColor;
+  final bool showDrawerButton;
+
+  void _openDrawer(BuildContext context) {
+    HapticFeedback.selectionClick();
+    if (scaffoldKey?.currentState != null) {
+      scaffoldKey!.currentState!.openDrawer();
+    } else {
+      Scaffold.of(context).openDrawer();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final headerHeight = isMobile ? 72.0 : 88.0;
-    final useDrawerTrigger = isMobile && scaffoldKey != null;
+    final headerHeight = isMobile ? 56.0 : 72.0;
 
     return Container(
       height: headerHeight,
-      color: backgroundColor,
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 16),
       child: Row(
         children: [
-          if (useDrawerTrigger)
-            IconButton(
-              icon: const Icon(Icons.menu),
-              tooltip: 'Open menu',
-              onPressed: () => scaffoldKey?.currentState?.openDrawer(),
-            )
-          else
+          if (isMobile) ...[
+            if (showDrawerButton)
+              IconButton(
+                icon: const Icon(Icons.menu, color: Color(0xFF374151)),
+                tooltip: 'Open menu',
+                padding: const EdgeInsets.all(8),
+                constraints:
+                    const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: () => _openDrawer(context),
+              ),
+            _CircleNavButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              iconSize: 14,
+              onTap: onBackPressed ?? () => Navigator.maybePop(context),
+            ),
+            const SizedBox(width: 8),
+            _CircleNavButton(
+              icon: Icons.arrow_forward_ios_rounded,
+              iconSize: 14,
+              onTap: onForwardPressed,
+              enabled: onForwardPressed != null,
+            ),
+          ] else ...[
             IconButton(
               icon: const Icon(Icons.arrow_back_ios, size: 16),
               tooltip: 'Back',
               onPressed: onBackPressed ?? () => Navigator.pop(context),
             ),
-          const Spacer(),
-          if (!isMobile)
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+            if (onForwardPressed != null)
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 16),
+                tooltip: 'Forward',
+                onPressed: onForwardPressed,
               ),
-            ),
+          ],
           const Spacer(),
-          if (showActivityLogAction)
-            _ActivityLogAction(
-              compact: isMobile,
-              onTap: onOpenActivityLog ??
-                  () => ProjectActivitiesLogScreen.open(context),
+          Flexible(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: isMobile ? 18 : 20,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF2D3748),
+              ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
-          if (showActivityLogAction) SizedBox(width: isMobile ? 8 : 12),
-          ...trailingActions,
-          if (trailingActions.isNotEmpty) SizedBox(width: isMobile ? 8 : 12),
-          const UnifiedProfileMenu(),
+          ),
+          const Spacer(),
+          if (!isMobile) ...[
+            if (showActivityLogAction)
+              _ActivityLogAction(
+                compact: false,
+                onTap: onOpenActivityLog ??
+                    () => ProjectActivitiesLogScreen.open(context),
+              ),
+            if (showActivityLogAction) const SizedBox(width: 12),
+            ...trailingActions,
+            if (trailingActions.isNotEmpty) const SizedBox(width: 12),
+          ],
+          const UnifiedProfileMenu(compact: true),
         ],
+      ),
+    );
+  }
+}
+
+class _CircleNavButton extends StatelessWidget {
+  const _CircleNavButton({
+    required this.icon,
+    required this.iconSize,
+    this.onTap,
+    this.enabled = true,
+  });
+
+  final IconData icon;
+  final double iconSize;
+  final VoidCallback? onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: const Color(0xFFE2E8F0),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: iconSize,
+          color: enabled ? const Color(0xFF374151) : const Color(0xFFCBD5E0),
+        ),
       ),
     );
   }
