@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 /// A responsive scaffold that adapts sidebar behavior based on screen size.
 /// - Desktop/Tablet: Shows sidebar in a Row layout with draggable handle
@@ -76,12 +75,6 @@ class _MobileScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: showSidebar
-          ? UnifiedScaffoldAppBar(
-              backgroundColor: backgroundColor,
-              title: activeItemLabel,
-            )
-          : null,
       drawer: showSidebar
           ? Drawer(
               width: AppBreakpoints.sidebarWidth(context),
@@ -94,7 +87,7 @@ class _MobileScaffold extends StatelessWidget {
             )
           : null,
       body: SafeArea(
-        top: !showSidebar, // SafeArea top only if no AppBar
+        top: true,
         child: Stack(
           fit: StackFit.expand,
           children: [

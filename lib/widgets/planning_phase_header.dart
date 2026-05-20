@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 class PlanningPhaseHeader extends StatelessWidget {
@@ -25,43 +26,28 @@ class PlanningPhaseHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 12,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          UnifiedPhaseHeader(
-            title: title,
-            onBackPressed: showNavigationButtons
-                ? onBack ?? () => Navigator.maybePop(context)
-                : null,
-            trailingActions: showNavigationButtons
-                ? [
-                    _CircleIconButton(
-                      icon: Icons.arrow_forward_ios_rounded,
-                      onTap: onForward,
-                    ),
-                  ]
-                : const <Widget>[],
-            showActivityLogAction: true,
-          ),
-          if (showImportButton || showContentButton) ...[
+    final isMobile = AppBreakpoints.isMobile(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        UnifiedPhaseHeader(
+          title: title,
+          showDrawerButton: true,
+          onBackPressed: showNavigationButtons
+              ? onBack ?? () => Navigator.maybePop(context)
+              : null,
+          onForwardPressed: showNavigationButtons ? onForward : null,
+          showActivityLogAction: true,
+        ),
+        if (showImportButton || showContentButton) ...[
+          if (isMobile)
+            const SizedBox(height: 12)
+          else
             const SizedBox(height: 16),
-            const Divider(height: 1, color: Color(0xFFE5E7EB)),
-            const SizedBox(height: 16),
-            Row(
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
+            child: Row(
               children: [
                 if (showImportButton)
                   _YellowButton(
@@ -79,34 +65,9 @@ class PlanningPhaseHeader extends StatelessWidget {
                   ),
               ],
             ),
-          ],
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({required this.icon, this.onTap});
-
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Icon(icon, size: 16, color: Colors.black87),
-      ),
+      ],
     );
   }
 }
