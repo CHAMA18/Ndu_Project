@@ -87,3 +87,32 @@ Stage Summary:
 - All backend logic retained (OpenAI, Firebase, PDF, CRUD)
 - Build compiles successfully
 - Pushed to GitHub as commit c360069
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Redesign Project Goals & Milestones screen to match HTML design
+
+Work Log:
+- Analyzed HTML: mobile-first design with sticky header, breadcrumbs, notes, context, tab navigation, goal cards with milestones, fixed footer
+- Located screen: project_framework_next_screen.dart (2088 lines)
+- Read full file to understand all backend logic (auto-save, focus listeners, data persistence, navigation)
+- Updated color constants to match HTML brand tokens
+- Added _buildMobileHeader(): back button + "Planning Phase" + avatar + breadcrumb bar
+- Added _buildNotesSection(): white card with document icon, textarea with auto-save
+- Added _buildContextSection(): Proposed Solution heading + Project Objective card
+- Added _buildGoalsSection(): title + pill tab navigation (Goal 1/2/3/View All) + info banner
+- Redesigned goal cards: gray header with title + priority badge + delete, description input, date picker, milestones in light yellow bg
+- Added milestone status dropdown (Not Started/In Progress/Completed) with colored dots
+- Added _buildFixedFooter(): white bar with full-width yellow Next button
+- Changed layout from horizontal Row of cards to vertical list on mobile
+- All backend logic preserved: auto-save, focus listeners, data persistence, navigation
+- Built successfully with `flutter build web --no-tree-shake-icons`
+- Committed as `a261cd4` and pushed to GitHub
+
+Stage Summary:
+- Complete UI redesign of Project Goals & Milestones screen
+- 855 insertions, 1347 deletions (file reduced from 2088 → 1596 lines)
+- All backend logic retained (auto-save, data persistence, milestone CRUD, navigation)
+- Build compiles successfully
+- Pushed to GitHub as commit a261cd4
