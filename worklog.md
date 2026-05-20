@@ -151,3 +151,45 @@ Stage Summary:
 - Cleaned up unused widgets: _RailCard, _MiniMetric, _Badge, _VersionChip, _DropdownBadge, _StatChip, _editVersion, _statusOptions, _openSpecificationsAndScrollToRow, _ActionButton.primary param
 - Built successfully with `flutter build web --no-tree-shake-icons`
 - Committed as `4d11eba` and pushed to GitHub
+
+---
+Task ID: 6
+Agent: full-stack-developer
+Task: Redesign Risk Planning screen UI to match HTML
+
+Work Log:
+- Read risk_assessment_screen.dart (~2217 lines) to understand structure: DraggableSidebar + InitiationLikeSidebar layout, _TopUtilityBar, _PageHeading, _RiskNotesCard, _MetricsWrap, _MetricCard, _RiskMatrixCard, _MitigationPlanCard, _RiskRegister, plus data classes and backend logic
+- Removed imports for DraggableSidebar, InitiationLikeSidebar, and responsive (AppBreakpoints) since they're no longer used
+- Removed unused imports: firebase_auth_service.dart, user_service.dart (were only used by removed _TopUtilityBar/_UserChip)
+- Replaced build() method: removed DraggableSidebar + InitiationLikeSidebar + SafeArea + Row layout; added Scaffold with Column (_buildMobileHeader + Expanded SingleChildScrollView)
+- Added _buildMobileHeader(): white bg, bottom border #E5E7EB; Row with hamburger menu icon + back/forward chevron circle buttons + "Risk Mitigation" title + avatar circle; wraps in SafeArea
+- Added _circleIcon() helper: 36px circle with border for back/forward nav buttons
+- Inlined page title into build(): "Risk Planning" (24px bold) + subtitle "Identify, analyze and mitigate project risks." (14px gray)
+- Redesigned _RiskNotesCard: rounded-xl card (16px radius) with shadow; header section (bg #FAFAFA, border-bottom, icon + title + description); transparent textarea (no border, no fill)
+- Redesigned _MetricsWrap: removed isMobile parameter; replaced single-column mobile / Wrap desktop with GridView.count (2x2 grid, childAspectRatio 1.35, gap 12)
+- Redesigned _MetricCard: removed height/width/badges/progress params; simplified to title (12px medium gray) + value (24px bold) + optional footer row (warning icon + small text)
+- Redesigned _RiskMatrixCard: rounded-xl p-4 with shadow; legend with small 8px dots; "Impact" label above grid; "Likelihood" rotated label on left; 3x3 grid built inline (no _MatrixRow/_MatrixHeaderRow); rows ordered High→Medium→Low top to bottom; cells with count + "risks" text; medium color updated to #FEF08A (yellow-200)
+- Redesigned _MitigationPlanCard: rounded-xl overflow-hidden with ClipRRect; header section (bg #FAFAFA, border-bottom, shield icon + title + description); empty state with centered gray text on gray bg with margin; content in padded column when entries exist
+- Redesigned _RiskRegister: title area outside card ("Risk Register" 18px bold + description); controls row: search input with search icon + outlined Filter button + CTA yellow "Add Risk" button (all in one Row); empty state: white rounded-xl card with document icon + "No risks yet" + description
+- Updated _YellowButton: CTA color changed from #FFD54F to #FFB800; padding/shape updated for compact mobile style
+- Updated _OutlinedButton: reduced padding for compact mobile style
+- Updated _LegendDot: smaller dot (8px) and text (11px)
+- Removed _TopUtilityBar class (replaced by _buildMobileHeader)
+- Removed _PageHeading class (inlined into build)
+- Removed _UserChip class (not used in new design)
+- Removed _Badge class (no longer referenced after _MetricCard redesign)
+- Removed _MatrixHeaderRow, _MatrixRow, _MatrixCellData classes (matrix built inline in new design)
+- Fixed deprecated withOpacity → withValues(alpha: ...) in _StatusChip
+- Background color changed from #F9FAFB to #F7F9FB (surface color from HTML)
+- FAB uses KazAiChatBubble(positioned: false)
+- Ran flutter analyze: 1 info-level issue (pre-existing use_build_context_synchronously in _loadEntries), 0 errors, 0 warnings
+
+Stage Summary:
+- Complete UI redesign of Risk Planning screen to match HTML mobile design
+- File reduced from ~2217 to ~1960 lines
+- New mobile-first layout with sticky header (hamburger + chevrons + avatar), page title, cards with rounded-xl + shadow style, 2x2 metrics grid, inline risk matrix, and redesigned register section
+- All backend logic preserved: _RiskEntry, _RiskStats, _Debouncer, _dialogField, _dialogDropdownField, _loadEntries, _persistEntry, _handleNotesChanged, _openEntryDialog, _mergeEntriesWithSolutionRisks, _maybeSeedMitigationPlans, _handleMitigationChanged, _persistMitigationPlans, _regenerateMitigationForEntry
+- Color palette applied: surface #F7F9FB, primary #0084FF (focus), CTA #FFB800, matrix colors (#DCFCE7/#FEF08A/#FEE2E2)
+- File compiles with 0 errors, 0 warnings
+- Built successfully with `flutter build web --no-tree-shake-icons`
+- Committed as `c7fa648` and pushed to GitHub
