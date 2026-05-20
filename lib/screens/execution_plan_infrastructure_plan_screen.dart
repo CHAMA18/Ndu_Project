@@ -2,8 +2,7 @@ import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_agile_delivery_plan_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -26,50 +25,37 @@ class ExecutionPlanInfrastructurePlanScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Plan - Infrastructure Plan',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Plan - Infrastructure Plan'),
+            ExecutionPlanHeader(
+              onBack: () => PlanningPhaseNavigation.goToPrevious(
+                  context, 'execution_plan_infrastructure_plan'),
+              onNext: () => PlanningPhaseNavigation.goToNext(
+                  context, 'execution_plan_infrastructure_plan'),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                      onBack: () => PlanningPhaseNavigation.goToPrevious(
-                          context, 'execution_plan_infrastructure_plan'),
-                      onNext: () => PlanningPhaseNavigation.goToNext(
-                          context, 'execution_plan_infrastructure_plan'),
-                    ),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Plan - Infrastructure Plan'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Plan - Infrastructure Plan',
-                      hintText:
-                          'Outline infrastructure dependencies, scope, and delivery approach.',
-                      noteKey: 'execution_infrastructure_plan',
-                      showDiagram: false,
-                    ),
-                    const SizedBox(height: 32),
-                    const _InfrastructurePlanSection(),
-                    const SizedBox(height: 24),
-                    const _PlanningInfrastructureCostSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Plan - Infrastructure Plan'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Plan - Infrastructure Plan',
+              hintText:
+                  'Outline infrastructure dependencies, scope, and delivery approach.',
+              noteKey: 'execution_infrastructure_plan',
+              showDiagram: false,
             ),
+            const SizedBox(height: 32),
+            const _InfrastructurePlanSection(),
+            const SizedBox(height: 24),
+            const _PlanningInfrastructureCostSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),

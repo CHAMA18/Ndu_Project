@@ -1,8 +1,7 @@
 import 'package:ndu_project/screens/execution_plan_agile_delivery_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_infrastructure_plan_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
@@ -22,48 +21,35 @@ class ExecutionPlanConstructionPlanScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Plan - Construction Plan',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Plan - Construction Plan'),
+            ExecutionPlanHeader(
+              onBack: () => PlanningPhaseNavigation.goToPrevious(
+                  context, 'execution_plan_construction_plan'),
+              onNext: () => PlanningPhaseNavigation.goToNext(
+                  context, 'execution_plan_construction_plan'),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                      onBack: () => PlanningPhaseNavigation.goToPrevious(
-                          context, 'execution_plan_construction_plan'),
-                      onNext: () => PlanningPhaseNavigation.goToNext(
-                          context, 'execution_plan_construction_plan'),
-                    ),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Plan - Construction Plan'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Plan - Construction Plan',
-                      hintText:
-                          'Summarize construction sequencing, logistics, and safety constraints.',
-                      noteKey: 'execution_construction_plan',
-                      showDiagram: false,
-                    ),
-                    const SizedBox(height: 32),
-                    const _ConstructionPlanSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Plan - Construction Plan'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Plan - Construction Plan',
+              hintText:
+                  'Summarize construction sequencing, logistics, and safety constraints.',
+              noteKey: 'execution_construction_plan',
+              showDiagram: false,
             ),
+            const SizedBox(height: 32),
+            const _ConstructionPlanSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),

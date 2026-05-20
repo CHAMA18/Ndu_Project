@@ -1,7 +1,6 @@
 import 'package:ndu_project/screens/execution_plan_details_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -22,72 +21,59 @@ class ExecutionPlanSolutionsScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Executive Plan Strategy',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Executive Plan Strategy'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(title: 'Executive Plan Strategy'),
+            const SizedBox(height: 28),
+            ExecutionPlanForm(
+              title: 'Executive Plan Strategy',
+              hintText: 'Input your notes here...',
+              noteKey: 'execution_plan_strategy',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 28),
+            const _ExecutionPlanTable(),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: AddSolutionButton(
+                  onPressed: () =>
+                      _ExecutionPlanTable.showAddDialog(context)),
+            ),
+            const SizedBox(height: 44),
+            Wrap(
+              spacing: 20,
+              runSpacing: 16,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const InfoBadge(),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.end,
                   children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(title: 'Executive Plan Strategy'),
-                    const SizedBox(height: 28),
-                    ExecutionPlanForm(
-                      title: 'Executive Plan Strategy',
-                      hintText: 'Input your notes here...',
-                      noteKey: 'execution_plan_strategy',
+                    const AiTipCard(),
+                    YellowActionButton(
+                      label: 'Next',
+                      onPressed: () =>
+                          ExecutionPlanDetailsScreen.open(context),
                     ),
-                    const SizedBox(height: 28),
-                    const _ExecutionPlanTable(),
-                    const SizedBox(height: 20),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: AddSolutionButton(
-                          onPressed: () =>
-                              _ExecutionPlanTable.showAddDialog(context)),
-                    ),
-                    const SizedBox(height: 44),
-                    Wrap(
-                      spacing: 20,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        const InfoBadge(),
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 12,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            const AiTipCard(),
-                            YellowActionButton(
-                              label: 'Next',
-                              onPressed: () =>
-                                  ExecutionPlanDetailsScreen.open(context),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 56),
                   ],
                 ),
-              ),
+              ],
             ),
+            const SizedBox(height: 56),
           ],
         ),
       ),

@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/ai_diagram_panel.dart';
@@ -26,51 +25,32 @@ class ExecutionPlanInterfaceManagementOverviewScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Interface Management Overview',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel:
-                      'Execution Interface Management Overview'),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const PlanningPhaseHeader(title: 'Execution Plan'),
-                    const SizedBox(height: 16),
-                    const CrossReferenceNote(standalonePage: 'Interface Management'),
-                    const SizedBox(height: 24),
-                    const _ExecutionPlanDetailsSection(),
-                    const SizedBox(height: 32),
-                    const _InterfaceManagementSection(),
-                    const SizedBox(height: 48),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _DoneButton(
-                        onPressed: () {
-                          // Navigate to main execution flow (Staff Team screen)
-                          StaffTeamScreen.open(context);
-                          // Alternative: Navigate to progress tracking
-                          // context.go('/${AppRoutes.progressTracking}');
-                          // Alternative: Navigate to dashboard
-                          // context.go('/${AppRoutes.dashboard}');
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 56),
-                  ],
-                ),
+            const PlanningPhaseHeader(title: 'Execution Plan'),
+            const SizedBox(height: 16),
+            const CrossReferenceNote(standalonePage: 'Interface Management'),
+            const SizedBox(height: 24),
+            const _ExecutionPlanDetailsSection(),
+            const SizedBox(height: 32),
+            const _InterfaceManagementSection(),
+            const SizedBox(height: 48),
+            Align(
+              alignment: Alignment.centerRight,
+              child: _DoneButton(
+                onPressed: () {
+                  StaffTeamScreen.open(context);
+                },
               ),
             ),
+            const SizedBox(height: 56),
           ],
         ),
       ),
