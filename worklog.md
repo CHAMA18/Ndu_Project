@@ -224,3 +224,33 @@ Stage Summary:
 - Mic icon uses brand yellow (#FFB800) with animated listening state (filled mic icon + yellow glow circle)
 - Speech recognition uses dictation mode with 60s max listen time and 4s pause detection
 - Voice text is appended to existing field content with proper spacing
+---
+Task ID: 7
+Agent: Main Agent
+Task: Add authenticated user name to Project Dashboard header and remove description text on Android/iOS only
+
+Work Log:
+- Analyzed uploaded screenshot with VLM: identified "Project dashboard" page with "Manage all single projects..." description text
+- Located both dashboard files: project_dashboard_mobile_shell.dart (mobile) and project_dashboard_screen.dart (desktop)
+- Examined existing patterns for displaying user names: FirebaseAuthService.displayNameOrEmail() used in 25+ screens
+- Mobile shell had NO user name display, only used user.uid for queries and Icons.account_circle for avatar
+- Desktop screen also had NO personalized greeting
+- Added import for flutter/foundation.dart (kIsWeb) to mobile shell
+- Mobile shell: Replaced flat "Project dashboard" title + description with personalized greeting Row:
+  - Gradient avatar circle (brand yellow #FFCC00 → #FFE066) with user's first initial
+  - "Welcome back, {firstName}" greeting text (16px, semibold)
+  - "Project dashboard" subtitle below greeting (12px, medium, onSurfaceVariant)
+  - Description text wrapped in `if (kIsWeb)` conditional — hidden on Android/iOS, visible on web
+- Desktop screen: Added similar personalized greeting Row before title:
+  - Larger gradient avatar (44px, 14px radius) with user's first initial
+  - "Welcome back, {firstName}" greeting text (titleLarge)
+  - "Project dashboard" headline below greeting
+  - Description text remains visible (desktop = web)
+- Built successfully with `flutter build web --no-tree-shake-icons`
+
+Stage Summary:
+- Authenticated user's name now displays on both mobile and desktop Project Dashboard
+- "Manage all single projects..." description text removed on Android/iOS (kIsWeb guard), kept on web
+- Premium gradient avatar with brand yellow colors and shadow
+- Personalized "Welcome back, {firstName}" greeting
+- Build compiles successfully
