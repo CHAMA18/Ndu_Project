@@ -39,6 +39,7 @@ import 'package:ndu_project/widgets/solution_detail_section.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class PreferredSolutionAnalysisScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
@@ -559,23 +560,26 @@ class _PreferredSolutionAnalysisScreenState
               child: InitiationLikeSidebar(
                   activeItemLabel: 'Preferred Solution Analysis'))
           : null,
-      body: Stack(
-        children: [
-          Column(children: [
-            BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(
-                child: Row(children: [
-              DraggableSidebar(
-                openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(
-                    activeItemLabel: 'Preferred Solution Analysis'),
-              ),
-              Expanded(child: _buildMainContent()),
-            ])),
-          ]),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(children: [
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+              Expanded(
+                  child: Row(children: [
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel: 'Preferred Solution Analysis'),
+                ),
+                Expanded(child: _buildMainContent()),
+              ])),
+            ]),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -762,8 +766,7 @@ class _PreferredSolutionAnalysisScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -806,8 +809,7 @@ class _PreferredSolutionAnalysisScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -845,8 +847,7 @@ class _PreferredSolutionAnalysisScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -881,8 +882,7 @@ class _PreferredSolutionAnalysisScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -919,8 +919,7 @@ class _PreferredSolutionAnalysisScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1048,7 +1047,8 @@ class _PreferredSolutionAnalysisScreenState
             top: 0,
             bottom: 100,
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // Breadcrumbs
             _buildBreadcrumbs(),
             const SizedBox(height: 16),
@@ -1081,7 +1081,9 @@ class _PreferredSolutionAnalysisScreenState
         ),
         // Fixed bottom bar
         Positioned(
-          left: 0, right: 0, bottom: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           child: _buildFixedFooter(),
         ),
       ],
@@ -1737,12 +1739,9 @@ class _PreferredSolutionAnalysisScreenState
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1a1a1a))),
         SizedBox(height: 4),
-        Text(
-            'Review all potential solutions and select preferred option.',
-            style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-                height: 1.4)),
+        Text('Review all potential solutions and select preferred option.',
+            style:
+                TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.4)),
       ],
     );
   }
@@ -1875,14 +1874,20 @@ class _PreferredSolutionAnalysisScreenState
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Working notes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1a1a1a))),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1a1a1a))),
             OutlinedButton.icon(
               onPressed: null,
               icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text('Format', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              label: const Text('Format',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
                 side: const BorderSide(color: Color(0xFFE5E7EB)),
               ),
             ),
@@ -1907,8 +1912,10 @@ class _PreferredSolutionAnalysisScreenState
                 keyboardType: TextInputType.multiline,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a)),
                 decoration: const InputDecoration(
-                    hintText: 'Capture rationale, assumptions, or follow-ups here...',
-                    hintStyle: TextStyle(color: Color(0xFF666666), fontSize: 14),
+                    hintText:
+                        'Capture rationale, assumptions, or follow-ups here...',
+                    hintStyle:
+                        TextStyle(color: Color(0xFF666666), fontSize: 14),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.all(12)),
@@ -2813,8 +2820,7 @@ class _PreferredSolutionAnalysisScreenState
       decoration: BoxDecoration(
           color: const Color(0xFFFFF7CC),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: const Color(0xFFFFD700).withOpacity(0.6))),
+          border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.6))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(label,
             style: const TextStyle(
@@ -2866,8 +2872,7 @@ class _PreferredSolutionAnalysisScreenState
             if (analysis.externalStakeholders != null)
               ...analysis.externalStakeholders!,
           ];
-          final displayStakeholders =
-              allStakeholders.toSet().take(2).toList();
+          final displayStakeholders = allStakeholders.toSet().take(2).toList();
           final hasStakeholders = displayStakeholders.isNotEmpty;
 
           // Risks (max 2)
@@ -2977,12 +2982,10 @@ class _PreferredSolutionAnalysisScreenState
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        _buildMetricBadge(
-                            'Cost', _formatCurrency(totalCost)),
+                        _buildMetricBadge('Cost', _formatCurrency(totalCost)),
                         _buildMetricBadge(
                             'ROI', '${avgRoi.toStringAsFixed(1)}%'),
-                        _buildMetricBadge(
-                            'NPV', _formatCurrency(bestNpv)),
+                        _buildMetricBadge('NPV', _formatCurrency(bestNpv)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -3068,8 +3071,8 @@ class _PreferredSolutionAnalysisScreenState
                     Container(
                       width: double.infinity,
                       decoration: const BoxDecoration(
-                        border: Border(
-                            top: BorderSide(color: Color(0xFFF3F4F6))),
+                        border:
+                            Border(top: BorderSide(color: Color(0xFFF3F4F6))),
                       ),
                       padding: const EdgeInsets.only(top: 12),
                       child: Row(
@@ -3180,9 +3183,8 @@ class _PreferredSolutionAnalysisScreenState
     final hasSelection = _selectedSolutionIndex != null &&
         _selectedSolutionIndex! >= 0 &&
         _selectedSolutionIndex! < _analysis.length;
-    final selectedTitle = hasSelection
-        ? _analysis[_selectedSolutionIndex!].solution.title
-        : null;
+    final selectedTitle =
+        hasSelection ? _analysis[_selectedSolutionIndex!].solution.title : null;
     final isAuthorized = _isUserAuthorizedToFinalize();
 
     return Container(
@@ -4352,8 +4354,7 @@ class _PreferredSolutionAnalysisScreenState
     );
 
     return Table(
-      border: TableBorder.all(
-          color: Colors.grey.withOpacity(0.3), width: 0.7),
+      border: TableBorder.all(color: Colors.grey.withOpacity(0.3), width: 0.7),
       columnWidths: columnWidths,
       defaultVerticalAlignment: TableCellVerticalAlignment.top,
       children: summaryRows,
@@ -5194,7 +5195,8 @@ class _SolutionAccordionCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.open_in_new_outlined, size: 14, color: Color(0xFF0084ff)),
+                        Icon(Icons.open_in_new_outlined,
+                            size: 14, color: Color(0xFF0084ff)),
                         SizedBox(width: 4),
                         Text(
                           'View This Solution',
@@ -5226,8 +5228,9 @@ class _SolutionAccordionCard extends StatelessWidget {
           AnimatedCrossFade(
             firstChild: const SizedBox(width: double.infinity, height: 0),
             secondChild: _buildAccordionContent(),
-            crossFadeState:
-                isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             duration: const Duration(milliseconds: 250),
           ),
         ],
@@ -5336,22 +5339,24 @@ class _SolutionAccordionCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ...displayItems.map((item) => Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('— ', style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
-              Expanded(
-                child: Text(
-                  item.trim(),
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('— ',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
+                  Expanded(
+                    child: Text(
+                      item.trim(),
+                      style: const TextStyle(
+                          fontSize: 14, color: Color(0xFF1a1a1a)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        )),
+            )),
         if (hasMore)
           InkWell(
             onTap: onViewSolution,
@@ -5367,7 +5372,8 @@ class _SolutionAccordionCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_down, size: 14, color: Color(0xFF0084ff)),
+                Icon(Icons.keyboard_arrow_down,
+                    size: 14, color: Color(0xFF0084ff)),
               ],
             ),
           ),
@@ -5391,51 +5397,85 @@ class _SolutionAccordionCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (internal.isNotEmpty) ...[
-          const Text('Internal:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF1a1a1a))),
+          const Text('Internal:',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1a1a1a))),
           ...internal.take(3).map((item) => Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('— ', style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
-                Expanded(child: Text(item.trim(), style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a)), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-          )),
+                padding: const EdgeInsets.only(left: 8, bottom: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('— ',
+                        style:
+                            TextStyle(fontSize: 14, color: Color(0xFF666666))),
+                    Expanded(
+                        child: Text(item.trim(),
+                            style: const TextStyle(
+                                fontSize: 14, color: Color(0xFF1a1a1a)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+              )),
         ],
         if (external.isNotEmpty) ...[
           const SizedBox(height: 4),
-          const Text('External:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF1a1a1a))),
+          const Text('External:',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1a1a1a))),
           ...external.take(2).map((item) => Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('— ', style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
-                Expanded(child: Text(item.trim(), style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a)), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-          )),
+                padding: const EdgeInsets.only(left: 8, bottom: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('— ',
+                        style:
+                            TextStyle(fontSize: 14, color: Color(0xFF666666))),
+                    Expanded(
+                        child: Text(item.trim(),
+                            style: const TextStyle(
+                                fontSize: 14, color: Color(0xFF1a1a1a)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+              )),
         ],
         if (internal.isEmpty && external.isEmpty && allStakeholders.isNotEmpty)
           ...allStakeholders.take(3).map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('— ', style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
-                Expanded(child: Text(item.trim(), style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a)), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-          )),
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('— ',
+                        style:
+                            TextStyle(fontSize: 14, color: Color(0xFF666666))),
+                    Expanded(
+                        child: Text(item.trim(),
+                            style: const TextStyle(
+                                fontSize: 14, color: Color(0xFF1a1a1a)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+              )),
         InkWell(
           onTap: onViewSolution,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: const [
-              Text('View more', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF0084ff))),
+              Text('View more',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF0084ff))),
               SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down, size: 14, color: Color(0xFF0084ff)),
+              Icon(Icons.keyboard_arrow_down,
+                  size: 14, color: Color(0xFF0084ff)),
             ],
           ),
         ),
@@ -5452,7 +5492,8 @@ class _SolutionAccordionCard extends StatelessWidget {
       );
     }
 
-    final totalCost = costs.fold<double>(0, (sum, c) => sum + (c.estimatedCost));
+    final totalCost =
+        costs.fold<double>(0, (sum, c) => sum + (c.estimatedCost));
     // Calculate total benefits (approximate from ROI)
     final totalBenefits = costs.fold<double>(0, (sum, c) {
       final roi = c.roiPercent;
@@ -5468,23 +5509,28 @@ class _SolutionAccordionCard extends StatelessWidget {
             style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a))),
         const SizedBox(height: 8),
         ...costs.take(2).map((c) => Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Text(
-            '— ${c.item}: ${c.estimatedCost.toStringAsFixed(2)}...',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a)),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        )),
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '— ${c.item}: ${c.estimatedCost.toStringAsFixed(2)}...',
+                style: const TextStyle(fontSize: 14, color: Color(0xFF1a1a1a)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            )),
         const SizedBox(height: 4),
         InkWell(
           onTap: onViewSolution,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: const [
-              Text('View more', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF0084ff))),
+              Text('View more',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF0084ff))),
               SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down, size: 14, color: Color(0xFF0084ff)),
+              Icon(Icons.keyboard_arrow_down,
+                  size: 14, color: Color(0xFF0084ff)),
             ],
           ),
         ),
@@ -5499,9 +5545,14 @@ class _SolutionAccordionCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  Icon(Icons.visibility_outlined, size: 14, color: Color(0xFF0084ff)),
+                  Icon(Icons.visibility_outlined,
+                      size: 14, color: Color(0xFF0084ff)),
                   SizedBox(width: 4),
-                  Text('View This Solution', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF0084ff))),
+                  Text('View This Solution',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF0084ff))),
                 ],
               ),
             ),
@@ -5510,9 +5561,14 @@ class _SolutionAccordionCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  Icon(Icons.keyboard_arrow_down, size: 14, color: Color(0xFF0084ff)),
+                  Icon(Icons.keyboard_arrow_down,
+                      size: 14, color: Color(0xFF0084ff)),
                   SizedBox(width: 4),
-                  Text('View more', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF0084ff))),
+                  Text('View more',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF0084ff))),
                 ],
               ),
             ),
@@ -5521,9 +5577,14 @@ class _SolutionAccordionCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  Icon(Icons.open_in_new_outlined, size: 14, color: Color(0xFF0084ff)),
+                  Icon(Icons.open_in_new_outlined,
+                      size: 14, color: Color(0xFF0084ff)),
                   SizedBox(width: 4),
-                  Text('Open Cost Analysis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF0084ff))),
+                  Text('Open Cost Analysis',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF0084ff))),
                 ],
               ),
             ),
@@ -5762,9 +5823,8 @@ class _ProjectOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isSelected
-        ? const Color(0xFFFFD700)
-        : Colors.grey.withOpacity(0.2);
+    final borderColor =
+        isSelected ? const Color(0xFFFFD700) : Colors.grey.withOpacity(0.2);
     final background = isSelected ? const Color(0xFFFFF8DC) : Colors.white;
 
     return Container(
@@ -5864,57 +5924,61 @@ class _PreferredSolutionComparisonScreen extends StatelessWidget {
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(pagePadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.withOpacity(0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Side-by-side comparison ready for export or print.',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Confirm the best approach with the full picture in view.',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            _ComparisonContent(
-              analysis: analysis,
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () => _handleNext(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFD700),
-                  foregroundColor: Colors.black,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
+      body: SafeArea(
+        top: true,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(pagePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
                 ),
-                child: const Text('Next',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Side-by-side comparison ready for export or print.',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Confirm the best approach with the full picture in view.',
+                      style: TextStyle(fontSize: 13, color: Colors.black54),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              _ComparisonContent(
+                analysis: analysis,
+              ),
+              const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () => _handleNext(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFD700),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Next',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -6314,8 +6378,7 @@ class _ComparisonContent extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFFF7CC),
         borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: const Color(0xFFFFD700).withOpacity(0.6)),
+        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -6495,8 +6558,7 @@ class _ComparisonContent extends StatelessWidget {
     );
 
     return Table(
-      border: TableBorder.all(
-          color: Colors.grey.withOpacity(0.3), width: 0.7),
+      border: TableBorder.all(color: Colors.grey.withOpacity(0.3), width: 0.7),
       columnWidths: columnWidths,
       defaultVerticalAlignment: TableCellVerticalAlignment.top,
       children: rows,
@@ -6650,8 +6712,7 @@ class _PreferredSolutionDetailsScreenState
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(6),
-                    border:
-                        Border.all(color: Colors.grey.withOpacity(0.35)),
+                    border: Border.all(color: Colors.grey.withOpacity(0.35)),
                   ),
                   child: Row(
                     children: [
@@ -6700,8 +6761,7 @@ class _PreferredSolutionDetailsScreenState
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
-                    border:
-                        Border.all(color: Colors.grey.withOpacity(0.25)),
+                    border: Border.all(color: Colors.grey.withOpacity(0.25)),
                   ),
                   child: Column(
                     children: [
@@ -6807,8 +6867,7 @@ class _PreferredSolutionDetailsScreenState
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -7181,8 +7240,7 @@ class _PreferredSolutionDetailsScreenState
                         Text(
                           s,
                           style: TextStyle(
-                              fontSize: 13,
-                              color: color.withOpacity(0.8)),
+                              fontSize: 13, color: color.withOpacity(0.8)),
                         ),
                       ],
                     ),
@@ -7269,147 +7327,151 @@ class _PreferredSolutionDetailsScreenState
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Overview Card
+                    _buildOverviewCard(isSelected, cbaRows),
+
+                    // Cost Benefit Analysis - Always Expanded
+                    _buildSectionCard(
+                      icon: Icons.attach_money,
+                      iconColor: const Color(0xFFF59E0B),
+                      title: 'Cost Benefit Analysis',
+                      subtitle: cbaRows.isEmpty
+                          ? 'No data available'
+                          : '${cbaRows.length} cost items',
+                      initiallyExpanded: true,
+                      content: cbaRows.isEmpty
+                          ? _buildEmptyState('No cost analysis available',
+                              Icons.attach_money, Colors.amber)
+                          : _buildCbaDataTable(
+                              cbaRows, projectData.costBenefitCurrency),
+                    ),
+
+                    // Risks Identified
+                    _buildSectionCard(
+                      icon: Icons.warning_amber,
+                      iconColor: const Color(0xFFEF4444),
+                      title: 'Risks Identified',
+                      subtitle: analysis.risks.isEmpty
+                          ? 'No risks'
+                          : '${analysis.risks.length} risks identified',
+                      initiallyExpanded: analysis.risks.isNotEmpty,
+                      content: _buildEnhancedRisksSection(),
+                    ),
+
+                    // IT Considerations
+                    _buildSectionCard(
+                      icon: Icons.computer,
+                      iconColor: const Color(0xFF3B82F6),
+                      title: 'IT Considerations',
+                      subtitle: analysis.technologies.isEmpty
+                          ? 'No data'
+                          : '${analysis.technologies.length} technologies',
+                      initiallyExpanded: analysis.technologies.isNotEmpty,
+                      content: _buildEnhancedTechSection(),
+                    ),
+
+                    // Infrastructure
+                    _buildSectionCard(
+                      icon: Icons.construction,
+                      iconColor: const Color(0xFF8B5CF6),
+                      title: 'Infrastructure Considerations',
+                      subtitle: analysis.infrastructure.isEmpty
+                          ? 'No data'
+                          : '${analysis.infrastructure.length} items',
+                      initiallyExpanded: analysis.infrastructure.isNotEmpty,
+                      content: _buildEnhancedInfraSection(),
+                    ),
+
+                    // Stakeholders
+                    _buildSectionCard(
+                      icon: Icons.people,
+                      iconColor: const Color(0xFF10B981),
+                      title: 'Core Stakeholders',
+                      subtitle: _stakeholderCount == 0
+                          ? 'No stakeholders'
+                          : '$_stakeholderCount stakeholders',
+                      initiallyExpanded: _stakeholderCount > 0,
+                      content: _buildEnhancedStakeholdersSection(),
+                    ),
+
+                    // Scope Statement
+                    _buildSectionCard(
+                      icon: Icons.description,
+                      iconColor: const Color(0xFF6366F1),
+                      title: 'Scope Statement',
+                      subtitle: analysis.solution.description.isEmpty
+                          ? 'Not provided'
+                          : 'View full scope',
+                      initiallyExpanded:
+                          analysis.solution.description.isNotEmpty,
+                      content: analysis.solution.description.isNotEmpty
+                          ? Text(
+                              analysis.solution.description,
+                              style: const TextStyle(fontSize: 14, height: 1.6),
+                            )
+                          : _buildEmptyState('No scope statement provided',
+                              Icons.description, Colors.indigo),
+                    ),
+
+                    const SizedBox(height: 100), // Space for bottom buttons
+                  ],
+                ),
+              ),
+            ),
+            // Bottom action buttons
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
                 children: [
-                  // Overview Card
-                  _buildOverviewCard(isSelected, cbaRows),
-
-                  // Cost Benefit Analysis - Always Expanded
-                  _buildSectionCard(
-                    icon: Icons.attach_money,
-                    iconColor: const Color(0xFFF59E0B),
-                    title: 'Cost Benefit Analysis',
-                    subtitle: cbaRows.isEmpty
-                        ? 'No data available'
-                        : '${cbaRows.length} cost items',
-                    initiallyExpanded: true,
-                    content: cbaRows.isEmpty
-                        ? _buildEmptyState('No cost analysis available',
-                            Icons.attach_money, Colors.amber)
-                        : _buildCbaDataTable(
-                            cbaRows, projectData.costBenefitCurrency),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back, size: 18),
+                    label: const Text('Back to Selection'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
+                    ),
                   ),
-
-                  // Risks Identified
-                  _buildSectionCard(
-                    icon: Icons.warning_amber,
-                    iconColor: const Color(0xFFEF4444),
-                    title: 'Risks Identified',
-                    subtitle: analysis.risks.isEmpty
-                        ? 'No risks'
-                        : '${analysis.risks.length} risks identified',
-                    initiallyExpanded: analysis.risks.isNotEmpty,
-                    content: _buildEnhancedRisksSection(),
+                  const Spacer(),
+                  FilledButton.icon(
+                    onPressed: () async => onSelectPreferred(),
+                    icon: const Icon(Icons.check_circle),
+                    label: Text(isSelected
+                        ? 'Preferred Solution Selected'
+                        : 'Select Preferred Solution'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF59E0B),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                    ),
                   ),
-
-                  // IT Considerations
-                  _buildSectionCard(
-                    icon: Icons.computer,
-                    iconColor: const Color(0xFF3B82F6),
-                    title: 'IT Considerations',
-                    subtitle: analysis.technologies.isEmpty
-                        ? 'No data'
-                        : '${analysis.technologies.length} technologies',
-                    initiallyExpanded: analysis.technologies.isNotEmpty,
-                    content: _buildEnhancedTechSection(),
-                  ),
-
-                  // Infrastructure
-                  _buildSectionCard(
-                    icon: Icons.construction,
-                    iconColor: const Color(0xFF8B5CF6),
-                    title: 'Infrastructure Considerations',
-                    subtitle: analysis.infrastructure.isEmpty
-                        ? 'No data'
-                        : '${analysis.infrastructure.length} items',
-                    initiallyExpanded: analysis.infrastructure.isNotEmpty,
-                    content: _buildEnhancedInfraSection(),
-                  ),
-
-                  // Stakeholders
-                  _buildSectionCard(
-                    icon: Icons.people,
-                    iconColor: const Color(0xFF10B981),
-                    title: 'Core Stakeholders',
-                    subtitle: _stakeholderCount == 0
-                        ? 'No stakeholders'
-                        : '$_stakeholderCount stakeholders',
-                    initiallyExpanded: _stakeholderCount > 0,
-                    content: _buildEnhancedStakeholdersSection(),
-                  ),
-
-                  // Scope Statement
-                  _buildSectionCard(
-                    icon: Icons.description,
-                    iconColor: const Color(0xFF6366F1),
-                    title: 'Scope Statement',
-                    subtitle: analysis.solution.description.isEmpty
-                        ? 'Not provided'
-                        : 'View full scope',
-                    initiallyExpanded: analysis.solution.description.isNotEmpty,
-                    content: analysis.solution.description.isNotEmpty
-                        ? Text(
-                            analysis.solution.description,
-                            style: const TextStyle(fontSize: 14, height: 1.6),
-                          )
-                        : _buildEmptyState('No scope statement provided',
-                            Icons.description, Colors.indigo),
-                  ),
-
-                  const SizedBox(height: 100), // Space for bottom buttons
                 ],
               ),
             ),
-          ),
-          // Bottom action buttons
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back, size: 18),
-                  label: const Text('Back to Selection'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
-                  ),
-                ),
-                const Spacer(),
-                FilledButton.icon(
-                  onPressed: () async => onSelectPreferred(),
-                  icon: const Icon(Icons.check_circle),
-                  label: Text(isSelected
-                      ? 'Preferred Solution Selected'
-                      : 'Select Preferred Solution'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFF59E0B),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 14),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

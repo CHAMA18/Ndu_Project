@@ -20,8 +20,10 @@ import 'package:intl/intl.dart';
 import 'package:ndu_project/utils/web_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/services/hint_service.dart';
+import 'package:ndu_project/services/auth_nav.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -83,19 +85,11 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 900;
-    final horizontal = isWide ? 48.0 : 20.0;
     final isMobile = AppBreakpoints.isMobile(context);
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
     final fromRoute = GoRouterState.of(context).uri.queryParameters['from'];
     final openedFromDashboard = fromRoute == AppRoutes.dashboard ||
         fromRoute == AppRoutes.programDashboard ||
         fromRoute == AppRoutes.portfolioDashboard;
-    final projectProvider = ProjectDataInherited.maybeOf(context);
-    final hasProject =
-        (projectProvider?.projectData.projectId ?? '').isNotEmpty;
-    final isAuthenticated = FirebaseAuth.instance.currentUser != null;
-    final showSidebar = isAuthenticated && hasProject;
     void handleBackNavigation() {
       if (openedFromDashboard && (fromRoute ?? '').isNotEmpty) {
         context.go('/$fromRoute');
@@ -105,370 +99,45 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
 
     return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: isMobile && showSidebar
-          ? const Drawer(
-              child: InitiationLikeSidebar(activeItemLabel: 'Settings'))
-          : null,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(84),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(horizontal, 20, horizontal, 0),
-            child: Row(
-              children: [
-                if (isMobile) ...[
-                  IconButton(
-                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                    icon: const Icon(Icons.menu),
-                    color: Colors.black,
-                    tooltip: 'Menu',
+      backgroundColor: const Color(0xFFF7F9FB),
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            // TopAppBar
+            _TopAppBar(onBack: handleBackNavigation),
+            // Scrollable content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 672),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _AccountPlanCard(),
+                        const SizedBox(height: 24),
+                        const _BillingPaymentCard(),
+                        const SizedBox(height: 24),
+                        const _LegalTermsCard(),
+                        const SizedBox(height: 24),
+                        _AccountActionsSection(onLogout: _handleLogout),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                ],
-                IconButton(
-                  onPressed: handleBackNavigation,
-                  icon: const Icon(Icons.arrow_back),
-                  color: Colors.black,
-                  tooltip: 'Back',
                 ),
-                const SizedBox(width: 8),
-                const Spacer(),
-                OutlinedButton(
-                  onPressed: handleBackNavigation,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black,
-                    side: BorderSide(color: Colors.grey.withOpacity(0.4)),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFD700),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Save Changes'),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
-      body: Stack(
-        children: [
-          Row(
-            children: [
-              // Sidebar column (draggable)
-              if (!isMobile && showSidebar)
-                DraggableSidebar(
-                  openWidth: sidebarWidth,
-                  child:
-                      const InitiationLikeSidebar(activeItemLabel: 'Settings'),
-                ),
-              // Main content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: horizontal),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          tabBarTheme: const TabBarThemeData(
-                            indicatorSize: TabBarIndicatorSize.tab,
-                          ),
-                        ),
-                        child: TabBar(
-                          controller: _tabController,
-                          isScrollable: true,
-                          labelColor: const Color(0xFFFFC107),
-                          unselectedLabelColor: Colors.black87,
-                          labelStyle: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 16),
-                          unselectedLabelStyle: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 16),
-                          indicatorColor: const Color(0xFFFFC107),
-                          indicatorWeight: 3,
-                          tabs: _tabs.map((t) => Tab(text: t)).toList(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: horizontal),
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _preferencesPanel(),
-                            const _AccessCollaboratorsPanel(),
-                            if (_isAdminDomain) _integrationsPanel(),
-                            _billingSubscriptionPanel(),
-                            _reportAnalysisPanel(),
-                            if (_isAdminDomain) _editContentPanel(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
-      ),
+      bottomNavigationBar: isMobile ? const _BottomNavBar() : null,
     );
   }
 
-  Widget _billingSubscriptionPanel() {
-    const accent = Color(0xFFFFC107);
-    return FutureBuilder<Subscription?>(
-      future: SubscriptionService.getCurrentSubscription(),
-      builder: (context, subscriptionSnapshot) {
-        return FutureBuilder<List<Invoice>>(
-          future: SubscriptionService.getInvoiceHistory(),
-          builder: (context, invoicesSnapshot) {
-            final subscription = subscriptionSnapshot.data;
-            final invoices = invoicesSnapshot.data ?? [];
-            final isLoading =
-                subscriptionSnapshot.connectionState == ConnectionState.waiting;
-
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final isDesktop = constraints.maxWidth >= 1180;
-                final isTablet = constraints.maxWidth >= 860;
-
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 48),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _BillingHeroBanner(
-                          accent: accent,
-                          subscription: subscription,
-                          isLoading: isLoading),
-                      const SizedBox(height: 28),
-                      if (isTablet)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                                child: _CurrentSubscriptionCard(
-                                    accent: accent,
-                                    subscription: subscription,
-                                    isLoading: isLoading)),
-                            const SizedBox(width: 20),
-                            SizedBox(
-                              width: isDesktop ? 380 : 340,
-                              child: _PaymentMethodsCard(
-                                  accent: accent, subscription: subscription),
-                            ),
-                          ],
-                        )
-                      else ...[
-                        _CurrentSubscriptionCard(
-                            accent: accent,
-                            subscription: subscription,
-                            isLoading: isLoading),
-                        const SizedBox(height: 20),
-                        _PaymentMethodsCard(
-                            accent: accent, subscription: subscription),
-                      ],
-                      const SizedBox(height: 28),
-                      _InvoicesCard(
-                          accent: accent,
-                          invoices: invoices,
-                          isLoading: invoicesSnapshot.connectionState ==
-                              ConnectionState.waiting),
-                      const SizedBox(height: 28),
-                      _UpgradePlanCard(
-                          accent: accent, currentTier: subscription?.tier),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _preferencesPanel() {
-    return FutureBuilder<bool>(
-      future: HintService.disableViewedHints(),
-      builder: (context, snapshot) {
-        final disableViewedHints = snapshot.data ?? false;
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 48),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFC107).withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.settings_outlined,
-                          color: Color(0xFFFFC107), size: 24),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Preferences',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
-                          const Text(
-                              'Configure application preferences and hints',
-                              style: TextStyle(color: Colors.black54)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hints & Notifications',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Manage how hints appear throughout the application',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: Colors.grey.withOpacity(0.2)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Disable hints for pages I\'ve viewed before',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.w600),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'When enabled, hints will not auto-popup for pages you\'ve already visited, but will still show for new pages.',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: Colors.grey[600]),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Switch(
-                                value: disableViewedHints,
-                                onChanged: (value) async {
-                                  await HintService.setDisableViewedHints(
-                                      value);
-                                  if (!mounted) return;
-                                  setState(() {});
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          await HintService.enableAllHints();
-                          if (!mounted) return;
-                          setState(() {});
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'All hints have been re-enabled. You will see hints for all pages on your next visit.'),
-                              duration: Duration(seconds: 3),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.help_outline),
-                        label: const Text('Enable All Hints'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'This will clear your viewed pages history and re-enable hints everywhere.',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Colors.grey[500], fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  void _handleLogout() {
+    AuthNav.signOutAndExit(context);
   }
 
   Widget _integrationsPanel() {
@@ -667,8 +336,8 @@ class _SettingsScreenState extends State<SettingsScreen>
         const SizedBox(height: 12),
         Text(
           'StackOne delivery is pacing ahead of target, with stakeholder sentiment at an all-time high.\nWe are on track for the Q4 milestone with strong compliance posture and predictable burn.',
-          style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withOpacity(0.78), height: 1.45),
+          style: theme.textTheme.bodyLarge
+              ?.copyWith(color: Colors.white.withOpacity(0.78), height: 1.45),
         ),
         const SizedBox(height: 18),
         Wrap(
@@ -1291,8 +960,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(14),
-                    border:
-                        Border.all(color: Colors.blue.withOpacity(0.2)),
+                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1485,8 +1153,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                       decoration: BoxDecoration(
                         color: Colors.grey.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: Colors.grey.withOpacity(0.25)),
+                        border:
+                            Border.all(color: Colors.grey.withOpacity(0.25)),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1533,8 +1201,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         label: const Text('Remove API Key'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.black,
-                          side: BorderSide(
-                              color: Colors.grey.withOpacity(0.4)),
+                          side: BorderSide(color: Colors.grey.withOpacity(0.4)),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -1590,6 +1257,663 @@ class _SettingsScreenState extends State<SettingsScreen>
         setState(() {});
       }
     }
+  }
+}
+
+// ── New Settings UI Widgets ──────────────────────────────────────────────
+
+class _TopAppBar extends StatelessWidget {
+  const _TopAppBar({required this.onBack});
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      color: Colors.white,
+      child: Row(
+        children: [
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back, size: 22),
+              color: const Color(0xFF005bb3),
+              padding: EdgeInsets.zero,
+              style: IconButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+          const Expanded(
+            child: Text(
+              'Settings',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF005bb3),
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48), // balance the back button
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountPlanCard extends StatelessWidget {
+  const _AccountPlanCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Subscription?>(
+      future: SubscriptionService.getCurrentSubscription(),
+      builder: (context, snapshot) {
+        final subscription = snapshot.data;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final tierName = subscription != null
+            ? SubscriptionService.getTierName(subscription.tier)
+            : 'Free';
+        final renewalDate = subscription?.nextBillingDate;
+        final renewalText = renewalDate != null
+            ? 'Renews on ${DateFormat.yMMMd().format(renewalDate)}'
+            : 'No active subscription';
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+                color: Colors.black.withOpacity(0.06),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isLoading)
+                          const SizedBox(
+                            width: 80,
+                            height: 20,
+                            child: LinearProgressIndicator(),
+                          )
+                        else ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFABD00),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'PREMIUM',
+                              style: TextStyle(
+                                color: Color(0xFF261A00),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '$tierName Plan',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF191C1E),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            renewalText,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF414754),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF005bb3).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.workspace_premium,
+                      color: Color(0xFF005bb3),
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton(
+                  onPressed: () {
+                    context.go('/${AppRoutes.pricing}');
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFC0C6D6)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Manage Subscription'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BillingPaymentCard extends StatelessWidget {
+  const _BillingPaymentCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Invoice>>(
+      future: SubscriptionService.getInvoiceHistory(),
+      builder: (context, snapshot) {
+        final invoices = snapshot.data ?? [];
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+                color: Colors.black.withOpacity(0.06),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Billing & Payment',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF191C1E),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      context.go('/${AppRoutes.pricing}');
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF005bb3),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Update'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Payment method row
+              Row(
+                children: [
+                  const Icon(Icons.credit_card,
+                      color: Color(0xFF717786), size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Visa ending in 4242',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF191C1E),
+                          ),
+                        ),
+                        Text(
+                          'Expires 12/25',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: const Color(0xFF414754).withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Recent invoices header
+              const Text(
+                'RECENT INVOICES',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF414754),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Invoice rows
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (invoices.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    'No invoices yet',
+                    style: TextStyle(color: Color(0xFF414754), fontSize: 14),
+                  ),
+                )
+              else
+                ...invoices.take(3).map((invoice) {
+                  final dateStr = DateFormat.yMMMd().format(invoice.createdAt);
+                  final amountStr = '\$${invoice.amount.toStringAsFixed(2)}';
+                  final isPaid = invoice.status.toLowerCase() == 'paid' ||
+                      invoice.status.toLowerCase() == 'succeeded';
+                  return _InvoiceRow(
+                    date: dateStr,
+                    amount: amountStr,
+                    isPaid: isPaid,
+                  );
+                }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _InvoiceRow extends StatelessWidget {
+  const _InvoiceRow({
+    required this.date,
+    required this.amount,
+    required this.isPaid,
+  });
+
+  final String date;
+  final String amount;
+  final bool isPaid;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Color(0xFFE0E3E5), width: 1),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    date,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF191C1E),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        amount,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF414754),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isPaid
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFFFDAD6),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isPaid ? 'Paid' : 'Pending',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isPaid
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFFBA1A1A),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.download_outlined, size: 20),
+              color: const Color(0xFF717786),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LegalTermsCard extends StatelessWidget {
+  const _LegalTermsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.06),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _LegalTile(
+            title: 'Terms and Conditions',
+            onTap: () => context.go('/${AppRoutes.termsConditions}'),
+          ),
+          _LegalTile(
+            title: 'Privacy Policy',
+            onTap: () => context.go('/${AppRoutes.privacyPolicy}'),
+          ),
+          _LegalTile(
+            title: 'Data Processing Agreement',
+            onTap: () {
+              // Could navigate to a DPA screen or open a URL
+            },
+            isLast: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegalTile extends StatelessWidget {
+  const _LegalTile({
+    required this.title,
+    required this.onTap,
+    this.isLast = false,
+  });
+
+  final String title;
+  final VoidCallback onTap;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            border: isLast
+                ? null
+                : const Border(
+                    bottom: BorderSide(color: Color(0xFFE0E3E5), width: 1),
+                  ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF191C1E),
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  color: Color(0xFF717786), size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountActionsSection extends StatelessWidget {
+  const _AccountActionsSection({required this.onLogout});
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Change Password
+        SizedBox(
+          height: 44,
+          child: OutlinedButton(
+            onPressed: () {
+              // Navigate to password reset or show dialog
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null && user.email != null) {
+                FirebaseAuth.instance
+                    .sendPasswordResetEmail(email: user.email!);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Password reset email sent. Please check your inbox.'),
+                  ),
+                );
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              side: const BorderSide(color: Color(0xFFC0C6D6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Change Password',
+              style: TextStyle(
+                color: Color(0xFF191C1E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Log Out
+        SizedBox(
+          height: 44,
+          child: TextButton(
+            onPressed: onLogout,
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: const Color(0xFFBA1A1A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Log Out',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BottomNavBar extends StatelessWidget {
+  const _BottomNavBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEEF0),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 4,
+            offset: const Offset(0, -1),
+            color: Colors.black.withOpacity(0.06),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _BottomNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home,
+            label: 'Home',
+            isActive: false,
+            onTap: () => context.go('/${AppRoutes.dashboard}'),
+          ),
+          _BottomNavItem(
+            icon: Icons.folder_outlined,
+            activeIcon: Icons.folder,
+            label: 'Projects',
+            isActive: false,
+            onTap: () => context.go('/${AppRoutes.dashboard}'),
+          ),
+          _BottomNavItem(
+            icon: Icons.timeline_outlined,
+            activeIcon: Icons.timeline,
+            label: 'Reports',
+            isActive: false,
+            onTap: () => context.go('/${AppRoutes.dashboard}'),
+          ),
+          _BottomNavItem(
+            icon: Icons.settings_outlined,
+            activeIcon: Icons.settings,
+            label: 'Settings',
+            isActive: true,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 64,
+        height: 56,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFFABD00) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              size: 22,
+              color:
+                  isActive ? const Color(0xFF261A00) : const Color(0xFF414754),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive
+                    ? const Color(0xFF261A00)
+                    : const Color(0xFF414754),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1752,10 +2076,7 @@ class _VelocitySparklinePainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          accent.withOpacity(0.28),
-          accent.withOpacity(0.04)
-        ],
+        colors: [accent.withOpacity(0.28), accent.withOpacity(0.04)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(fillPath, fillPaint);
@@ -2351,8 +2672,7 @@ class _CurrentSubscriptionCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.grey.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(16),
-                    border:
-                        Border.all(color: Colors.grey.withOpacity(0.12)),
+                    border: Border.all(color: Colors.grey.withOpacity(0.12)),
                   ),
                   child: Column(
                     children: [
@@ -2881,10 +3201,7 @@ class _UpgradePlanCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            accent.withOpacity(0.15),
-            accent.withOpacity(0.05)
-          ],
+          colors: [accent.withOpacity(0.15), accent.withOpacity(0.05)],
         ),
         border: Border.all(color: accent.withOpacity(0.3)),
       ),
@@ -3505,9 +3822,7 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
                     : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: selected
-                        ? _accent
-                        : Colors.grey.withOpacity(0.14)),
+                    color: selected ? _accent : Colors.grey.withOpacity(0.14)),
               ),
               child: Row(
                 children: [
@@ -3653,8 +3968,8 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
                   constraints: BoxConstraints(minWidth: minTableWidth),
                   child: Table(
                     border: TableBorder(
-                      horizontalInside: BorderSide(
-                          color: Colors.grey.withOpacity(0.12)),
+                      horizontalInside:
+                          BorderSide(color: Colors.grey.withOpacity(0.12)),
                     ),
                     columnWidths: const {
                       0: FlexColumnWidth(2.6),
@@ -3869,8 +4184,7 @@ class _PolicyToggle extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFFFBEB),
         borderRadius: BorderRadius.circular(14),
-        border:
-            Border.all(color: const Color(0xFFFFC107).withOpacity(0.28)),
+        border: Border.all(color: const Color(0xFFFFC107).withOpacity(0.28)),
       ),
       child: Row(
         children: [

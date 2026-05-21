@@ -5,6 +5,7 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class TrainingProjectTasksScreen extends StatelessWidget {
   const TrainingProjectTasksScreen({super.key});
 
@@ -12,11 +13,14 @@ class TrainingProjectTasksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: Row(
-        children: [
-          _sidebar(context),
-          Expanded(child: _main()),
-        ],
+      body: SafeArea(
+        top: true,
+        child: Row(
+          children: [
+            _sidebar(context),
+            Expanded(child: _main()),
+          ],
+        ),
       ),
     );
   }
@@ -34,18 +38,29 @@ class TrainingProjectTasksScreen extends StatelessWidget {
                 bottom: BorderSide(color: Color(0xFFFFD700), width: 3),
               ),
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               AppLogo(
                 height: 56,
                 width: 148,
               ),
               SizedBox(height: 20),
               Row(children: [
-                Container(width: 40, height: 40, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
+                Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                        color: Colors.grey, shape: BoxShape.circle)),
                 const SizedBox(width: 12),
-                const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('StackOne', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
-                ]),
+                const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('StackOne',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black)),
+                    ]),
               ]),
             ]),
           ),
@@ -53,7 +68,10 @@ class TrainingProjectTasksScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: const [
-                _SidebarItem(icon: Icons.group_work_outlined, title: 'Team Training and Team Building', isActive: true),
+                _SidebarItem(
+                    icon: Icons.group_work_outlined,
+                    title: 'Team Training and Team Building',
+                    isActive: true),
               ],
             ),
           ),
@@ -74,7 +92,10 @@ class TrainingProjectTasksScreen extends StatelessWidget {
             _circleIconButton(Icons.arrow_forward_ios),
             const SizedBox(width: 16),
             const Expanded(
-              child: Center(child: Text('Project Tasks', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600))),
+              child: Center(
+                  child: Text('Project Tasks',
+                      style: TextStyle(
+                          fontSize: 28, fontWeight: FontWeight.w600))),
             ),
             _profileChip(),
           ]),
@@ -96,7 +117,8 @@ class TrainingProjectTasksScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: VoiceTextField(
-                      decoration: const InputDecoration.collapsed(hintText: 'Search...'),
+                      decoration: const InputDecoration.collapsed(
+                          hintText: 'Search...'),
                     ),
                   ),
                 ]),
@@ -108,7 +130,8 @@ class TrainingProjectTasksScreen extends StatelessWidget {
               icon: const Icon(Icons.filter_alt_outlined),
               label: const Text('Filter'),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 foregroundColor: Colors.black,
                 side: BorderSide(color: Colors.grey.withOpacity(0.3)),
                 backgroundColor: Colors.white,
@@ -123,8 +146,10 @@ class TrainingProjectTasksScreen extends StatelessWidget {
                 backgroundColor: const Color(0xFFFFD700),
                 foregroundColor: Colors.black,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ]),
@@ -138,7 +163,8 @@ class TrainingProjectTasksScreen extends StatelessWidget {
             ),
             child: DataTable(
               columnSpacing: 20,
-              headingTextStyle: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black87),
+              headingTextStyle: const TextStyle(
+                  fontWeight: FontWeight.w700, color: Colors.black87),
               columns: const [
                 DataColumn(label: Text('#')),
                 DataColumn(label: Text('ID')),
@@ -163,16 +189,29 @@ class TrainingProjectTasksScreen extends StatelessWidget {
   DataRow _row(int index) {
     final strong = index == 0;
     final textStyleMuted = TextStyle(color: Colors.grey[400]);
-    final baseStyle = strong ? const TextStyle(color: Colors.black) : textStyleMuted;
+    final baseStyle =
+        strong ? const TextStyle(color: Colors.black) : textStyleMuted;
     return DataRow(cells: [
       DataCell(Text('${index + 1}', style: baseStyle)),
       DataCell(Text(strong ? 'T-001' : 'T-001', style: baseStyle)),
       DataCell(Text('Early stakeholder engagement improved', style: baseStyle)),
-      DataCell(_chip(text: 'Success', bg: const Color(0xFFE6F4EA), fg: const Color(0xFF2E7D32))),
-      DataCell(_chip(text: 'Process', bg: const Color(0xFFE6F4EA), fg: const Color(0xFF2E7D32))),
+      DataCell(_chip(
+          text: 'Success',
+          bg: const Color(0xFFE6F4EA),
+          fg: const Color(0xFF2E7D32))),
+      DataCell(_chip(
+          text: 'Process',
+          bg: const Color(0xFFE6F4EA),
+          fg: const Color(0xFF2E7D32))),
       DataCell(Text('Planning', style: baseStyle)),
-      DataCell(_chip(text: 'High', bg: const Color(0xFFFFEBEE), fg: const Color(0xFFC62828))),
-      DataCell(_chip(text: 'Implemented', bg: const Color(0xFFFFEBEE), fg: const Color(0xFFC62828))),
+      DataCell(_chip(
+          text: 'High',
+          bg: const Color(0xFFFFEBEE),
+          fg: const Color(0xFFC62828))),
+      DataCell(_chip(
+          text: 'Implemented',
+          bg: const Color(0xFFFFEBEE),
+          fg: const Color(0xFFC62828))),
       DataCell(Text('Emily Johnson', style: baseStyle)),
       DataCell(Text('2025-02-15', style: baseStyle)),
       const DataCell(Icon(Icons.edit_outlined, size: 20)),
@@ -181,9 +220,12 @@ class TrainingProjectTasksScreen extends StatelessWidget {
 
   Widget _chip({required String text, required Color bg, required Color fg}) {
     return Container(
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Text(text, style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12)),
+      child: Text(text,
+          style:
+              TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12)),
     );
   }
 
@@ -194,7 +236,12 @@ class TrainingProjectTasksScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: Icon(icon, size: 16, color: Colors.grey[700]),
     );
@@ -205,9 +252,12 @@ class TrainingProjectTasksScreen extends StatelessWidget {
       stream: UserService.watchAdminStatus(),
       builder: (context, snapshot) {
         final user = FirebaseAuth.instance.currentUser;
-        final displayName = FirebaseAuthService.displayNameOrEmail(fallback: 'User');
+        final displayName =
+            FirebaseAuthService.displayNameOrEmail(fallback: 'User');
         final email = user?.email ?? '';
-        final name = displayName.isNotEmpty ? displayName : (email.isNotEmpty ? email : 'User');
+        final name = displayName.isNotEmpty
+            ? displayName
+            : (email.isNotEmpty ? email : 'User');
         final photoUrl = user?.photoURL ?? '';
         final isAdmin = snapshot.data ?? UserService.isAdminEmail(email);
         final role = isAdmin ? 'Admin' : 'Member';
@@ -217,7 +267,12 @@ class TrainingProjectTasksScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(26),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2))
+            ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -225,11 +280,15 @@ class TrainingProjectTasksScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: Colors.blue[400],
-                backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                backgroundImage:
+                    photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
                 child: photoUrl.isEmpty
                     ? Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14),
                       )
                     : null,
               ),
@@ -238,12 +297,16 @@ class TrainingProjectTasksScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  Text(role, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(name,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(role,
+                      style: const TextStyle(fontSize: 10, color: Colors.grey)),
                 ],
               ),
               const SizedBox(width: 8),
-              Icon(Icons.keyboard_arrow_down, color: Colors.grey[700], size: 18),
+              Icon(Icons.keyboard_arrow_down,
+                  color: Colors.grey[700], size: 18),
             ],
           ),
         );
@@ -256,7 +319,8 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String title;
   final bool isActive;
-  const _SidebarItem({required this.icon, required this.title, this.isActive = false});
+  const _SidebarItem(
+      {required this.icon, required this.title, this.isActive = false});
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -271,7 +335,11 @@ class _SidebarItem extends StatelessWidget {
           Icon(icon, size: 20, color: Colors.grey[600]),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(title, style: TextStyle(fontSize: 14, color: Colors.grey[700]), softWrap: true, maxLines: 2, overflow: TextOverflow.ellipsis),
+            child: Text(title,
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                softWrap: true,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
           ),
         ]),
       ),

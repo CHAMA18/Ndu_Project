@@ -33,6 +33,7 @@ import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class PotentialSolutionsScreen extends StatefulWidget {
   const PotentialSolutionsScreen({super.key});
 
@@ -384,31 +385,34 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: null,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Top Header
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                child: Row(
-                  children: [
-                    DraggableSidebar(
-                      openWidth: sidebarWidth,
-                      child: const InitiationLikeSidebar(
-                          activeItemLabel: 'Potential Solutions'),
-                    ),
-                    Expanded(
-                      child: _buildMainContent(),
-                    ),
-                  ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Top Header
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+                Expanded(
+                  child: Row(
+                    children: [
+                      DraggableSidebar(
+                        openWidth: sidebarWidth,
+                        child: const InitiationLikeSidebar(
+                            activeItemLabel: 'Potential Solutions'),
+                      ),
+                      Expanded(
+                        child: _buildMainContent(),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+              ],
+            ),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -993,8 +997,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1032,8 +1035,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1071,8 +1073,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1112,8 +1113,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

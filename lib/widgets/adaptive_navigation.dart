@@ -117,7 +117,10 @@ class _AdaptiveNavigationState extends State<AdaptiveNavigation> {
     // Mobile: Bottom navigation (< 600px)
     if (screenWidth < 600) {
       return Scaffold(
-        body: widget.child,
+        body: SafeArea(
+          top: true,
+          child: widget.child,
+        ),
         bottomNavigationBar: MobileBottomNav(
           currentIndex: _currentIndex,
           onTap: _onNavigationTap,
@@ -128,50 +131,53 @@ class _AdaptiveNavigationState extends State<AdaptiveNavigation> {
     // Tablet: Navigation rail (600px - 1200px)
     if (screenWidth < 1200) {
       return Scaffold(
-        body: Row(
-          children: [
-            NavigationRail(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: _onNavigationTap,
-              labelType: NavigationRailLabelType.all,
-              selectedIconTheme: const IconThemeData(
-                color: Color(0xFFFFD700),
+        body: SafeArea(
+          top: true,
+          child: Row(
+            children: [
+              NavigationRail(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: _onNavigationTap,
+                labelType: NavigationRailLabelType.all,
+                selectedIconTheme: const IconThemeData(
+                  color: Color(0xFFFFD700),
+                ),
+                selectedLabelTextStyle: const TextStyle(
+                  color: Color(0xFFFFD700),
+                  fontWeight: FontWeight.w700,
+                ),
+                destinations: const [
+                  NavigationRailDestination(
+                    icon: Icon(Icons.dashboard_outlined),
+                    selectedIcon: Icon(Icons.dashboard),
+                    label: Text('Dashboard'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.folder_outlined),
+                    selectedIcon: Icon(Icons.folder),
+                    label: Text('Projects'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.timeline_outlined),
+                    selectedIcon: Icon(Icons.timeline),
+                    label: Text('Timeline'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.people_outline),
+                    selectedIcon: Icon(Icons.people),
+                    label: Text('Team'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.settings_outlined),
+                    selectedIcon: Icon(Icons.settings),
+                    label: Text('Settings'),
+                  ),
+                ],
               ),
-              selectedLabelTextStyle: const TextStyle(
-                color: Color(0xFFFFD700),
-                fontWeight: FontWeight.w700,
-              ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.dashboard_outlined),
-                  selectedIcon: Icon(Icons.dashboard),
-                  label: Text('Dashboard'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.folder_outlined),
-                  selectedIcon: Icon(Icons.folder),
-                  label: Text('Projects'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.timeline_outlined),
-                  selectedIcon: Icon(Icons.timeline),
-                  label: Text('Timeline'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.people_outline),
-                  selectedIcon: Icon(Icons.people),
-                  label: Text('Team'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings),
-                  label: Text('Settings'),
-                ),
-              ],
-            ),
-            const VerticalDivider(thickness: 1, width: 1),
-            Expanded(child: widget.child),
-          ],
+              const VerticalDivider(thickness: 1, width: 1),
+              Expanded(child: widget.child),
+            ],
+          ),
         ),
       );
     }

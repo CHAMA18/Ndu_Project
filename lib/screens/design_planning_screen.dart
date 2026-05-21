@@ -1692,21 +1692,24 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
             )
           : null,
       floatingActionButton: const KazAiChatBubble(positioned: false),
-      body: Column(
-        children: [
-          UnifiedPhaseHeader(
-            title: 'Design Planning',
-            onBackPressed: () => Navigator.maybePop(context),
-          ),
-          _buildPageContext(projectData),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.only(top: 8, bottom: 100),
-              child: _buildMainColumn(projectData, owners),
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            UnifiedPhaseHeader(
+              title: 'Design Planning',
+              onBackPressed: () => Navigator.maybePop(context),
             ),
-          ),
-        ],
+            _buildPageContext(projectData),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.only(top: 8, bottom: 100),
+                child: _buildMainColumn(projectData, owners),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBottomBar(),
     );
@@ -4969,8 +4972,7 @@ class _ActionButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: _kText,
         side: const BorderSide(color: _kBorder),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

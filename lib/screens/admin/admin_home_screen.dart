@@ -29,7 +29,8 @@ class AdminHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Record admin dashboard context for logo navigation
-    NavigationContextService.instance.setLastAdminDashboard(AppRoutes.adminHome);
+    NavigationContextService.instance
+        .setLastAdminDashboard(AppRoutes.adminHome);
     return Scaffold(
       backgroundColor: _adminBackgroundColor,
       appBar: AppBar(
@@ -38,7 +39,8 @@ class AdminHomeScreen extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         title: Row(
           children: [
-            const Icon(Icons.admin_panel_settings, color: _adminAccentColor, size: 28),
+            const Icon(Icons.admin_panel_settings,
+                color: _adminAccentColor, size: 28),
             const SizedBox(width: 12),
             const Text(
               'Admin Dashboard',
@@ -57,26 +59,29 @@ class AdminHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHero(context),
-            const SizedBox(height: 28),
-            _buildStatsGrid(),
-            const SizedBox(height: 32),
-            const Text(
-              'Quick Actions',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: _adminTextPrimaryColor,
+      body: SafeArea(
+        top: true,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHero(context),
+              const SizedBox(height: 28),
+              _buildStatsGrid(),
+              const SizedBox(height: 32),
+              const Text(
+                'Quick Actions',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: _adminTextPrimaryColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildQuickActions(context),
-          ],
+              const SizedBox(height: 16),
+              _buildQuickActions(context),
+            ],
+          ),
         ),
       ),
     );
@@ -106,14 +111,16 @@ class AdminHomeScreen extends StatelessWidget {
             alignment: WrapAlignment.spaceBetween,
             children: [
               SizedBox(
-                width: isCompact ? double.infinity : constraints.maxWidth * 0.58,
+                width:
+                    isCompact ? double.infinity : constraints.maxWidth * 0.58,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: _adminSurfaceColor,
                             borderRadius: BorderRadius.circular(16),
@@ -126,11 +133,15 @@ class AdminHomeScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          child: const AppLogo(height: 44, width: 170, enableTapToDashboard: false),
+                          child: const AppLogo(
+                              height: 44,
+                              width: 170,
+                              enableTapToDashboard: false),
                         ),
                         const SizedBox(width: 14),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
                             color: _adminAccentColor.withOpacity(0.16),
                             borderRadius: BorderRadius.circular(999),
@@ -171,18 +182,24 @@ class AdminHomeScreen extends StatelessWidget {
                       children: const [
                         _HeroPill(icon: Icons.bolt, label: 'Live metrics'),
                         _HeroPill(icon: Icons.security, label: 'Admin secured'),
-                        _HeroPill(icon: Icons.cloud_done, label: 'Realtime sync'),
+                        _HeroPill(
+                            icon: Icons.cloud_done, label: 'Realtime sync'),
                       ],
                     ),
                   ],
                 ),
               ),
               SizedBox(
-                width: isCompact ? double.infinity : constraints.maxWidth * 0.34,
+                width:
+                    isCompact ? double.infinity : constraints.maxWidth * 0.34,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Today', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54)),
+                    const Text('Today',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54)),
                     const SizedBox(height: 8),
                     _HeroStatTile(
                       title: 'Active sessions',
@@ -215,7 +232,8 @@ class AdminHomeScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final stats = snapshot.data ?? {'users': 0, 'activeUsers': 0, 'admins': 0, 'projects': 0};
+        final stats = snapshot.data ??
+            {'users': 0, 'activeUsers': 0, 'admins': 0, 'projects': 0};
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -229,28 +247,36 @@ class AdminHomeScreen extends StatelessWidget {
                   value: stats['users'].toString(),
                   icon: Icons.people,
                   color: _adminAccentColor,
-                  width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
+                  width: isMobile
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - 48) / 4,
                 ),
                 _StatCard(
                   title: 'Active Users',
                   value: stats['activeUsers'].toString(),
                   icon: Icons.person_outline,
                   color: _adminAccentColor,
-                  width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
+                  width: isMobile
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - 48) / 4,
                 ),
                 _StatCard(
                   title: 'Admins',
                   value: stats['admins'].toString(),
                   icon: Icons.admin_panel_settings,
                   color: _adminAccentColor,
-                  width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
+                  width: isMobile
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - 48) / 4,
                 ),
                 _StatCard(
                   title: 'Total Projects',
                   value: stats['projects'].toString(),
                   icon: Icons.folder,
                   color: _adminAccentColor,
-                  width: isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4,
+                  width: isMobile
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - 48) / 4,
                 ),
               ],
             );
@@ -278,14 +304,16 @@ class AdminHomeScreen extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 800;
-        final cardWidth = isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4;
+        final cardWidth =
+            isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4;
         return Wrap(
           spacing: 16,
           runSpacing: 16,
           children: [
             _ActionCard(
               title: 'Executive Dashboard',
-              description: 'Real-time pulse across every project, program, and portfolio',
+              description:
+                  'Real-time pulse across every project, program, and portfolio',
               icon: Icons.dashboard_customize_outlined,
               color: _adminAccentColor,
               onTap: () => HomeScreen.open(context),
@@ -296,7 +324,8 @@ class AdminHomeScreen extends StatelessWidget {
               description: 'View and manage all users, roles, and permissions',
               icon: Icons.people,
               color: _adminAccentColor,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsersScreen())),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AdminUsersScreen())),
               width: cardWidth,
             ),
             _ActionCard(
@@ -304,7 +333,10 @@ class AdminHomeScreen extends StatelessWidget {
               description: 'Edit app content, labels, and system messages',
               icon: Icons.edit_document,
               color: _adminAccentColor,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminContentScreen())),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminContentScreen())),
               width: cardWidth,
             ),
             _ActionCard(
@@ -312,31 +344,44 @@ class AdminHomeScreen extends StatelessWidget {
               description: 'View all projects across the platform',
               icon: Icons.folder_open,
               color: _adminAccentColor,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminProjectsScreen())),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminProjectsScreen())),
               width: cardWidth,
             ),
             _ActionCard(
               title: 'Coupon Management',
-              description: 'Create and manage discount coupons for Stripe, PayPal, and Paystack',
+              description:
+                  'Create and manage discount coupons for Stripe, PayPal, and Paystack',
               icon: Icons.local_offer,
               color: _adminAccentColor,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCouponsScreen())),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminCouponsScreen())),
               width: cardWidth,
             ),
             _ActionCard(
               title: 'Subscription Lookup',
-              description: 'Search users and manage their subscriptions, trials, and access',
+              description:
+                  'Search users and manage their subscriptions, trials, and access',
               icon: Icons.search,
               color: _adminAccentColor,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSubscriptionLookupScreen())),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminSubscriptionLookupScreen())),
               width: cardWidth,
             ),
             _ActionCard(
               title: 'Hints',
-              description: 'Control per-screen hint visibility, rewrite onboarding copy, and replay guidance flows',
+              description:
+                  'Control per-screen hint visibility, rewrite onboarding copy, and replay guidance flows',
               icon: Icons.tips_and_updates_outlined,
               color: _adminAccentColor,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminHintsScreen())),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AdminHintsScreen())),
               width: cardWidth,
             ),
           ],
@@ -344,7 +389,6 @@ class AdminHomeScreen extends StatelessWidget {
       },
     );
   }
-
 }
 
 class _StatCard extends StatelessWidget {
@@ -491,7 +535,8 @@ class _ActionCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: _adminAccentColor,
                     borderRadius: BorderRadius.circular(999),
@@ -619,11 +664,14 @@ class _HeroStatTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: accent)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800, color: accent)),
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 12, color: _adminTextSecondaryColor),
+            style:
+                const TextStyle(fontSize: 12, color: _adminTextSecondaryColor),
           ),
         ],
       ),

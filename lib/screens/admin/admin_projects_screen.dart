@@ -11,7 +11,8 @@ class AdminProjectsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Record admin dashboard context for logo navigation
-    NavigationContextService.instance.setLastAdminDashboard(AppRoutes.adminProjects);
+    NavigationContextService.instance
+        .setLastAdminDashboard(AppRoutes.adminProjects);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -25,7 +26,11 @@ class AdminProjectsScreen extends StatelessWidget {
           children: [
             const Icon(Icons.folder_open, color: Color(0xFF9C27B0), size: 28),
             const SizedBox(width: 12),
-            const Text('Project Overview', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black)),
+            const Text('Project Overview',
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black)),
           ],
         ),
         actions: const [
@@ -35,47 +40,54 @@ class AdminProjectsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: ProjectService.watchAllProjects(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SafeArea(
+        top: true,
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: ProjectService.watchAllProjects(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error}'),
-                ],
-              ),
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: ${snapshot.error}'),
+                  ],
+                ),
+              );
+            }
+
+            final projects = snapshot.data ?? [];
+
+            if (projects.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.folder_off, size: 64, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    const Text('No projects found',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(32),
+              itemCount: projects.length,
+              itemBuilder: (context, index) =>
+                  _ProjectCard(project: projects[index]),
             );
-          }
-
-          final projects = snapshot.data ?? [];
-
-          if (projects.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.folder_off, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text('No projects found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(32),
-            itemCount: projects.length,
-            itemBuilder: (context, index) => _ProjectCard(project: projects[index]),
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -88,7 +100,8 @@ class _ProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final projectName = project['name'] ?? project['projectName'] ?? 'Untitled Project';
+    final projectName =
+        project['name'] ?? project['projectName'] ?? 'Untitled Project';
     final projectId = project['projectId'] ?? 'N/A';
     final createdAt = _parseDate(project['createdAt']);
     final updatedAt = _parseDate(project['updatedAt']);
@@ -114,16 +127,21 @@ class _ProjectCard extends StatelessWidget {
                     color: const Color(0xFF9C27B0).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.folder, color: Color(0xFF9C27B0), size: 24),
+                  child: const Icon(Icons.folder,
+                      color: Color(0xFF9C27B0), size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(projectName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      Text(projectName,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Text('ID: $projectId', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      Text('ID: $projectId',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
@@ -136,12 +154,17 @@ class _ProjectCard extends StatelessWidget {
               children: [
                 _InfoChip(icon: Icons.person, label: 'Owner: $userId'),
                 const SizedBox(width: 16),
-                if (createdAt != null) _InfoChip(icon: Icons.calendar_today, label: 'Created ${_formatDate(createdAt)}'),
+                if (createdAt != null)
+                  _InfoChip(
+                      icon: Icons.calendar_today,
+                      label: 'Created ${_formatDate(createdAt)}'),
               ],
             ),
             if (updatedAt != null) ...[
               const SizedBox(height: 8),
-              _InfoChip(icon: Icons.update, label: 'Updated ${_formatDate(updatedAt)}'),
+              _InfoChip(
+                  icon: Icons.update,
+                  label: 'Updated ${_formatDate(updatedAt)}'),
             ],
           ],
         ),
@@ -192,7 +215,8 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: Colors.grey.shade600),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(label,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       ],
     );
   }
