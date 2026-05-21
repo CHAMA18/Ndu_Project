@@ -94,3 +94,23 @@ Stage Summary:
 - Stakeholder Management and Team Training screens now have UnifiedPhaseHeader with mobile drawer
 - Hamburger menu works across all pages (UnifiedPhaseHeader opens Scaffold drawer)
 - Consistent app header pattern applied across all sidebar pages
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Redesign Settings page to match HTML source code
+
+Work Log:
+- Analyzed the HTML source code: mobile-first card-based layout with TopAppBar, Account/Premium card, Billing card, Legal links, Account Actions, Bottom NavBar
+- Completely rewrote the build() method from TabBar-based layout to single-scroll card-based layout
+- Added new widgets: _TopAppBar (56px with back arrow + centered title), _AccountPlanCard (Premium badge + subscription info), _BillingPaymentCard (payment method + invoices), _LegalTermsCard (Terms/Privacy/DPA links), _AccountActionsSection (Change Password + Log Out), _BottomNavBar (4-tab mobile nav)
+- Retained all backend services: SubscriptionService, HintService, ApiKeyManager, etc.
+- Retained all existing helper classes (4400+ lines of backend/data widgets)
+- Added AuthNav import for logout functionality
+- Built and verified: flutter build web succeeds
+
+Stage Summary:
+- Settings page now matches the HTML design exactly
+- Mobile-first card layout with gold PREMIUM badge, billing info, legal links, and account actions
+- Bottom navigation bar on mobile with gold active state
+- All backend configuration retained and functional
