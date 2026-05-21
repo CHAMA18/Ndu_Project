@@ -19,7 +19,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   @override
   Widget build(BuildContext context) {
     // Record admin dashboard context for logo navigation
-    NavigationContextService.instance.setLastAdminDashboard(AppRoutes.adminUsers);
+    NavigationContextService.instance
+        .setLastAdminDashboard(AppRoutes.adminUsers);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -33,7 +34,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           children: [
             const Icon(Icons.people, color: Color(0xFF2196F3), size: 28),
             const SizedBox(width: 12),
-            const Text('User Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black)),
+            const Text('User Management',
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black)),
           ],
         ),
         actions: const [
@@ -43,60 +48,69 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildFilterBar(),
-          Expanded(
-            child: StreamBuilder<List<UserModel>>(
-              stream: UserService.watchAllUsers(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            _buildFilterBar(),
+            Expanded(
+              child: StreamBuilder<List<UserModel>>(
+                stream: UserService.watchAllUsers(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Error: ${snapshot.error}'),
-                      ],
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 64, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text('Error: ${snapshot.error}'),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final allUsers = snapshot.data ?? [];
+                  final filteredUsers = _filterUsers(allUsers);
+
+                  if (filteredUsers.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.people_outline,
+                              size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          const Text('No users found',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(32),
+                    itemCount: filteredUsers.length,
+                    itemBuilder: (context, index) => _UserCard(
+                      user: filteredUsers[index],
+                      onToggleAdmin: () =>
+                          _toggleAdminStatus(filteredUsers[index]),
+                      onToggleActive: () =>
+                          _toggleActiveStatus(filteredUsers[index]),
+                      onDelete: () => _deleteUser(filteredUsers[index]),
                     ),
                   );
-                }
-
-                final allUsers = snapshot.data ?? [];
-                final filteredUsers = _filterUsers(allUsers);
-
-                if (filteredUsers.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text('No users found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(32),
-                  itemCount: filteredUsers.length,
-                  itemBuilder: (context, index) => _UserCard(
-                    user: filteredUsers[index],
-                    onToggleAdmin: () => _toggleAdminStatus(filteredUsers[index]),
-                    onToggleActive: () => _toggleActiveStatus(filteredUsers[index]),
-                    onDelete: () => _deleteUser(filteredUsers[index]),
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -110,7 +124,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       ),
       child: Row(
         children: [
-          const Text('Filter: ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          const Text('Filter: ',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(width: 12),
           ...[
             {'label': 'All Users', 'value': 'all'},
@@ -118,21 +133,25 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             {'label': 'Active', 'value': 'active'},
             {'label': 'Inactive', 'value': 'inactive'},
           ].map((filter) => Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(filter['label']!),
-              selected: _filterBy == filter['value'],
-              onSelected: (selected) {
-                if (selected) setState(() => _filterBy = filter['value']!);
-              },
-              selectedColor: const Color(0xFFFFC107),
-              backgroundColor: Colors.grey.withOpacity(0.1),
-              labelStyle: TextStyle(
-                color: _filterBy == filter['value'] ? Colors.black : Colors.black87,
-                fontWeight: _filterBy == filter['value'] ? FontWeight.w700 : FontWeight.w600,
-              ),
-            ),
-          )),
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(filter['label']!),
+                  selected: _filterBy == filter['value'],
+                  onSelected: (selected) {
+                    if (selected) setState(() => _filterBy = filter['value']!);
+                  },
+                  selectedColor: const Color(0xFFFFC107),
+                  backgroundColor: Colors.grey.withOpacity(0.1),
+                  labelStyle: TextStyle(
+                    color: _filterBy == filter['value']
+                        ? Colors.black
+                        : Colors.black87,
+                    fontWeight: _filterBy == filter['value']
+                        ? FontWeight.w700
+                        : FontWeight.w600,
+                  ),
+                ),
+              )),
         ],
       ),
     );
@@ -155,18 +174,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(user.isAdmin ? 'Remove Admin Access' : 'Grant Admin Access'),
+        title:
+            Text(user.isAdmin ? 'Remove Admin Access' : 'Grant Admin Access'),
         content: Text(
           user.isAdmin
               ? 'Are you sure you want to remove admin access for ${user.displayName}?'
               : 'Are you sure you want to grant admin access to ${user.displayName}?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: user.isAdmin ? Colors.red : const Color(0xFFFFC107),
+              backgroundColor:
+                  user.isAdmin ? Colors.red : const Color(0xFFFFC107),
             ),
             child: Text(user.isAdmin ? 'Remove' : 'Grant'),
           ),
@@ -175,11 +198,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
 
     if (confirmed == true) {
-      final success = await UserService.updateUserAdminStatus(user.uid, !user.isAdmin);
+      final success =
+          await UserService.updateUserAdminStatus(user.uid, !user.isAdmin);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'Admin status updated' : 'Failed to update admin status'),
+            content: Text(success
+                ? 'Admin status updated'
+                : 'Failed to update admin status'),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
@@ -188,11 +214,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Future<void> _toggleActiveStatus(UserModel user) async {
-    final success = await UserService.updateUserActiveStatus(user.uid, !user.isActive);
+    final success =
+        await UserService.updateUserActiveStatus(user.uid, !user.isActive);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'User status updated' : 'Failed to update user status'),
+          content: Text(
+              success ? 'User status updated' : 'Failed to update user status'),
           backgroundColor: success ? Colors.green : Colors.red,
         ),
       );
@@ -204,9 +232,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete User'),
-        content: Text('Are you sure you want to delete ${user.displayName}? This action cannot be undone.'),
+        content: Text(
+            'Are you sure you want to delete ${user.displayName}? This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -221,7 +252,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'User deleted successfully' : 'Failed to delete user'),
+            content: Text(success
+                ? 'User deleted successfully'
+                : 'Failed to delete user'),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
@@ -262,11 +295,18 @@ class _UserCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 28,
                   backgroundColor: const Color(0xFFFFC107).withOpacity(0.2),
-                  backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+                  backgroundImage: user.photoUrl != null
+                      ? NetworkImage(user.photoUrl!)
+                      : null,
                   child: user.photoUrl == null
                       ? Text(
-                          user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black),
+                          user.displayName.isNotEmpty
+                              ? user.displayName[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black),
                         )
                       : null,
                 ),
@@ -277,33 +317,46 @@ class _UserCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text(user.displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                          Text(user.displayName,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w700)),
                           if (user.isAdmin) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFFC107).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                              child: const Text('ADMIN',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700)),
                             ),
                           ],
                           if (!user.isActive) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.red.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text('INACTIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.red)),
+                              child: const Text('INACTIVE',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.red)),
                             ),
                           ],
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(user.email, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                      Text(user.email,
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
@@ -327,7 +380,9 @@ class _UserCard extends StatelessWidget {
                 const Spacer(),
                 IconButton(
                   onPressed: onToggleAdmin,
-                  icon: Icon(user.isAdmin ? Icons.admin_panel_settings : Icons.admin_panel_settings_outlined),
+                  icon: Icon(user.isAdmin
+                      ? Icons.admin_panel_settings
+                      : Icons.admin_panel_settings_outlined),
                   color: user.isAdmin ? const Color(0xFFFFC107) : Colors.grey,
                   tooltip: user.isAdmin ? 'Remove Admin' : 'Make Admin',
                 ),
@@ -380,7 +435,8 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: Colors.grey.shade600),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(label,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       ],
     );
   }

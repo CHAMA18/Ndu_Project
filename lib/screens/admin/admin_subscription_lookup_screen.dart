@@ -9,14 +9,17 @@ import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class AdminSubscriptionLookupScreen extends StatefulWidget {
   const AdminSubscriptionLookupScreen({super.key});
 
   @override
-  State<AdminSubscriptionLookupScreen> createState() => _AdminSubscriptionLookupScreenState();
+  State<AdminSubscriptionLookupScreen> createState() =>
+      _AdminSubscriptionLookupScreenState();
 }
 
-class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupScreen> {
+class _AdminSubscriptionLookupScreenState
+    extends State<AdminSubscriptionLookupScreen> {
   final _searchController = TextEditingController();
   UserModel? _selectedUser;
   List<Subscription> _subscriptions = [];
@@ -34,7 +37,8 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
 
   @override
   Widget build(BuildContext context) {
-    NavigationContextService.instance.setLastAdminDashboard(AppRoutes.adminHome);
+    NavigationContextService.instance
+        .setLastAdminDashboard(AppRoutes.adminHome);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -48,7 +52,11 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
           children: [
             const Icon(Icons.search, color: Color(0xFF2196F3), size: 28),
             const SizedBox(width: 12),
-            const Text('Subscription Lookup', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black)),
+            const Text('Subscription Lookup',
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black)),
           ],
         ),
         actions: const [
@@ -58,27 +66,30 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchSection(),
-            if (_searchResults.isNotEmpty && _selectedUser == null) ...[
-              const SizedBox(height: 16),
-              _buildSearchResults(),
+      body: SafeArea(
+        top: true,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchSection(),
+              if (_searchResults.isNotEmpty && _selectedUser == null) ...[
+                const SizedBox(height: 16),
+                _buildSearchResults(),
+              ],
+              if (_selectedUser != null) ...[
+                const SizedBox(height: 24),
+                _buildSelectedUserCard(),
+                const SizedBox(height: 24),
+                _buildSubscriptionsSection(),
+                const SizedBox(height: 24),
+                _buildInvoiceHistorySection(),
+                const SizedBox(height: 24),
+                _buildActionsSection(),
+              ],
             ],
-            if (_selectedUser != null) ...[
-              const SizedBox(height: 24),
-              _buildSelectedUserCard(),
-              const SizedBox(height: 24),
-              _buildSubscriptionsSection(),
-              const SizedBox(height: 24),
-              _buildInvoiceHistorySection(),
-              const SizedBox(height: 24),
-              _buildActionsSection(),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -95,9 +106,11 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Search User', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const Text('Search User',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text('Search by email or name to view subscription details', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+          Text('Search by email or name to view subscription details',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -107,7 +120,8 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
                   decoration: InputDecoration(
                     hintText: 'Enter email or name...',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     filled: true,
                     fillColor: Colors.white,
                   ),
@@ -119,12 +133,20 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
                 onPressed: _isSearching ? null : _searchUser,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2196F3),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isSearching
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Search', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Search',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -145,21 +167,25 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('Search Results (${_searchResults.length})', style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text('Search Results (${_searchResults.length})',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
           const Divider(height: 1),
           ...ListTile.divideTiles(
             context: context,
             tiles: _searchResults.map((user) => ListTile(
-              leading: CircleAvatar(
-                backgroundColor: const Color(0xFFFFC107).withOpacity(0.2),
-                child: Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : 'U'),
-              ),
-              title: Text(user.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(user.email),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _selectUser(user),
-            )),
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFFFFC107).withOpacity(0.2),
+                    child: Text(user.displayName.isNotEmpty
+                        ? user.displayName[0].toUpperCase()
+                        : 'U'),
+                  ),
+                  title: Text(user.displayName,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(user.email),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _selectUser(user),
+                )),
           ),
         ],
       ),
@@ -185,10 +211,17 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
           CircleAvatar(
             radius: 32,
             backgroundColor: Colors.white.withOpacity(0.2),
-            backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+            backgroundImage:
+                user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
             child: user.photoUrl == null
-                ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : 'U',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white))
+                ? Text(
+                    user.displayName.isNotEmpty
+                        ? user.displayName[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white))
                 : null,
           ),
           const SizedBox(width: 20),
@@ -198,24 +231,37 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
               children: [
                 Row(
                   children: [
-                    Text(user.displayName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
+                    Text(user.displayName,
+                        style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
                     if (user.isAdmin) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFC107),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.black)),
+                        child: const Text('ADMIN',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black)),
                       ),
                     ],
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(user.email, style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                Text(user.email,
+                    style:
+                        const TextStyle(fontSize: 14, color: Colors.white70)),
                 const SizedBox(height: 8),
-                Text('Joined ${DateFormat('MMM d, y').format(user.createdAt)}', style: const TextStyle(fontSize: 12, color: Colors.white60)),
+                Text('Joined ${DateFormat('MMM d, y').format(user.createdAt)}',
+                    style:
+                        const TextStyle(fontSize: 12, color: Colors.white60)),
               ],
             ),
           ),
@@ -241,9 +287,14 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
           children: [
             const Icon(Icons.credit_card, color: Color(0xFF2196F3)),
             const SizedBox(width: 8),
-            const Text('Subscription History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text('Subscription History',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const Spacer(),
-            if (_isLoadingSubscriptions) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            if (_isLoadingSubscriptions)
+              const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
           ],
         ),
         const SizedBox(height: 16),
@@ -258,16 +309,22 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
             child: Center(
               child: Column(
                 children: [
-                  const Icon(Icons.credit_card_off, size: 48, color: Colors.grey),
+                  const Icon(Icons.credit_card_off,
+                      size: 48, color: Colors.grey),
                   const SizedBox(height: 12),
-                  const Text('No subscriptions found', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('This user has not subscribed to any plan', style: TextStyle(color: Colors.grey.shade600)),
+                  const Text('No subscriptions found',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text('This user has not subscribed to any plan',
+                      style: TextStyle(color: Colors.grey.shade600)),
                 ],
               ),
             ),
           )
         else
-          ...List.generate(_subscriptions.length, (index) => _SubscriptionCard(subscription: _subscriptions[index])),
+          ...List.generate(
+              _subscriptions.length,
+              (index) =>
+                  _SubscriptionCard(subscription: _subscriptions[index])),
       ],
     );
   }
@@ -280,9 +337,14 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
           children: [
             const Icon(Icons.receipt_long, color: Color(0xFF9C27B0)),
             const SizedBox(width: 8),
-            const Text('Invoice History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text('Invoice History',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const Spacer(),
-            if (_isLoadingInvoices) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            if (_isLoadingInvoices)
+              const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
           ],
         ),
         const SizedBox(height: 16),
@@ -299,14 +361,17 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
                 children: [
                   const Icon(Icons.receipt_long, size: 48, color: Colors.grey),
                   const SizedBox(height: 12),
-                  const Text('No invoices found', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('This user has no payment history', style: TextStyle(color: Colors.grey.shade600)),
+                  const Text('No invoices found',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text('This user has no payment history',
+                      style: TextStyle(color: Colors.grey.shade600)),
                 ],
               ),
             ),
           )
         else
-          ...List.generate(_invoices.length, (index) => _InvoiceCard(invoice: _invoices[index])),
+          ...List.generate(_invoices.length,
+              (index) => _InvoiceCard(invoice: _invoices[index])),
       ],
     );
   }
@@ -322,7 +387,8 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Admin Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const Text('Admin Actions',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
@@ -344,7 +410,9 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
                 icon: Icons.cancel,
                 label: 'Cancel Subscription',
                 color: Colors.red,
-                onPressed: _hasActiveSubscription ? () => _showCancelSubscriptionDialog() : null,
+                onPressed: _hasActiveSubscription
+                    ? () => _showCancelSubscriptionDialog()
+                    : null,
               ),
             ],
           ),
@@ -394,7 +462,9 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading subscriptions: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error loading subscriptions: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -411,7 +481,9 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading invoices: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error loading invoices: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -426,7 +498,9 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
         .orderBy('createdAt', descending: true)
         .get();
 
-    return snapshot.docs.map((doc) => Subscription.fromJson(doc.data())).toList();
+    return snapshot.docs
+        .map((doc) => Subscription.fromJson(doc.data()))
+        .toList();
   }
 
   Future<void> _showGrantSubscriptionDialog() async {
@@ -452,10 +526,12 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
                   labelText: 'Subscription Tier',
                   border: OutlineInputBorder(),
                 ),
-                items: SubscriptionTier.values.map((tier) => DropdownMenuItem(
-                  value: tier,
-                  child: Text(SubscriptionService.getTierName(tier)),
-                )).toList(),
+                items: SubscriptionTier.values
+                    .map((tier) => DropdownMenuItem(
+                          value: tier,
+                          child: Text(SubscriptionService.getTierName(tier)),
+                        ))
+                    .toList(),
                 onChanged: (v) => setDialogState(() => selectedTier = v),
               ),
               const SizedBox(height: 16),
@@ -468,10 +544,15 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
             ElevatedButton(
-              onPressed: selectedTier == null ? null : () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50)),
+              onPressed: selectedTier == null
+                  ? null
+                  : () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50)),
               child: const Text('Grant', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -489,11 +570,12 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
 
     try {
       final now = DateTime.now();
-      final endDate = isAnnual 
+      final endDate = isAnnual
           ? now.add(const Duration(days: 365))
           : now.add(const Duration(days: 30));
 
-      final docRef = FirebaseFirestore.instance.collection('subscriptions').doc();
+      final docRef =
+          FirebaseFirestore.instance.collection('subscriptions').doc();
       await docRef.set({
         'id': docRef.id,
         'userId': _selectedUser!.uid,
@@ -510,7 +592,9 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Subscription granted successfully'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Subscription granted successfully'),
+              backgroundColor: Colors.green),
         );
         await _selectUser(_selectedUser!);
       }
@@ -544,20 +628,26 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
                   labelText: 'Days to extend',
                   border: OutlineInputBorder(),
                 ),
-                items: [3, 7, 14, 30].map((d) => DropdownMenuItem(
-                  value: d,
-                  child: Text('$d days'),
-                )).toList(),
+                items: [3, 7, 14, 30]
+                    .map((d) => DropdownMenuItem(
+                          value: d,
+                          child: Text('$d days'),
+                        ))
+                    .toList(),
                 onChanged: (v) => setDialogState(() => daysToExtend = v!),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107)),
-              child: const Text('Extend', style: TextStyle(color: Colors.black)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC107)),
+              child:
+                  const Text('Extend', style: TextStyle(color: Colors.black)),
             ),
           ],
         ),
@@ -574,11 +664,17 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
 
     try {
       // Find active trial or create a new one
-      final existingTrial = _subscriptions.where((s) => s.isTrial && s.status == SubscriptionStatus.trial).firstOrNull;
+      final existingTrial = _subscriptions
+          .where((s) => s.isTrial && s.status == SubscriptionStatus.trial)
+          .firstOrNull;
 
       if (existingTrial != null) {
-        final newEndDate = (existingTrial.trialEndDate ?? DateTime.now()).add(Duration(days: days));
-        await FirebaseFirestore.instance.collection('subscriptions').doc(existingTrial.id).update({
+        final newEndDate = (existingTrial.trialEndDate ?? DateTime.now())
+            .add(Duration(days: days));
+        await FirebaseFirestore.instance
+            .collection('subscriptions')
+            .doc(existingTrial.id)
+            .update({
           'trialEndDate': Timestamp.fromDate(newEndDate),
           'endDate': Timestamp.fromDate(newEndDate),
           'updatedAt': Timestamp.fromDate(DateTime.now()),
@@ -587,7 +683,8 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
         // Create a new trial
         final now = DateTime.now();
         final endDate = now.add(Duration(days: days));
-        final docRef = FirebaseFirestore.instance.collection('subscriptions').doc();
+        final docRef =
+            FirebaseFirestore.instance.collection('subscriptions').doc();
         await docRef.set({
           'id': docRef.id,
           'userId': _selectedUser!.uid,
@@ -606,7 +703,9 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trial extended successfully'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Trial extended successfully'),
+              backgroundColor: Colors.green),
         );
         await _selectUser(_selectedUser!);
       }
@@ -622,20 +721,25 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
   Future<void> _showCancelSubscriptionDialog() async {
     if (_selectedUser == null) return;
 
-    final activeSubscription = _subscriptions.where((s) => s.isActive).firstOrNull;
+    final activeSubscription =
+        _subscriptions.where((s) => s.isActive).firstOrNull;
     if (activeSubscription == null) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Subscription'),
-        content: Text('Are you sure you want to cancel the subscription for ${_selectedUser!.displayName}?'),
+        content: Text(
+            'Are you sure you want to cancel the subscription for ${_selectedUser!.displayName}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('No')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.white)),
+            child: const Text('Yes, Cancel',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -643,14 +747,19 @@ class _AdminSubscriptionLookupScreenState extends State<AdminSubscriptionLookupS
 
     if (confirmed == true) {
       try {
-        await FirebaseFirestore.instance.collection('subscriptions').doc(activeSubscription.id).update({
+        await FirebaseFirestore.instance
+            .collection('subscriptions')
+            .doc(activeSubscription.id)
+            .update({
           'status': 'cancelled',
           'updatedAt': Timestamp.fromDate(DateTime.now()),
         });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Subscription cancelled'), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text('Subscription cancelled'),
+                backgroundColor: Colors.green),
           );
           await _selectUser(_selectedUser!);
         }
@@ -712,25 +821,34 @@ class _SubscriptionCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           subscription.status.name.toUpperCase(),
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: statusColor),
                         ),
                       ),
                       if (subscription.isTrial) ...[
                         const SizedBox(width: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFC107).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text('TRIAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFFFC107))),
+                          child: const Text('TRIAL',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFFFC107))),
                         ),
                       ],
                     ],
@@ -772,7 +890,9 @@ class _ActionButton extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18, color: Colors.white),
-      label: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+      label: Text(label,
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600)),
       style: ElevatedButton.styleFrom(
         backgroundColor: onPressed == null ? Colors.grey : color,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -789,7 +909,8 @@ class _InvoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = invoice.isPaid ? const Color(0xFF4CAF50) : Colors.orange;
+    final statusColor =
+        invoice.isPaid ? const Color(0xFF4CAF50) : Colors.orange;
     final providerIcon = switch (invoice.provider.toLowerCase()) {
       'stripe' => Icons.credit_card,
       'paypal' => Icons.payment,
@@ -815,7 +936,8 @@ class _InvoiceCard extends StatelessWidget {
                 color: const Color(0xFF9C27B0).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(providerIcon, color: const Color(0xFF9C27B0), size: 24),
+              child:
+                  Icon(providerIcon, color: const Color(0xFF9C27B0), size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -826,18 +948,25 @@ class _InvoiceCard extends StatelessWidget {
                     children: [
                       Text(
                         invoice.formattedAmount,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          invoice.isPaid ? 'PAID' : invoice.status.toUpperCase(),
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
+                          invoice.isPaid
+                              ? 'PAID'
+                              : invoice.status.toUpperCase(),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: statusColor),
                         ),
                       ),
                     ],
@@ -852,14 +981,16 @@ class _InvoiceCard extends StatelessWidget {
                     children: [
                       Text(
                         'Via ${invoice.providerDisplayName}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600),
                       ),
                       const SizedBox(width: 8),
                       Text('•', style: TextStyle(color: Colors.grey.shade400)),
                       const SizedBox(width: 8),
                       Text(
                         DateFormat('MMM d, y').format(invoice.createdAt),
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600),
                       ),
                     ],
                   ),

@@ -14,6 +14,7 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'dart:math' as math;
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class RiskAssessmentScreen extends StatefulWidget {
   const RiskAssessmentScreen({super.key});
 
@@ -380,72 +381,76 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
             )
           : null,
       floatingActionButton: const KazAiChatBubble(positioned: false),
-      body: Column(
-        children: [
-          UnifiedPhaseHeader(
-            title: 'Risk Mitigation',
-            onBackPressed: () => PlanningPhaseNavigation.goToPrevious(context, 'risk_assessment'),
-            onForwardPressed: () => PlanningPhaseNavigation.goToNext(context, 'risk_assessment'),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Page Title
-                  const Text('Risk Planning',
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827))),
-                  const SizedBox(height: 4),
-                  const Text(
-                      'Identify, analyze and mitigate project risks.',
-                      style: TextStyle(
-                          fontSize: 14, color: Color(0xFF6B7280))),
-                  const SizedBox(height: 24),
-                  // Notes
-                  _RiskNotesCard(
-                      controller: _notesController,
-                      saving: _notesSaving,
-                      savedAt: _notesSavedAt,
-                      onChanged: _handleNotesChanged),
-                  const SizedBox(height: 16),
-                  // Metrics
-                  _MetricsWrap(stats: stats),
-                  const SizedBox(height: 16),
-                  // Risk Matrix
-                  _RiskMatrixCard(stats: stats),
-                  const SizedBox(height: 16),
-                  // Mitigation Plan
-                  _MitigationPlanCard(
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            UnifiedPhaseHeader(
+              title: 'Risk Mitigation',
+              onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+                  context, 'risk_assessment'),
+              onForwardPressed: () =>
+                  PlanningPhaseNavigation.goToNext(context, 'risk_assessment'),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Page Title
+                    const Text('Risk Planning',
+                        style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF111827))),
+                    const SizedBox(height: 4),
+                    const Text('Identify, analyze and mitigate project risks.',
+                        style:
+                            TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
+                    const SizedBox(height: 24),
+                    // Notes
+                    _RiskNotesCard(
+                        controller: _notesController,
+                        saving: _notesSaving,
+                        savedAt: _notesSavedAt,
+                        onChanged: _handleNotesChanged),
+                    const SizedBox(height: 16),
+                    // Metrics
+                    _MetricsWrap(stats: stats),
+                    const SizedBox(height: 16),
+                    // Risk Matrix
+                    _RiskMatrixCard(stats: stats),
+                    const SizedBox(height: 16),
+                    // Mitigation Plan
+                    _MitigationPlanCard(
+                        entries: entries,
+                        controllers: _mitigationControllers,
+                        onChanged: _handleMitigationChanged,
+                        onRegenerate: _regenerateMitigationForEntry,
+                        loadingSuggestions: _loadingMitigationSuggestions,
+                        suggestionError: _mitigationSuggestionError,
+                        saving: _mitigationSaving,
+                        savedAt: _mitigationSavedAt,
+                        regeneratingIds: _regeneratingMitigationIds),
+                    const SizedBox(height: 16),
+                    // Risk Register
+                    _RiskRegister(
                       entries: entries,
-                      controllers: _mitigationControllers,
-                      onChanged: _handleMitigationChanged,
-                      onRegenerate: _regenerateMitigationForEntry,
-                      loadingSuggestions: _loadingMitigationSuggestions,
-                      suggestionError: _mitigationSuggestionError,
-                      saving: _mitigationSaving,
-                      savedAt: _mitigationSavedAt,
-                      regeneratingIds: _regeneratingMitigationIds),
-                  const SizedBox(height: 16),
-                  // Risk Register
-                  _RiskRegister(
-                    entries: entries,
-                    loading: _loadingEntries,
-                    searchController: _searchController,
-                    onAdd: () => _openEntryDialog(),
-                    onFilter: _openFilterDialog,
-                    onView: (entry) =>
-                        _openEntryDialog(entry: entry, readOnly: true),
-                    onEdit: (entry) => _openEntryDialog(entry: entry),
-                  ),
-                ],
+                      loading: _loadingEntries,
+                      searchController: _searchController,
+                      onAdd: () => _openEntryDialog(),
+                      onFilter: _openFilterDialog,
+                      onView: (entry) =>
+                          _openEntryDialog(entry: entry, readOnly: true),
+                      onEdit: (entry) => _openEntryDialog(entry: entry),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -477,8 +482,8 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
             // Back/Forward chevrons + title
             _circleIcon(
               icon: Icons.chevron_left_rounded,
-              onTap: () =>
-                  PlanningPhaseNavigation.goToPrevious(context, 'risk_assessment'),
+              onTap: () => PlanningPhaseNavigation.goToPrevious(
+                  context, 'risk_assessment'),
             ),
             const SizedBox(width: 8),
             _circleIcon(
@@ -500,8 +505,7 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
             CircleAvatar(
               radius: 18,
               backgroundColor: const Color(0xFFE5E7EB),
-              backgroundImage:
-                  photoUrl != null ? NetworkImage(photoUrl) : null,
+              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
               child: photoUrl == null
                   ? const Icon(Icons.person, size: 18, color: Color(0xFF374151))
                   : null,
@@ -771,7 +775,8 @@ class _RiskNotesCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
         ],
       ),
       child: Column(
@@ -816,13 +821,16 @@ class _RiskNotesCard extends StatelessWidget {
                       Text(
                         'Summarize key risks, probability/impact themes, and mitigation focus.',
                         style: TextStyle(
-                            fontSize: 12, color: Color(0xFF6B7280), height: 1.3),
+                            fontSize: 12,
+                            color: Color(0xFF6B7280),
+                            height: 1.3),
                       ),
                     ],
                   ),
                 ),
                 if (saving)
-                  const _StatusChip(label: 'Saving...', color: Color(0xFF64748B))
+                  const _StatusChip(
+                      label: 'Saving...', color: Color(0xFF64748B))
                 else if (savedAt != null)
                   _StatusChip(
                     label:
@@ -1099,7 +1107,8 @@ class _MetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
         ],
       ),
       child: Column(
@@ -1140,8 +1149,8 @@ class _MetricCard extends StatelessWidget {
                     footer!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF9CA3AF)),
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
                   ),
                 ),
               ],
@@ -1172,7 +1181,8 @@ class _RiskMatrixCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
         ],
       ),
       child: Column(
@@ -1236,9 +1246,27 @@ class _RiskMatrixCard extends StatelessWidget {
                     Row(
                       children: const [
                         SizedBox(width: 40),
-                        Expanded(child: Center(child: Text('Low', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF6B7280))))),
-                        Expanded(child: Center(child: Text('Medium', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF6B7280))))),
-                        Expanded(child: Center(child: Text('High', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF6B7280))))),
+                        Expanded(
+                            child: Center(
+                                child: Text('Low',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF6B7280))))),
+                        Expanded(
+                            child: Center(
+                                child: Text('Medium',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF6B7280))))),
+                        Expanded(
+                            child: Center(
+                                child: Text('High',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF6B7280))))),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -1266,7 +1294,8 @@ class _RiskMatrixCard extends StatelessWidget {
                               return Expanded(
                                 child: Container(
                                   height: 56,
-                                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 3),
                                   decoration: BoxDecoration(
                                     color: color,
                                     borderRadius: BorderRadius.circular(8),
@@ -1351,8 +1380,6 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-
-
 class _MitigationPlanCard extends StatelessWidget {
   const _MitigationPlanCard({
     required this.entries,
@@ -1384,7 +1411,8 @@ class _MitigationPlanCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
         ],
       ),
       child: ClipRRect(
@@ -1450,7 +1478,8 @@ class _MitigationPlanCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Text(
                   suggestionError!,
-                  style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12),
+                  style:
+                      const TextStyle(color: Color(0xFFB91C1C), fontSize: 12),
                 ),
               ),
             ],
@@ -1481,9 +1510,7 @@ class _MitigationPlanCard extends StatelessWidget {
                       _buildMitigationRow(context, entries[i]),
                       if (i < entries.length - 1)
                         const Divider(
-                            height: 24,
-                            thickness: 1,
-                            color: Color(0xFFF3F4F6)),
+                            height: 24, thickness: 1, color: Color(0xFFF3F4F6)),
                     ],
                   ],
                 ),
@@ -1660,7 +1687,9 @@ class _RiskRegister extends StatelessWidget {
               border: Border.all(color: const Color(0xFFE5E7EB)),
               boxShadow: const [
                 BoxShadow(
-                    color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1)),
+                    color: Color(0x0A000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 1)),
               ],
             ),
             child: Column(
@@ -1687,8 +1716,8 @@ class _RiskRegister extends StatelessWidget {
         ] else ...[
           LayoutBuilder(
             builder: (context, constraints) {
-              final viewportWidth = MediaQuery.of(context).size.width -
-                  72; // account for padding
+              final viewportWidth =
+                  MediaQuery.of(context).size.width - 72; // account for padding
               final tableWidth = math.max(1080.0, viewportWidth);
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,

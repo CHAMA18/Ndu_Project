@@ -8,11 +8,13 @@ import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:provider/provider.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class AdminContentScreen extends StatefulWidget {
   const AdminContentScreen({super.key});
 
   static void open(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminContentScreen()));
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const AdminContentScreen()));
   }
 
   @override
@@ -38,7 +40,8 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(isMobile ? 20 : 48, 20, isMobile ? 20 : 48, 0),
+            padding: EdgeInsets.fromLTRB(
+                isMobile ? 20 : 48, 20, isMobile ? 20 : 48, 0),
             child: Row(
               children: [
                 if (canPop) ...[
@@ -50,9 +53,12 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                   ),
                   const SizedBox(width: 8),
                 ],
-                const Icon(Icons.admin_panel_settings, color: Color(0xFFFFC107), size: 28),
+                const Icon(Icons.admin_panel_settings,
+                    color: Color(0xFFFFC107), size: 28),
                 const SizedBox(width: 12),
-                const Text('Admin Content Management', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
+                const Text('Admin Content Management',
+                    style:
+                        TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
                 const Spacer(),
                 ElevatedButton.icon(
                   onPressed: _showAddContentDialog,
@@ -62,8 +68,10 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                     backgroundColor: const Color(0xFFFFC107),
                     foregroundColor: Colors.black,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
@@ -71,111 +79,137 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
           ),
         ),
       ),
-      body: Stack(
-        children: [
-          StreamBuilder<List<AppContent>>(
-            stream: AppContentService.watchContent(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            StreamBuilder<List<AppContent>>(
+              stream: AppContentService.watchContent(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Error: ${snapshot.error}'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => setState(() {}),
-                        child: const Text('Retry'),
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Error: ${snapshot.error}'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final content = snapshot.data ?? [];
+
+                // Extract unique categories
+                final categories = content.isEmpty
+                    ? _categories
+                    : [
+                        'all',
+                        ...content.map((c) => c.category).toSet().toList()
+                          ..sort()
+                      ];
+                if (content.isNotEmpty &&
+                    _categories.length != categories.length) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    setState(() => _categories = categories);
+                  });
+                }
+
+                final filteredContent = _selectedCategory == 'all'
+                    ? content
+                    : content
+                        .where((c) => c.category == _selectedCategory)
+                        .toList();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          isMobile ? 20 : 48, 20, isMobile ? 20 : 48, 12),
+                      child: Consumer<AppContentProvider>(
+                        builder: (context, provider, _) => _StaticEditBanner(
+                          isEnabled: provider.isStaticEditMode,
+                          onToggle: provider.toggleStaticEditMode,
+                          isMobile: isMobile,
+                          canEdit: canEdit,
+                        ),
+                      ),
+                    ),
+                    if (content.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.content_paste_off,
+                                  size: 64, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              const Text('No content available',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              const Text(
+                                  'Add your first content item to get started',
+                                  style: TextStyle(color: Colors.black54)),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: _initializeDefaultContent,
+                                icon: const Icon(Icons.auto_fix_high),
+                                label: const Text('Initialize Default Content'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFC107),
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else ...[
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                            isMobile ? 20 : 48, 8, isMobile ? 20 : 48, 16),
+                        child: _buildCategoryFilter(categories),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: EdgeInsets.fromLTRB(
+                              isMobile ? 20 : 48, 0, isMobile ? 20 : 48, 48),
+                          itemCount: filteredContent.length,
+                          itemBuilder: (context, index) => _ContentCard(
+                            content: filteredContent[index],
+                            onEdit: () =>
+                                _showEditContentDialog(filteredContent[index]),
+                            onDelete: () =>
+                                _deleteContent(filteredContent[index]),
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                );
-              }
-
-              final content = snapshot.data ?? [];
-
-              // Extract unique categories
-              final categories = content.isEmpty
-                  ? _categories
-                  : ['all', ...content.map((c) => c.category).toSet().toList()..sort()];
-              if (content.isNotEmpty && _categories.length != categories.length) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  setState(() => _categories = categories);
-                });
-              }
-
-              final filteredContent = _selectedCategory == 'all' ? content : content.where((c) => c.category == _selectedCategory).toList();
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(isMobile ? 20 : 48, 20, isMobile ? 20 : 48, 12),
-                    child: Consumer<AppContentProvider>(
-                      builder: (context, provider, _) => _StaticEditBanner(
-                        isEnabled: provider.isStaticEditMode,
-                        onToggle: provider.toggleStaticEditMode,
-                        isMobile: isMobile,
-                        canEdit: canEdit,
-                      ),
-                    ),
-                  ),
-                  if (content.isEmpty)
-                    Expanded(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.content_paste_off, size: 64, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            const Text('No content available', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 8),
-                            const Text('Add your first content item to get started', style: TextStyle(color: Colors.black54)),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: _initializeDefaultContent,
-                              icon: const Icon(Icons.auto_fix_high),
-                              label: const Text('Initialize Default Content'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFFC107),
-                                foregroundColor: Colors.black,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else ...[
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(isMobile ? 20 : 48, 8, isMobile ? 20 : 48, 16),
-                      child: _buildCategoryFilter(categories),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: EdgeInsets.fromLTRB(isMobile ? 20 : 48, 0, isMobile ? 20 : 48, 48),
-                        itemCount: filteredContent.length,
-                        itemBuilder: (context, index) => _ContentCard(
-                          content: filteredContent[index],
-                          onEdit: () => _showEditContentDialog(filteredContent[index]),
-                          onDelete: () => _deleteContent(filteredContent[index]),
-                        ),
-                      ),
-                    ),
                   ],
-                ],
-              );
-            },
-          ),
-          const KazAiChatBubble(),
-        ],
+                );
+              },
+            ),
+            const KazAiChatBubble(),
+          ],
+        ),
       ),
     );
   }
@@ -187,7 +221,9 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
       children: categories.map((category) {
         final isSelected = _selectedCategory == category;
         return ChoiceChip(
-          label: Text(category == 'all' ? 'All Categories' : category.replaceAll('_', ' ').toUpperCase()),
+          label: Text(category == 'all'
+              ? 'All Categories'
+              : category.replaceAll('_', ' ').toUpperCase()),
           selected: isSelected,
           onSelected: (selected) {
             if (selected) setState(() => _selectedCategory = category);
@@ -198,7 +234,8 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
             color: isSelected ? Colors.black : Colors.black87,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         );
       }).toList(),
@@ -209,7 +246,9 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
     await AppContentService.initializeDefaultContent();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Default content initialized successfully'), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('Default content initialized successfully'),
+            backgroundColor: Colors.green),
       );
     }
   }
@@ -233,10 +272,12 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
           final id = await AppContentService.addContent(content);
           if (!mounted) return;
           messenger.showSnackBar(
-              SnackBar(
-                content: Text(id != null ? 'Content added successfully' : 'Failed to add content'),
-                backgroundColor: id != null ? Colors.green : Colors.red,
-              ),
+            SnackBar(
+              content: Text(id != null
+                  ? 'Content added successfully'
+                  : 'Failed to add content'),
+              backgroundColor: id != null ? Colors.green : Colors.red,
+            ),
           );
         },
       ),
@@ -258,13 +299,16 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
             description: description.isEmpty ? null : description,
             updatedAt: DateTime.now(),
           );
-          final success = await AppContentService.updateContent(content.id, updated);
+          final success =
+              await AppContentService.updateContent(content.id, updated);
           if (!mounted) return;
           messenger.showSnackBar(
-              SnackBar(
-                content: Text(success ? 'Content updated successfully' : 'Failed to update content'),
-                backgroundColor: success ? Colors.green : Colors.red,
-              ),
+            SnackBar(
+              content: Text(success
+                  ? 'Content updated successfully'
+                  : 'Failed to update content'),
+              backgroundColor: success ? Colors.green : Colors.red,
+            ),
           );
         },
       ),
@@ -278,7 +322,9 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
         title: const Text('Delete Content'),
         content: Text('Are you sure you want to delete "${content.key}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -293,7 +339,9 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'Content deleted successfully' : 'Failed to delete content'),
+            content: Text(success
+                ? 'Content deleted successfully'
+                : 'Failed to delete content'),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
@@ -336,7 +384,8 @@ class _StaticEditBanner extends StatelessWidget {
               color: effectiveAccent.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(isEnabled ? Icons.edit_note : Icons.edit_off, color: effectiveAccent, size: 24),
+            child: Icon(isEnabled ? Icons.edit_note : Icons.edit_off,
+                color: effectiveAccent, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -345,7 +394,8 @@ class _StaticEditBanner extends StatelessWidget {
               children: [
                 Text(
                   isEnabled ? 'Static Edit Mode is On' : 'Static Edit Mode',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -358,7 +408,8 @@ class _StaticEditBanner extends StatelessWidget {
                   const SizedBox(height: 6),
                   const Text(
                     'Admin access required to enable static edit mode.',
-                    style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: Colors.redAccent, fontWeight: FontWeight.w600),
                   ),
                 ],
               ],
@@ -373,16 +424,21 @@ class _StaticEditBanner extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: accent,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
               ),
             ),
           ] else ...[
             const SizedBox(width: 8),
             IconButton(
               onPressed: canEdit ? onToggle : null,
-              icon: Icon(isEnabled ? Icons.check_circle : Icons.edit, color: effectiveAccent),
-              tooltip: isEnabled ? 'Disable static edit mode' : 'Enable static edit mode',
+              icon: Icon(isEnabled ? Icons.check_circle : Icons.edit,
+                  color: effectiveAccent),
+              tooltip: isEnabled
+                  ? 'Disable static edit mode'
+                  : 'Enable static edit mode',
             ),
           ],
         ],
@@ -392,7 +448,8 @@ class _StaticEditBanner extends StatelessWidget {
 }
 
 class _ContentCard extends StatelessWidget {
-  const _ContentCard({required this.content, required this.onEdit, required this.onDelete});
+  const _ContentCard(
+      {required this.content, required this.onEdit, required this.onDelete});
 
   final AppContent content;
   final VoidCallback onEdit;
@@ -415,14 +472,18 @@ class _ContentCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFC107).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     content.category.replaceAll('_', ' ').toUpperCase(),
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black87),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87),
                   ),
                 ),
                 const Spacer(),
@@ -441,12 +502,20 @@ class _ContentCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(content.key, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(content.key,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text(content.value, style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.4)),
+            Text(content.value,
+                style: const TextStyle(
+                    fontSize: 16, color: Colors.black87, height: 1.4)),
             if (content.description != null) ...[
               const SizedBox(height: 12),
-              Text(content.description!, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
+              Text(content.description!,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic)),
             ],
             const SizedBox(height: 12),
             Row(
@@ -488,7 +557,8 @@ class _ContentEditorDialog extends StatefulWidget {
   const _ContentEditorDialog({this.existingContent, required this.onSave});
 
   final AppContent? existingContent;
-  final Future<void> Function(String key, String value, String category, String description) onSave;
+  final Future<void> Function(
+      String key, String value, String category, String description) onSave;
 
   @override
   State<_ContentEditorDialog> createState() => _ContentEditorDialogState();
@@ -504,10 +574,14 @@ class _ContentEditorDialogState extends State<_ContentEditorDialog> {
   @override
   void initState() {
     super.initState();
-    _keyController = TextEditingController(text: widget.existingContent?.key ?? '');
-    _valueController = TextEditingController(text: widget.existingContent?.value ?? '');
-    _categoryController = TextEditingController(text: widget.existingContent?.category ?? 'general');
-    _descriptionController = TextEditingController(text: widget.existingContent?.description ?? '');
+    _keyController =
+        TextEditingController(text: widget.existingContent?.key ?? '');
+    _valueController =
+        TextEditingController(text: widget.existingContent?.value ?? '');
+    _categoryController = TextEditingController(
+        text: widget.existingContent?.category ?? 'general');
+    _descriptionController =
+        TextEditingController(text: widget.existingContent?.description ?? '');
   }
 
   @override
@@ -522,7 +596,8 @@ class _ContentEditorDialogState extends State<_ContentEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.existingContent == null ? 'Add Content' : 'Edit Content'),
+      title:
+          Text(widget.existingContent == null ? 'Add Content' : 'Edit Content'),
       content: SizedBox(
         width: 600,
         child: SingleChildScrollView(
@@ -582,16 +657,25 @@ class _ContentEditorDialogState extends State<_ContentEditorDialog> {
             backgroundColor: const Color(0xFFFFC107),
             foregroundColor: Colors.black,
           ),
-          child: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Save'),
         ),
       ],
     );
   }
 
   Future<void> _handleSave() async {
-    if (_keyController.text.trim().isEmpty || _valueController.text.trim().isEmpty || _categoryController.text.trim().isEmpty) {
+    if (_keyController.text.trim().isEmpty ||
+        _valueController.text.trim().isEmpty ||
+        _categoryController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Key, value, and category are required'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Key, value, and category are required'),
+            backgroundColor: Colors.red),
       );
       return;
     }

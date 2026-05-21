@@ -120,53 +120,56 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFD700), // Brand yellow
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // NDU Project Logo
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: const Center(
-                  child: Text(
-                    'NDU',
-                    style: TextStyle(
-                      color: Color(0xFFFFD700),
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
+      body: SafeArea(
+        top: true,
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // NDU Project Logo
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'NDU',
+                      style: TextStyle(
+                        color: Color(0xFFFFD700),
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'NDUPROJECT',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 4,
+                const SizedBox(height: 24),
+                const Text(
+                  'NDUPROJECT',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 4,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'INITIATE. DELIVER. ITERATE.',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 2,
+                const SizedBox(height: 8),
+                const Text(
+                  'INITIATE. DELIVER. ITERATE.',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 2,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

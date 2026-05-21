@@ -122,7 +122,8 @@ class _DiagramLayout {
     final nodes = model.nodes;
     final edges = model.edges;
     if (nodes.isEmpty) {
-      return _DiagramLayout(nodes: const [], edges: const [], intrinsicSize: Size.zero);
+      return _DiagramLayout(
+          nodes: const [], edges: const [], intrinsicSize: Size.zero);
     }
 
     // ── Topological level assignment ──────────────────────────────────────
@@ -194,8 +195,7 @@ class _DiagramLayout {
 
     // ── Canvas size matches content ──────────────────────────────────────
     final canvasW = contentWidth;
-    final canvasH =
-        (pad + levels.length * (H + vGap)).clamp(300.0, 4000.0);
+    final canvasH = (pad + levels.length * (H + vGap)).clamp(300.0, 4000.0);
 
     // ── Pre-layout text ───────────────────────────────────────────────────
     final nodeDraws = <_NodeDraw>[];
@@ -221,14 +221,15 @@ class _DiagramLayout {
             height: 1.2,
           ),
         ),
-      )..layout(maxWidth: W - 40); // margin for left accent strip + right padding
+      )..layout(
+          maxWidth: W - 40); // margin for left accent strip + right padding
 
       final textOffset = Offset(
         pos.dx + 16, // clear the 6px accent strip
         pos.dy + (H - tp.height) / 2,
       );
-      nodeDraws.add(
-          _NodeDraw(rect: rect, text: tp, textOffset: textOffset, nodeType: n.type));
+      nodeDraws.add(_NodeDraw(
+          rect: rect, text: tp, textOffset: textOffset, nodeType: n.type));
     }
 
     // ── Pre-layout edges ──────────────────────────────────────────────────
@@ -301,7 +302,8 @@ class _DiagramLayout {
         labelDraw = _EdgeLabelDraw(text: labelTp, offset: Offset(tx, ty));
       }
 
-      edgeDraws.add(_EdgeDraw(path: path, arrowHead: arrowHead, label: labelDraw));
+      edgeDraws
+          .add(_EdgeDraw(path: path, arrowHead: arrowHead, label: labelDraw));
     }
 
     return _DiagramLayout(
@@ -373,7 +375,8 @@ class _NodeTooltipOverlay extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: style.border, width: 1.5),
         boxShadow: const [
-          BoxShadow(color: Color(0x1A000000), blurRadius: 12, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x1A000000), blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -394,43 +397,60 @@ class _NodeTooltipOverlay extends StatelessWidget {
                 ),
                 child: Text(
                   node.type.toUpperCase(),
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: style.border),
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: style.border),
                 ),
               ),
               const Spacer(),
               if (onClose != null)
                 GestureDetector(
                   onTap: onClose,
-                  child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF9CA3AF)),
+                  child: const Icon(Icons.close_rounded,
+                      size: 18, color: Color(0xFF9CA3AF)),
                 ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             node.label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827)),
           ),
           if (incomingEdges.isNotEmpty) ...[
             const SizedBox(height: 10),
-            const Text('Incoming:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+            const Text('Incoming:',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280))),
             ...incomingEdges.map((e) => Padding(
-              padding: const EdgeInsets.only(left: 8, top: 2),
-              child: Text(
-                '${e.label.isNotEmpty ? e.label : "from"} → ${e.from}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-              ),
-            )),
+                  padding: const EdgeInsets.only(left: 8, top: 2),
+                  child: Text(
+                    '${e.label.isNotEmpty ? e.label : "from"} → ${e.from}',
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                  ),
+                )),
           ],
           if (outgoingEdges.isNotEmpty) ...[
             const SizedBox(height: 10),
-            const Text('Outgoing:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+            const Text('Outgoing:',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280))),
             ...outgoingEdges.map((e) => Padding(
-              padding: const EdgeInsets.only(left: 8, top: 2),
-              child: Text(
-                '${e.label.isNotEmpty ? e.label : "to"} → ${e.to}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-              ),
-            )),
+                  padding: const EdgeInsets.only(left: 8, top: 2),
+                  child: Text(
+                    '${e.label.isNotEmpty ? e.label : "to"} → ${e.to}',
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                  ),
+                )),
           ],
         ],
       ),
@@ -534,7 +554,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
       duration: const Duration(milliseconds: 250),
     );
     _resetAnimController.addListener(_onResetAnimate);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPersistedDiagram());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _loadPersistedDiagram());
   }
 
   @override
@@ -551,7 +572,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
     final pid = provider?.projectData.projectId;
     if (pid == null || pid.isEmpty) return;
     final sectionKey = _sectionKey;
-    final cached = await _DiagramPersistence.load(projectId: pid, sectionKey: sectionKey);
+    final cached =
+        await _DiagramPersistence.load(projectId: pid, sectionKey: sectionKey);
     if (cached != null && cached.nodes.isNotEmpty && mounted) {
       setState(() => _diagram = cached);
     }
@@ -570,13 +592,16 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
     final text = widget.currentTextProvider().trim();
     final data = ProjectDataHelper.getData(context);
     final sectionLower = widget.sectionLabel.toLowerCase();
-    final useExecutiveContext = sectionLower.contains('executive plan') || sectionLower.contains('executive');
+    final useExecutiveContext = sectionLower.contains('executive plan') ||
+        sectionLower.contains('executive');
     final executiveContext = useExecutiveContext
-        ? ProjectDataHelper.buildExecutivePlanContext(data, sectionLabel: widget.sectionLabel)
+        ? ProjectDataHelper.buildExecutivePlanContext(data,
+            sectionLabel: widget.sectionLabel)
         : '';
     final projectContext = executiveContext.isNotEmpty
         ? executiveContext
-        : ProjectDataHelper.buildFepContext(data, sectionLabel: widget.sectionLabel);
+        : ProjectDataHelper.buildFepContext(data,
+            sectionLabel: widget.sectionLabel);
     if (text.isEmpty && projectContext.trim().isEmpty) {
       setState(() => _error = 'Add some notes first to generate a diagram.');
       return;
@@ -590,7 +615,9 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
     try {
       final result = await OpenAiDiagramService.instance.generateDiagram(
         section: widget.sectionLabel,
-        contextText: text.isNotEmpty ? '$projectContext\n\nUser Notes:\n$text' : projectContext,
+        contextText: text.isNotEmpty
+            ? '$projectContext\n\nUser Notes:\n$text'
+            : projectContext,
         refinementHint: hint,
       );
       if (!mounted) return;
@@ -732,32 +759,44 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
               child: Row(children: const [
                 Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
                 SizedBox(width: 6),
-                Text('AI Diagram', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1F2937))),
+                Text('AI Diagram',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937))),
               ]),
             ),
             const SizedBox(width: 12),
             ElevatedButton.icon(
               onPressed: _loading ? null : _generate,
               icon: _loading
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.black))
                   : const Icon(Icons.hub_outlined, color: Colors.black),
               label: Text(
                 _diagram != null ? 'Regenerate Diagram' : widget.title,
-                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                    color: Colors.black, fontWeight: FontWeight.w700),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFD700),
                 foregroundColor: Colors.black,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ],
         ),
         if ((_error ?? '').isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(_error!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+          Text(_error!,
+              style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
         ],
         // ── Refinement hints (shown when a diagram exists) ─────────────────
         if (_diagram != null && !_loading) ...[
@@ -770,7 +809,9 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                   label: 'More decisions',
                   selected: _refinementHint == 'more_decisions',
                   onTap: () => setState(() {
-                    _refinementHint = _refinementHint == 'more_decisions' ? null : 'more_decisions';
+                    _refinementHint = _refinementHint == 'more_decisions'
+                        ? null
+                        : 'more_decisions';
                   }),
                 ),
                 const SizedBox(width: 6),
@@ -778,7 +819,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                   label: 'Simplify',
                   selected: _refinementHint == 'simplify',
                   onTap: () => setState(() {
-                    _refinementHint = _refinementHint == 'simplify' ? null : 'simplify';
+                    _refinementHint =
+                        _refinementHint == 'simplify' ? null : 'simplify';
                   }),
                 ),
                 const SizedBox(width: 6),
@@ -786,7 +828,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                   label: 'Focus on risks',
                   selected: _refinementHint == 'focus_risks',
                   onTap: () => setState(() {
-                    _refinementHint = _refinementHint == 'focus_risks' ? null : 'focus_risks';
+                    _refinementHint =
+                        _refinementHint == 'focus_risks' ? null : 'focus_risks';
                   }),
                 ),
                 const SizedBox(width: 6),
@@ -794,7 +837,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                   label: 'Show timelines',
                   selected: _refinementHint == 'timelines',
                   onTap: () => setState(() {
-                    _refinementHint = _refinementHint == 'timelines' ? null : 'timelines';
+                    _refinementHint =
+                        _refinementHint == 'timelines' ? null : 'timelines';
                   }),
                 ),
               ],
@@ -863,9 +907,11 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                   children: [
                     // ── Toolbar: expand + export + reset zoom + generated time ─
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: const BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+                        border: Border(
+                            bottom: BorderSide(color: Color(0xFFF3F4F6))),
                       ),
                       child: Row(
                         children: [
@@ -888,7 +934,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                           if (_generatedAt != null)
                             Text(
                               'Generated ${_formatTime(_generatedAt!)}',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xFF9CA3AF)),
                             ),
                           const SizedBox(width: 8),
                           // Reset zoom (animated)
@@ -926,7 +973,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                             final node = _hitTestNode(details.localPosition);
                             if (node != null) {
                               setState(() {
-                                _tappedNode = (_tappedNode?.id == node.id) ? null : node;
+                                _tappedNode =
+                                    (_tappedNode?.id == node.id) ? null : node;
                               });
                             } else {
                               setState(() => _tappedNode = null);
@@ -966,8 +1014,12 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                       borderRadius: BorderRadius.circular(12),
                       child: _NodeTooltipOverlay(
                         node: _tappedNode!,
-                        incomingEdges: _diagram!.edges.where((e) => e.to == _tappedNode!.id).toList(),
-                        outgoingEdges: _diagram!.edges.where((e) => e.from == _tappedNode!.id).toList(),
+                        incomingEdges: _diagram!.edges
+                            .where((e) => e.to == _tappedNode!.id)
+                            .toList(),
+                        outgoingEdges: _diagram!.edges
+                            .where((e) => e.from == _tappedNode!.id)
+                            .toList(),
                         onClose: () => setState(() => _tappedNode = null),
                       ),
                     ),
@@ -997,17 +1049,22 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.hub_outlined, size: 48, color: const Color(0xFFD1D5DB)),
+                  Icon(Icons.hub_outlined,
+                      size: 48, color: const Color(0xFFD1D5DB)),
                   const SizedBox(height: 16),
                   const Text(
                     'Generate a strategic reasoning diagram',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6B7280)),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Tap "${_diagram != null ? 'Regenerate' : widget.title}" above to create a\nvisual map of your ${widget.sectionLabel}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                    style:
+                        const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                   ),
                 ],
               ),
@@ -1143,10 +1200,11 @@ class _DashedBorderPainter extends CustomPainter {
       ..strokeWidth = strokeWidth;
     const double dash = 8;
     const double gap = 6;
-    final path = Path()..addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      const Radius.circular(16),
-    ));
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        const Radius.circular(16),
+      ));
     for (final metric in path.computeMetrics()) {
       double distance = 0;
       while (distance < metric.length) {
@@ -1246,116 +1304,130 @@ class _DiagramFullscreenViewState extends State<_DiagramFullscreenView> {
         elevation: 0,
         title: Text(
           widget.sectionLabel,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+          style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF111827)),
         ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.zoom_out_rounded),
-              tooltip: 'Zoom out',
-              onPressed: () {
-                final next = Matrix4.copy(_transformationController.value)
-                  ..scaleByDouble(0.85, 0.85, 1.0, 1.0);
-                _transformationController.value = next;
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.zoom_in_rounded),
-              tooltip: 'Zoom in',
-              onPressed: () {
-                final next = Matrix4.copy(_transformationController.value)
-                  ..scaleByDouble(1.15, 1.15, 1.0, 1.0);
-                _transformationController.value = next;
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.fit_screen_rounded),
-              tooltip: 'Reset zoom',
-              onPressed: () => _transformationController.value = Matrix4.identity(),
-            ),
-            const SizedBox(width: 8),
-          ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.zoom_out_rounded),
+            tooltip: 'Zoom out',
+            onPressed: () {
+              final next = Matrix4.copy(_transformationController.value)
+                ..scaleByDouble(0.85, 0.85, 1.0, 1.0);
+              _transformationController.value = next;
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.zoom_in_rounded),
+            tooltip: 'Zoom in',
+            onPressed: () {
+              final next = Matrix4.copy(_transformationController.value)
+                ..scaleByDouble(1.15, 1.15, 1.0, 1.0);
+              _transformationController.value = next;
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.fit_screen_rounded),
+            tooltip: 'Reset zoom',
+            onPressed: () =>
+                _transformationController.value = Matrix4.identity(),
+          ),
+          const SizedBox(width: 8),
+        ],
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Column(
-        children: [
-          // Legend bar
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            color: Colors.white,
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: widget.diagram.nodes.map((n) => n.type).toSet().map((t) {
-                final style = styleForType(t);
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: style.fill,
-                        border: Border.all(color: style.border, width: 1),
-                        borderRadius: BorderRadius.circular(3),
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            // Legend bar
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              color: Colors.white,
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children:
+                    widget.diagram.nodes.map((n) => n.type).toSet().map((t) {
+                  final style = styleForType(t);
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: style.fill,
+                          border: Border.all(color: style.border, width: 1),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      t[0].toUpperCase() + t.substring(1),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
-                    ),
-                  ],
-                );
-              }).toList(),
+                      const SizedBox(width: 6),
+                      Text(
+                        t[0].toUpperCase() + t.substring(1),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF374151)),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          // Diagram
-          Expanded(
-            child: GestureDetector(
-              onTapUp: (details) {
-                final node = _hitTestNode(details.localPosition);
-                setState(() => _selectedNode = _selectedNode == node ? null : node);
-              },
-              child: InteractiveViewer(
-                transformationController: _transformationController,
-                minScale: 0.2,
-                maxScale: 4.0,
-                boundaryMargin: const EdgeInsets.all(200),
-                child: Center(
-                  child: Builder(builder: (_) {
-                    final painter = _DiagramPainter(widget.diagram);
-                    return CustomPaint(
-                      painter: painter,
-                      isComplex: true,
-                      willChange: false,
-                      size: painter.intrinsicSize,
-                    );
-                  }),
+            const Divider(height: 1),
+            // Diagram
+            Expanded(
+              child: GestureDetector(
+                onTapUp: (details) {
+                  final node = _hitTestNode(details.localPosition);
+                  setState(() =>
+                      _selectedNode = _selectedNode == node ? null : node);
+                },
+                child: InteractiveViewer(
+                  transformationController: _transformationController,
+                  minScale: 0.2,
+                  maxScale: 4.0,
+                  boundaryMargin: const EdgeInsets.all(200),
+                  child: Center(
+                    child: Builder(builder: (_) {
+                      final painter = _DiagramPainter(widget.diagram);
+                      return CustomPaint(
+                        painter: painter,
+                        isComplex: true,
+                        willChange: false,
+                        size: painter.intrinsicSize,
+                      );
+                    }),
+                  ),
                 ),
               ),
             ),
-          ),
-          // D3 — Node detail panel at bottom
-          if (_selectedNode != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+            // D3 — Node detail panel at bottom
+            if (_selectedNode != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+                ),
+                child: _NodeTooltipOverlay(
+                  node: _selectedNode!,
+                  incomingEdges: widget.diagram.edges
+                      .where((e) => e.to == _selectedNode!.id)
+                      .toList(),
+                  outgoingEdges: widget.diagram.edges
+                      .where((e) => e.from == _selectedNode!.id)
+                      .toList(),
+                ),
               ),
-              child: _NodeTooltipOverlay(
-                node: _selectedNode!,
-                incomingEdges: widget.diagram.edges.where((e) => e.to == _selectedNode!.id).toList(),
-                outgoingEdges: widget.diagram.edges.where((e) => e.from == _selectedNode!.id).toList(),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

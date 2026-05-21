@@ -1043,9 +1043,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       return const SizedBox.shrink();
     }
 
-    final borderColor = hasError
-        ? Colors.red.withOpacity(0.2)
-        : Colors.grey.withOpacity(0.2);
+    final borderColor =
+        hasError ? Colors.red.withOpacity(0.2) : Colors.grey.withOpacity(0.2);
     final canRefresh = !loading && OpenAiConfig.isConfigured;
 
     return Container(
@@ -1244,54 +1243,57 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: null,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Top Header
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                child: Row(
-                  children: [
-                    DraggableSidebar(
-                      openWidth: sidebarWidth,
-                      child: const InitiationLikeSidebar(
-                          activeItemLabel: 'Business Case Detail'),
-                    ),
-                    Expanded(child: _buildMainContent()),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-          // Loading overlay for AI generation
-          if (_isGeneratingAI)
-            Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Generating Business Case with AI...',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Top Header
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+                Expanded(
+                  child: Row(
+                    children: [
+                      DraggableSidebar(
+                        openWidth: sidebarWidth,
+                        child: const InitiationLikeSidebar(
+                            activeItemLabel: 'Business Case Detail'),
                       ),
-                    ),
-                  ],
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+            // Loading overlay for AI generation
+            if (_isGeneratingAI)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Generating Business Case with AI...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1307,8 +1309,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(
-              color: Colors.grey.withOpacity(0.25), width: 0.8),
+          right: BorderSide(color: Colors.grey.withOpacity(0.25), width: 0.8),
         ),
       ),
       child: Column(
@@ -1867,8 +1868,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1912,8 +1912,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1959,8 +1958,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

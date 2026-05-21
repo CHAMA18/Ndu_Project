@@ -21,6 +21,7 @@ import 'portfolio_dashboard_screen.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import '../widgets/dashboard_bottom_nav_bar.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens extracted from the HTML source (Material You / Tailwind config)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,8 +170,7 @@ class _ProjectDashboardMobileShellState
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Confirm Log Out'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
@@ -248,8 +248,8 @@ class _ProjectDashboardMobileShellState
                   color: iconBg,
                   borderRadius: BorderRadius.circular(_Tokens.radiusXl),
                 ),
-                child: Icon(icon, color: iconColor, size: 24,
-                    fill: filled ? 1.0 : 0.0),
+                child: Icon(icon,
+                    color: iconColor, size: 24, fill: filled ? 1.0 : 0.0),
               ),
               const SizedBox(height: 12),
               Text(
@@ -305,15 +305,15 @@ class _ProjectDashboardMobileShellState
         style: const TextStyle(fontSize: 14, color: _Tokens.onSurface),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(
-              fontSize: 14, color: _Tokens.outline),
-          prefixIcon: const Icon(Icons.search, color: _Tokens.outline, size: 22),
+          hintStyle: const TextStyle(fontSize: 14, color: _Tokens.outline),
+          prefixIcon:
+              const Icon(Icons.search, color: _Tokens.outline, size: 22),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(_Tokens.radiusXl),
-            borderSide: BorderSide(
-                color: _Tokens.primary.withOpacity(0.2), width: 2),
+            borderSide:
+                BorderSide(color: _Tokens.primary.withOpacity(0.2), width: 2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(_Tokens.radiusXl),
@@ -363,7 +363,8 @@ class _ProjectDashboardMobileShellState
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _Tokens.outlineVariant.withOpacity(0.5)),
+              border:
+                  Border.all(color: _Tokens.outlineVariant.withOpacity(0.5)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -529,377 +530,228 @@ class _ProjectDashboardMobileShellState
 
                 return Scaffold(
                   backgroundColor: _Tokens.background,
-                  body: Stack(
-                    children: [
-                      // ── Top App Bar ─────────────────────────────────────
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: _Tokens.onSecondaryFixed,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        if (context.canPop()) {
-                                          context.pop();
-                                        } else {
-                                          context.go('/');
-                                        }
-                                      },
-                                      child: const Icon(Icons.menu,
-                                          color: Color(0xFFD6E3FF)),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Text(
-                                      'NDUPROJECT',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                        color: _Tokens.tertiaryFixedDim,
-                                        letterSpacing: -0.01,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                GestureDetector(
-                                  onTap: user != null ? _handleLogout : null,
-                                  child: const Icon(Icons.account_circle,
-                                      color: Color(0xFFD6E3FF)),
+                  body: SafeArea(
+                    top: true,
+                    child: Stack(
+                      children: [
+                        // ── Top App Bar ─────────────────────────────────────
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: _Tokens.onSecondaryFixed,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (context.canPop()) {
+                                            context.pop();
+                                          } else {
+                                            context.go('/');
+                                          }
+                                        },
+                                        child: const Icon(Icons.menu,
+                                            color: Color(0xFFD6E3FF)),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        'NDUPROJECT',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                          color: _Tokens.tertiaryFixedDim,
+                                          letterSpacing: -0.01,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  GestureDetector(
+                                    onTap: user != null ? _handleLogout : null,
+                                    child: const Icon(Icons.account_circle,
+                                        color: Color(0xFFD6E3FF)),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
 
-                      // ── Main Scrollable Content ──────────────────────────
-                      Positioned.fill(
-                        top: 64,
-                        bottom: 72,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(
-                            _Tokens.containerMargin,
-                            24,
-                            _Tokens.containerMargin,
-                            120,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ── Welcome Header ───────────────────────────
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          _Tokens.surfaceContainerHigh,
-                                      borderRadius:
-                                          BorderRadius.circular(100),
-                                    ),
-                                    child: IconButton(
-                                      padding: EdgeInsets.zero,
-                                      icon: const Icon(Icons.arrow_back,
-                                          size: 18,
-                                          color: _Tokens.onSurface),
-                                      onPressed: () {
-                                        if (context.canPop()) {
-                                          context.pop();
-                                        } else {
-                                          context.go('/');
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          _Tokens.surfaceContainerLowest,
-                                      borderRadius:
-                                          BorderRadius.circular(100),
-                                      border: Border.all(
-                                          color:
-                                              _Tokens.outlineVariant),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.domain,
-                                            size: 16,
-                                            color:
-                                                _Tokens.onSurfaceVariant),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'Project workspace overview',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.05,
-                                            color: _Tokens
-                                                .onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              // ── Personalized Greeting (world‑class) ────────────
-                              _PremiumUserGreeting(isBasicPlan: widget.isBasicPlan),
-                              // ── Description (web only – hidden on Android/iOS) ──
-                              if (kIsWeb) ...[
-                                const SizedBox(height: 10),
-                                Text(
-                                  widget.isBasicPlan
-                                      ? 'Manage your basic plan project workspace. Build the core initiation details and upgrade when you are ready to unlock more sections.'
-                                      : 'Manage all single projects before they are linked into programs or portfolios. Add new work, track status, and quickly roll three projects into a program when you are ready.',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                    color: _Tokens.onSurfaceVariant,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ],
-
-                              const SizedBox(
-                                  height: _Tokens.sectionGap),
-
-                              // ── Stat Cards Grid (2×2) ────────────────────
-                              GridView.count(
-                                crossAxisCount: 2,
-                                shrinkWrap: true,
-                                physics:
-                                    const NeverScrollableScrollPhysics(),
-                                mainAxisSpacing: _Tokens.gridGutter,
-                                crossAxisSpacing: _Tokens.gridGutter,
-                                childAspectRatio: 0.82,
-                                children: [
-                                  _statCard(
-                                    label: 'Single Projects',
-                                    value: user == null
-                                        ? 'Sign in to view'
-                                        : singleCount.toString(),
-                                    icon: Icons.folder,
-                                    iconBg: const Color(0xFFEFF6FF),
-                                    iconColor: _Tokens.primary,
-                                    onTap: () {},
-                                  ),
-                                  _statCard(
-                                    label: 'Basic Projects',
-                                    value: user == null
-                                        ? 'Sign in to view'
-                                        : basicCount.toString(),
-                                    icon: Icons.folder_special,
-                                    iconBg: const Color(0xFFF0FDFA),
-                                    iconColor: const Color(0xFF0D9488),
-                                    filled: true,
-                                    onTap: () {},
-                                  ),
-                                  _statCard(
-                                    label: 'Programs',
-                                    value: user == null
-                                        ? 'Sign in to view'
-                                        : programCount.toString(),
-                                    icon: Icons.layers,
-                                    iconBg: const Color(0xFFFAF5FF),
-                                    iconColor: const Color(0xFF9333EA),
-                                    onTap: _navigateToProgram,
-                                  ),
-                                  _statCard(
-                                    label: 'Portfolios',
-                                    value: user == null
-                                        ? 'Sign in to view'
-                                        : portfolioCount.toString(),
-                                    icon: Icons.account_tree,
-                                    iconBg: const Color(0xFFF0FDF4),
-                                    iconColor: const Color(0xFF16A34A),
-                                    onTap: _navigateToPortfolio,
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(
-                                  height: _Tokens.sectionGap),
-
-                              // ── Single Projects Section ──────────────────
-                              Container(
-                                padding: const EdgeInsets.all(
-                                    _Tokens.cardPadding),
-                                decoration: BoxDecoration(
-                                  color:
-                                      _Tokens.surfaceContainerLowest,
-                                  borderRadius: BorderRadius.circular(
-                                      _Tokens.radiusXl),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withOpacity(0.04),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                        // ── Main Scrollable Content ──────────────────────────
+                        Positioned.fill(
+                          top: 64,
+                          bottom: 72,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(
+                              _Tokens.containerMargin,
+                              24,
+                              _Tokens.containerMargin,
+                              120,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // ── Welcome Header ───────────────────────────
+                                Row(
                                   children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          widget.isBasicPlan
-                                              ? 'Basic Projects'
-                                              : 'Single Projects',
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w600,
-                                            color: _Tokens.onSurface,
-                                            letterSpacing: -0.01,
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {},
-                                          style: TextButton.styleFrom(
-                                            foregroundColor:
-                                                _Tokens.primary,
-                                            padding: EdgeInsets.zero,
-                                            minimumSize: Size.zero,
-                                            tapTargetSize: MaterialTapTargetSize
-                                                .shrinkWrap,
-                                          ),
-                                          child: const Text('See All',
-                                              style: TextStyle(
-                                                  fontWeight:
-                                                      FontWeight.w600,
-                                                  fontSize: 15)),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      widget.isBasicPlan
-                                          ? 'Review all basic plan projects before upgrading to unlock more sections.'
-                                          : 'Review all standalone projects before they are linked into programs or portfolios.',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w400,
-                                        color:
-                                            _Tokens.onSurfaceVariant,
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: _Tokens.surfaceContainerHigh,
+                                        borderRadius:
+                                            BorderRadius.circular(100),
+                                      ),
+                                      child: IconButton(
+                                        padding: EdgeInsets.zero,
+                                        icon: const Icon(Icons.arrow_back,
+                                            size: 18, color: _Tokens.onSurface),
+                                        onPressed: () {
+                                          if (context.canPop()) {
+                                            context.pop();
+                                          } else {
+                                            context.go('/');
+                                          }
+                                        },
                                       ),
                                     ),
-                                    const SizedBox(
-                                        height: _Tokens.stackGap),
-
-                                    // Info banner
+                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 12),
+                                          horizontal: 12, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color:
-                                            _Tokens.surfaceContainerLow,
+                                        color: _Tokens.surfaceContainerLowest,
                                         borderRadius:
-                                            BorderRadius.circular(
-                                                _Tokens.radiusXl),
+                                            BorderRadius.circular(100),
                                         border: Border.all(
-                                          color: _Tokens.outlineVariant
-                                              .withOpacity(0.3),
-                                        ),
+                                            color: _Tokens.outlineVariant),
                                       ),
                                       child: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.trending_up,
-                                              size: 18,
-                                              color: _Tokens.primary),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              widget.isBasicPlan
-                                                  ? 'Basic plan workspaces focus on initiation essentials'
-                                                  : 'If more than 3 projects, group up to 3 into a program',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight:
-                                                    FontWeight.w600,
-                                                letterSpacing: 0.05,
-                                                color: _Tokens
-                                                    .onSurfaceVariant,
-                                              ),
+                                          const Icon(Icons.domain,
+                                              size: 16,
+                                              color: _Tokens.onSurfaceVariant),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Project workspace overview',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 0.05,
+                                              color: _Tokens.onSurfaceVariant,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(
-                                        height: _Tokens.stackGap),
-
-                                    // Search
-                                    _searchBar(
-                                      controller: _searchProjects,
-                                      hint: 'Search projects...',
-                                      onChanged: (v) =>
-                                          setState(() => _query = v),
-                                    ),
-                                    const SizedBox(
-                                        height: _Tokens.stackGap),
-
-                                    // Project list or empty state
-                                    if (user == null)
-                                      _emptyState(
-                                          message:
-                                              'Sign in to view projects')
-                                    else if (filteredList.isEmpty)
-                                      _emptyState(
-                                          message:
-                                              'No projects found')
-                                    else
-                                      ...filteredList
-                                          .take(5)
-                                          .map((p) => _projectItem(p)),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: 12),
+                                // ── Personalized Greeting (world‑class) ────────────
+                                _PremiumUserGreeting(
+                                    isBasicPlan: widget.isBasicPlan),
+                                // ── Description (web only – hidden on Android/iOS) ──
+                                if (kIsWeb) ...[
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    widget.isBasicPlan
+                                        ? 'Manage your basic plan project workspace. Build the core initiation details and upgrade when you are ready to unlock more sections.'
+                                        : 'Manage all single projects before they are linked into programs or portfolios. Add new work, track status, and quickly roll three projects into a program when you are ready.',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w400,
+                                      color: _Tokens.onSurfaceVariant,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ],
 
-                              const SizedBox(
-                                  height: _Tokens.sectionGap),
+                                const SizedBox(height: _Tokens.sectionGap),
 
-                              // ── Group Projects Section ───────────────────
-                              if (!widget.isBasicPlan)
+                                // ── Stat Cards Grid (2×2) ────────────────────
+                                GridView.count(
+                                  crossAxisCount: 2,
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  mainAxisSpacing: _Tokens.gridGutter,
+                                  crossAxisSpacing: _Tokens.gridGutter,
+                                  childAspectRatio: 0.82,
+                                  children: [
+                                    _statCard(
+                                      label: 'Single Projects',
+                                      value: user == null
+                                          ? 'Sign in to view'
+                                          : singleCount.toString(),
+                                      icon: Icons.folder,
+                                      iconBg: const Color(0xFFEFF6FF),
+                                      iconColor: _Tokens.primary,
+                                      onTap: () {},
+                                    ),
+                                    _statCard(
+                                      label: 'Basic Projects',
+                                      value: user == null
+                                          ? 'Sign in to view'
+                                          : basicCount.toString(),
+                                      icon: Icons.folder_special,
+                                      iconBg: const Color(0xFFF0FDFA),
+                                      iconColor: const Color(0xFF0D9488),
+                                      filled: true,
+                                      onTap: () {},
+                                    ),
+                                    _statCard(
+                                      label: 'Programs',
+                                      value: user == null
+                                          ? 'Sign in to view'
+                                          : programCount.toString(),
+                                      icon: Icons.layers,
+                                      iconBg: const Color(0xFFFAF5FF),
+                                      iconColor: const Color(0xFF9333EA),
+                                      onTap: _navigateToProgram,
+                                    ),
+                                    _statCard(
+                                      label: 'Portfolios',
+                                      value: user == null
+                                          ? 'Sign in to view'
+                                          : portfolioCount.toString(),
+                                      icon: Icons.account_tree,
+                                      iconBg: const Color(0xFFF0FDF4),
+                                      iconColor: const Color(0xFF16A34A),
+                                      onTap: _navigateToPortfolio,
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: _Tokens.sectionGap),
+
+                                // ── Single Projects Section ──────────────────
                                 Container(
-                                  padding: const EdgeInsets.all(
-                                      _Tokens.cardPadding),
+                                  padding:
+                                      const EdgeInsets.all(_Tokens.cardPadding),
                                   decoration: BoxDecoration(
-                                    color:
-                                        _Tokens.surfaceContainerLowest,
-                                    borderRadius: BorderRadius.circular(
-                                        _Tokens.radiusXl),
+                                    color: _Tokens.surfaceContainerLowest,
+                                    borderRadius:
+                                        BorderRadius.circular(_Tokens.radiusXl),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black
-                                            .withOpacity(0.04),
+                                        color: Colors.black.withOpacity(0.04),
                                         blurRadius: 20,
                                         offset: const Offset(0, 4),
                                       ),
@@ -911,28 +763,23 @@ class _ProjectDashboardMobileShellState
                                     children: [
                                       Row(
                                         mainAxisAlignment:
-                                            MainAxisAlignment
-                                                .spaceBetween,
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const Expanded(
-                                            child: Text(
-                                              'Group Projects Into A Program',
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight:
-                                                    FontWeight.w600,
-                                                color:
-                                                    _Tokens.onSurface,
-                                                letterSpacing: -0.01,
-                                              ),
+                                          Text(
+                                            widget.isBasicPlan
+                                                ? 'Basic Projects'
+                                                : 'Single Projects',
+                                            style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w600,
+                                              color: _Tokens.onSurface,
+                                              letterSpacing: -0.01,
                                             ),
                                           ),
                                           TextButton(
                                             onPressed: () {},
-                                            style:
-                                                TextButton.styleFrom(
-                                              foregroundColor:
-                                                  _Tokens.error,
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: _Tokens.primary,
                                               padding: EdgeInsets.zero,
                                               minimumSize: Size.zero,
                                               tapTargetSize:
@@ -941,166 +788,281 @@ class _ProjectDashboardMobileShellState
                                             ),
                                             child: const Text('See All',
                                                 style: TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w600,
+                                                    fontWeight: FontWeight.w600,
                                                     fontSize: 15)),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
-                                      const Text(
-                                        'When you have more than three single projects, select up to three that share an outcome to create a new program.',
-                                        style: TextStyle(
+                                      Text(
+                                        widget.isBasicPlan
+                                            ? 'Review all basic plan projects before upgrading to unlock more sections.'
+                                            : 'Review all standalone projects before they are linked into programs or portfolios.',
+                                        style: const TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w400,
-                                          color:
-                                              _Tokens.onSurfaceVariant,
-                                          height: 1.5,
+                                          color: _Tokens.onSurfaceVariant,
                                         ),
                                       ),
-                                      const SizedBox(
-                                          height: _Tokens.stackGap),
+                                      const SizedBox(height: _Tokens.stackGap),
 
-                                      // Filter chip
+                                      // Info banner
                                       Container(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 16,
-                                                vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
                                         decoration: BoxDecoration(
-                                          color: _Tokens
-                                              .surfaceContainerLow,
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                                  100),
+                                          color: _Tokens.surfaceContainerLow,
+                                          borderRadius: BorderRadius.circular(
+                                              _Tokens.radiusXl),
                                           border: Border.all(
-                                            color:
-                                                _Tokens.outlineVariant,
+                                            color: _Tokens.outlineVariant
+                                                .withOpacity(0.3),
                                           ),
                                         ),
                                         child: Row(
-                                          mainAxisSize:
-                                              MainAxisSize.min,
                                           children: [
-                                            const Icon(
-                                                Icons.filter_list,
+                                            const Icon(Icons.trending_up,
                                                 size: 18,
-                                                color: _Tokens
-                                                    .onSurfaceVariant),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              'Up to 3 projects',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight:
-                                                    FontWeight.w600,
-                                                letterSpacing: 0.05,
-                                                color: _Tokens
-                                                    .onSurfaceVariant,
+                                                color: _Tokens.primary),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                widget.isBasicPlan
+                                                    ? 'Basic plan workspaces focus on initiation essentials'
+                                                    : 'If more than 3 projects, group up to 3 into a program',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  letterSpacing: 0.05,
+                                                  color:
+                                                      _Tokens.onSurfaceVariant,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(
-                                          height: _Tokens.stackGap),
+                                      const SizedBox(height: _Tokens.stackGap),
 
                                       // Search
                                       _searchBar(
-                                        controller: _searchGrouping,
-                                        hint:
-                                            'Search projects to group...',
-                                        onChanged: (v) => setState(
-                                            () => _groupQuery = v),
+                                        controller: _searchProjects,
+                                        hint: 'Search projects...',
+                                        onChanged: (v) =>
+                                            setState(() => _query = v),
                                       ),
-                                      const SizedBox(
-                                          height: _Tokens.stackGap),
+                                      const SizedBox(height: _Tokens.stackGap),
 
-                                      // CTA / empty state
+                                      // Project list or empty state
                                       if (user == null)
-                                        Container(
-                                          padding:
-                                              const EdgeInsets.all(24),
-                                          decoration: BoxDecoration(
-                                            color: _Tokens
-                                                .onSecondaryFixed
-                                                .withOpacity(0.05),
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    _Tokens.radiusXl),
-                                            border: Border.all(
-                                              color: _Tokens
-                                                  .onSecondaryFixed
-                                                  .withOpacity(0.1),
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              'Sign in to group projects',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight:
-                                                    FontWeight.w400,
-                                                color: _Tokens
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                      else if (groupingList.isEmpty)
                                         _emptyState(
-                                            message:
-                                                'No projects to group')
+                                            message: 'Sign in to view projects')
+                                      else if (filteredList.isEmpty)
+                                        _emptyState(
+                                            message: 'No projects found')
                                       else
-                                        ...groupingList
-                                            .take(3)
-                                            .map((p) =>
-                                                _projectItem(p)),
+                                        ...filteredList
+                                            .take(5)
+                                            .map((p) => _projectItem(p)),
                                     ],
                                   ),
                                 ),
-                            ],
+
+                                const SizedBox(height: _Tokens.sectionGap),
+
+                                // ── Group Projects Section ───────────────────
+                                if (!widget.isBasicPlan)
+                                  Container(
+                                    padding: const EdgeInsets.all(
+                                        _Tokens.cardPadding),
+                                    decoration: BoxDecoration(
+                                      color: _Tokens.surfaceContainerLowest,
+                                      borderRadius: BorderRadius.circular(
+                                          _Tokens.radiusXl),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.04),
+                                          blurRadius: 20,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Expanded(
+                                              child: Text(
+                                                'Group Projects Into A Program',
+                                                style: TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _Tokens.onSurface,
+                                                  letterSpacing: -0.01,
+                                                ),
+                                              ),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {},
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: _Tokens.error,
+                                                padding: EdgeInsets.zero,
+                                                minimumSize: Size.zero,
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                              child: const Text('See All',
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 15)),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        const Text(
+                                          'When you have more than three single projects, select up to three that share an outcome to create a new program.',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w400,
+                                            color: _Tokens.onSurfaceVariant,
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                            height: _Tokens.stackGap),
+
+                                        // Filter chip
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: _Tokens.surfaceContainerLow,
+                                            borderRadius:
+                                                BorderRadius.circular(100),
+                                            border: Border.all(
+                                              color: _Tokens.outlineVariant,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.filter_list,
+                                                  size: 18,
+                                                  color:
+                                                      _Tokens.onSurfaceVariant),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'Up to 3 projects',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  letterSpacing: 0.05,
+                                                  color:
+                                                      _Tokens.onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                            height: _Tokens.stackGap),
+
+                                        // Search
+                                        _searchBar(
+                                          controller: _searchGrouping,
+                                          hint: 'Search projects to group...',
+                                          onChanged: (v) =>
+                                              setState(() => _groupQuery = v),
+                                        ),
+                                        const SizedBox(
+                                            height: _Tokens.stackGap),
+
+                                        // CTA / empty state
+                                        if (user == null)
+                                          Container(
+                                            padding: const EdgeInsets.all(24),
+                                            decoration: BoxDecoration(
+                                              color: _Tokens.onSecondaryFixed
+                                                  .withOpacity(0.05),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      _Tokens.radiusXl),
+                                              border: Border.all(
+                                                color: _Tokens.onSecondaryFixed
+                                                    .withOpacity(0.1),
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                'Sign in to group projects',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w400,
+                                                  color:
+                                                      _Tokens.onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        else if (groupingList.isEmpty)
+                                          _emptyState(
+                                              message: 'No projects to group')
+                                        else
+                                          ...groupingList
+                                              .take(3)
+                                              .map((p) => _projectItem(p)),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
 
-                      // ── FAB ─────────────────────────────────────────────
-                      Positioned(
-                        right: 24,
-                        bottom: 88,
-                        child: FloatingActionButton(
-                          onPressed: widget.onAddProject,
-                          backgroundColor: _Tokens.primary,
-                          elevation: 6,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        // ── FAB ─────────────────────────────────────────────
+                        Positioned(
+                          right: 24,
+                          bottom: 88,
+                          child: FloatingActionButton(
+                            onPressed: widget.onAddProject,
+                            backgroundColor: _Tokens.primary,
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(Icons.add,
+                                color: Colors.white, size: 28),
                           ),
-                          child: const Icon(Icons.add,
-                              color: Colors.white, size: 28),
                         ),
-                      ),
 
-                      // ── Bottom Navigation Bar ────────────────────────────
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: DashboardBottomNavBar(
-                          currentIndex: _bottomNavIndex,
-                          onNavigate: (index) {
-                            setState(() => _bottomNavIndex = index);
-                            switch (index) {
-                              case 1:
-                                _navigateToProgram();
-                                break;
-                              case 2:
-                                _navigateToPortfolio();
-                                break;
-                            }
-                          },
+                        // ── Bottom Navigation Bar ────────────────────────────
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: DashboardBottomNavBar(
+                            currentIndex: _bottomNavIndex,
+                            onNavigate: (index) {
+                              setState(() => _bottomNavIndex = index);
+                              switch (index) {
+                                case 1:
+                                  _navigateToProgram();
+                                  break;
+                                case 2:
+                                  _navigateToPortfolio();
+                                  break;
+                              }
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
@@ -1139,7 +1101,8 @@ class _PremiumUserGreeting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = FirebaseAuthService.displayNameOrEmail(fallback: 'User');
+    final displayName =
+        FirebaseAuthService.displayNameOrEmail(fallback: 'User');
     final firstName = displayName.split(' ').first;
     final initials = _initials(displayName);
     final greeting = '${_timePrefix()}, $firstName';
@@ -1209,7 +1172,8 @@ class _PremiumUserGreeting extends StatelessWidget {
                         width: 40,
                         height: 40,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildInitialsText(initials),
+                        errorBuilder: (_, __, ___) =>
+                            _buildInitialsText(initials),
                       ),
                     )
                   : _buildInitialsText(initials),
@@ -1237,7 +1201,8 @@ class _PremiumUserGreeting extends StatelessWidget {
                   children: [
                     // Plan badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: isBasicPlan
                             ? const Color(0xFFEFF6FF)
@@ -1254,7 +1219,9 @@ class _PremiumUserGreeting extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            isBasicPlan ? Icons.star_outline : Icons.workspace_premium_outlined,
+                            isBasicPlan
+                                ? Icons.star_outline
+                                : Icons.workspace_premium_outlined,
                             size: 11,
                             color: isBasicPlan
                                 ? const Color(0xFF2563EB)
@@ -1278,7 +1245,9 @@ class _PremiumUserGreeting extends StatelessWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        isBasicPlan ? 'Basic plan dashboard' : 'Project dashboard',
+                        isBasicPlan
+                            ? 'Basic plan dashboard'
+                            : 'Project dashboard',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,

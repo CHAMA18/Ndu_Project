@@ -36,6 +36,7 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 enum _MissingStakeholderAction { manual, autoFill, skip }
 
 class _StakeholderAutoFillPreviewRow {
@@ -244,23 +245,26 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: isMobile ? _buildMobileDrawer() : null,
-      body: Stack(
-        children: [
-          Column(children: [
-            BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(
-                child: Row(children: [
-              DraggableSidebar(
-                openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(
-                    activeItemLabel: 'Core Stakeholders'),
-              ),
-              Expanded(child: _buildMainContent()),
-            ])),
-          ]),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(children: [
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+              Expanded(
+                  child: Row(children: [
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel: 'Core Stakeholders'),
+                ),
+                Expanded(child: _buildMainContent()),
+              ])),
+            ]),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -429,8 +433,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -466,8 +469,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -501,8 +503,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -541,8 +542,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -579,8 +579,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -761,8 +760,8 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                                   fallback:
                                       'Identify key stakeholders especially if External, Regulatory, Governmental, etc.',
                                   category: 'business_case',
-                                  style: TextStyle(
-                                      fontSize: 14, color: gray500),
+                                  style:
+                                      TextStyle(fontSize: 14, color: gray500),
                                 ),
                               ],
                             ),
@@ -793,8 +792,8 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                           decoration: BoxDecoration(
                               color: Colors.red.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(6),
-                              border:
-                                  Border.all(color: Colors.red.withOpacity(0.3))),
+                              border: Border.all(
+                                  color: Colors.red.withOpacity(0.3))),
                           child: Row(children: [
                             const Icon(Icons.error_outline,
                                 color: Colors.red, size: 18),
@@ -857,8 +856,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                             // Notes textarea
                             Container(
                               width: double.infinity,
-                              constraints:
-                                  const BoxConstraints(minHeight: 100),
+                              constraints: const BoxConstraints(minHeight: 100),
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -869,9 +867,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                                 controller: _notesController,
                                 keyboardType: TextInputType.multiline,
                                 style: TextStyle(
-                                    fontSize: 14,
-                                    color: gray700,
-                                    height: 1.5),
+                                    fontSize: 14, color: gray700, height: 1.5),
                                 decoration: InputDecoration(
                                     hintText: 'Input your notes here...',
                                     hintStyle:
@@ -918,8 +914,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                             padding: const EdgeInsets.only(bottom: 20),
                             decoration: const BoxDecoration(
                               border: Border(
-                                bottom: BorderSide(
-                                    color: gray200, width: 1),
+                                bottom: BorderSide(color: gray200, width: 1),
                               ),
                             ),
                             child: Column(
@@ -932,8 +927,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                                       height: 20,
                                       decoration: BoxDecoration(
                                         color: brandYellow,
-                                        borderRadius:
-                                            BorderRadius.circular(2),
+                                        borderRadius: BorderRadius.circular(2),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -970,8 +964,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                             padding: const EdgeInsets.only(bottom: 20),
                             decoration: const BoxDecoration(
                               border: Border(
-                                bottom: BorderSide(
-                                    color: gray200, width: 1),
+                                bottom: BorderSide(color: gray200, width: 1),
                               ),
                             ),
                             child: Column(
@@ -984,8 +977,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                                       height: 20,
                                       decoration: BoxDecoration(
                                         color: brandYellow,
-                                        borderRadius:
-                                            BorderRadius.circular(2),
+                                        borderRadius: BorderRadius.circular(2),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -1021,8 +1013,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                           if (_canUseAdminControls)
                             Row(children: [
                               Tooltip(
-                                message:
-                                    'Add a new stakeholder entry manually',
+                                message: 'Add a new stakeholder entry manually',
                                 child: const Icon(Icons.lightbulb_outline,
                                     color: Colors.black87),
                               ),
@@ -1038,8 +1029,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 20, vertical: 12),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12)),
+                                      borderRadius: BorderRadius.circular(12)),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -1643,9 +1633,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
           // Uppercase stakeholder type label
           Text(
-            isInternal
-                ? 'INTERNAL STAKEHOLDERS'
-                : 'EXTERNAL STAKEHOLDERS',
+            isInternal ? 'INTERNAL STAKEHOLDERS' : 'EXTERNAL STAKEHOLDERS',
             style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,

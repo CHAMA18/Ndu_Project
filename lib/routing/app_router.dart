@@ -950,44 +950,47 @@ class _RouteNotFound extends StatelessWidget {
     final hasEmail = user?.email != null && user!.email!.isNotEmpty;
 
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.travel_explore,
-                        color: t.colorScheme.primary, size: 32),
-                    const SizedBox(width: 12),
-                    Text('Page not found', style: t.textTheme.titleLarge),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                    'We couldn\'t find "$path". Check the URL or use navigation.',
-                    style: t.textTheme.bodyMedium),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () {
-                    if (isAdminDomain) {
-                      if (hasEmail) {
-                        context.go('/${AppRoutes.adminHome}');
+      body: SafeArea(
+        top: true,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.travel_explore,
+                          color: t.colorScheme.primary, size: 32),
+                      const SizedBox(width: 12),
+                      Text('Page not found', style: t.textTheme.titleLarge),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                      'We couldn\'t find "$path". Check the URL or use navigation.',
+                      style: t.textTheme.bodyMedium),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () {
+                      if (isAdminDomain) {
+                        if (hasEmail) {
+                          context.go('/${AppRoutes.adminHome}');
+                        } else {
+                          context.go('/${AppRoutes.signIn}');
+                        }
                       } else {
-                        context.go('/${AppRoutes.signIn}');
+                        context.go('/${AppRoutes.dashboard}');
                       }
-                    } else {
-                      context.go('/${AppRoutes.dashboard}');
-                    }
-                  },
-                  icon: const Icon(Icons.dashboard),
-                  label: const Text('Go to dashboard'),
-                )
-              ],
+                    },
+                    icon: const Icon(Icons.dashboard),
+                    label: const Text('Go to dashboard'),
+                  )
+                ],
+              ),
             ),
           ),
         ),
