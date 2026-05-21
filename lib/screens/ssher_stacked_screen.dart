@@ -44,6 +44,8 @@ class _Palette {
   static const Color errorContainer = Color(0xFFFFDAD6);
   static const Color onErrorContainer = Color(0xFF93000A);
   static const Color primaryFixed = Color(0xFFD6E3FF);
+  static const Color secondaryContainer = Color(0xFFE8DEF8);
+  static const Color onSecondaryContainer = Color(0xFF1D192B);
   static const Color headerBg = Color(0xFF1C1B1B);
 }
 
@@ -615,13 +617,13 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
       height: 64,
       decoration: const BoxDecoration(
         color: _Palette.headerBg,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3))],
       ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-            icon: const Icon(Icons.menu, color: _Palette.primaryFixed),
+            icon: const Icon(Icons.menu, color: _Palette.primaryFixed, size: 26),
             tooltip: 'Menu',
           ),
           const Expanded(
@@ -632,7 +634,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   color: _Palette.tertiaryFixedDim,
-                  letterSpacing: -0.5,
+                  letterSpacing: 1.5,
                 ),
               ),
             ),
@@ -731,8 +733,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               ),
             ),
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Icon(Icons.chevron_right, size: 16, color: _Palette.onSurfaceVariant),
+              padding: EdgeInsets.symmetric(horizontal: 2),
+              child: Icon(Icons.chevron_right, size: 14, color: _Palette.onSurfaceVariant),
             ),
             GestureDetector(
               onTap: () => Navigator.of(context).pop(),
@@ -747,14 +749,14 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               ),
             ),
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Icon(Icons.chevron_right, size: 16, color: _Palette.onSurfaceVariant),
+              padding: EdgeInsets.symmetric(horizontal: 2),
+              child: Icon(Icons.chevron_right, size: 14, color: _Palette.onSurfaceVariant),
             ),
             const Text(
               'SSHE Planning',
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.05,
                 color: _Palette.onBackground,
               ),
@@ -769,13 +771,13 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
   Widget _buildContextSection(bool allowCsv, bool isMobile) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          isMobile ? 16 : 0, isMobile ? 12 : 0, isMobile ? 16 : 0, 0),
+          isMobile ? 16 : 0, isMobile ? 16 : 0, isMobile ? 16 : 0, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Text(
@@ -785,6 +787,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                     fontWeight: FontWeight.w700,
                     color: _Palette.onBackground,
                     letterSpacing: isMobile ? -0.02 : 0,
+                    height: 1.2,
                   ),
                 ),
               ),
@@ -792,20 +795,18 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               if (isMobile)
                 OutlinedButton.icon(
                   onPressed: _downloadAll,
-                  icon: const Icon(Icons.download, size: 18),
-                  label: const Text('PDF'),
+                  icon: const Icon(Icons.download, size: 16),
+                  label: const Text('PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _Palette.onSurface,
                     side: const BorderSide(color: _Palette.outlineVariant),
                     backgroundColor: _Palette.surfaceContainerLowest,
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
-                    textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.05),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 )
               else
@@ -828,13 +829,14 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             'Identify and mitigate Safety, Security, Health, and Environmental risks for this project.',
             style: TextStyle(
               fontSize: isMobile ? 14 : 15,
               color: _Palette.onSurfaceVariant,
               height: 1.5,
+              letterSpacing: 0.01,
             ),
           ),
         ],
@@ -851,12 +853,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
         decoration: BoxDecoration(
           color: _Palette.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _Palette.surfaceVariant.withValues(alpha: 0.5)),
+          border: Border.all(color: _Palette.surfaceVariant),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
-              offset: const Offset(0, 2),
+              offset: const Offset(0, 1),
             ),
           ],
         ),
@@ -867,20 +869,20 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
             children: [
               Row(
                 children: [
-                  const Icon(Icons.notes, size: 18, color: _Palette.outline),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.notes, size: 16, color: _Palette.outline),
+                  const SizedBox(width: 6),
                   const Text(
                     'General Notes',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.05,
-                      color: _Palette.onSurface,
+                      color: _Palette.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               TextField(
                 controller: _notesController,
                 maxLines: 2,
@@ -905,10 +907,10 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide:
-                        const BorderSide(color: _Palette.primaryContainer, width: 2),
+                        const BorderSide(color: _Palette.primaryContainer, width: 1.5),
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      const EdgeInsets.all(12),
                 ),
                 style: const TextStyle(
                   fontSize: 14,
@@ -940,7 +942,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
             )
           : null,
       padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 16 : 0, vertical: isMobile ? 8 : 16),
+          horizontal: isMobile ? 16 : 0, vertical: isMobile ? 12 : 16),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -962,7 +964,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                        horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? _Palette.primaryContainer
@@ -986,16 +988,16 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(icon,
-                            size: 18,
+                            size: 16,
                             color: isSelected
                                 ? Colors.white
                                 : _Palette.onSurfaceVariant,
                             fill: isSelected ? 1.0 : 0.0),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           label,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: isSelected
                                 ? Colors.white
@@ -1068,8 +1070,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               Text(
                 '$label Items',
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                   color: _Palette.onSurface,
                   letterSpacing: -0.01,
                 ),
@@ -1077,10 +1079,10 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               const SizedBox(width: 8),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
                   color: _Palette.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   '$count',
@@ -1099,12 +1101,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
             child: Row(
               children: [
                 Icon(Icons.add_circle,
-                    size: 20, color: _Palette.primary),
+                    size: 18, color: _Palette.primary),
                 const SizedBox(width: 4),
                 Text(
                   'Add Item',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: _Palette.primary,
                   ),
@@ -1125,6 +1127,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     final Color riskBadgeText;
     final IconData riskIcon;
     final String riskLabel;
+    final Color avatarBg;
+    final Color avatarText;
 
     switch (riskLevel) {
       case 'high':
@@ -1133,6 +1137,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
         riskBadgeText = _Palette.onErrorContainer;
         riskIcon = Icons.warning;
         riskLabel = 'High Risk';
+        avatarBg = _Palette.primaryContainer;
+        avatarText = Colors.white;
         break;
       case 'medium':
         accentLineColor = _Palette.tertiaryFixedDim;
@@ -1140,6 +1146,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
         riskBadgeText = _Palette.tertiaryContainer;
         riskIcon = Icons.info;
         riskLabel = 'Medium Risk';
+        avatarBg = _Palette.secondaryContainer;
+        avatarText = _Palette.onSecondaryContainer;
         break;
       default:
         accentLineColor = _Palette.surfaceVariant;
@@ -1147,6 +1155,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
         riskBadgeText = _Palette.onSurfaceVariant;
         riskIcon = Icons.check_circle;
         riskLabel = 'Low Risk';
+        avatarBg = _Palette.surfaceDim;
+        avatarText = _Palette.onSurfaceVariant;
     }
 
     // Get assignee initials
@@ -1161,16 +1171,16 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     final isUnassigned = assigneeName.isEmpty;
 
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: _Palette.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: _Palette.surfaceVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _Palette.surfaceVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1186,15 +1196,15 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               decoration: BoxDecoration(
                 color: accentLineColor,
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
+                  topLeft: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
                 ),
               ),
             ),
           ),
           // Card content
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1213,15 +1223,15 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: _Palette.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   entry.department.toUpperCase(),
                                   style: const TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.08,
                                     color: _Palette.onSurfaceVariant,
@@ -1230,20 +1240,20 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: riskBadgeBg,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(riskIcon, size: 14, color: riskBadgeText),
+                                    Icon(riskIcon, size: 13, color: riskBadgeText),
                                     const SizedBox(width: 4),
                                     Text(
                                       riskLabel.toUpperCase(),
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         letterSpacing: 0.08,
                                         color: riskBadgeText,
@@ -1254,7 +1264,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           // Concern title
                           Text(
                             entry.concern.isNotEmpty
@@ -1264,13 +1274,16 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: _Palette.onBackground,
+                              height: 1.3,
                             ),
                           ),
                         ],
                       ),
                     ),
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: _Palette.outline),
+                      icon: const Icon(Icons.more_vert, color: _Palette.outline, size: 22),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                       onSelected: (value) {
                         if (value == 'edit') _editEntry(entry);
                         if (value == 'delete') _deleteEntry(entry);
@@ -1297,7 +1310,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 // Mitigation Strategy
                 const Text(
@@ -1309,7 +1322,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                     color: _Palette.outline,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
@@ -1331,19 +1344,20 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                       fontStyle: entry.mitigation.isNotEmpty
                           ? FontStyle.normal
                           : FontStyle.italic,
+                      height: 1.45,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 // Assignee row
                 Container(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: 14),
                   decoration: const BoxDecoration(
                     border: Border(
                       top: BorderSide(
-                          color: _Palette.surfaceVariant, width: 0.5),
+                          color: _Palette.surfaceVariant, width: 1.0),
                     ),
                   ),
                   child: Row(
@@ -1355,23 +1369,23 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                         decoration: BoxDecoration(
                           color: isUnassigned
                               ? _Palette.surfaceDim
-                              : _Palette.primaryContainer,
+                              : avatarBg,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
                           child: Text(
                             initials,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: isUnassigned
                                   ? _Palette.onSurfaceVariant
-                                  : Colors.white,
+                                  : avatarText,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1379,16 +1393,17 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                             const Text(
                               'Assignee',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.05,
                                 color: _Palette.outline,
                               ),
                             ),
+                            const SizedBox(height: 1),
                             Text(
                               isUnassigned ? 'Unassigned' : assigneeName,
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 color: isUnassigned
                                     ? _Palette.outline
                                     : _Palette.onSurface,
@@ -1414,6 +1429,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
+                              letterSpacing: 0.05,
                             ),
                           ),
                         ),
@@ -1606,26 +1622,49 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
       child: SizedBox(
         width: double.infinity,
         height: 56,
-        child: ElevatedButton(
-          onPressed: () =>
+        child: _ScaleOnTap(
+          onTap: () =>
               PlanningPhaseNavigation.goToNext(context, 'ssher'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _Palette.tertiaryFixedDim,
-            foregroundColor: _Palette.onTertiaryFixed,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            elevation: 1,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Save & Continue to Next Phase',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _Palette.tertiaryFixedDim,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: _Palette.tertiaryFixedDim.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: () =>
+                    PlanningPhaseNavigation.goToNext(context, 'ssher'),
+                borderRadius: BorderRadius.circular(12),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Save & Continue to Next Phase',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: _Palette.onTertiaryFixed,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward,
+                          size: 20, color: _Palette.onTertiaryFixed),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward, size: 20),
-            ],
+            ),
           ),
         ),
       ),
@@ -1690,5 +1729,49 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     );
     if (result == null) return;
     await _addEntry(_selectedCategory, result);
+  }
+}
+
+// ── Scale-on-tap widget for press effect ──
+class _ScaleOnTap extends StatefulWidget {
+  final VoidCallback onTap;
+  final Widget child;
+  const _ScaleOnTap({required this.onTap, required this.child});
+  @override
+  State<_ScaleOnTap> createState() => _ScaleOnTapState();
+}
+
+class _ScaleOnTapState extends State<_ScaleOnTap>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 100));
+    _scale = Tween<double>(begin: 1.0, end: 0.95).animate(_ctrl);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) => _ctrl.forward();
+  void _onTapUp(TapUpDetails _) => _ctrl.reverse();
+  void _onTapCancel() => _ctrl.reverse();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: widget.onTap,
+      child: ScaleTransition(scale: _scale, child: widget.child),
+    );
   }
 }
