@@ -4,6 +4,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -125,17 +126,35 @@ class _AiRecommendationsScreenState extends State<AiRecommendationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     return ResponsiveScaffold(
       activeItemLabel: 'AI Recommendations',
+      appBarTitle: 'AI Recommendations',
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (!isMobile)
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Expanded(
                     child: Text('AI Recommendations', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                   ),
+                  PageRegenerateAllButton(
+                    onRegenerateAll: () async {
+                      final confirmed = await showRegenerateAllConfirmation(context);
+                      if (confirmed && mounted) {
+                        await _regenerateAllRecommendations();
+                      }
+                    },
+                    isLoading: _generating,
+                    tooltip: 'Regenerate all AI recommendations',
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(onPressed: _openAdd, child: const Text('Add')),
+                ]),
+                if (isMobile)
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                   PageRegenerateAllButton(
                     onRegenerateAll: () async {
                       final confirmed = await showRegenerateAllConfirmation(context);

@@ -7,6 +7,9 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'dart:math' as math;
 
@@ -361,13 +364,29 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
   Widget build(BuildContext context) {
     final entries = _filteredEntries();
     final stats = _RiskStats.fromEntries(entries);
+    final isMobile = AppBreakpoints.isMobile(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FB),
+      drawer: isMobile
+          ? Drawer(
+              width: AppBreakpoints.sidebarWidth(context),
+              child: SafeArea(
+                child: InitiationLikeSidebar(
+                  activeItemLabel: 'Risk Assessment',
+                  showHeader: true,
+                ),
+              ),
+            )
+          : null,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          _buildMobileHeader(),
+          UnifiedPhaseHeader(
+            title: 'Risk Mitigation',
+            onBackPressed: () => PlanningPhaseNavigation.goToPrevious(context, 'risk_assessment'),
+            onForwardPressed: () => PlanningPhaseNavigation.goToNext(context, 'risk_assessment'),
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),

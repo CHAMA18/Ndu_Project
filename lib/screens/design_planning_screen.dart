@@ -21,6 +21,8 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 // import 'package:ndu_project/widgets/launch_phase_navigation.dart'; // removed: UI redesign
 // import 'package:ndu_project/widgets/planning_phase_header.dart'; // removed: UI redesign
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 // import 'package:ndu_project/widgets/responsive_scaffold.dart'; // removed: UI redesign
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -1674,13 +1676,28 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
   Widget build(BuildContext context) {
     final projectData = ProjectDataHelper.getData(context);
     final owners = _ownerOptions(projectData);
+    final isMobile = AppBreakpoints.isMobile(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
+      drawer: isMobile
+          ? Drawer(
+              width: AppBreakpoints.sidebarWidth(context),
+              child: SafeArea(
+                child: InitiationLikeSidebar(
+                  activeItemLabel: 'Design Planning',
+                  showHeader: true,
+                ),
+              ),
+            )
+          : null,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          _buildMobileHeader(projectData),
+          UnifiedPhaseHeader(
+            title: 'Design Planning',
+            onBackPressed: () => Navigator.maybePop(context),
+          ),
           _buildPageContext(projectData),
           Expanded(
             child: SingleChildScrollView(

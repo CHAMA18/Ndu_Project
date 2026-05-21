@@ -262,6 +262,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Project Charter',
+      appBarTitle: 'Project Charter',
       backgroundColor: const Color(0xFFF5F5F5),
       body: _isGenerating
           ? Center(
@@ -286,6 +287,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Header with title and regenerate button
+                  if (!isMobile)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -312,6 +314,20 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                       ),
                     ],
                   ),
+                  if (isMobile)
+                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    PageRegenerateAllButton(
+                      onRegenerateAll: () async {
+                        final confirmed =
+                            await showRegenerateAllConfirmation(context);
+                        if (confirmed && mounted) {
+                          await _regenerateAllCharter();
+                        }
+                      },
+                      isLoading: _isGenerating,
+                      tooltip: 'Regenerate all charter content',
+                    ),
+                  ]),
                   const SizedBox(height: 24),
                   // Main Charter Content - Two Column Layout
                   _buildCharterContent(isMobile),

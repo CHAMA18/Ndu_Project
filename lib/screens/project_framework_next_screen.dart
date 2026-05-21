@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
@@ -352,6 +353,17 @@ class _ProjectFrameworkNextScreenState
     final isMobile = AppBreakpoints.isMobile(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      drawer: isMobile
+          ? Drawer(
+              width: AppBreakpoints.sidebarWidth(context),
+              child: SafeArea(
+                child: InitiationLikeSidebar(
+                  activeItemLabel: 'Project Goals & Milestones',
+                  showHeader: true,
+                ),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +376,13 @@ class _ProjectFrameworkNextScreenState
             Expanded(
               child: Column(
                 children: [
-                  _buildMobileHeader(),
+                  UnifiedPhaseHeader(
+                    title: 'Project Goals & Milestones',
+                    onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+                        context, 'project_goals_milestones'),
+                    onForwardPressed: () => PlanningPhaseNavigation.goToNext(
+                        context, 'project_goals_milestones'),
+                  ),
                   Expanded(
                     child: Stack(
                       children: [
