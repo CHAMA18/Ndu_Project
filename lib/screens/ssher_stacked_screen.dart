@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/utils/ssher_export_helper.dart';
@@ -560,9 +561,22 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: _Palette.surface,
+      drawer: isMobile
+          ? Drawer(
+              width: AppBreakpoints.sidebarWidth(context),
+              child: SafeArea(
+                child: InitiationLikeSidebar(
+                  activeItemLabel: 'SSHER',
+                  showHeader: true,
+                ),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: StreamBuilder<bool>(
             stream: UserService.watchAdminStatus(),
@@ -570,7 +584,6 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               final isAdmin = snapshot.data ?? false;
               final hostname = getCurrentHostname() ?? '';
               final allowCsv = isAdmin && hostname.startsWith('admin.');
-              final isMobile = AppBreakpoints.isMobile(context);
 
               if (!isMobile) {
                 return _buildDesktopLayout(allowCsv);
@@ -601,64 +614,17 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     );
   }
 
-  // ── Mobile Layout (matches HTML) ──
+  // ── Mobile Layout (matches Risk Mitigation header pattern) ──
   Widget _buildMobileLayout(bool allowCsv) {
     return Column(
       children: [
-        _buildMobileHeader(),
+        UnifiedPhaseHeader(
+          title: 'SSHE Planning',
+          onBackPressed: () => PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
+          onForwardPressed: () => PlanningPhaseNavigation.goToNext(context, 'ssher'),
+        ),
         Expanded(child: _buildMainContent(allowCsv)),
       ],
-    );
-  }
-
-  // ── Mobile TopAppBar (matching HTML header) ──
-  Widget _buildMobileHeader() {
-    return Container(
-      height: 64,
-      decoration: const BoxDecoration(
-        color: _Palette.headerBg,
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3))],
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-            icon: const Icon(Icons.menu, color: _Palette.primaryFixed, size: 26),
-            tooltip: 'Menu',
-          ),
-          const Expanded(
-            child: Center(
-              child: Text(
-                'NDUPROJECT',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: _Palette.tertiaryFixedDim,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-          ),
-          StreamBuilder<bool>(
-            stream: UserService.watchAdminStatus(),
-            builder: (context, snapshot) {
-              final user = FirebaseAuth.instance.currentUser;
-              final photoUrl = user?.photoURL ?? '';
-              return IconButton(
-                onPressed: () {},
-                icon: photoUrl.isNotEmpty
-                    ? CircleAvatar(
-                        radius: 16,
-                        backgroundImage: NetworkImage(photoUrl),
-                      )
-                    : const Icon(Icons.account_circle,
-                        color: _Palette.primaryFixed, size: 28),
-                tooltip: 'Profile',
-              );
-            },
-          ),
-        ],
-      ),
     );
   }
 

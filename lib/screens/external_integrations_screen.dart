@@ -3,6 +3,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
+import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/ai_regenerate_undo_buttons.dart';
 
@@ -140,13 +141,16 @@ class _ExternalIntegrationsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     return ResponsiveScaffold(
       activeItemLabel: 'External Integrations',
+      appBarTitle: 'External Integrations',
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (!isMobile)
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -171,6 +175,19 @@ class _ExternalIntegrationsScreenState
                             onPressed: _openAdd, child: const Text('Add')),
                       ])
                     ]),
+                if (isMobile)
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  AiRegenerateUndoButtons(
+                    isLoading: _seeding,
+                    canUndo: _undoBeforeAi != null,
+                    canRedo: _redoAfterUndo != null,
+                    onRegenerate: _seed,
+                    onUndo: () { _undoSeed(); },
+                    onRedo: () { _redoSeed(); },
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(onPressed: _openAdd, child: const Text('Add')),
+                ]),
                 const SizedBox(height: 12),
                 Expanded(
                   child: Card(

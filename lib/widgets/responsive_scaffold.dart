@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 /// A responsive scaffold that adapts sidebar behavior based on screen size.
 /// - Desktop/Tablet: Shows sidebar in a Row layout with draggable handle
 /// - Mobile: Hides sidebar and uses a Drawer, with a menu button in the app bar
+///
+/// When [appBarTitle] is provided, a [UnifiedPhaseHeader] is automatically
+/// prepended to the body on mobile, giving users a hamburger menu, navigation
+/// arrows, title and profile avatar – matching the "Risk Mitigation" header
+/// pattern used throughout the app.
 class ResponsiveScaffold extends StatelessWidget {
   const ResponsiveScaffold({
     super.key,
@@ -14,6 +20,9 @@ class ResponsiveScaffold extends StatelessWidget {
     this.backgroundColor,
     this.floatingActionButton,
     this.showSidebar = true,
+    this.appBarTitle,
+    this.onBackPressed,
+    this.onForwardPressed,
   });
 
   /// The main content of the screen
@@ -31,14 +40,45 @@ class ResponsiveScaffold extends StatelessWidget {
   /// Whether to show the sidebar at all (useful for screens that don't need it)
   final bool showSidebar;
 
+  /// When set, a [UnifiedPhaseHeader] is automatically prepended to the body
+  /// on mobile viewports. This provides the hamburger menu, back/forward
+  /// navigation, title and profile avatar. Leave null if the body already
+  /// contains its own navigation header.
+  final String? appBarTitle;
+
+  /// Optional back-navigation callback passed through to [UnifiedPhaseHeader].
+  final VoidCallback? onBackPressed;
+
+  /// Optional forward-navigation callback passed through to [UnifiedPhaseHeader].
+  final VoidCallback? onForwardPressed;
+
+  /// Build the body, optionally wrapping it with a navigation header on mobile.
+  Widget _wrapBody(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    if (!isMobile || appBarTitle == null) return body;
+
+    return Column(
+      children: [
+        UnifiedPhaseHeader(
+          title: appBarTitle!,
+          onBackPressed: onBackPressed,
+          onForwardPressed: onForwardPressed,
+        ),
+        Expanded(child: body),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final bgColor = backgroundColor ?? Theme.of(context).scaffoldBackgroundColor;
 
+    final wrappedBody = _wrapBody(context);
+
     if (isMobile) {
       return _MobileScaffold(
-        body: body,
+        body: wrappedBody,
         activeItemLabel: activeItemLabel,
         backgroundColor: bgColor,
         floatingActionButton: floatingActionButton,
@@ -47,7 +87,7 @@ class ResponsiveScaffold extends StatelessWidget {
     }
 
     return _DesktopScaffold(
-      body: body,
+      body: wrappedBody,
       activeItemLabel: activeItemLabel,
       backgroundColor: bgColor,
       floatingActionButton: floatingActionButton,
