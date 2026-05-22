@@ -774,8 +774,20 @@ class _ProjectDecisionSummaryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     return Scaffold(
       backgroundColor: Colors.white,
+      drawer: isMobile
+          ? Drawer(
+              width: AppBreakpoints.sidebarWidth(context),
+              child: SafeArea(
+                child: InitiationLikeSidebar(
+                  activeItemLabel: 'Preferred Solution',
+                  showHeader: true,
+                ),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -539,6 +539,15 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
   Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: _Tokens.surface,
+      drawer: Drawer(
+        width: AppBreakpoints.sidebarWidth(context),
+        child: SafeArea(
+          child: InitiationLikeSidebar(
+            activeItemLabel: 'Project Details',
+            showHeader: true,
+          ),
+        ),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -877,7 +886,7 @@ class _MobileTopBar extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
+                    onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
                     icon: const Icon(Icons.menu, size: 24),
                     color: _Tokens.onSurface,
                     padding: EdgeInsets.zero,
