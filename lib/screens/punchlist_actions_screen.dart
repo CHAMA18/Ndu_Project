@@ -231,7 +231,12 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Punchlist Actions',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

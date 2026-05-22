@@ -631,6 +631,11 @@ class _FrontEndPlanningRequirementsScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Requirements',
+                      ),
+                    ),
                   const AdminEditToggle(),
                   Column(
                     children: [

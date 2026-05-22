@@ -59,7 +59,12 @@ class WorkBreakdownStructureScreen extends StatelessWidget {
                 Expanded(child: _WorkBreakdownStructureBody()),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Work Breakdown Structure',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),

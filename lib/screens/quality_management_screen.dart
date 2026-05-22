@@ -314,8 +314,80 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final horizontalPadding = AppBreakpoints.isMobile(context) ? 20.0 : 32.0;
+    final isMobile = AppBreakpoints.isMobile(context);
+    final horizontalPadding = isMobile ? 16.0 : 32.0;
 
+    // Mobile: Scaffold with drawer → full-width content
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7FB),
+        drawer: MobileSidebarDrawer(
+          sidebar: const InitiationLikeSidebar(
+            activeItemLabel: 'Quality Management',
+          ),
+        ),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Hamburger + title row for mobile
+                    Row(
+                      children: [
+                        Builder(builder: (ctx) {
+                          return IconButton(
+                            icon: const Icon(Icons.menu,
+                                color: Color(0xFF374151)),
+                            onPressed: () => Scaffold.of(ctx).openDrawer(),
+                            tooltip: 'Open menu',
+                          );
+                        }),
+                        const Expanded(child: _PageHeader()),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const PlanningAiNotesCard(
+                      title: 'Notes',
+                      sectionLabel: 'Quality Management',
+                      noteKey: 'planning_quality_management_notes',
+                      checkpoint: 'quality_management',
+                      description:
+                          'Summarize quality targets, assurance cadence, and control measures.',
+                    ),
+                    const SizedBox(height: 24),
+                    _TabStrip(
+                      selectedTab: _selectedTab,
+                      onSelected: _handleTabSelected,
+                    ),
+                    const SizedBox(height: 28),
+                    _TabContent(selectedTab: _selectedTab),
+                    const SizedBox(height: 28),
+                    _NavigationRow(
+                      onBack: () => PlanningPhaseNavigation.goToPrevious(
+                        context,
+                        'quality_management',
+                      ),
+                      onNext: () => PlanningPhaseNavigation.goToNext(
+                        context,
+                        'quality_management',
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                  ],
+                ),
+              ),
+              const KazAiChatBubble(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Desktop/Tablet: Row with sidebar
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: SafeArea(

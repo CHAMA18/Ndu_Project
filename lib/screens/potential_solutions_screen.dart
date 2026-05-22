@@ -409,7 +409,12 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                 ),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Potential Solutions',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),

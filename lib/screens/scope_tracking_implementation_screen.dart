@@ -300,7 +300,12 @@ class _ScopeTrackingImplementationScreenState
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Scope Tracking Implementation',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

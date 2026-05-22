@@ -212,7 +212,12 @@ class _AgileDevelopmentIterationsScreenState
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Development Iterations',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

@@ -317,7 +317,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                 Expanded(child: _buildMainContent()),
               ])),
             ]),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'IT Considerations',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),

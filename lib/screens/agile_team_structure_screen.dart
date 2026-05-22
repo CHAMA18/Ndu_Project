@@ -258,6 +258,11 @@ class _AgileTeamStructureScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Team Structure',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                     child: Column(

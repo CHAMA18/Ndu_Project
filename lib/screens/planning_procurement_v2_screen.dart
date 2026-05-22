@@ -204,7 +204,12 @@ class _PlanningProcurementV2ScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Planning Procurement',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),

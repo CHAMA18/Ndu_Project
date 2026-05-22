@@ -153,7 +153,12 @@ class _DeliverablesRoadmapDetailedScreenState
               ],
             ),
           ),
-          const KazAiChatBubble(),
+          MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Detailed Deliverables',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         ],
       ),
     );

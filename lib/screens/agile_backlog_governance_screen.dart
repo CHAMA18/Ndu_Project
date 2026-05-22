@@ -235,6 +235,11 @@ class _AgileBacklogGovernanceScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Backlog Governance',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                     child: Column(

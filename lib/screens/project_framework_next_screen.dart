@@ -388,6 +388,11 @@ class _ProjectFrameworkNextScreenState
                   Expanded(
                     child: Stack(
                       children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Goals & Milestones',
+                      ),
+                    ),
                         SingleChildScrollView(
                           padding: const EdgeInsets.only(bottom: 80),
                           child: Padding(

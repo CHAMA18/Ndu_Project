@@ -50,7 +50,12 @@ class DeliverablesRoadmapScreen extends StatelessWidget {
               ],
             ),
           ),
-          const KazAiChatBubble(),
+          MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Deliverables Roadmap',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         ],
       ),
     );

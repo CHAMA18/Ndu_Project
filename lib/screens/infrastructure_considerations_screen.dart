@@ -305,7 +305,12 @@ class _InfrastructureConsiderationsScreenState
                 Expanded(child: _buildMainContent()),
               ])),
             ]),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Infrastructure Considerations',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),

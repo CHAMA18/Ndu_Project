@@ -132,7 +132,12 @@ class _DocumentReviewMatrixScreenState extends State<DocumentReviewMatrixScreen>
               ],
             ),
           ),
-          const KazAiChatBubble(),
+          MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Document Review Matrix',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         ],
       ),
     );

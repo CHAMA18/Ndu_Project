@@ -1265,7 +1265,12 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                 ),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Business Case Detail',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
             const AdminEditToggle(),
             // Loading overlay for AI generation
             if (_isGeneratingAI)

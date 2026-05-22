@@ -477,6 +477,11 @@ class _OrganizationStaffingPlanScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Organization Plan - Staffing Plan',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),
@@ -879,6 +884,11 @@ class _PlanningSubsectionScreen extends StatelessWidget {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Organization Plan - Staffing Plan',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),

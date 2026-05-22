@@ -535,6 +535,11 @@ Opportunity generation constraints:
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Opportunities',
+                      ),
+                    ),
                   const AdminEditToggle(),
                   Column(
                     children: [

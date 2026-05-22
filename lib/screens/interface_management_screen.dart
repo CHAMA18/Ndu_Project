@@ -100,6 +100,11 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Interface Management',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),

@@ -256,7 +256,12 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Plan',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

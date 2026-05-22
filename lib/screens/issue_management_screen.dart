@@ -242,7 +242,12 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Issue Management',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

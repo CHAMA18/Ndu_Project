@@ -608,7 +608,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
             Expanded(child: _buildMainContent(allowCsv)),
           ],
         ),
-        const KazAiChatBubble(),
+        MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'SSHER',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         const AdminEditToggle(),
       ],
     );

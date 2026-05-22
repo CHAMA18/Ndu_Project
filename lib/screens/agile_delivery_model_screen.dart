@@ -224,6 +224,11 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Delivery Model',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                     child: Column(

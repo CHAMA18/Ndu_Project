@@ -2458,7 +2458,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Schedule',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),

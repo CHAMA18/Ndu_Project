@@ -805,7 +805,12 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Details',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

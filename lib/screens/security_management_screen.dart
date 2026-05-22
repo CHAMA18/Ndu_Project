@@ -380,7 +380,12 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Security Management',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

@@ -239,7 +239,12 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
               ],
             ),
           ),
-          const KazAiChatBubble(),
+          MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Lessons Learned',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         ],
       ),
     );

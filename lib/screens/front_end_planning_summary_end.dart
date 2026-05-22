@@ -74,7 +74,12 @@ class _FrontEndPlanningSummaryEndScreenState extends State<FrontEndPlanningSumma
                     ],
                   ),
                   const _BottomOverlay(),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Summary',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

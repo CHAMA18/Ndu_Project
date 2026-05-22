@@ -569,7 +569,12 @@ class _FrontEndPlanningContractsScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -1202,7 +1207,12 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -1447,7 +1457,12 @@ class _ContractingStrategyScreenState extends State<ContractingStrategyScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -4298,7 +4313,12 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -4833,7 +4853,12 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -5245,7 +5270,12 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),

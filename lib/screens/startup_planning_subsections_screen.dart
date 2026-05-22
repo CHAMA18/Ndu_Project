@@ -456,6 +456,11 @@ class _StartUpPlanningDetailScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Start-Up Planning - Operations Plan and Manual',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: horizontalPadding,

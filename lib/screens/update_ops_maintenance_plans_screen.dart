@@ -336,7 +336,12 @@ class _UpdateOpsMaintenancePlansScreenState
               _buildMobileLayout(hPad, projectId)
             else
               _buildDesktopLayout(hPad, projectId),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Update Ops and Maintenance Plans',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),

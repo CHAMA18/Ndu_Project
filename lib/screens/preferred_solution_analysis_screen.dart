@@ -576,7 +576,12 @@ class _PreferredSolutionAnalysisScreenState
                 Expanded(child: _buildMainContent()),
               ])),
             ]),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Preferred Solution Analysis',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),

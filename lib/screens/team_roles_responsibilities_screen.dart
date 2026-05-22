@@ -419,7 +419,12 @@ class _TeamRolesResponsibilitiesScreenState
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Roles & Responsibilities',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

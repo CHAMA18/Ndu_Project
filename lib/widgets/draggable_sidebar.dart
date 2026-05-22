@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 /// Sidebar wrapper with a draggable handle to collapse or expand it.
+///
+/// On mobile (< 768px), this widget takes **zero horizontal space** and renders
+/// nothing in the layout. Use [MobileSidebarHamburger] as a floating overlay
+/// in a Stack, or use [Scaffold.drawer] with [MobileSidebarDrawer] instead.
+///
+/// On tablet/desktop, the sidebar sits in a Row with a draggable resize handle.
 class DraggableSidebar extends StatefulWidget {
   const DraggableSidebar({
     super.key,
@@ -36,7 +42,6 @@ class _DraggableSidebarState extends State<DraggableSidebar> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.openWidth != widget.openWidth ||
         oldWidget.collapsedWidth != widget.collapsedWidth) {
-      // Clamp the current/shared width to the new constraints
       final double baseWidth = (_sharedWidth ?? _currentWidth);
       _currentWidth = baseWidth
           .clamp(widget.collapsedWidth, widget.openWidth);
@@ -47,7 +52,6 @@ class _DraggableSidebarState extends State<DraggableSidebar> {
   @override
   void initState() {
     super.initState();
-    // Initialize from shared width if available; otherwise start open.
     _currentWidth = (_sharedWidth ?? widget.openWidth)
         .clamp(widget.collapsedWidth, widget.openWidth);
   }
@@ -101,16 +105,10 @@ class _DraggableSidebarState extends State<DraggableSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    // On mobile: take zero horizontal space so content extends full-width.
+    // Use MobileSidebarHamburger or Scaffold.drawer instead.
     if (AppBreakpoints.isMobile(context)) {
-      return Container(
-        width: 48,
-        alignment: Alignment.topCenter,
-        child: IconButton(
-          icon: const Icon(Icons.menu, color: Color(0xFF374151)),
-          onPressed: _openMobileMenu,
-          tooltip: 'Open menu',
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     final bool collapsed = _isCollapsed;
@@ -172,6 +170,115 @@ class _DraggableSidebarState extends State<DraggableSidebar> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A floating hamburger button for mobile screens that opens a bottom sheet
+/// with the sidebar content. Place this as a positioned overlay in a Stack.
+///
+/// Example:
+/// ```dart
+/// Stack(
+///   children: [
+///     // Full-width content
+///     SingleChildScrollView(...),
+///     // Floating hamburger overlay (mobile only)
+///     const MobileSidebarHamburger(),
+///     const KazAiChatBubble(),
+///   ],
+/// )
+/// ```
+class MobileSidebarHamburger extends StatelessWidget {
+  const MobileSidebarHamburger({
+    super.key,
+    required this.sidebar,
+  });
+
+  /// The sidebar widget to show in the bottom sheet.
+  final Widget sidebar;
+
+  @override
+  Widget build(BuildContext context) {
+    // Only show on mobile
+    if (!AppBreakpoints.isMobile(context)) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      top: 8,
+      left: 8,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.white,
+                shape: const RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                builder: (context) {
+                  final height = MediaQuery.sizeOf(context).height * 0.92;
+                  return SafeArea(
+                    child: SizedBox(
+                      height: height,
+                      child: sidebar,
+                    ),
+                  );
+                },
+              );
+            },
+            child: const Padding(
+              padding: EdgeInsets.all(10),
+              child: Icon(Icons.menu, color: Color(0xFF374151), size: 24),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A drawer widget for mobile screens. Use with Scaffold.drawer.
+///
+/// Example:
+/// ```dart
+/// Scaffold(
+///   drawer: MobileSidebarDrawer(
+///     sidebar: InitiationLikeSidebar(activeItemLabel: 'Quality Management'),
+///   ),
+///   body: ...,
+/// )
+/// ```
+class MobileSidebarDrawer extends StatelessWidget {
+  const MobileSidebarDrawer({
+    super.key,
+    required this.sidebar,
+  });
+
+  final Widget sidebar;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: AppBreakpoints.sidebarWidth(context),
+      child: sidebar,
     );
   }
 }
