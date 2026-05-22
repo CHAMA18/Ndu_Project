@@ -5,7 +5,6 @@ import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/theme.dart';
-import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -107,18 +106,10 @@ class _LandingScreenState extends State<LandingScreen>
     }
     _lastWorkflowTap = now;
 
-    if (_workflowTapCount >= 5) {
+    // Triple-tap Easter egg: navigate to the authenticate (sign-in) screen
+    if (_workflowTapCount >= 3) {
       _workflowTapCount = 0;
-      // Domain-aware source code navigation:
-      // - staging.nduproject.com (or any non-admin host) → User source code
-      // - admin.nduproject.com → Admin source code
-      if (AccessPolicy.isRestrictedAdminHost()) {
-        // Admin domain: open admin source code repository
-        launchUrl(Uri.parse('https://github.com/CHAMA18/Ndu_Project'));
-      } else {
-        // User/staging domain: open user source code repository
-        launchUrl(Uri.parse('https://github.com/NduProject/NDU-Project'));
-      }
+      context.go('/${AppRoutes.signIn}');
       return;
     }
 
@@ -740,7 +731,7 @@ class _LandingScreenState extends State<LandingScreen>
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             ),
             OutlinedButton(
-              onPressed: () => _scrollTo(_howItWorksKey),
+              onPressed: _handleWorkflowTap,
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white.withValues(alpha: 0.92),
                 padding:
@@ -1481,13 +1472,17 @@ class _LandingScreenState extends State<LandingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'How Ndu Project Delivers Results',
-            style: TextStyle(
-              fontSize: wideLayout ? 38 : 28,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              height: 1.15,
+          GestureDetector(
+            onTap: _handleWorkflowTap,
+            behavior: HitTestBehavior.opaque,
+            child: Text(
+              'How Ndu Project Delivers Results',
+              style: TextStyle(
+                fontSize: wideLayout ? 38 : 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                height: 1.15,
+              ),
             ),
           ),
           const SizedBox(height: 48),
