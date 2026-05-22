@@ -79,9 +79,28 @@ class OpenAiConfig {
   /// When the proxy receives `workflow_id: 'none'`, it evaluates to a truthy
   /// string but does NOT start with 'wf_', so `getConfiguredOpenAiWorkflowId`
   /// returns '' and the request goes directly to OpenAI.
+  ///
+  /// For reasoning models (o3, o4, o1), this also converts:
+  /// - `max_tokens` → `max_completion_tokens` (required by reasoning models)
+  /// - `max_output_tokens` → `max_completion_tokens` (required by reasoning models)
+  /// Reasoning models reject `max_tokens` and `max_output_tokens` with 400 errors.
   static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
-    if (!_isProxyEndpoint) return body;
-    return {...body, 'workflow_id': 'none'};
+    final result = Map<String, dynamic>.from(body);
+
+    // Convert token limit parameters for reasoning models
+    if (SecureAPIConfig.isReasoningModel) {
+      // max_tokens → max_completion_tokens
+      if (result.containsKey('max_tokens')) {
+        result['max_completion_tokens'] = result.remove('max_tokens');
+      }
+      // max_output_tokens → max_completion_tokens
+      if (result.containsKey('max_output_tokens')) {
+        result['max_completion_tokens'] = result.remove('max_output_tokens');
+      }
+    }
+
+    if (!_isProxyEndpoint) return result;
+    return {...result, 'workflow_id': 'none'};
   }
 
   /// Helpful diagnostic used by UI to provide actionable error messages

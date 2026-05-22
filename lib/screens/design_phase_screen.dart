@@ -76,6 +76,9 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
   DateTime? _lastSavedAt;
   Timer? _saveDebounce;
 
+  // UI state
+  bool _showProgressCard = true;
+
   DesignTool _activeTool =
       kIsWeb ? DesignTool.richText : DesignTool.architecture;
   late final TextEditingController _richTextController;
@@ -429,76 +432,84 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       breadcrumbPhase: 'Design Phase',
       breadcrumbTitle: 'Design Management',
       onItemSelected: _openStableDesignItem,
-      child: ListView(
-        padding: EdgeInsets.all(padding),
-        children: [
-          // ── 1. Design Readiness Progress Card ──────────────────────────
-          _buildReadinessProgressCard(),
-          const SizedBox(height: 20),
+      child: Container(
+        color: const Color(0xFFF7F9FB),
+        child: ListView(
+          padding: EdgeInsets.all(padding),
+          children: [
+            // ── 1. Design Readiness Progress Card ──────────────────────────
+            if (_showProgressCard) _buildReadinessProgressCard(),
+            if (_showProgressCard) const SizedBox(height: 20),
 
-          // ── 2. Notes Section ───────────────────────────────────────────
-          _buildStableNotesCard(),
-          const SizedBox(height: 24),
+            // ── 2. Notes Section ───────────────────────────────────────────
+            _buildStableNotesCard(),
+            const SizedBox(height: 24),
 
-          // ── 3. Design Management Heading ───────────────────────────────
-          const Text(
-            'Design Management',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF111827),
+            // ── 3. Design Management Heading ───────────────────────────────
+            const Text(
+              'Design Management',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF111827),
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Develop project design documentation',
-            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 20),
-
-          // ── 4. Design Strategy & Governance ────────────────────────────
-          _buildStableStrategySection(),
-          const SizedBox(height: 24),
-
-          // ── 5. Two-Column Cards: Design Documents + Design Tools ───────
-          _buildStableDocumentToolCards(),
-          const SizedBox(height: 24),
-
-          // ── 6. System Architecture Section ─────────────────────────────
-          _buildStableSystemArchitecture(),
-          const SizedBox(height: 24),
-
-          // ── 7. Design Tools & Rich Text Editor ─────────────────────────
-          _buildStableDesignToolsEditor(),
-          const SizedBox(height: 24),
-
-          // ── 8. Navigation Buttons ──────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppSemanticColors.border),
+            const SizedBox(height: 4),
+            Text(
+              'Develop project design documentation',
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                OutlinedButton(
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  child: const Text('Back: Design overview'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const RequirementsImplementationScreen(),
-                    ),
+            const SizedBox(height: 20),
+
+            // ── 4. Design Strategy & Governance ────────────────────────────
+            _buildStableStrategySection(),
+            const SizedBox(height: 24),
+
+            // ── 5. Two-Column Cards: Design Documents + Design Tools ───────
+            _buildStableDocumentToolCards(),
+            const SizedBox(height: 24),
+
+            // ── 6. System Architecture Section ─────────────────────────────
+            _buildStableSystemArchitecture(),
+            const SizedBox(height: 24),
+
+            // ── 7. Design Tools & Rich Text Editor ─────────────────────────
+            _buildStableDesignToolsEditor(),
+            const SizedBox(height: 24),
+
+            // ── 7.5 Collaborators Section ──────────────────────────────────
+            _buildStableCollaboratorsCard(),
+            const SizedBox(height: 24),
+
+            // ── 8. Navigation Buttons ──────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppSemanticColors.border),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    child: const Text('Back: Design overview'),
                   ),
-                  child: const Text('Next: Requirements Implementation'),
-                ),
-              ],
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const RequirementsImplementationScreen(),
+                      ),
+                    ),
+                    child: const Text('Next: Requirements Implementation'),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -551,31 +562,33 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
                 ? 'In Progress'
                 : 'Early Stages';
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFECACA)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFFECACA)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'PROJECT PROGRESS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey[600],
-                      letterSpacing: 0.8,
-                    ),
-                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PROJECT PROGRESS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey[600],
+                          letterSpacing: 0.8,
+                        ),
+                      ),
                   const SizedBox(height: 6),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -692,6 +705,33 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
           ],
         ],
       ),
+    ),
+    // Close button in top-right corner
+    Positioned(
+      top: 8,
+      right: 8,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _showProgressCard = false),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.8),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.close,
+              size: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+      ),
+    ),
+    ],
     );
   }
 
@@ -1392,6 +1432,129 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     );
   }
 
+  // ── 7.5 Collaborators Card ──────────────────────────────────────────────
+  Widget _buildStableCollaboratorsCard() {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final teamMembers = provider?.projectData.teamMembers ?? [];
+    final hasMembers = teamMembers.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppSemanticColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAF5FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.people_outline,
+                  size: 20,
+                  color: Color(0xFF7C3AED),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Collaborators',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF111827),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Manage team members and external collaborators for the design phase.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 20),
+          if (!hasMembers)
+            Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.people_outline_rounded,
+                    size: 48,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No collaborators added',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...teamMembers.take(5).map((member) {
+              final trimmedName = member.name.trim();
+              final trimmedRole = member.role.trim();
+              final displayName = trimmedName.isNotEmpty
+                  ? trimmedName
+                  : trimmedRole.isNotEmpty
+                      ? trimmedRole
+                      : 'Unassigned team member';
+              final displayRole =
+                  trimmedRole.isNotEmpty ? trimmedRole : 'Team Member';
+              final initials = _getInitials(displayName);
+              final color = _getColorForMember(displayName);
+              return _buildCollaboratorItem(
+                displayName,
+                displayRole,
+                initials,
+                color,
+              );
+            }),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Open collaborator dialog
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text(
+                'Add Collaborator',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildToolChip(
       String label, IconData icon, bool isSelected, {VoidCallback? onTap}) {
     return GestureDetector(
@@ -1487,7 +1650,36 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          TextFormattingToolbar(controller: _richTextController),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.format_shapes_outlined,
+                        size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Format',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: TextFormattingToolbar(controller: _richTextController)),
+            ],
+          ),
           const SizedBox(height: 12),
           Container(
             constraints: const BoxConstraints(minHeight: 120),
