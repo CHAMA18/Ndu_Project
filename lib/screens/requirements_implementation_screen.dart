@@ -40,6 +40,7 @@ class _RequirementsImplementationScreenState
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _showAllRows = false;
+  bool _frameworkGuideExpanded = false;
   int _selectedRequirementIndex = 0;
   final Set<String> _selectedFilters = {'All requirements'};
   String _sectionApprovalStatus = 'Draft';
@@ -1428,7 +1429,6 @@ class _RequirementsImplementationScreenState
   // -------------------------------------------------------------------------
   Widget _buildWebFrameworkGuide() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1444,69 +1444,110 @@ class _RequirementsImplementationScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Design specifications framework',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF111827),
+          // Collapsible header — always visible
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => setState(() {
+              _frameworkGuideExpanded = !_frameworkGuideExpanded;
+            }),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Design specifications framework',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 22,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in IEEE 830 Software Requirements Specification, '
-            'ISO/IEC/IEEE 29148 Requirement Engineering Lifecycle, PMI PMBOK '
-            'Collect Requirements (5.2), and INCOSE systems engineering '
-            'lifecycle practices. Effective requirement traceability ensures '
-            'every specification is linked to design artifacts, acceptance '
-            'criteria, and validation evidence before proceeding to Technical Alignment.',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF6B7280),
-              height: 1.5,
+          // Expandable body
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Grounded in IEEE 830 Software Requirements Specification, '
+                    'ISO/IEC/IEEE 29148 Requirement Engineering Lifecycle, PMI PMBOK '
+                    'Collect Requirements (5.2), and INCOSE systems engineering '
+                    'lifecycle practices. Effective requirement traceability ensures '
+                    'every specification is linked to design artifacts, acceptance '
+                    'criteria, and validation evidence before proceeding to Technical Alignment.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Column(
+                    children: [
+                      _buildWebGuideCard(
+                        Icons.account_tree_outlined,
+                        'Requirements Traceability',
+                        'The Requirements Traceability Matrix (RTM) connects each requirement '
+                        'to design artifacts, test cases, and source documents. Every mapped '
+                        'requirement should have an unbroken chain from origin through '
+                        'implementation to verification.',
+                        const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildWebGuideCard(
+                        Icons.verified_outlined,
+                        'Validation & Evidence',
+                        'Each mapped requirement must have acceptance criteria and a defined '
+                        'test method. Validation evidence demonstrates that the design artifact '
+                        'satisfies the requirement intent and can be independently verified.',
+                        const Color(0xFF10B981),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildWebGuideCard(
+                        Icons.warning_amber_outlined,
+                        'Gap Management',
+                        'Track unmapped requirements and resolve conflicts before proceeding '
+                        'to Technical Alignment. Pending approval gaps indicate design decisions '
+                        'that still need stakeholder resolution or additional evidence.',
+                        const Color(0xFFF59E0B),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildWebGuideCard(
+                        Icons.admin_panel_settings_outlined,
+                        'Approval Gates',
+                        'Section-level approval is required before the project can advance '
+                        'to Technical Alignment. All gaps must be resolved, acceptance criteria '
+                        'defined for mapped items, and the section approver must sign off.',
+                        const Color(0xFFEF4444),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildWebGuideCard(
-                Icons.account_tree_outlined,
-                'Requirements Traceability',
-                'The Requirements Traceability Matrix (RTM) connects each requirement '
-                'to design artifacts, test cases, and source documents. Every mapped '
-                'requirement should have an unbroken chain from origin through '
-                'implementation to verification.',
-                const Color(0xFF2563EB),
-              ),
-              const SizedBox(height: 12),
-              _buildWebGuideCard(
-                Icons.verified_outlined,
-                'Validation & Evidence',
-                'Each mapped requirement must have acceptance criteria and a defined '
-                'test method. Validation evidence demonstrates that the design artifact '
-                'satisfies the requirement intent and can be independently verified.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildWebGuideCard(
-                Icons.warning_amber_outlined,
-                'Gap Management',
-                'Track unmapped requirements and resolve conflicts before proceeding '
-                'to Technical Alignment. Pending approval gaps indicate design decisions '
-                'that still need stakeholder resolution or additional evidence.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildWebGuideCard(
-                Icons.admin_panel_settings_outlined,
-                'Approval Gates',
-                'Section-level approval is required before the project can advance '
-                'to Technical Alignment. All gaps must be resolved, acceptance criteria '
-                'defined for mapped items, and the section approver must sign off.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+            crossFadeState: _frameworkGuideExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
           ),
         ],
       ),
