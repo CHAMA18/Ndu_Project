@@ -5540,6 +5540,11 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                       Expanded(
                         child: Stack(
                           children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contracting',
+                      ),
+                    ),
                             const AdminEditToggle(),
                             SingleChildScrollView(
                               padding: const EdgeInsets.symmetric(

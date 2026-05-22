@@ -1183,7 +1183,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   Expanded(child: _buildMainContent()),
                 ])),
               ]),
-              const KazAiChatBubble(),
+              MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Cost Benefit Analysis & Financial Metrics',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
               const AdminEditToggle(),
             ],
           ),

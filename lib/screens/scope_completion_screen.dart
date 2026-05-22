@@ -598,7 +598,12 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                         ),
                       ),
                       const _AiHelperButton(),
-                      const KazAiChatBubble(),
+                      MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Scope Completion',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                     ],
                   ),
                 ),

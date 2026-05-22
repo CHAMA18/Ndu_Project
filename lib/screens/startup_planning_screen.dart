@@ -36,6 +36,11 @@ class StartUpPlanningScreen extends StatelessWidget {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Start-Up Planning',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),

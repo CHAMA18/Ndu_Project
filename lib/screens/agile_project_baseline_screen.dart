@@ -620,6 +620,11 @@ class _AgileProjectBaselineScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Project Baseline',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: horizontalPadding,

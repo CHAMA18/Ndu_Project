@@ -315,7 +315,12 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Finalize Project',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

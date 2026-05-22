@@ -244,6 +244,11 @@ class _AgileEpicsFeaturesScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Epics & Features',
+                      ),
+                    ),
                   SingleChildScrollView(
                 padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                 child: Column(

@@ -130,6 +130,11 @@ class _AgileReleasePlanScreenState extends State<AgileReleasePlanScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Release Plan',
+                      ),
+                    ),
                   SingleChildScrollView(
                 padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                 child: Column(

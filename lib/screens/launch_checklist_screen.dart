@@ -363,7 +363,12 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
               _buildMobileLayout(hPad, projectId)
             else
               _buildDesktopLayout(hPad, projectId),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Launch Checklist',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),

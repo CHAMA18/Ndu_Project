@@ -196,7 +196,12 @@ class _StakeholderAlignmentScreenState
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Stakeholder Alignment',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

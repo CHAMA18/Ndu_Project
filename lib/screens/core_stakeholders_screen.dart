@@ -261,7 +261,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                 Expanded(child: _buildMainContent()),
               ])),
             ]),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Core Stakeholders',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),

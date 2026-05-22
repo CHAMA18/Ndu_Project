@@ -1055,7 +1055,12 @@ class _ProjectActivitiesLogScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Activities Log',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

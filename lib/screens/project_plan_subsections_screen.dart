@@ -301,6 +301,11 @@ class _Level1ScheduleScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Plan - Level 1 - Project Schedule',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),
@@ -1765,6 +1770,11 @@ class _DetailedScheduleState extends State<ProjectPlanDetailedScheduleScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Plan - Level 1 - Project Schedule',
+                      ),
+                    ),
                   _loading
                       ? const Center(child: CircularProgressIndicator())
                       : SingleChildScrollView(
@@ -3576,6 +3586,11 @@ class _CondensedSummaryState extends State<ProjectPlanCondensedSummaryScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Plan - Level 1 - Project Schedule',
+                      ),
+                    ),
                   _loading
                       ? const Center(child: CircularProgressIndicator())
                       : SingleChildScrollView(
@@ -4568,6 +4583,11 @@ class _ProjectPlanSectionScreen extends StatelessWidget {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Plan - Level 1 - Project Schedule',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),

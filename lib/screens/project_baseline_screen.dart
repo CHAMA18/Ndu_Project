@@ -709,7 +709,12 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                 ),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Baseline',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),

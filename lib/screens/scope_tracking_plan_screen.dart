@@ -356,7 +356,12 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Scope Tracking Plan',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

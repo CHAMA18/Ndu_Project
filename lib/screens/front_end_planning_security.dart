@@ -1064,7 +1064,12 @@ Security Training:
                   _BottomOverlay(
                     onNext: _handleNextPressed,
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Security',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

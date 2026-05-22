@@ -279,7 +279,12 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Cost Estimate',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

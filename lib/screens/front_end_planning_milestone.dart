@@ -741,7 +741,12 @@ Consider typical project timelines and ensure end date is after start date.''';
                       Expanded(child: _buildContent()),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Milestone',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

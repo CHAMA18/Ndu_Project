@@ -1084,6 +1084,11 @@ $requirementsList
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Requirements',
+                      ),
+                    ),
                   const AdminEditToggle(),
                   Column(
                     children: [

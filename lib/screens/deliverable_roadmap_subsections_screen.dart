@@ -177,6 +177,11 @@ class _DeliverableRoadmapAgileMapOutScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Agile Map Out',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding:
                         EdgeInsets.symmetric(horizontal: hPad, vertical: 24),

@@ -136,7 +136,12 @@ class _ChangeManagementScreenState extends State<ChangeManagementScreen> {
                       ),
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Change Management',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

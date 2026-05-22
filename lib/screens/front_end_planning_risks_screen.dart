@@ -1461,7 +1461,12 @@ class _FrontEndPlanningRisksScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Risks',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   _BottomOverlays(
                     onNext: _saveAndContinue,
                   ),

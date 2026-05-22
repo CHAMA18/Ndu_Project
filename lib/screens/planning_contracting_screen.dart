@@ -169,7 +169,12 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract Planning',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),

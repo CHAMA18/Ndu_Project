@@ -818,7 +818,12 @@ class _ProjectDecisionSummaryScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Preferred Solution',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),

@@ -1055,7 +1055,12 @@ class _FrontEndPlanningAllowanceScreenState
                       _saveAndNavigateToNextStep();
                     },
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Allowance',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),

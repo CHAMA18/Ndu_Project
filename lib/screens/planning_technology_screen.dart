@@ -975,7 +975,12 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                 ),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Technology Planning',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),

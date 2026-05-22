@@ -362,7 +362,12 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                 ),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Risk Identification',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),

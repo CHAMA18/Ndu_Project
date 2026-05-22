@@ -103,7 +103,12 @@ class _DeliverablesRoadmapOverviewScreenState
               ],
             ),
           ),
-          const KazAiChatBubble(),
+          MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Roadmap Overview',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         ],
       ),
     );
