@@ -41,6 +41,7 @@ jobs:
             cp staticwebapp.config.json build/web/staticwebapp.config.json
           fi
           cp build/web/index.html build/web/404.html
+          touch build/web/.nojekyll
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
