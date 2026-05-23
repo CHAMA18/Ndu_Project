@@ -367,7 +367,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
     final padding = AppBreakpoints.pagePadding(context);
 
     return ResponsiveScaffold(
@@ -387,13 +386,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
             showContentButton: false,
             showNavigationButtons: false,
           ),
-          const SizedBox(height: 16),
-          _buildHeader(isNarrow),
-            const SizedBox(height: 16),
-            _buildFilterChips(),
-            const SizedBox(height: 20),
-            _buildStatsRow(isNarrow),
-            const SizedBox(height: 20),
+          const SizedBox(height: 24),
             _buildContractManagementGuide(),
             const SizedBox(height: 24),
             Column(
