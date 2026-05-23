@@ -1107,10 +1107,6 @@ class _RequirementsImplementationScreenState
           _buildWebRequirementsRegister(ownerOptions),
           const SizedBox(height: 20),
 
-          // 6. Acceptance Criteria & Verification Panel
-          _buildWebVerificationPanel(ownerOptions),
-          const SizedBox(height: 20),
-
           // 7. Gap & Exception Analysis Panel
           _buildWebGapAnalysisPanel(),
           const SizedBox(height: 20),
@@ -1807,7 +1803,7 @@ class _RequirementsImplementationScreenState
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => _selectRequirement(actualIndex),
+        onTap: () => _showVerificationPopup(actualIndex),
         child: Container(
           color: isSelected
               ? const Color(0xFFEFF6FF)
@@ -1940,7 +1936,7 @@ class _RequirementsImplementationScreenState
                           IconButton(
                             icon: const Icon(Icons.visibility_outlined,
                                 size: 16, color: Color(0xFF64748B)),
-                            onPressed: () => _selectRequirement(actualIndex),
+                            onPressed: () => _showVerificationPopup(actualIndex),
                             tooltip: 'View detail',
                             padding: EdgeInsets.zero,
                             constraints:
@@ -1972,7 +1968,39 @@ class _RequirementsImplementationScreenState
   }
 
   // -------------------------------------------------------------------------
-  // 6. Acceptance Criteria & Verification Panel
+  // 6. Acceptance Criteria & Verification — Popup Dialog
+  // -------------------------------------------------------------------------
+  void _showVerificationPopup(int index) {
+    if (index < 0 || index >= _requirementRows.length) return;
+    setState(() => _selectedRequirementIndex = index);
+    final selected = _requirementRows[index];
+    final ownerOptions = _ownerOptions(
+        ProjectDataInherited.maybeOf(context)?.projectData ?? ProjectDataModel());
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _VerificationPopupDialog(
+        requirement: selected,
+        ownerOptions: ownerOptions,
+        onUpdate: (updated) {
+          _updateRequirement(index, (_) => updated);
+        },
+        onEditAll: () {
+          Navigator.of(dialogContext).pop();
+          _showRequirementEditDialog(index);
+        },
+        onUploadArtifact: () {
+          Navigator.of(dialogContext).pop();
+          _uploadArtifactForRequirement(selected);
+        },
+        onClose: () => Navigator.of(dialogContext).pop(),
+      ),
+    );
+  }
+
+  // Keep the inline builder for reuse in non-web paths (unused in web ListView now)
+  // -------------------------------------------------------------------------
+  // 6b. Acceptance Criteria & Verification Panel (inline — kept for reference)
   // -------------------------------------------------------------------------
   Widget _buildWebVerificationPanel(List<String> ownerOptions) {
     final selected = _requirementRows.isEmpty
@@ -3536,6 +3564,421 @@ class _DesignSpecDocumentRow {
       status: map['status']?.toString() ?? 'Draft',
       fileName: map['fileName']?.toString() ?? '',
       storagePath: map['storagePath']?.toString() ?? '',
+    );
+  }
+}
+
+// =========================================================================
+// Verification Popup Dialog — Shown when a requirement row is clicked
+// =========================================================================
+class _VerificationPopupDialog extends StatefulWidget {
+  final RequirementRow requirement;
+  final List<String> ownerOptions;
+  final ValueChanged<RequirementRow> onUpdate;
+  final VoidCallback onEditAll;
+  final VoidCallback onUploadArtifact;
+  final VoidCallback onClose;
+
+  const _VerificationPopupDialog({
+    required this.requirement,
+    required this.ownerOptions,
+    required this.onUpdate,
+    required this.onEditAll,
+    required this.onUploadArtifact,
+    required this.onClose,
+  });
+
+  @override
+  State<_VerificationPopupDialog> createState() =>
+      _VerificationPopupDialogState();
+}
+
+class _VerificationPopupDialogState extends State<_VerificationPopupDialog> {
+  late RequirementRow _current;
+  late TextEditingController _reqIdController;
+  late TextEditingController _titleController;
+  late TextEditingController _definitionController;
+  late TextEditingController _artifactLabelController;
+  late TextEditingController _criteriaController;
+  late TextEditingController _testMethodController;
+  late TextEditingController _sourceDocController;
+  late TextEditingController _artifactUrlController;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.requirement;
+    _reqIdController = TextEditingController(text: _current.requirementId);
+    _titleController = TextEditingController(text: _current.title);
+    _definitionController = TextEditingController(text: _current.definition);
+    _artifactLabelController =
+        TextEditingController(text: _current.designArtifactLabel);
+    _criteriaController =
+        TextEditingController(text: _current.acceptanceCriteria);
+    _testMethodController = TextEditingController(text: _current.testMethod);
+    _sourceDocController =
+        TextEditingController(text: _current.sourceDocument);
+    _artifactUrlController =
+        TextEditingController(text: _current.designArtifactUrl);
+  }
+
+  @override
+  void dispose() {
+    _reqIdController.dispose();
+    _titleController.dispose();
+    _definitionController.dispose();
+    _artifactLabelController.dispose();
+    _criteriaController.dispose();
+    _testMethodController.dispose();
+    _sourceDocController.dispose();
+    _artifactUrlController.dispose();
+    super.dispose();
+  }
+
+  void _update(RequirementRow updated) {
+    setState(() => _current = updated);
+    widget.onUpdate(updated);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isNarrow ? 16 : 40,
+        vertical: 24,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: isNarrow ? double.infinity : 780,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Acceptance criteria & verification — ${_current.requirementId}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _current.title,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: widget.onEditAll,
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit all fields',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF475569),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: widget.onClose,
+                    icon: const Icon(Icons.close, size: 20),
+                    color: const Color(0xFF6B7280),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: ID, Owner, Type
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Requirement ID',
+                          controller: _reqIdController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(requirementId: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Owner',
+                          value: _current.owner,
+                          options: widget.ownerOptions,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(owner: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Requirement Type',
+                          value: _current.requirementType,
+                          options: const [
+                            'Functional',
+                            'Non-Functional',
+                            'Constraint',
+                            'Performance',
+                            'Security'
+                          ],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(requirementType: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 2: Source, Source Type, Validation
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupDropdown(
+                          label: 'Source (Rule Type)',
+                          value: _current.ruleType,
+                          options: const ['Internal', 'External'],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(ruleType: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Source Type',
+                          value: _current.sourceType,
+                          options: const [
+                            'Contract',
+                            'Vendor',
+                            'Regulatory',
+                            'Standard',
+                            'Stakeholder',
+                          ],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(sourceType: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Validation Status',
+                          value: _current.validationStatus,
+                          options: const ['Mapped', 'Unmapped', 'In Review'],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(validationStatus: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 3: Description, Definition
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Description / Title',
+                          controller: _titleController,
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(title: v)),
+                        ),
+                        _buildPopupField(
+                          label: 'Definition / Intent',
+                          controller: _definitionController,
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(definition: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 4: Design artifact fields
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupDropdown(
+                          label: 'Design Artifact Type',
+                          value: _current.designArtifactType,
+                          options: const [
+                            'Figma',
+                            'PDF',
+                            'Confluence',
+                            'Jira',
+                            'Miro',
+                            'Spreadsheet',
+                            'Code',
+                            'Other',
+                          ],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(designArtifactType: v)),
+                        ),
+                        _buildPopupField(
+                          label: 'Artifact Label',
+                          controller: _artifactLabelController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(designArtifactLabel: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 5: Acceptance Criteria, Test Method
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Acceptance Criteria',
+                          controller: _criteriaController,
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(acceptanceCriteria: v)),
+                        ),
+                        _buildPopupField(
+                          label: 'Test Method',
+                          controller: _testMethodController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(testMethod: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 6: Source Document, Artifact URL
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Source Document',
+                          controller: _sourceDocController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(sourceDocument: v)),
+                        ),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildPopupField(
+                                  label: 'Artifact URL',
+                                  controller: _artifactUrlController,
+                                  onChanged: (v) => _update(
+                                      _current.copyWith(designArtifactUrl: v)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                onPressed: widget.onUploadArtifact,
+                                icon: const Icon(Icons.upload_file,
+                                    size: 16, color: Color(0xFF64748B)),
+                                label: const Text('Upload'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF64748B),
+                                  side: const BorderSide(
+                                      color: Color(0xFFE2E8F0)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer with close button
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: widget.onClose,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF6B7280),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPopupRow({required List<Widget> children}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children
+          .expand((w) => [Expanded(child: w), const SizedBox(width: 12)])
+          .toList()
+        ..removeLast(),
+    );
+  }
+
+  Widget _buildPopupField({
+    required String label,
+    required TextEditingController controller,
+    int maxLines = 1,
+    required ValueChanged<String> onChanged,
+  }) {
+    return VoiceTextField(
+      controller: controller,
+      onChanged: onChanged,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+  }
+
+  Widget _buildPopupDropdown({
+    required String label,
+    required String value,
+    required List<String> options,
+    required ValueChanged<String> onChanged,
+  }) {
+    final effectiveOptions = <String>{...options, if (value.isNotEmpty) value}
+        .toList()
+      ..sort();
+    return DropdownButtonFormField<String>(
+      initialValue: effectiveOptions.contains(value) ? value : null,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: effectiveOptions
+          .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+          .toList(),
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
     );
   }
 }
