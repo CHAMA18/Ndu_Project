@@ -43,6 +43,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
   List<_ActionRow> _actionRows = [];
   List<_ApprovalGateData> _approvalGates = [];
   List<_DataFlowRow> _dataFlows = [];
+  bool _frameworkGuideExpanded = false;
 
   String? get _projectId {
     try {
@@ -822,7 +823,6 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
 
   Widget _buildFrameworkGuide() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -838,56 +838,91 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tools integration framework',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+          // Clickable header row
+          InkWell(
+            onTap: () => setState(() => _frameworkGuideExpanded = !_frameworkGuideExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Tools integration framework',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 22,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in ITIL Service Integration and Management (SIAM), PMI PMBOK 4.3 Direct & Manage Project Work, '
-            'and ISO 27001 Annex A.12 Operations Security. Effective tools integration ensures that connected services '
-            'maintain data integrity, access control, and operational continuity across the project delivery lifecycle.',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
-          ),
-          const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildGuideCard(
-                Icons.sync_outlined,
-                'Integration Lifecycle',
-                'Connected → Syncing → Active → Degraded → Expired. '
-                'Each integration should be tracked from initial connection through operational maturity. '
-                'Set automated health checks at regular intervals and configure alerts for status transitions.',
-                const Color(0xFF2563EB),
+          // Collapsible content
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Grounded in ITIL Service Integration and Management (SIAM), PMI PMBOK 4.3 Direct & Manage Project Work, '
+                    'and ISO 27001 Annex A.12 Operations Security. Effective tools integration ensures that connected services '
+                    'maintain data integrity, access control, and operational continuity across the project delivery lifecycle.',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  _buildGuideCard(
+                    Icons.sync_outlined,
+                    'Integration Lifecycle',
+                    'Connected → Syncing → Active → Degraded → Expired. '
+                    'Each integration should be tracked from initial connection through operational maturity. '
+                    'Set automated health checks at regular intervals and configure alerts for status transitions.',
+                    const Color(0xFF2563EB),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.api_outlined,
+                    'Data Flow & API Governance',
+                    'Manage scope definitions, rate limiting, and error handling per ITIL SIAM data flow standards. '
+                    'Validate that all API integrations follow least-privilege access principles and document '
+                    'data mapping between integrated tools.',
+                    const Color(0xFF10B981),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.security_outlined,
+                    'Security & Compliance',
+                    'Enforce OAuth 2.0 authentication, API key rotation schedules, and audit trails per ISO 27001 A.9 '
+                    'Access Control and A.12 Operations Security. Maintain credential inventories and validate '
+                    'encryption in transit for all data exchanges.',
+                    const Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.monitor_heart_outlined,
+                    'Health Monitoring & Incident Response',
+                    'Automated health checks with configurable alerting thresholds and remediation workflows. '
+                    'Define escalation paths for degraded connections and maintain runbooks for common integration '
+                    'failure scenarios per ITIL Incident Management practices.',
+                    const Color(0xFFEF4444),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.api_outlined,
-                'Data Flow & API Governance',
-                'Manage scope definitions, rate limiting, and error handling per ITIL SIAM data flow standards. '
-                'Validate that all API integrations follow least-privilege access principles and document '
-                'data mapping between integrated tools.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.security_outlined,
-                'Security & Compliance',
-                'Enforce OAuth 2.0 authentication, API key rotation schedules, and audit trails per ISO 27001 A.9 '
-                'Access Control and A.12 Operations Security. Maintain credential inventories and validate '
-                'encryption in transit for all data exchanges.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.monitor_heart_outlined,
-                'Health Monitoring & Incident Response',
-                'Automated health checks with configurable alerting thresholds and remediation workflows. '
-                'Define escalation paths for degraded connections and maintain runbooks for common integration '
-                'failure scenarios per ITIL Incident Management practices.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+            ),
+            crossFadeState: _frameworkGuideExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
           ),
         ],
       ),
