@@ -141,7 +141,9 @@ class _MobileScaffold extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            body,
+            Positioned.fill(
+              child: body,
+            ),
             if (floatingActionButton != null)
               Positioned(
                 bottom: 24,
@@ -187,7 +189,9 @@ class _DesktopScaffold extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  body,
+                  Positioned.fill(
+                    child: body,
+                  ),
                   if (floatingActionButton != null)
                     Positioned(
                       bottom: 24,
