@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
+
 
 /// A drop-in replacement for [TextField] that adds a microphone button
 /// for voice-to-text input.
@@ -155,9 +157,11 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
       if (!started) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Speech recognition is not available on this device.'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(kIsWeb
+                  ? 'Voice input unavailable. Use Chrome/Edge/Safari and allow mic access.'
+                  : 'Speech recognition is not available on this device.'),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -485,9 +489,11 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
       if (!started) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Speech recognition is not available on this device.'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(kIsWeb
+                  ? 'Voice input unavailable. Use Chrome/Edge/Safari and allow mic access.'
+                  : 'Speech recognition is not available on this device.'),
+              duration: const Duration(seconds: 3),
             ),
           );
         }

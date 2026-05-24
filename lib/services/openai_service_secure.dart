@@ -4718,11 +4718,11 @@ Domain guardrail: $guardrails
     final type = _detectProjectType(combinedContext);
     final seed = _stableHash(combinedContext);
     final baseline = switch (type) {
-      _AiProjectType.physical => 265000.0,
-      _AiProjectType.digital => 210000.0,
-      _AiProjectType.hybrid => 315000.0,
-      _AiProjectType.service => 185000.0,
-      _AiProjectType.unknown => 200000.0,
+      _AiProjectType.physical => 85000.0,
+      _AiProjectType.digital => 55000.0,
+      _AiProjectType.hybrid => 95000.0,
+      _AiProjectType.service => 45000.0,
+      _AiProjectType.unknown => 60000.0,
     };
     final variation = 0.9 + ((seed % 26) / 100);
     final scale =
@@ -4873,10 +4873,19 @@ Rules:
 - For service projects, prefer service capacity, response time, quality consistency, utilisation, and staffing efficiency metrics.
 - Return ONLY valid JSON with the exact key schema below.
 
+CRITICAL REALISM RULES FOR estimated_value:
+- The estimated_value represents the ANNUAL projected benefit in the given currency.
+- For a small/local business project (e.g., barbershop, salon, small retail): estimated_value should be \$15,000-\$60,000.
+- For a mid-size enterprise project: estimated_value should be \$50,000-\$250,000.
+- For a large infrastructure project: estimated_value should be \$200,000-\$1,000,000.
+- For a digital app/SaaS project: estimated_value should be \$25,000-\$150,000.
+- Do NOT suggest \$200,000+ for a small business app — that is unrealistic and unhelpful.
+- Consider the actual revenue potential of the business type when estimating.
+
 Return ONLY valid JSON with this exact structure:
 {
   "project_value": {
-    "estimated_value": 123456,
+    "estimated_value": 45000,
     "benefits": {
       "revenue": "...",
       "cost_saving": "...",
@@ -5109,13 +5118,23 @@ Provide $count items across these exact category keys:
 ["revenue","cost_saving","ops_efficiency","productivity","regulatory_compliance","process_improvement","brand_image","stakeholder_commitment","other"].
 Each line item must be domain-specific to the project context and must include a practical, non-generic title.
 
+IMPORTANT REALISM RULES:
+- Unit values must be realistic per-month amounts (e.g., \$500-\$5,000/mo for small business; \$2,000-\$15,000/mo for mid-size enterprise), NOT lump-sum annual totals.
+- Units should typically be 12 (months) for recurring benefits, or 1 for one-time benefits.
+- Total value per item (unit_value * units) should sum to approximately the target total value.
+- For a small/local business project: monthly unit values typically range \$300-\$3,000.
+- For a mid-size enterprise project: monthly unit values typically range \$2,000-\$12,000.
+- For a large infrastructure project: monthly unit values typically range \$8,000-\$50,000.
+- Do NOT suggest \$50,000+ per month for a small business app; that is unrealistic.
+- Revenue benefits should be the largest; stakeholder_commitment and other should be smallest.
+
 Return strict JSON:
 {
   "items": [
     {
       "category_key": "revenue",
       "title": "Domain-specific monetised benefit title",
-      "unit_value": 5000,
+      "unit_value": 1500,
       "units": 12,
       "notes": "Monthly impact"
     }
@@ -5137,7 +5156,8 @@ Return ONLY JSON.
     String contextNotes = '',
     int count = 6,
   }) {
-    final total = estimatedProjectValue > 0 ? estimatedProjectValue : 150000;
+    // Use a realistic annual total; avoid inflated defaults
+    final total = estimatedProjectValue > 0 ? estimatedProjectValue : 45000;
     final type = _detectProjectType(
       '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}',
     );
@@ -5156,14 +5176,16 @@ Return ONLY JSON.
         ? 1
         : (count > allocations.length ? allocations.length : count);
     return allocations.take(cappedCount).map((entry) {
-      final value = total * entry.value;
+      // Distribute annual total across 12 months for realistic per-month unit values
+      final annualValue = total * entry.value;
+      final monthlyUnitValue = annualValue / 12;
       final title =
           _fallbackBenefitTitleForCategory(entry.key, type, solutions);
       return BenefitLineItemInput(
         category: entry.key,
         title: title,
-        unitValue: value,
-        units: 1,
+        unitValue: monthlyUnitValue,
+        units: 12,
         notes: _fallbackBenefitNotesForCategory(entry.key, type),
       );
     }).toList();

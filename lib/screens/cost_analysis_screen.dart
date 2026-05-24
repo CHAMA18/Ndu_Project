@@ -479,7 +479,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
     final baseEstimate =
         _parseCurrencyInput(_projectValueAmountController.text);
-    final baseUnitValue = baseEstimate > 0 ? baseEstimate / 30 : 1200;
+    // Realistic per-unit defaults: scale to project if available, otherwise
+    // use conservative industry benchmarks (not inflated).
+    // Small business app ~$500/mo per benefit stream; mid-size ~$2,000/mo.
+    final baseUnitValue = baseEstimate > 0
+        ? baseEstimate / 36 // ~3 years of monthly value → realistic per-month unit
+        : 850; // Conservative default: $850/mo per benefit line
     const categories = <String>[
       'process_improvement',
       'ops_efficiency',
@@ -491,14 +496,15 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     setState(() {
       final itemsToSeed = math.min(3, candidateTitles.length);
       for (int i = 0; i < itemsToSeed; i++) {
-        final unitValue = baseUnitValue * (1 + (i * 0.28));
+        // Vary unit values modestly around the base, not with aggressive multipliers
+        final unitValue = baseUnitValue * (1 + (i * 0.15));
         final entry = _BenefitLineItemEntry(
           id: 'benefit-seed-${DateTime.now().microsecondsSinceEpoch}-$i',
           categoryKey: categories[i % categories.length],
           title: candidateTitles[i],
           unitValue: unitValue,
-          units: 12 + (i * 4),
-          notes: 'Auto-seeded from project context; refine assumptions.',
+          units: 12, // 12 months – standard annual basis
+          notes: 'Auto-seeded estimate based on project context; refine assumptions.',
         );
         entry.bind(_onBenefitEntryEdited);
         _benefitLineItems.add(entry);
