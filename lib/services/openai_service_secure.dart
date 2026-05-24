@@ -13,6 +13,8 @@ String _stripAsterisks(String s) => s.replaceAll('*', '');
 
 enum _AiProjectType { physical, digital, hybrid, service, unknown }
 
+enum _AiProjectScale { small, medium, large }
+
 class _ResponseFormatUnsupportedException implements Exception {
   const _ResponseFormatUnsupportedException();
 }
@@ -3828,11 +3830,22 @@ $domainHints
     String contextNotes = '',
   }) {
     final type = _detectProjectTypeForSolution(solution, contextNotes);
+    final combinedContext = '${solution.title} ${solution.description} $contextNotes';
+    final projectScale = _detectProjectScale(combinedContext);
     final templates = _fallbackCostTemplatesForType(type);
     final seed =
         _stableHash('${solution.title}|${solution.description}|$contextNotes');
     final titleScale = 0.88 + ((seed % 35) / 100);
     final indexScale = 1 + (index * 0.08);
+
+    // Scale cost items proportionally to project scale.
+    // Small projects should have much lower costs than the template defaults.
+    final scaleCostFactor = switch (projectScale) {
+      _AiProjectScale.small => 0.08,  // ~8% of template cost for small projects
+      _AiProjectScale.medium => 1.0,  // full template cost for medium projects
+      _AiProjectScale.large => 1.5,   // 1.5x template cost for large projects
+    };
+
     final items = <AiCostItem>[];
 
     for (int i = 0; i < templates.length; i++) {
@@ -3841,7 +3854,7 @@ $domainHints
       final baseRoi = (template['roi'] as num).toDouble();
       final variation = 0.94 + (((seed + (i * 17)) % 13) / 100);
       final estimate = _normalizeEstimatedCost(
-          baseCost * titleScale * indexScale * variation);
+          baseCost * titleScale * indexScale * variation * scaleCostFactor);
       final roi = _clampDouble(
         baseRoi + ((((seed + i) % 7) - 3) * 0.6),
         6,
@@ -4226,8 +4239,19 @@ $domainHints
     final combined = '$context\n$solutionContext'.trim();
     final detectedType = _detectProjectType(combined);
     final typeLabel = _projectTypeLabel(detectedType);
+    final detectedScale = _detectProjectScale(combined);
+    final scaleLabel = _projectScaleLabel(detectedScale);
     final startingPoint = _detectDeliveryStartingPoint(combined, detectedType);
     final focus = _financialMetricFocusForType(detectedType);
+
+    final scaleGuidance = switch (detectedScale) {
+      _AiProjectScale.small =>
+        'Project scale is SMALL (local business, small team). All financial estimates must be proportionally small — e.g., barbershop/salon monthly benefits in the hundreds, not thousands.',
+      _AiProjectScale.medium =>
+        'Project scale is MEDIUM (department/mid-size business). Financial estimates should reflect mid-range values.',
+      _AiProjectScale.large =>
+        'Project scale is LARGE (enterprise/infrastructure). Financial estimates can reflect larger values consistent with enterprise scope.',
+    };
 
     final guardrails = switch (detectedType) {
       _AiProjectType.physical =>
@@ -4244,6 +4268,8 @@ $domainHints
 
     return '''
 Detected project type: $typeLabel
+Detected project scale: $scaleLabel
+Scale guidance: $scaleGuidance
 Detected starting point: $startingPoint
 Domain metric focus: $focus
 Domain guardrail: $guardrails
@@ -4450,6 +4476,99 @@ Domain guardrail: $guardrails
     return false;
   }
 
+  /// Detects the scale of a project based on contextual clues such as
+  /// business type, budget indicators, team size hints, and scope keywords.
+  /// Small = barbershop, salon, small retail, sole proprietor (budget < $50K)
+  /// Medium = department-level, mid-size business (budget $50K–$200K)
+  /// Large = enterprise, infrastructure, multi-site (budget $200K+)
+  _AiProjectScale _detectProjectScale(String text) {
+    final normalized = text.toLowerCase();
+    if (normalized.trim().isEmpty) return _AiProjectScale.medium;
+
+    // --- Small-scale indicators ---
+    final smallIndicators = <String>[
+      'barbershop', 'barber shop', 'salon', 'hair salon', 'nail salon',
+      'small business', 'small retail', 'sole proprietor', 'mom and pop',
+      'local shop', 'local store', 'boutique', 'freelance', 'solo',
+      'micro business', 'home-based', 'pop-up', 'food truck', 'food cart',
+      'corner store', 'kiosk', 'stall', 'personal brand',
+      'pet grooming', 'dog walking', 'tutoring', 'cleaning service',
+      'lawn care', 'small clinic', 'dental practice', 'yoga studio',
+      'gym studio', 'personal training', 'craft', 'artisan',
+      'personal app', 'portfolio app', 'booking app', 'appointment app',
+    ];
+    int smallScore = 0;
+    for (final term in smallIndicators) {
+      if (normalized.contains(term)) smallScore += 3;
+    }
+    // Budget hints for small scale
+    if (_containsAnyKeywords(normalized, [
+      'under 50k', '<50k', '< 50,000', 'under \$50', 'budget of \$10',
+      'budget of \$15', 'budget of \$20', 'budget of \$25', 'budget of \$30',
+      'budget of \$35', 'budget of \$40', 'budget of \$45',
+    ])) {
+      smallScore += 4;
+    }
+    // Team size hints for small scale
+    if (_containsAnyKeywords(normalized, [
+      '1-3 people', '1-3 team', '2-5 team', 'solo developer',
+      'small team', 'tiny team',
+    ])) {
+      smallScore += 3;
+    }
+
+    // --- Large-scale indicators ---
+    final largeIndicators = <String>[
+      'enterprise', 'corporation', 'multi-site', 'multi-site',
+      'infrastructure', 'government', 'municipal', 'federal',
+      'hospital', 'university', 'campus', 'city-wide', 'nationwide',
+      'global', 'regional', 'district', 'province', 'state-wide',
+      'construction project', 'civil works', 'industrial',
+      'manufacturing plant', 'power plant', 'data center', 'data centre',
+      'oil and gas', 'mining', 'pipeline', 'railway', 'airport',
+      'large-scale', 'large scale', 'multi-phase', 'multi-year',
+      'multi-million', 'enterprise resource planning', 'erp implementation',
+      'digital transformation',
+    ];
+    int largeScore = 0;
+    for (final term in largeIndicators) {
+      if (normalized.contains(term)) largeScore += 3;
+    }
+    // Budget hints for large scale
+    if (_containsAnyKeywords(normalized, [
+      'over 200k', '>200k', '> 200,000', 'over \$200', 'budget of \$500',
+      'budget of \$1m', 'budget of \$2m', 'million', 'multi-million',
+    ])) {
+      largeScore += 4;
+    }
+    // Team size hints for large scale
+    if (_containsAnyKeywords(normalized, [
+      '50+ people', '100+ team', 'large team', 'enterprise team',
+      'cross-functional team', 'multiple teams',
+    ])) {
+      largeScore += 3;
+    }
+
+    // --- Decision logic ---
+    if (smallScore >= 3 && largeScore < 3) return _AiProjectScale.small;
+    if (largeScore >= 3 && smallScore < 3) return _AiProjectScale.large;
+    if (smallScore >= 3 && smallScore > largeScore) return _AiProjectScale.small;
+    if (largeScore >= 3 && largeScore > smallScore) return _AiProjectScale.large;
+    // Default to medium when no strong signal
+    return _AiProjectScale.medium;
+  }
+
+  String _projectScaleLabel(_AiProjectScale scale) {
+    switch (scale) {
+      case _AiProjectScale.small:
+        return 'small';
+      case _AiProjectScale.medium:
+        return 'medium';
+      case _AiProjectScale.large:
+        return 'large';
+    }
+  }
+
   _AiProjectType _detectProjectTypeForSolution(
     AiSolutionItem solution,
     String contextNotes,
@@ -4604,6 +4723,19 @@ Domain guardrail: $guardrails
     return value;
   }
 
+  /// Clamps an AI-returned estimated project value to a realistic maximum
+  /// based on the detected project scale. Only caps from above — never
+  /// inflates a value that the AI intentionally set lower.
+  double _clampToProjectScale(double value, _AiProjectScale scale) {
+    if (!value.isFinite || value <= 0) return value;
+    final maxAllowed = switch (scale) {
+      _AiProjectScale.small => 30000.0,
+      _AiProjectScale.medium => 150000.0,
+      _AiProjectScale.large => 500000.0,
+    };
+    return value > maxAllowed ? _normalizeEstimatedCost(maxAllowed) : value;
+  }
+
   int _stableHash(String input) {
     var hash = 0;
     for (final codeUnit in input.codeUnits) {
@@ -4616,9 +4748,10 @@ Domain guardrail: $guardrails
     List<AiSolutionItem> solutions, {
     String contextNotes = '',
   }) async {
-    final detectedType = _detectProjectType(
-      '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}',
-    );
+    final combinedText =
+        '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
+    final detectedType = _detectProjectType(combinedText);
+    final detectedScale = _detectProjectScale(combinedText);
     final domainHints =
         _financialDomainHints(context: contextNotes, solutions: solutions);
     if (!OpenAiConfig.isConfigured) {
@@ -4628,6 +4761,7 @@ Domain guardrail: $guardrails
       );
     }
 
+    final scaleHint = _projectScaleLabel(detectedScale);
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
@@ -4646,7 +4780,7 @@ Domain guardrail: $guardrails
                 'financial analyst preparing a solution-specific cost-benefit analysis',
             strictJson: true,
             extraRules:
-                'Focus on the exact solution context provided in the request and estimate direct financial value, ROI, cost savings, revenue potential, and quantifiable benefits for that solution only. Do not output SaaS metrics for non-digital projects, and do not output construction assumptions for purely digital projects. Follow these domain guardrails:\n$domainHints',
+                'Focus on the exact solution context provided in the request and estimate direct financial value, ROI, cost savings, revenue potential, and quantifiable benefits for that solution only. Do not output SaaS metrics for non-digital projects, and do not output construction assumptions for purely digital projects. The detected project scale is $scaleHint — you MUST scale all financial estimates to match this scale. Small projects should have small benefit numbers, NOT enterprise-level figures. Follow these domain guardrails:\n$domainHints',
           )
         },
         {
@@ -4655,6 +4789,7 @@ Domain guardrail: $guardrails
             solutions,
             contextNotes,
             domainHints: domainHints,
+            projectScale: detectedScale,
           )
         },
       ],
@@ -4696,6 +4831,19 @@ Domain guardrail: $guardrails
           contextNotes: contextNotes,
         );
       }
+
+      // Clamp AI-returned estimated value to realistic range for the detected scale
+      final clampedValue = _clampToProjectScale(
+        insights.estimatedProjectValue,
+        detectedScale,
+      );
+      if (clampedValue < insights.estimatedProjectValue) {
+        return AiProjectValueInsights(
+          estimatedProjectValue: clampedValue,
+          benefits: insights.benefits,
+        );
+      }
+
       return insights;
     } catch (e) {
       if (kDebugMode) debugPrint('generateProjectValueInsights failed: $e');
@@ -4716,18 +4864,44 @@ Domain guardrail: $guardrails
     final combinedContext =
         '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
     final type = _detectProjectType(combinedContext);
+    final projectScale = _detectProjectScale(combinedContext);
     final seed = _stableHash(combinedContext);
-    final baseline = switch (type) {
-      _AiProjectType.physical => 265000.0,
-      _AiProjectType.digital => 210000.0,
-      _AiProjectType.hybrid => 315000.0,
-      _AiProjectType.service => 185000.0,
-      _AiProjectType.unknown => 200000.0,
+
+    // Scale-aware baseline values: small projects ($5K–$30K), medium ($30K–$150K), large ($150K–$500K)
+    final baseline = switch (projectScale) {
+      _AiProjectScale.small => switch (type) {
+          _AiProjectType.physical => 22000.0,
+          _AiProjectType.digital => 15000.0,
+          _AiProjectType.hybrid => 25000.0,
+          _AiProjectType.service => 12000.0,
+          _AiProjectType.unknown => 18000.0,
+        },
+      _AiProjectScale.medium => switch (type) {
+          _AiProjectType.physical => 85000.0,
+          _AiProjectType.digital => 55000.0,
+          _AiProjectType.hybrid => 95000.0,
+          _AiProjectType.service => 45000.0,
+          _AiProjectType.unknown => 60000.0,
+        },
+      _AiProjectScale.large => switch (type) {
+          _AiProjectType.physical => 350000.0,
+          _AiProjectType.digital => 250000.0,
+          _AiProjectType.hybrid => 400000.0,
+          _AiProjectType.service => 200000.0,
+          _AiProjectType.unknown => 300000.0,
+        },
     };
     final variation = 0.9 + ((seed % 26) / 100);
-    final scale =
+    final scaleMultiplier =
         1 + ((solutions.length > 1 ? solutions.length - 1 : 0) * 0.07);
-    final estimated = _normalizeEstimatedCost(baseline * variation * scale);
+    final estimated = _normalizeEstimatedCost(baseline * variation * scaleMultiplier);
+
+    // Scale-aware floor: prevent small projects from getting inflated fallbacks
+    final floor = switch (projectScale) {
+      _AiProjectScale.small => 5000.0,
+      _AiProjectScale.medium => 30000.0,
+      _AiProjectScale.large => 150000.0,
+    };
 
     Map<String, String> benefitNarrativesForType() {
       switch (type) {
@@ -4840,7 +5014,7 @@ Domain guardrail: $guardrails
     }
 
     return AiProjectValueInsights(
-      estimatedProjectValue: estimated > 0 ? estimated : 185000,
+      estimatedProjectValue: estimated > 0 ? estimated : floor,
       benefits: benefitNarrativesForType(),
     );
   }
@@ -4849,13 +5023,32 @@ Domain guardrail: $guardrails
     List<AiSolutionItem> solutions,
     String notes, {
     required String domainHints,
+    _AiProjectScale projectScale = _AiProjectScale.medium,
   }) {
     final list = solutions
         .map((s) =>
             '{"title": "${_escape(s.title)}", "description": "${_escape(s.description)}"}')
         .join(',');
+    final scaleLabel = _projectScaleLabel(projectScale);
+    final scaleGuidance = switch (projectScale) {
+      _AiProjectScale.small =>
+        'This is a SMALL-SCALE project (e.g., barbershop, salon, local shop, small business tool). '
+        'Estimated annual benefit should be \$5,000–\$30,000. '
+        'A single-location small business cannot generate \$100K+ in annual benefit from one app or tool. '
+        'Be realistic: a barbershop making \$150K/year in revenue cannot realize \$283K in project benefit.',
+      _AiProjectScale.medium =>
+        'This is a MEDIUM-SCALE project (department-level, mid-size business). '
+        'Estimated annual benefit should be \$30,000–\$150,000. '
+        'Scale proportionally to the organisation size and budget.',
+      _AiProjectScale.large =>
+        'This is a LARGE-SCALE project (enterprise, infrastructure, multi-site). '
+        'Estimated annual benefit should be \$150,000–\$500,000. '
+        'Scale proportionally to the organisation size and budget.',
+    };
     return '''
 Based on the following project cost-benefit analysis data, estimate direct financial value and provide category-specific benefit narratives.
+
+Detected project scale: $scaleLabel
 
 Primary focus:
 1. Direct revenue impact
@@ -4873,10 +5066,22 @@ Rules:
 - For service projects, prefer service capacity, response time, quality consistency, utilisation, and staffing efficiency metrics.
 - Return ONLY valid JSON with the exact key schema below.
 
+CRITICAL REALISM RULES FOR estimated_value:
+- The estimated_value represents the ANNUAL projected benefit in the given currency.
+- $scaleGuidance
+- For a small/local business project (e.g., barbershop, salon, small retail): estimated_value should be \$5,000-\$30,000.
+- For a mid-size enterprise project: estimated_value should be \$30,000-\$150,000.
+- For a large infrastructure project: estimated_value should be \$150,000-\$500,000.
+- For a small digital/app project for a local business: estimated_value should be \$5,000-\$25,000.
+- Do NOT suggest \$50,000+ for a small business app — that is unrealistic and unhelpful.
+- Consider the actual revenue potential of the business type when estimating.
+- A project's benefit should NEVER exceed 2-3x the business's annual revenue.
+- Scale benefit values proportionally to the project's budget and scope.
+
 Return ONLY valid JSON with this exact structure:
 {
   "project_value": {
-    "estimated_value": 123456,
+    "estimated_value": 45000,
     "benefits": {
       "revenue": "...",
       "cost_saving": "...",
@@ -4956,9 +5161,10 @@ Return plain text only.'''
     String currency = 'USD',
     int count = 6,
   }) async {
-    final detectedType = _detectProjectType(
-      '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}',
-    );
+    final combinedText =
+        '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
+    final detectedType = _detectProjectType(combinedText);
+    final detectedScale = _detectProjectScale(combinedText);
     final domainHints =
         _financialDomainHints(context: contextNotes, solutions: solutions);
     if (solutions.isEmpty || estimatedProjectValue <= 0) return [];
@@ -4972,6 +5178,7 @@ Return plain text only.'''
       );
     }
 
+    final scaleHint = _projectScaleLabel(detectedScale);
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
@@ -4994,7 +5201,7 @@ Return plain text only.'''
                 'financial analyst generating monetised benefit line items for project value modelling',
             strictJson: true,
             extraRules:
-                'Return strict JSON for benefit line items. Use only these category keys: revenue, cost_saving, ops_efficiency, productivity, regulatory_compliance, process_improvement, brand_image, stakeholder_commitment, other. Do not use SaaS-only terms for non-digital projects. Do not use construction-only assumptions for purely digital projects. Follow these domain guardrails:\n$domainHints',
+                'Return strict JSON for benefit line items. Use only these category keys: revenue, cost_saving, ops_efficiency, productivity, regulatory_compliance, process_improvement, brand_image, stakeholder_commitment, other. Do not use SaaS-only terms for non-digital projects. Do not use construction-only assumptions for purely digital projects. The detected project scale is $scaleHint — you MUST scale all financial values to match this scale. Small projects get small numbers. Follow these domain guardrails:\n$domainHints',
           )
         },
         {
@@ -5006,6 +5213,7 @@ Return plain text only.'''
             contextNotes,
             count,
             domainHints: domainHints,
+            projectScale: detectedScale,
           ),
         },
       ],
@@ -5098,16 +5306,40 @@ Return plain text only.'''
       String currency,
       String contextNotes,
       int count,
-      {required String domainHints}) {
+      {required String domainHints,
+      _AiProjectScale projectScale = _AiProjectScale.medium}) {
     final notes = contextNotes.trim().isEmpty
         ? 'No additional context supplied.'
         : contextNotes.trim();
+    final scaleLabel = _projectScaleLabel(projectScale);
+    final scaleUnitRange = switch (projectScale) {
+      _AiProjectScale.small =>
+        '\$100-\$1,500/mo for small local businesses (e.g., barbershop, salon). '
+        'A barbershop generating \$10K/mo in revenue cannot realize \$5K/mo in benefit from a single app.',
+      _AiProjectScale.medium =>
+        '\$1,000-\$8,000/mo for mid-size enterprises or department-level projects.',
+      _AiProjectScale.large =>
+        '\$5,000-\$40,000/mo for large enterprises, infrastructure, or multi-site deployments.',
+    };
     return '''
 We are preparing benefit line items for a project portfolio.
+Detected project scale: $scaleLabel
 Target total value: $currency ${estimatedProjectValue.toStringAsFixed(0)}.
 Provide $count items across these exact category keys:
 ["revenue","cost_saving","ops_efficiency","productivity","regulatory_compliance","process_improvement","brand_image","stakeholder_commitment","other"].
 Each line item must be domain-specific to the project context and must include a practical, non-generic title.
+
+IMPORTANT REALISM RULES:
+- Unit values must be realistic per-month amounts, NOT lump-sum annual totals.
+- For this $scaleLabel-scale project, monthly unit values should typically range: $scaleUnitRange
+- Units should typically be 12 (months) for recurring benefits, or 1 for one-time benefits.
+- Total value per item (unit_value * units) should sum to approximately the target total value.
+- For a small/local business project (barbershop, salon, etc.): monthly unit values typically range \$100-\$1,500.
+- For a mid-size enterprise project: monthly unit values typically range \$1,000-\$8,000.
+- For a large infrastructure project: monthly unit values typically range \$5,000-\$40,000.
+- Do NOT suggest \$3,000+ per month for a small business app like a barbershop; that is unrealistic.
+- Revenue benefits should be the largest; stakeholder_commitment and other should be smallest.
+- Scale ALL values proportionally to the project's budget and business size.
 
 Return strict JSON:
 {
@@ -5115,7 +5347,7 @@ Return strict JSON:
     {
       "category_key": "revenue",
       "title": "Domain-specific monetised benefit title",
-      "unit_value": 5000,
+      "unit_value": 1500,
       "units": 12,
       "notes": "Monthly impact"
     }
@@ -5137,10 +5369,17 @@ Return ONLY JSON.
     String contextNotes = '',
     int count = 6,
   }) {
-    final total = estimatedProjectValue > 0 ? estimatedProjectValue : 150000;
-    final type = _detectProjectType(
-      '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}',
-    );
+    final combinedContext =
+        '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
+    final scale = _detectProjectScale(combinedContext);
+    // Use a realistic annual total scaled to project size; avoid inflated defaults
+    final scaleDefault = switch (scale) {
+      _AiProjectScale.small => 15000.0,
+      _AiProjectScale.medium => 45000.0,
+      _AiProjectScale.large => 250000.0,
+    };
+    final total = estimatedProjectValue > 0 ? estimatedProjectValue : scaleDefault;
+    final type = _detectProjectType(combinedContext);
     final allocations = <MapEntry<String, double>>[
       const MapEntry('revenue', 0.24),
       const MapEntry('cost_saving', 0.20),
@@ -5156,14 +5395,16 @@ Return ONLY JSON.
         ? 1
         : (count > allocations.length ? allocations.length : count);
     return allocations.take(cappedCount).map((entry) {
-      final value = total * entry.value;
+      // Distribute annual total across 12 months for realistic per-month unit values
+      final annualValue = total * entry.value;
+      final monthlyUnitValue = annualValue / 12;
       final title =
           _fallbackBenefitTitleForCategory(entry.key, type, solutions);
       return BenefitLineItemInput(
         category: entry.key,
         title: title,
-        unitValue: value,
-        units: 1,
+        unitValue: monthlyUnitValue,
+        units: 12,
         notes: _fallbackBenefitNotesForCategory(entry.key, type),
       );
     }).toList();

@@ -1,90 +1,219 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:speech_to_text/speech_to_text.dart';
+
+// Conditional import: web bridge on web, stub on native
+import 'voice_input_web_bridge_stub.dart'
+    if (dart.library.js_interop) 'voice_input_web_bridge_web.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 
-/// Singleton service that manages speech-to-text recognition across the app.
+/// Cross-platform voice input service.
 ///
-/// Usage:
-///   final voice = VoiceInputService.instance;
-///   if (await voice.startListening()) { ... }
-///   voice.stopListening();
-///   voice.currentText; // live transcript
+/// - **Web**: Uses the browser's Web Speech API directly via dart:js_interop,
+///   bypassing the `speech_to_text` web plugin which has a known issue with
+///   `_SpeechRecognition` constructor in release mode.
+/// - **Mobile/Desktop**: Uses the `speech_to_text` package which wraps
+///   platform-native speech recognition.
 class VoiceInputService {
   VoiceInputService._();
   static final VoiceInputService instance = VoiceInputService._();
 
-  final SpeechToText _speech = SpeechToText();
+  // Native (speech_to_text) instance
+  stt.SpeechToText? _speech;
+
+  // Web Speech Recognition JS object
+  dynamic _webRecognition;
 
   bool _initialized = false;
   bool _isAvailable = false;
   bool _isListening = false;
+  bool _intentionalStop = false;
   String _currentText = '';
   String _previousText = '';
 
-  /// Stream of live transcription results
   final StreamController<VoiceResult> _resultController =
       StreamController<VoiceResult>.broadcast();
-
-  /// Stream of status changes
   final StreamController<VoiceStatus> _statusController =
       StreamController<VoiceStatus>.broadcast();
 
   // --- Getters ---
 
-  /// Whether speech recognition is available on this device
   bool get isAvailable => _isAvailable;
-
-  /// Whether currently listening/recording
   bool get isListening => _isListening;
-
-  /// Current live transcript text (cumulative for this session)
   String get currentText => _currentText;
-
-  /// The text that was in the field before voice input started
   String get previousText => _previousText;
-
-  /// Stream of voice recognition results
   Stream<VoiceResult> get onResult => _resultController.stream;
-
-  /// Stream of voice status changes
   Stream<VoiceStatus> get onStatusChanged => _statusController.stream;
 
   // --- Initialization ---
 
-  /// Initialize the speech recognition engine.
-  /// Returns true if available on this device.
   Future<bool> initialize() async {
     if (_initialized) return _isAvailable;
 
-    try {
-      _isAvailable = await _speech.initialize(
-        onError: _onError,
-        onStatus: _onStatus,
-        debugLogging: false,
-      );
-      _initialized = true;
-    } catch (e) {
-      debugPrint('[VoiceInputService] Initialization failed: $e');
-      _isAvailable = false;
-      _initialized = true;
+    if (kIsWeb) {
+      return _initializeWeb();
+    } else {
+      return _initializeNative();
     }
+  }
+
+  // ===================== WEB =====================
+
+  Future<bool> _initializeWeb() async {
+    try {
+      _isAvailable = webVoiceInit(this);
+      if (_isAvailable) {
+        debugPrint('[VoiceInputService] Web Speech API initialized successfully');
+      } else {
+        debugPrint('[VoiceInputService] Web Speech API not available. '
+            'Use Chrome/Edge/Safari over HTTPS and allow mic access.');
+      }
+    } catch (e) {
+      debugPrint('[VoiceInputService] Web init failed: $e');
+      _isAvailable = false;
+    }
+    _initialized = true;
     return _isAvailable;
   }
 
-  // --- Listening ---
+  /// Stores the web SpeechRecognition JS object (called from web bridge).
+  void setWebRecognition(dynamic recognition) {
+    _webRecognition = recognition;
+  }
 
-  /// Start listening for speech input.
-  /// Returns true if listening started successfully.
+  /// Callback from web bridge: result received
   ///
-  /// [existingText] - text already in the field (will be prepended to result)
-  /// [localeId] - language locale, e.g. 'en_US', defaults to system
-  /// [listenMode] - dictation mode for continuous recognition
+  /// On web with continuous mode, [isFinal] means the current utterance
+  /// is finalized, NOT that the recognition session is done. We must not
+  /// stop listening here — the session continues until [onWebEnd] fires
+  /// or the user explicitly stops.
+  void onWebResult(String text, bool isFinal) {
+    _currentText = text;
+    final fullText = _buildFullText();
+    if (!_resultController.isClosed) {
+      // Always emit as non-final during the session so the widget keeps
+      // listening. The true session-end is signaled by onWebEnd / stop.
+      _resultController.add(VoiceResult(text: fullText, isFinal: false));
+    }
+  }
+
+  /// Callback from web bridge: error occurred
+  void onWebError(String error) {
+    debugPrint('[VoiceInputService] Web error: $error');
+    // 'no-speech' and 'aborted' are not fatal — don't stop the session.
+    // The recognition may auto-restart via onWebEnd.
+    if (error == 'no-speech' || error == 'aborted') return;
+
+    _isListening = false;
+    _intentionalStop = true;
+    final fullText = _buildFullText();
+    if (!_resultController.isClosed) {
+      _resultController.add(VoiceResult(text: fullText, isFinal: true));
+    }
+    if (!_statusController.isClosed) {
+      _statusController.add(VoiceStatus.error);
+    }
+  }
+
+  /// Callback from web bridge: recognition ended
+  ///
+  /// Distinguishes between intentional stops (user clicked stop/cancel)
+  /// and unexpected ends (silence timeout). On unexpected end with
+  /// continuous mode, attempts to auto-restart recognition.
+  void onWebEnd() {
+    if (_intentionalStop) {
+      // stopListening()/cancelListening() already handled state cleanup.
+      return;
+    }
+
+    // Recognition ended unexpectedly (e.g., silence timeout).
+    // Try to auto-restart if we're still supposed to be listening.
+    if (_isListening) {
+      try {
+        final restarted = webVoiceStart(_webRecognition, null);
+        if (restarted) {
+          debugPrint('[VoiceInputService] Web recognition auto-restarted');
+          return;
+        }
+      } catch (e) {
+        debugPrint('[VoiceInputService] Web auto-restart failed: $e');
+      }
+    }
+
+    // Could not restart — mark session as stopped
+    _isListening = false;
+    final fullText = _buildFullText();
+    if (!_resultController.isClosed) {
+      _resultController.add(VoiceResult(text: fullText, isFinal: true));
+    }
+    if (!_statusController.isClosed) {
+      _statusController.add(VoiceStatus.stopped);
+    }
+  }
+
+  // ===================== NATIVE =====================
+
+  Future<bool> _initializeNative() async {
+    try {
+      _speech = stt.SpeechToText();
+      _isAvailable = await _speech!.initialize(
+        onError: _onNativeError,
+        onStatus: _onNativeStatus,
+        debugLogging: false,
+      );
+    } catch (e) {
+      debugPrint('[VoiceInputService] Native init failed: $e');
+      _isAvailable = false;
+    }
+    _initialized = true;
+    return _isAvailable;
+  }
+
+  void _onNativeError(SpeechRecognitionError error) {
+    debugPrint('[VoiceInputService] Error: ${error.errorMsg} (permanent: ${error.permanent})');
+    if (error.permanent) {
+      _isListening = false;
+      if (!_statusController.isClosed) {
+        _statusController.add(VoiceStatus.error);
+      }
+    }
+  }
+
+  void _onNativeStatus(String status) {
+    switch (status) {
+      case 'listening':
+        _isListening = true;
+        if (!_statusController.isClosed) {
+          _statusController.add(VoiceStatus.listening);
+        }
+        break;
+      case 'notListening':
+      case 'done':
+        _isListening = false;
+        if (!_statusController.isClosed) {
+          _statusController.add(VoiceStatus.stopped);
+        }
+        break;
+    }
+  }
+
+  void _onNativeResult(SpeechRecognitionResult result) {
+    _currentText = result.recognizedWords;
+    final fullText = _buildFullText();
+    if (!_resultController.isClosed) {
+      _resultController.add(VoiceResult(
+        text: fullText,
+        isFinal: result.finalResult,
+      ));
+    }
+  }
+
+  // ===================== LISTENING =====================
+
   Future<bool> startListening({
     String existingText = '',
     String? localeId,
-    ListenMode listenMode = ListenMode.dictation,
   }) async {
     if (_isListening) return true;
 
@@ -99,109 +228,127 @@ class VoiceInputService {
 
     _previousText = existingText;
     _currentText = '';
-    _isListening = true;
-    _statusController.add(VoiceStatus.listening);
+    _intentionalStop = false;
 
+    if (kIsWeb) {
+      // On web, verify recognition actually starts before updating state.
+      final started = webVoiceStart(_webRecognition, localeId);
+      if (!started) {
+        debugPrint('[VoiceInputService] Web startListening failed');
+        return false;
+      }
+      _isListening = true;
+      if (!_statusController.isClosed) {
+        _statusController.add(VoiceStatus.listening);
+      }
+      return true;
+    } else {
+      // On native, set state optimistically (the speech_to_text package
+      // fires the onStatus callback asynchronously after listen() starts).
+      _isListening = true;
+      if (!_statusController.isClosed) {
+        _statusController.add(VoiceStatus.listening);
+      }
+      return _startNativeListening(localeId: localeId);
+    }
+  }
+
+  Future<bool> _startNativeListening({
+    String? localeId,
+  }) async {
     try {
-      await _speech.listen(
-        onResult: _onSpeechResult,
+      await _speech!.listen(
+        onResult: _onNativeResult,
         listenFor: const Duration(seconds: 60),
         pauseFor: const Duration(seconds: 4),
         localeId: localeId,
-        listenMode: listenMode,
         partialResults: true,
         cancelOnError: true,
       );
+      return true;
     } catch (e) {
-      debugPrint('[VoiceInputService] Failed to start listening: $e');
+      debugPrint('[VoiceInputService] Native startListening failed: $e');
       _isListening = false;
-      _statusController.add(VoiceStatus.stopped);
+      if (!_statusController.isClosed) {
+        _statusController.add(VoiceStatus.stopped);
+      }
       return false;
     }
-
-    return true;
   }
 
-  /// Stop listening and return final text
   Future<String> stopListening() async {
     if (!_isListening) return _currentText;
 
-    _speech.stop();
-    _isListening = false;
-    _statusController.add(VoiceStatus.stopped);
+    _intentionalStop = true;
 
+    if (kIsWeb) {
+      webVoiceStop(_webRecognition);
+    } else {
+      try {
+        _speech?.stop();
+      } catch (e) {
+        debugPrint('[VoiceInputService] Native stop error: $e');
+      }
+    }
+
+    _isListening = false;
+
+    // Emit the final result BEFORE the stopped status so the widget
+    // receives the last text update before its subscriptions are cleaned up.
     final fullText = _buildFullText();
-    _resultController.add(VoiceResult(
-      text: fullText,
-      isFinal: true,
-    ));
+    if (!_resultController.isClosed) {
+      _resultController.add(VoiceResult(text: fullText, isFinal: true));
+    }
+    if (!_statusController.isClosed) {
+      _statusController.add(VoiceStatus.stopped);
+    }
+
     return fullText;
   }
 
-  /// Cancel listening without returning results
   Future<void> cancelListening() async {
     if (!_isListening) return;
 
-    _speech.cancel();
+    _intentionalStop = true;
+
+    if (kIsWeb) {
+      webVoiceAbort(_webRecognition);
+    } else {
+      try {
+        _speech?.cancel();
+      } catch (e) {
+        debugPrint('[VoiceInputService] Native cancel error: $e');
+      }
+    }
+
     _isListening = false;
     _currentText = '';
-    _statusController.add(VoiceStatus.stopped);
-  }
-
-  // --- Internal handlers ---
-
-  void _onSpeechResult(SpeechRecognitionResult result) {
-    _currentText = result.recognizedWords;
-
-    final fullText = _buildFullText();
-    _resultController.add(VoiceResult(
-      text: fullText,
-      isFinal: result.finalResult,
-    ));
+    if (!_statusController.isClosed) {
+      _statusController.add(VoiceStatus.stopped);
+    }
   }
 
   String _buildFullText() {
     if (_previousText.isEmpty) return _currentText;
     if (_currentText.isEmpty) return _previousText;
 
-    // Add a space between existing text and new voice text
     final separator = _previousText.endsWith(' ') || _previousText.endsWith('\n')
         ? ''
         : ' ';
     return '$_previousText$separator$_currentText';
   }
 
-  void _onError(SpeechRecognitionError error) {
-    debugPrint('[VoiceInputService] Error: ${error.errorMsg} (permanent: ${error.permanent})');
-    if (error.permanent) {
-      _isListening = false;
-      _statusController.add(VoiceStatus.error);
-    }
-  }
-
-  void _onStatus(String status) {
-    debugPrint('[VoiceInputService] Status: $status');
-    switch (status) {
-      case 'listening':
-        _isListening = true;
-        _statusController.add(VoiceStatus.listening);
-        break;
-      case 'notListening':
-        _isListening = false;
-        _statusController.add(VoiceStatus.stopped);
-        break;
-      case 'done':
-        _isListening = false;
-        _statusController.add(VoiceStatus.stopped);
-        break;
-    }
-  }
-
-  // --- Cleanup ---
-
   void dispose() {
+    _intentionalStop = true;
     _resultController.close();
     _statusController.close();
+    if (kIsWeb) {
+      webVoiceAbort(_webRecognition);
+    } else {
+      try {
+        _speech?.cancel();
+      } catch (_) {}
+    }
   }
 }
 
