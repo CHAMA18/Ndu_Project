@@ -46,7 +46,6 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   final List<_DbField> _fields = [];
 
   final _Debouncer _saveDebounce = _Debouncer();
-  final Set<String> _selectedFilters = {'All systems'};
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _didSeedDefaults = false;
@@ -293,29 +292,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
     final padding = AppBreakpoints.pagePadding(context);
-    final projectData = ProjectDataHelper.getData(context);
-    final snapshot = _BackendInfrastructureSnapshot.from(
-      projectData: projectData,
-      architectureWorkspace: _architectureWorkspace,
-      architectureSummary: _architectureSummaryController.text,
-      databaseSummary: _databaseSummaryController.text,
-      components: _components,
-      dataFlows: _dataFlows,
-      documents: _designDocuments,
-      entities: _entities,
-      fields: _fields,
-    );
-
-    final showArchitecture = _selectedFilters.contains('All systems') ||
-        _selectedFilters.contains('Architecture');
-    final showDataLayer = _selectedFilters.contains('All systems') ||
-        _selectedFilters.contains('Data layer');
-    final showInterfaceContracts = _selectedFilters.contains('All systems');
-    final showDocumentsSecurity = _selectedFilters.contains('All systems') ||
-        _selectedFilters.contains('Security') ||
-        _selectedFilters.contains('Documents');
 
     return ResponsiveScaffold(
       activeItemLabel: 'Backend Design',
@@ -335,30 +312,16 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               showNavigationButtons: false,
             ),
             const SizedBox(height: 16),
-            _buildHeader(isNarrow),
-            const SizedBox(height: 16),
-            _buildFilterChips(),
-            const SizedBox(height: 20),
-            _buildStatsRow(isNarrow, snapshot),
-            const SizedBox(height: 20),
             _buildBackendFrameworkGuide(),
             const SizedBox(height: 24),
-            if (showArchitecture) ...[
-              _buildSystemArchitectureRegister(),
-              const SizedBox(height: 20),
-            ],
-            if (showDataLayer) ...[
-              _buildDataArchitectureRegister(),
-              const SizedBox(height: 20),
-            ],
-            if (showInterfaceContracts) ...[
-              _buildInterfaceContractsPanel(),
-              const SizedBox(height: 20),
-            ],
-            if (showDocumentsSecurity) ...[
-              _buildDocumentsSecurityPanel(),
-              const SizedBox(height: 20),
-            ],
+            _buildSystemArchitectureRegister(),
+            const SizedBox(height: 20),
+            _buildDataArchitectureRegister(),
+            const SizedBox(height: 20),
+            _buildInterfaceContractsPanel(),
+            const SizedBox(height: 20),
+            _buildDocumentsSecurityPanel(),
+            const SizedBox(height: 20),
             LaunchPhaseNavigation(
               backLabel: 'Back: UI/UX Design',
               nextLabel: 'Next: Engineering',
@@ -377,87 +340,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     );
   }
 
-  // ─── Header ────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(bool isNarrow) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFC812),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            'BACKEND ARCHITECTURE',
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black),
-          ),
-        ),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = isNarrow || constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Backend Design',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827)),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Design the invisible infrastructure and operational logic that powers every visible experience. '
-                  'This hub captures system topology, data movement, interface contracts, security architecture, '
-                  'business rules, operational load, vendor integrations, and deployment pipelines \u2014 the backbone your project stands on.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  _buildHeaderActions(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 20),
-                Flexible(child: _buildHeaderActions()),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add component', onPressed: _addComponent),
-        _actionButton(Icons.swap_horiz, 'Add data flow',
-            onPressed: _addDataFlow),
-        _actionButton(Icons.description_outlined, 'Add document',
-            onPressed: _addDesignDocument),
-        _primaryButton('Review architecture'),
-      ],
-    );
-  }
+  // ─── Framework Guide ───────────────────────────────────────────────────────
 
   Widget _actionButton(IconData icon, String label,
       {VoidCallback? onPressed}) {
@@ -476,171 +359,6 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       ),
     );
   }
-
-  Widget _primaryButton(String label) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        setState(() {
-          _selectedFilters
-            ..clear()
-            ..add('Architecture');
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Architecture review started. Filter set to Architecture view.')),
-        );
-      },
-      icon: const Icon(Icons.architecture, size: 18),
-      label: Text(label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  // ─── Filter Chips ──────────────────────────────────────────────────────────
-
-  Widget _buildFilterChips() {
-    const filters = [
-      'All systems',
-      'Architecture',
-      'Data layer',
-      'Security',
-      'Documents',
-      'Deprecated'
-    ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return ChoiceChip(
-          label: Text(
-            filter,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF475569),
-            ),
-          ),
-          selected: selected,
-          selectedColor: const Color(0xFF111827),
-          backgroundColor: Colors.white,
-          shape: StadiumBorder(
-            side: BorderSide(color: const Color(0xFFE5E7EB)),
-          ),
-          onSelected: (value) {
-            setState(() {
-              if (value) {
-                if (filter == 'All systems') {
-                  _selectedFilters
-                    ..clear()
-                    ..add(filter);
-                } else {
-                  _selectedFilters
-                    ..remove('All systems')
-                    ..add(filter);
-                }
-              } else {
-                _selectedFilters.remove(filter);
-                if (_selectedFilters.isEmpty) {
-                  _selectedFilters.add('All systems');
-                }
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  // ─── Stats Row ─────────────────────────────────────────────────────────────
-
-  Widget _buildStatsRow(bool isNarrow, _BackendInfrastructureSnapshot snapshot) {
-    final stats = [
-      _StatCardData(
-        'Architecture Nodes',
-        '${snapshot.systemNodes.length}',
-        '${_components.length} registered',
-        const Color(0xFF0EA5E9),
-      ),
-      _StatCardData(
-        'Data Entities',
-        '${snapshot.dataEntities.length}',
-        '${_entities.length} tables',
-        const Color(0xFF10B981),
-      ),
-      _StatCardData(
-        'Interface Contracts',
-        '${snapshot.interfaceContracts.length}',
-        '${_dataFlows.length} data flows',
-        const Color(0xFF6366F1),
-      ),
-      _StatCardData(
-        'Vendor Dependencies',
-        '${snapshot.vendorDependencies.length}',
-        'External services',
-        const Color(0xFFF97316),
-      ),
-    ];
-
-    if (isNarrow) {
-      return Column(
-        children: [
-          for (int i = 0; i < stats.length; i++) ...[
-            SizedBox(width: double.infinity, child: _buildStatCard(stats[i])),
-            if (i < stats.length - 1) const SizedBox(height: 12),
-          ],
-        ],
-      );
-    }
-
-    return Row(
-      children: stats
-          .map((s) => Expanded(child: Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: _buildStatCard(s),
-              )))
-          .toList(),
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(data.value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: data.color)),
-          const SizedBox(height: 6),
-          Text(data.label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          const SizedBox(height: 6),
-          Text(data.supporting,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: data.color)),
-        ],
-      ),
-    );
-  }
-
-  // ─── Framework Guide ───────────────────────────────────────────────────────
 
   Widget _buildBackendFrameworkGuide() {
     return Container(
@@ -2309,17 +2027,6 @@ class _PanelShell extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─── Stat Card Data ──────────────────────────────────────────────────────────
-
-class _StatCardData {
-  const _StatCardData(this.label, this.value, this.supporting, this.color);
-
-  final String label;
-  final String value;
-  final String supporting;
-  final Color color;
 }
 
 // ─── Snapshot & Data Model Classes ───────────────────────────────────────────

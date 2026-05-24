@@ -57,6 +57,9 @@ Rules for every response:
 11. If exact product/version currency is uncertain, prefer widely adopted latest-stable practices rather than outdated or end-of-life specifics.
 12. Calibrate scope, timeline, and cost realism to project scale and context.
 13. Make assumptions explicit when context is incomplete.
+14. FINANCIAL REALISM IS CRITICAL: All monetary values, costs, benefits, staffing rates, and savings figures MUST be grounded in real-world market data for the detected project scale and geography. Small/local businesses (barbershops, salons, food trucks) have total monthly revenues of \$2K-\$15K — any suggested benefit exceeding 15% of that is unrealistic. Mid-size enterprises have department budgets of \$50K-\$200K. Large enterprises handle \$500K-\$5M+ per initiative. NEVER suggest values that would be impossible or absurd for the business size. When in doubt, err on the conservative side.
+15. STAFFING REALISM: Monthly staff costs must reflect actual market rates. For small businesses in Africa: \$800-\$3,000/mo per role. For mid-size: \$2,000-\$8,000/mo. For large enterprises: \$5,000-\$15,000/mo for senior roles. Do NOT suggest \$10,000/mo for a barbershop staff member.
+16. TIMELINE REALISM: Small projects take weeks to 3 months. Medium projects take 3-9 months. Large projects take 9-24+ months. Do NOT suggest a 12-month timeline for a simple booking app or a 2-week timeline for an enterprise ERP.
 
 Your current specialist role: $specialistRole.
 $strictJsonRule
@@ -2460,13 +2463,14 @@ $c
 
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
-    final projectType = _detectProjectType(
-      '$trimmed $description $assumptions $contextNotes',
-    );
+    final combinedContext = '$trimmed $description $assumptions $contextNotes';
+    final projectType = _detectProjectType(combinedContext);
+    final projectScale = _detectProjectScale(combinedContext);
     final budgetAnchor = _extractLargestCurrencyAnchor(contextNotes);
     final domainHints = _financialDomainHints(
-      context: '$trimmed $description $assumptions $contextNotes',
+      context: combinedContext,
     );
+    final scaleConstraints = _scaleFinancialConstraints(projectScale);
 
     final uri = OpenAiConfig.chatUri();
     final headers = {
@@ -2485,6 +2489,7 @@ $c
       estimationMode: estimationMode,
       basisFrequency: basisFrequency,
       domainHints: domainHints,
+      scaleConstraints: scaleConstraints,
     );
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
@@ -2554,7 +2559,8 @@ $c
         return 0;
       }
 
-      return _normalizeEstimatedCost(estimated);
+      // Post-processing: clamp to scale-appropriate maximum
+      return _clampCostValue(estimated, projectScale);
     } catch (e) {
       rethrow;
     }
@@ -2673,6 +2679,7 @@ $c
     required String estimationMode,
     required String basisFrequency,
     required String domainHints,
+    String scaleConstraints = '',
   }) {
     final safeName = _escape(itemName);
     final safeDesc = _escape(description);
@@ -2721,6 +2728,8 @@ Largest numeric anchor found in context: "$budgetNote $currency"
 Estimation mode: "$mode"
 Domain guardrails:
 $domainHints
+
+$scaleConstraints
 ''';
   }
 
@@ -2732,7 +2741,9 @@ $domainHints
     if (trimmed.isEmpty) throw Exception('No context provided');
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
     final projectType = _detectProjectType(trimmed);
+    final projectScale = _detectProjectScale(trimmed);
     final domainHints = _financialDomainHints(context: trimmed);
+    final scaleConstraints = _scaleFinancialConstraints(projectScale);
 
     final uri = OpenAiConfig.chatUri();
     final headers = {
@@ -2762,6 +2773,7 @@ $domainHints
             trimmed,
             projectType: projectType,
             domainHints: domainHints,
+            scaleConstraints: scaleConstraints,
           ),
         },
       ],
@@ -2807,6 +2819,7 @@ $domainHints
       return _sanitizeCostEstimateSuggestions(
         list,
         projectType: projectType,
+        projectScale: projectScale,
       );
     } catch (e) {
       rethrow;
@@ -2939,6 +2952,7 @@ $c
     String context, {
     required _AiProjectType projectType,
     required String domainHints,
+    String scaleConstraints = '',
   }) {
     final c = _escape(context);
     final typeLabel = _projectTypeLabel(projectType);
@@ -2965,6 +2979,8 @@ Rules:
 - For physical projects, do not output software phases such as Discovery and Planning, MVP Build, Integration, or Data.
 - Do not use SaaS-only metrics or terms (CAC/LTV/churn/MRR) unless the context explicitly indicates a SaaS/digital business model.
 
+$scaleConstraints
+
 Project Context:
 """
 $c
@@ -2978,6 +2994,7 @@ $domainHints
   List<CostEstimateItem> _sanitizeCostEstimateSuggestions(
     List<CostEstimateItem> items, {
     required _AiProjectType projectType,
+    _AiProjectScale projectScale = _AiProjectScale.medium,
   }) {
     final seen = <String>{};
     final filtered = <CostEstimateItem>[];
@@ -3002,7 +3019,7 @@ $domainHints
       filtered.add(
         CostEstimateItem(
           title: title,
-          amount: _normalizeEstimatedCost(amount),
+          amount: _clampCostValue(amount, projectScale),
           notes: item.notes.trim(),
           costType: normalizedType,
         ),
@@ -4569,6 +4586,131 @@ Domain guardrail: $guardrails
     }
   }
 
+  // ── Financial value clamping ──────────────────────────────────────────
+  // Post-processing guardrails that clamp AI-generated values to
+  // scale-appropriate ranges.  These run AFTER the model response is
+  // parsed so that even if the model ignores prompt instructions the
+  // values presented to users remain realistic.
+
+  /// Maximum realistic monthly benefit unit value for the given project scale.
+  double _maxMonthlyBenefitUnitValue(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 1500,
+        _AiProjectScale.medium => 8000,
+        _AiProjectScale.large => 40000,
+      };
+
+  /// Maximum realistic one-off cost for a single line item at the given scale.
+  double _maxSingleItemCost(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 25000,
+        _AiProjectScale.medium => 150000,
+        _AiProjectScale.large => 1000000,
+      };
+
+  /// Maximum realistic monthly staffing cost per role at the given scale.
+  double _maxMonthlyStaffCost(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 3000,
+        _AiProjectScale.medium => 8000,
+        _AiProjectScale.large => 15000,
+      };
+
+  /// Minimum realistic monthly staffing cost per role at the given scale.
+  double _minMonthlyStaffCost(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 500,
+        _AiProjectScale.medium => 1500,
+        _AiProjectScale.large => 3000,
+      };
+
+  /// Clamp a benefit unit value to the scale-appropriate maximum.
+  double _clampBenefitValue(double value, _AiProjectScale scale) {
+    final maxVal = _maxMonthlyBenefitUnitValue(scale);
+    if (value > maxVal) return maxVal;
+    if (value <= 0) return 0;
+    return value;
+  }
+
+  /// Clamp a single cost estimate to the scale-appropriate range.
+  double _clampCostValue(double value, _AiProjectScale scale) {
+    final maxVal = _maxSingleItemCost(scale);
+    if (value > maxVal) return maxVal;
+    if (value <= 0) return 0;
+    return _normalizeEstimatedCost(value);
+  }
+
+  /// Clamp a monthly staffing cost to the scale-appropriate range.
+  double _clampStaffCost(double value, _AiProjectScale scale) {
+    final minVal = _minMonthlyStaffCost(scale);
+    final maxVal = _maxMonthlyStaffCost(scale);
+    if (value < minVal) return minVal;
+    if (value > maxVal) return maxVal;
+    return value;
+  }
+
+  /// Clamp a projected savings value relative to the total benefit value.
+  double _clampSavingsValue(double value, double totalBenefit) {
+    if (value <= 0) return 0;
+    // Savings cannot exceed 30% of total benefit (optimistic upper bound)
+    final maxSavings = totalBenefit * 0.30;
+    if (value > maxSavings) return maxSavings;
+    return value;
+  }
+
+  /// Returns a scale-specific prompt fragment for financial realism.
+  String _scaleFinancialConstraints(_AiProjectScale scale) {
+    return switch (scale) {
+      _AiProjectScale.small =>
+        'CRITICAL SCALE CONSTRAINT: This is a SMALL-SCALE project (local business, small team). '
+        'Monthly benefit unit values MUST NOT exceed \$1,500. '
+        'Monthly staffing costs MUST be \$500-\$3,000 per role. '
+        'Total project budget is likely under \$50K. '
+        'Any value suggesting \$5,000+/mo benefit for a single category is UNREALISTIC and will be rejected. '
+        'A barbershop making \$8K/mo cannot realize \$3K/mo in new revenue from one app feature.',
+      _AiProjectScale.medium =>
+        'SCALE CONSTRAINT: This is a MEDIUM-SCALE project (department/mid-size business). '
+        'Monthly benefit unit values should range \$1,000-\$8,000. '
+        'Monthly staffing costs should be \$1,500-\$8,000 per role. '
+        'Total project budget is likely \$50K-\$200K.',
+      _AiProjectScale.large =>
+        'SCALE CONSTRAINT: This is a LARGE-SCALE project (enterprise/infrastructure). '
+        'Monthly benefit unit values can range \$5,000-\$40,000. '
+        'Monthly staffing costs can be \$3,000-\$15,000 per role for senior positions. '
+        'Total project budget is likely \$200K+.',
+    };
+  }
+
+  /// Returns scale-specific duration guidance for schedule activities.
+  String _scaleDurationGuidance(_AiProjectScale scale) {
+    return switch (scale) {
+      _AiProjectScale.small =>
+        'TIMELINE CONSTRAINT: This is a SMALL project. Total project duration should be 1-12 weeks. '
+        'Individual activities should be 1-10 working days. Do NOT suggest multi-month phases. '
+        'A simple booking app does not need 6 months of development.',
+      _AiProjectScale.medium =>
+        'TIMELINE CONSTRAINT: This is a MEDIUM project. Total duration should be 3-9 months. '
+        'Individual activities should be 3-30 working days. Phases can span 1-3 months.',
+      _AiProjectScale.large =>
+        'TIMELINE CONSTRAINT: This is a LARGE project. Total duration can be 9-24+ months. '
+        'Individual activities should be 5-60 working days. Phases can span 2-6 months.',
+    };
+  }
+
+  /// Returns scale-specific staffing cost guidance.
+  String _scaleStaffingCostGuidance(_AiProjectScale scale) {
+    return switch (scale) {
+      _AiProjectScale.small =>
+        'STAFFING COST CONSTRAINT: Small/local business in Africa — monthly cost per role MUST be \$500-\$3,000. '
+        'A barbershop manager earns ~\$800-\$2,000/mo, a part-time developer ~\$1,000-\$2,500/mo. '
+        'Do NOT suggest \$8,000/mo for any single role in a small business context.',
+      _AiProjectScale.medium =>
+        'STAFFING COST GUIDANCE: Mid-size enterprise — monthly cost per role typically \$1,500-\$8,000. '
+        'Project managers: \$3,000-\$6,000/mo. Senior developers: \$4,000-\$8,000/mo. '
+        'Business analysts: \$2,000-\$5,000/mo.',
+      _AiProjectScale.large =>
+        'STAFFING COST GUIDANCE: Large enterprise — monthly cost per role typically \$3,000-\$15,000. '
+        'Program managers: \$6,000-\$12,000/mo. Solution architects: \$8,000-\$15,000/mo. '
+        'Senior engineers: \$5,000-\$10,000/mo.',
+    };
+  }
+
   _AiProjectType _detectProjectTypeForSolution(
     AiSolutionItem solution,
     String contextNotes,
@@ -5259,8 +5401,10 @@ Return plain text only.'''
                 _looksTooGenericFinancialText(notes)) {
               notes = _fallbackBenefitNotesForCategory(category, detectedType);
             }
-            final unitValue =
+            final unitValueRaw =
                 _toDouble(item['unit_value'] ?? item['unitValue']);
+            // Post-processing: clamp unit value to scale-appropriate maximum
+            final unitValue = _clampBenefitValue(unitValueRaw, detectedScale);
             final unitsRaw = _toDouble(item['units'] ?? 1);
             final units = unitsRaw > 0 ? unitsRaw : 1.0;
             final key =
@@ -5356,6 +5500,7 @@ Return strict JSON:
 
 Solutions: [$solutionsJson]
 Context notes: $notes
+${_scaleFinancialConstraints(projectScale)}
 Domain guardrails:
 $domainHints
 Return ONLY JSON.
@@ -5536,10 +5681,14 @@ Return ONLY JSON.
   }) async {
     final contextFromItems =
         items.map((e) => '${e.category} ${e.title} ${e.notes}').join(' ');
-    final detectedType = _detectProjectType('$contextNotes $contextFromItems');
+    final combinedContext = '$contextNotes $contextFromItems';
+    final detectedType = _detectProjectType(combinedContext);
+    final detectedScale = _detectProjectScale(combinedContext);
     final domainHints = _financialDomainHints(
-      context: '$contextNotes $contextFromItems',
+      context: combinedContext,
     );
+    final scaleConstraints = _scaleFinancialConstraints(detectedScale);
+    final totalBenefit = items.fold<double>(0, (sum, item) => sum + item.total);
     if (items.isEmpty) return [];
     if (!OpenAiConfig.isConfigured) {
       return _fallbackSavingsSuggestions(
@@ -5578,6 +5727,7 @@ Return ONLY JSON.
             savingsTargetPercent,
             contextNotes,
             domainHints: domainHints,
+            scaleConstraints: scaleConstraints,
           ),
         },
       ],
@@ -5605,8 +5755,20 @@ Return ONLY JSON.
           (data['choices'] as List).first['message']['content'] as String;
       final parsed = jsonDecode(content) as Map<String, dynamic>;
       final scenarios = (parsed['savings_scenarios'] as List? ?? [])
-          .map((e) => AiBenefitSavingsSuggestion.fromMap(
-              (e ?? {}) as Map<String, dynamic>))
+          .map((e) {
+            final raw = AiBenefitSavingsSuggestion.fromMap(
+                (e ?? {}) as Map<String, dynamic>);
+            // Post-processing: clamp projected savings to realistic range
+            final clampedSavings = _clampSavingsValue(raw.projectedSavings, totalBenefit);
+            return AiBenefitSavingsSuggestion(
+              lever: raw.lever,
+              recommendation: raw.recommendation,
+              projectedSavings: clampedSavings,
+              timeframe: raw.timeframe,
+              confidence: raw.confidence,
+              rationale: raw.rationale,
+            );
+          })
           .where((e) {
         if (e.lever.isEmpty) return false;
         if (e.projectedSavings <= 0) return false;
@@ -5641,7 +5803,7 @@ Return ONLY JSON.
 
   String _benefitSavingsPrompt(List<BenefitLineItemInput> items,
       String currency, double? savingsTargetPercent, String contextNotes,
-      {required String domainHints}) {
+      {required String domainHints, String scaleConstraints = ''}) {
     final target = savingsTargetPercent != null && savingsTargetPercent > 0
         ? 'Aim for at least ${savingsTargetPercent.toStringAsFixed(1)}% savings against total monetised benefits.'
         : 'If no explicit savings target is provided, surface high-impact opportunities.';
@@ -5658,6 +5820,8 @@ Respond with 2-4 concise savings scenarios that resemble spreadsheet-style lever
 Extra notes for context: $notes
 Do not suggest SaaS-only levers (CAC/LTV/churn/MRR) unless the project context clearly indicates SaaS/digital subscription.
 Do not suggest construction-only levers for purely digital projects.
+Projected savings for each scenario MUST NOT exceed 30% of the total benefit value across all items.
+$scaleConstraints
 Domain guardrails:
 $domainHints
 
@@ -6764,6 +6928,9 @@ $escaped
       return _fallbackStaffingRows(trimmedContext, maxRows);
     }
 
+    final projectScale = _detectProjectScale(trimmedContext);
+    final staffingGuidance = _scaleStaffingCostGuidance(projectScale);
+
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
@@ -6788,7 +6955,7 @@ $escaped
         },
         {
           'role': 'user',
-          'content': _staffingRowsPrompt(trimmedContext, maxRows),
+          'content': _staffingRowsPrompt(trimmedContext, maxRows, staffingGuidance),
         },
       ],
     }));
@@ -6810,7 +6977,7 @@ $escaped
         final content = (firstMessage['content'] as String?)?.trim() ?? '';
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
-          final rows = _parseStaffingRows(parsed, maxRows);
+          final rows = _parseStaffingRows(parsed, maxRows, projectScale);
           if (rows.isNotEmpty) return rows;
         }
       }
@@ -6821,7 +6988,7 @@ $escaped
     return _fallbackStaffingRows(trimmedContext, maxRows);
   }
 
-  String _staffingRowsPrompt(String context, int maxRows) {
+  String _staffingRowsPrompt(String context, int maxRows, String staffingGuidance) {
     final escaped = _escape(context);
     return '''
 Generate up to $maxRows staffing rows for the execution phase based on the project context.
@@ -6847,6 +7014,9 @@ Guidelines:
 - Keep roles specific to the project context.
 - Use realistic quantities (1-4) and durations (1-12 months).
 - Provide concise, actionable descriptions and 2-4 skill requirements.
+- MONTHLY COSTS MUST be realistic for the project's scale and market. See constraints below.
+
+$staffingGuidance
 
 Project context:
 """
@@ -6856,7 +7026,8 @@ $escaped
   }
 
   List<StaffingRow> _parseStaffingRows(
-      Map<String, dynamic> parsed, int maxRows) {
+      Map<String, dynamic> parsed, int maxRows,
+      [_AiProjectScale projectScale = _AiProjectScale.medium]) {
     final rowsRaw = parsed['staffingRows'] ??
         parsed['rows'] ??
         parsed['staffing'] ??
@@ -6886,9 +7057,15 @@ $escaped
       final startDate = (map['startDate'] ?? map['start'] ?? '').toString();
       final duration =
           (map['durationMonths'] ?? map['duration'] ?? '').toString();
-      final monthlyCost =
+      final monthlyCostRaw =
           (map['monthlyCost'] ?? map['monthlyRate'] ?? map['cost'] ?? '')
               .toString();
+      // Clamp monthly cost to scale-appropriate range
+      final monthlyCostParsed = double.tryParse(
+            monthlyCostRaw.replaceAll(RegExp(r'[^0-9.]'), ''),
+          ) ?? 0;
+      final monthlyCostClamped = _clampStaffCost(monthlyCostParsed, projectScale);
+      final monthlyCost = monthlyCostClamped.toStringAsFixed(0);
       final description =
           (map['roleDescription'] ?? map['description'] ?? map['summary'] ?? '')
               .toString();
@@ -9004,6 +9181,9 @@ Additional Context: $contextNotes
       return _fallbackScheduleActivities(wbsItems);
     }
 
+    final projectScale = _detectProjectScale(trimmedContext);
+    final durationGuidance = _scaleDurationGuidance(projectScale);
+
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
@@ -9023,7 +9203,7 @@ Additional Context: $contextNotes
         },
         {
           'role': 'user',
-          'content': _scheduleActivitiesPrompt(trimmedContext, wbsItems),
+          'content': _scheduleActivitiesPrompt(trimmedContext, wbsItems, durationGuidance),
         },
       ],
     }));
@@ -9063,7 +9243,7 @@ Additional Context: $contextNotes
   }
 
   String _scheduleActivitiesPrompt(
-      String context, List<Map<String, String>> wbsItems) {
+      String context, List<Map<String, String>> wbsItems, String durationGuidance) {
     final escaped = _escape(context);
     final itemsJson = jsonEncode(wbsItems);
     return '''
@@ -9075,6 +9255,8 @@ Rules:
 - Duration is in working days (integer).
 - If something is a milestone, set durationDays to 0 and isMilestone true.
 - Provide logical predecessorIds for sequencing.
+
+$durationGuidance
 
 Return ONLY valid JSON with this exact structure:
 {
