@@ -232,3 +232,26 @@ Stage Summary:
 - When currency is not USD, the AI prompt says: "1 USD ≈ X CURRENCY" and gives a concrete conversion example
 - Currency dropdowns expanded from 4 to 16 options
 - Client-side currency conversion also expanded with more rates
+---
+Task ID: 1
+Agent: Main Agent
+Task: Add rich text editor with formatting toolbar to Risk Mitigation page, matching the initiation phase text editor
+
+Work Log:
+- Analyzed screenshot showing Risk Mitigation page with static text (no text editor)
+- Studied Initiation Phase screen's text editor implementation: RichTextEditingController + TextFormattingToolbar
+- Changed _notesController from TextEditingController to RichTextEditingController
+- Changed _mitigationControllers map type from Map<String, TextEditingController> to Map<String, RichTextEditingController>
+- Added TextFormattingToolbar above the Notes text area in _RiskNotesCard
+- Added TextFormattingToolbar above each Mitigation Plan entry text area in _MitigationPlanCard
+- Updated _ensureMitigationControllers to create RichTextEditingController instances
+- Updated _MitigationPlanCard's controller type declaration
+- Added imports for rich_text_editing_controller.dart and text_formatting_toolbar.dart
+- Build succeeded, deployed to gh-pages
+
+Stage Summary:
+- Risk Mitigation page now has the same rich text editor experience as the Initiation Phase
+- Notes field has TextFormattingToolbar (bold, italic, underline, H1, H2, undo)
+- Each Mitigation Plan entry has TextFormattingToolbar
+- Both use RichTextEditingController for inline markdown rendering (**bold**, *italic*, __underline__, # headings)
+- Deployed to admin.nduproject.com via GitHub Pages
