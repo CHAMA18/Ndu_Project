@@ -477,14 +477,34 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       ]);
     }
 
+    // Detect project scale from project context for realistic default values
+    final projectContext = [
+      projectData?.projectName ?? '',
+      projectData?.solutionTitle ?? '',
+      projectData?.solutionDescription ?? '',
+      projectData?.businessCase ?? '',
+      ...opportunities,
+    ].join(' ').toLowerCase();
+
+    final isSmallProject = _isSmallScaleProject(projectContext);
+    final isLargeProject = _isLargeScaleProject(projectContext);
+
     final baseEstimate =
         _parseCurrencyInput(_projectValueAmountController.text);
-    // Realistic per-unit defaults: scale to project if available, otherwise
-    // use conservative industry benchmarks (not inflated).
-    // Small business app ~$500/mo per benefit stream; mid-size ~$2,000/mo.
-    final baseUnitValue = baseEstimate > 0
-        ? baseEstimate / 36 // ~3 years of monthly value → realistic per-month unit
-        : 850; // Conservative default: $850/mo per benefit line
+    // Scale-aware per-unit defaults based on detected project scale.
+    // Small business (barbershop, salon): ~$200-$800/mo per benefit stream
+    // Medium/department: ~$800-$2,500/mo
+    // Large/enterprise: ~$2,500-$8,000/mo
+    final double baseUnitValue;
+    if (baseEstimate > 0) {
+      baseUnitValue = baseEstimate / 36;
+    } else if (isSmallProject) {
+      baseUnitValue = 350.0; // ~$350/mo per benefit line for small businesses
+    } else if (isLargeProject) {
+      baseUnitValue = 4500.0; // ~$4,500/mo per benefit line for large projects
+    } else {
+      baseUnitValue = 850.0; // ~$850/mo per benefit line (medium default)
+    }
     const categories = <String>[
       'process_improvement',
       'ops_efficiency',
@@ -510,6 +530,38 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         _benefitLineItems.add(entry);
       }
     });
+  }
+
+  /// Detects whether the project context suggests a small-scale project
+  /// (barbershop, salon, small retail, local business, etc.)
+  static bool _isSmallScaleProject(String context) {
+    final smallIndicators = [
+      'barbershop', 'barber shop', 'salon', 'hair salon', 'nail salon',
+      'small business', 'small retail', 'sole proprietor', 'mom and pop',
+      'local shop', 'local store', 'boutique', 'freelance', 'solo',
+      'micro business', 'home-based', 'pop-up', 'food truck', 'food cart',
+      'corner store', 'kiosk', 'stall', 'personal brand',
+      'pet grooming', 'dog walking', 'tutoring', 'cleaning service',
+      'lawn care', 'small clinic', 'dental practice', 'yoga studio',
+      'gym studio', 'personal training', 'craft', 'artisan',
+      'personal app', 'portfolio app', 'booking app', 'appointment app',
+    ];
+    return smallIndicators.any((term) => context.contains(term));
+  }
+
+  /// Detects whether the project context suggests a large-scale project
+  /// (enterprise, infrastructure, government, etc.)
+  static bool _isLargeScaleProject(String context) {
+    final largeIndicators = [
+      'enterprise', 'corporation', 'multi-site', 'infrastructure',
+      'government', 'municipal', 'federal', 'hospital', 'university',
+      'campus', 'city-wide', 'nationwide', 'global', 'industrial',
+      'manufacturing plant', 'power plant', 'data center', 'data centre',
+      'oil and gas', 'mining', 'pipeline', 'railway', 'airport',
+      'large-scale', 'large scale', 'multi-phase', 'multi-year',
+      'multi-million', 'digital transformation',
+    ];
+    return largeIndicators.any((term) => context.contains(term));
   }
 
   bool _hasMeaningfulBenefitLineItems({int? solutionIndex}) {
