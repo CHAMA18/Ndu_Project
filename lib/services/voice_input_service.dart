@@ -28,6 +28,7 @@ class VoiceInputService {
   bool _initialized = false;
   bool _isAvailable = false;
   bool _isListening = false;
+  bool _intentionalStop = false;
   String _currentText = '';
   String _previousText = '';
 
@@ -62,6 +63,12 @@ class VoiceInputService {
   Future<bool> _initializeWeb() async {
     try {
       _isAvailable = webVoiceInit(this);
+      if (_isAvailable) {
+        debugPrint('[VoiceInputService] Web Speech API initialized successfully');
+      } else {
+        debugPrint('[VoiceInputService] Web Speech API not available. '
+            'Use Chrome/Edge/Safari over HTTPS and allow mic access.');
+      }
     } catch (e) {
       debugPrint('[VoiceInputService] Web init failed: $e');
       _isAvailable = false;
@@ -76,32 +83,70 @@ class VoiceInputService {
   }
 
   /// Callback from web bridge: result received
+  ///
+  /// On web with continuous mode, [isFinal] means the current utterance
+  /// is finalized, NOT that the recognition session is done. We must not
+  /// stop listening here — the session continues until [onWebEnd] fires
+  /// or the user explicitly stops.
   void onWebResult(String text, bool isFinal) {
     _currentText = text;
     final fullText = _buildFullText();
     if (!_resultController.isClosed) {
-      _resultController.add(VoiceResult(text: fullText, isFinal: isFinal));
-    }
-    if (isFinal) {
-      _isListening = false;
-      if (!_statusController.isClosed) {
-        _statusController.add(VoiceStatus.stopped);
-      }
+      // Always emit as non-final during the session so the widget keeps
+      // listening. The true session-end is signaled by onWebEnd / stop.
+      _resultController.add(VoiceResult(text: fullText, isFinal: false));
     }
   }
 
   /// Callback from web bridge: error occurred
   void onWebError(String error) {
     debugPrint('[VoiceInputService] Web error: $error');
+    // 'no-speech' and 'aborted' are not fatal — don't stop the session.
+    // The recognition may auto-restart via onWebEnd.
+    if (error == 'no-speech' || error == 'aborted') return;
+
     _isListening = false;
+    _intentionalStop = true;
+    final fullText = _buildFullText();
+    if (!_resultController.isClosed) {
+      _resultController.add(VoiceResult(text: fullText, isFinal: true));
+    }
     if (!_statusController.isClosed) {
       _statusController.add(VoiceStatus.error);
     }
   }
 
   /// Callback from web bridge: recognition ended
+  ///
+  /// Distinguishes between intentional stops (user clicked stop/cancel)
+  /// and unexpected ends (silence timeout). On unexpected end with
+  /// continuous mode, attempts to auto-restart recognition.
   void onWebEnd() {
+    if (_intentionalStop) {
+      // stopListening()/cancelListening() already handled state cleanup.
+      return;
+    }
+
+    // Recognition ended unexpectedly (e.g., silence timeout).
+    // Try to auto-restart if we're still supposed to be listening.
+    if (_isListening) {
+      try {
+        final restarted = webVoiceStart(_webRecognition, null);
+        if (restarted) {
+          debugPrint('[VoiceInputService] Web recognition auto-restarted');
+          return;
+        }
+      } catch (e) {
+        debugPrint('[VoiceInputService] Web auto-restart failed: $e');
+      }
+    }
+
+    // Could not restart — mark session as stopped
     _isListening = false;
+    final fullText = _buildFullText();
+    if (!_resultController.isClosed) {
+      _resultController.add(VoiceResult(text: fullText, isFinal: true));
+    }
     if (!_statusController.isClosed) {
       _statusController.add(VoiceStatus.stopped);
     }
@@ -183,12 +228,27 @@ class VoiceInputService {
 
     _previousText = existingText;
     _currentText = '';
-    _isListening = true;
-    _statusController.add(VoiceStatus.listening);
+    _intentionalStop = false;
 
     if (kIsWeb) {
-      return webVoiceStart(_webRecognition, localeId);
+      // On web, verify recognition actually starts before updating state.
+      final started = webVoiceStart(_webRecognition, localeId);
+      if (!started) {
+        debugPrint('[VoiceInputService] Web startListening failed');
+        return false;
+      }
+      _isListening = true;
+      if (!_statusController.isClosed) {
+        _statusController.add(VoiceStatus.listening);
+      }
+      return true;
     } else {
+      // On native, set state optimistically (the speech_to_text package
+      // fires the onStatus callback asynchronously after listen() starts).
+      _isListening = true;
+      if (!_statusController.isClosed) {
+        _statusController.add(VoiceStatus.listening);
+      }
       return _startNativeListening(localeId: localeId);
     }
   }
@@ -209,13 +269,17 @@ class VoiceInputService {
     } catch (e) {
       debugPrint('[VoiceInputService] Native startListening failed: $e');
       _isListening = false;
-      _statusController.add(VoiceStatus.stopped);
+      if (!_statusController.isClosed) {
+        _statusController.add(VoiceStatus.stopped);
+      }
       return false;
     }
   }
 
   Future<String> stopListening() async {
     if (!_isListening) return _currentText;
+
+    _intentionalStop = true;
 
     if (kIsWeb) {
       webVoiceStop(_webRecognition);
@@ -228,15 +292,24 @@ class VoiceInputService {
     }
 
     _isListening = false;
-    _statusController.add(VoiceStatus.stopped);
 
+    // Emit the final result BEFORE the stopped status so the widget
+    // receives the last text update before its subscriptions are cleaned up.
     final fullText = _buildFullText();
-    _resultController.add(VoiceResult(text: fullText, isFinal: true));
+    if (!_resultController.isClosed) {
+      _resultController.add(VoiceResult(text: fullText, isFinal: true));
+    }
+    if (!_statusController.isClosed) {
+      _statusController.add(VoiceStatus.stopped);
+    }
+
     return fullText;
   }
 
   Future<void> cancelListening() async {
     if (!_isListening) return;
+
+    _intentionalStop = true;
 
     if (kIsWeb) {
       webVoiceAbort(_webRecognition);
@@ -250,7 +323,9 @@ class VoiceInputService {
 
     _isListening = false;
     _currentText = '';
-    _statusController.add(VoiceStatus.stopped);
+    if (!_statusController.isClosed) {
+      _statusController.add(VoiceStatus.stopped);
+    }
   }
 
   String _buildFullText() {
@@ -264,6 +339,7 @@ class VoiceInputService {
   }
 
   void dispose() {
+    _intentionalStop = true;
     _resultController.close();
     _statusController.close();
     if (kIsWeb) {

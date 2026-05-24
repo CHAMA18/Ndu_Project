@@ -139,9 +139,16 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
   }
 
   Future<void> _checkAvailability() async {
-    final available = await _voiceService.initialize();
-    if (mounted && available != _voiceAvailable) {
-      setState(() => _voiceAvailable = available);
+    try {
+      final available = await _voiceService.initialize();
+      if (mounted && available != _voiceAvailable) {
+        setState(() => _voiceAvailable = available);
+      }
+    } catch (e) {
+      debugPrint('[VoiceTextField] Availability check failed: $e');
+      if (mounted) {
+        setState(() => _voiceAvailable = false);
+      }
     }
   }
 
@@ -471,9 +478,16 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   }
 
   Future<void> _checkAvailability() async {
-    final available = await _voiceService.initialize();
-    if (mounted && available != _voiceAvailable) {
-      setState(() => _voiceAvailable = available);
+    try {
+      final available = await _voiceService.initialize();
+      if (mounted && available != _voiceAvailable) {
+        setState(() => _voiceAvailable = available);
+      }
+    } catch (e) {
+      debugPrint('[VoiceTextField] Availability check failed: $e');
+      if (mounted) {
+        setState(() => _voiceAvailable = false);
+      }
     }
   }
 
