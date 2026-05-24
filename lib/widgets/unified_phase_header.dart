@@ -448,8 +448,13 @@ class UnifiedProfileMenu extends StatelessWidget {
     } catch (_) {
       user = null;
     }
-    final displayName =
-        FirebaseAuthService.displayNameOrEmail(fallback: 'Unknown User');
+    final displayName = () {
+      try {
+        return FirebaseAuthService.displayNameOrEmail(fallback: 'Unknown User');
+      } catch (_) {
+        return 'Unknown User';
+      }
+    }();
     final email = user?.email?.trim() ?? '';
     final avatarInitial = displayName.trim().isNotEmpty
         ? displayName.trim().characters.first.toUpperCase()
