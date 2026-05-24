@@ -7,8 +7,8 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'dart:math' as math;
@@ -370,92 +370,83 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
     final stats = _RiskStats.fromEntries(entries);
     final isMobile = AppBreakpoints.isMobile(context);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FB),
-      drawer: isMobile
-          ? Drawer(
-              width: AppBreakpoints.sidebarWidth(context),
-              child: SafeArea(
-                child: InitiationLikeSidebar(
-                  activeItemLabel: 'Risk Assessment',
-                  showHeader: true,
-                ),
-              ),
-            )
-          : null,
+    return ResponsiveScaffold(
+      activeItemLabel: 'Risk Mitigation',
       floatingActionButton: const KazAiChatBubble(positioned: false),
-      body: SafeArea(
-        top: true,
-        child: Column(
-          children: [
-            UnifiedPhaseHeader(
-              title: 'Risk Mitigation',
-              breadcrumbPhase: 'Planning Phase',
-              breadcrumbTitle: 'Risk Assessment',
-              onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
-                  context, 'risk_assessment'),
-              onForwardPressed: () =>
-                  PlanningPhaseNavigation.goToNext(context, 'risk_assessment'),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Page Title
-                    const Text('Risk Planning',
-                        style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF111827))),
-                    const SizedBox(height: 4),
-                    const Text('Identify, analyze and mitigate project risks.',
-                        style:
-                            TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
-                    const SizedBox(height: 24),
-                    // Notes
-                    _RiskNotesCard(
-                        controller: _notesController,
-                        saving: _notesSaving,
-                        savedAt: _notesSavedAt,
-                        onChanged: _handleNotesChanged),
-                    const SizedBox(height: 16),
-                    // Metrics
-                    _MetricsWrap(stats: stats),
-                    const SizedBox(height: 16),
-                    // Risk Matrix
-                    _RiskMatrixCard(stats: stats),
-                    const SizedBox(height: 16),
-                    // Mitigation Plan
-                    _MitigationPlanCard(
-                        entries: entries,
-                        controllers: _mitigationControllers,
-                        onChanged: _handleMitigationChanged,
-                        onRegenerate: _regenerateMitigationForEntry,
-                        loadingSuggestions: _loadingMitigationSuggestions,
-                        suggestionError: _mitigationSuggestionError,
-                        saving: _mitigationSaving,
-                        savedAt: _mitigationSavedAt,
-                        regeneratingIds: _regeneratingMitigationIds),
-                    const SizedBox(height: 16),
-                    // Risk Register
-                    _RiskRegister(
+      body: Column(
+        children: [
+          UnifiedPhaseHeader(
+            title: 'Risk Mitigation',
+            breadcrumbPhase: 'Planning Phase',
+            breadcrumbTitle: 'Risk Assessment',
+            onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+                context, 'risk_assessment'),
+            onForwardPressed: () =>
+                PlanningPhaseNavigation.goToNext(context, 'risk_assessment'),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 16 : 40,
+                24,
+                isMobile ? 16 : 40,
+                100,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Page Title
+                  const Text('Risk Planning',
+                      style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827))),
+                  const SizedBox(height: 4),
+                  const Text('Identify, analyze and mitigate project risks.',
+                      style:
+                          TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
+                  const SizedBox(height: 24),
+                  // Notes
+                  _RiskNotesCard(
+                      controller: _notesController,
+                      saving: _notesSaving,
+                      savedAt: _notesSavedAt,
+                      onChanged: _handleNotesChanged),
+                  const SizedBox(height: 16),
+                  // Metrics
+                  _MetricsWrap(stats: stats),
+                  const SizedBox(height: 16),
+                  // Risk Matrix
+                  _RiskMatrixCard(stats: stats),
+                  const SizedBox(height: 16),
+                  // Mitigation Plan
+                  _MitigationPlanCard(
                       entries: entries,
-                      loading: _loadingEntries,
-                      searchController: _searchController,
-                      onAdd: () => _openEntryDialog(),
-                      onFilter: _openFilterDialog,
-                      onView: (entry) =>
-                          _openEntryDialog(entry: entry, readOnly: true),
-                      onEdit: (entry) => _openEntryDialog(entry: entry),
-                    ),
-                  ],
-                ),
+                      controllers: _mitigationControllers,
+                      onChanged: _handleMitigationChanged,
+                      onRegenerate: _regenerateMitigationForEntry,
+                      loadingSuggestions: _loadingMitigationSuggestions,
+                      suggestionError: _mitigationSuggestionError,
+                      saving: _mitigationSaving,
+                      savedAt: _mitigationSavedAt,
+                      regeneratingIds: _regeneratingMitigationIds),
+                  const SizedBox(height: 16),
+                  // Risk Register
+                  _RiskRegister(
+                    entries: entries,
+                    loading: _loadingEntries,
+                    searchController: _searchController,
+                    onAdd: () => _openEntryDialog(),
+                    onFilter: _openFilterDialog,
+                    onView: (entry) =>
+                        _openEntryDialog(entry: entry, readOnly: true),
+                    onEdit: (entry) => _openEntryDialog(entry: entry),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
