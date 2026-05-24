@@ -13,8 +13,10 @@ class SecureAPIConfig {
 
   // Default model used across OpenAI requests.
   // Using o3 — the highest-performance model available (May 2026).
-  // o3 supports Chat Completions API, reasoning capabilities, and all
-  // standard parameters (max_tokens, temperature, response_format, etc.).
+  // o3 supports Chat Completions API and reasoning capabilities.
+  // Note: o3 only supports temperature=1 (default); non-default values
+  // cause a 400 error. The wrapBody() helper strips temperature for
+  // reasoning models automatically.
   static const String model = 'o3';
 
   /// Whether the current model is an OpenAI reasoning model (o1, o3, o4, etc.)
@@ -35,8 +37,10 @@ class SecureAPIConfig {
       // o3 / o4 reasoning models require max_completion_tokens
       params[isReasoningModel ? 'max_completion_tokens' : 'max_tokens'] = maxTokens;
     }
-    // o3 supports temperature (0–2 range) so we keep it for all models
-    if (temperature != null) params['temperature'] = temperature;
+    // Reasoning models (o3, o4) only support temperature=1; omit it for them.
+    // The wrapBody() helper handles this automatically, but we avoid adding
+    // it here for reasoning models to keep the params clean.
+    if (temperature != null && !isReasoningModel) params['temperature'] = temperature;
     return params;
   }
 
