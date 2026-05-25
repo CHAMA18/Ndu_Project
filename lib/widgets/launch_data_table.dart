@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 const double _defaultColumnWidth = 160;
 const double _tableHorizontalPadding = 20;
-const double _columnGap = 2;
-const double _actionColumnWidth = 40;
+const double _columnGap = 12;
+const double _actionColumnWidth = 80;
 
 class _TableLayoutInherited extends InheritedWidget {
   final double tableWidth;
@@ -53,7 +53,7 @@ class LaunchDataTable extends StatelessWidget {
     required this.cellBuilder,
     this.subtitle,
     this.onAdd,
-    this.addLabel = 'Add',
+    this.addLabel = 'Add item',
     this.importLabel,
     this.onImport,
     this.emptyMessage = 'No entries yet. Add details to get started.',
@@ -95,17 +95,21 @@ class LaunchDataTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
-          if (rowCount == 0) _buildEmpty() else _buildRows(context),
+          _buildCardHeader(),
+          if (rowCount == 0)
+            _buildEmpty()
+          else ...[
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+            _buildRows(context),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildCardHeader() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       child: Row(
         children: [
           Expanded(
@@ -142,7 +146,7 @@ class LaunchDataTable extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(10)),
                 foregroundColor: const Color(0xFF4B5563),
                 side: const BorderSide(color: Color(0xFFD1D5DB)),
               ),
@@ -150,18 +154,24 @@ class LaunchDataTable extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           if (onAdd != null)
-            FilledButton.icon(
+            OutlinedButton.icon(
               onPressed: onAdd,
-              icon: const Icon(Icons.add, size: 16),
-              label: Text(addLabel),
-              style: FilledButton.styleFrom(
+              icon: const Icon(Icons.add, size: 16, color: Color(0xFF6B7280)),
+              label: Text(
+                addLabel,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                  color: Color(0xFF374151),
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
-                textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                side: const BorderSide(color: Color(0xFFD1D5DB)),
+                backgroundColor: Colors.white,
               ),
             ),
         ],
@@ -197,7 +207,7 @@ class LaunchDataTable extends StatelessWidget {
         final rows = List.generate(rowCount, (i) => cellBuilder(context, i));
         final effectiveColumns = _resolveColumns(rows);
         final hasRowActions = rows.any(
-          (row) => row is LaunchDataRow && row.onDelete != null,
+          (row) => row is LaunchDataRow && (row.onDelete != null || row.onEdit != null),
         );
         final minTableWidth = _minTableWidth(effectiveColumns, hasRowActions);
         final tableWidth = constraints.maxWidth > minTableWidth
@@ -274,32 +284,41 @@ class LaunchDataTable extends StatelessWidget {
       width: tableWidth,
       padding: const EdgeInsets.symmetric(
         horizontal: _tableHorizontalPadding,
-        vertical: 14,
+        vertical: 12,
       ),
       decoration: const BoxDecoration(
         color: Color(0xFF1E293B),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(0),
-          bottomRight: Radius.circular(0),
-        ),
       ),
       child: Row(
         children: [
           ..._buildColumnSlots(
             columns,
             (col, _) => Text(
-              col.label,
-              textAlign: TextAlign.center,
+              col.label.toUpperCase(),
+              textAlign: TextAlign.left,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFFFFFFFF),
-                letterSpacing: 0.3,
+                letterSpacing: 0.5,
               ),
             ),
           ),
-          if (hasRowActions) const SizedBox(width: _actionColumnWidth),
+          if (hasRowActions)
+            SizedBox(
+              width: _actionColumnWidth,
+              child: const Text(
+                'ACTIONS',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFFFFFFF),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -331,11 +350,13 @@ class LaunchDataRow extends StatefulWidget {
     super.key,
     required this.cells,
     this.onDelete,
+    this.onEdit,
     this.showDivider = true,
   });
 
   final List<Widget> cells;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
   final bool showDivider;
 
   @override
@@ -349,6 +370,7 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
   Widget build(BuildContext context) {
     final tableLayout = _TableLayoutInherited.of(context);
     final columns = tableLayout?.columns;
+    final hasActions = widget.onDelete != null || widget.onEdit != null;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
@@ -356,7 +378,7 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
         children: [
           Container(
             width: tableLayout?.tableWidth,
-            color: _hovering ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+            color: _hovering ? const Color(0xFFF8FAFC) : Colors.white,
             padding: const EdgeInsets.symmetric(
               horizontal: _tableHorizontalPadding,
               vertical: 10,
@@ -375,23 +397,44 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
                       return _CellSlot(child: widget.cells[index]);
                     },
                   ),
-                if (tableLayout?.hasRowActions ?? false)
+                if (hasActions)
                   SizedBox(
                     width: _actionColumnWidth,
-                    child: _hovering && widget.onDelete != null
-                        ? IconButton(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (widget.onEdit != null)
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined,
+                                size: 16, color: Color(0xFF9CA3AF)),
+                            onPressed: widget.onEdit,
+                            tooltip: 'Edit',
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(
+                                minWidth: 28, minHeight: 28),
+                            splashRadius: 14,
+                          ),
+                        if (widget.onEdit != null && widget.onDelete != null)
+                          const SizedBox(width: 2),
+                        if (widget.onDelete != null)
+                          IconButton(
                             icon: const Icon(Icons.delete_outline,
-                                size: 18, color: Color(0xFF9CA3AF)),
+                                size: 16, color: Color(0xFFEF4444)),
                             onPressed: widget.onDelete,
                             tooltip: 'Delete',
-                          )
-                        : null,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(
+                                minWidth: 28, minHeight: 28),
+                            splashRadius: 14,
+                          ),
+                      ],
+                    ),
                   ),
               ],
             ),
           ),
           if (widget.showDivider)
-            const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
         ],
       ),
     );
@@ -406,7 +449,7 @@ class _CellSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 34,
+      height: 38,
       child: Align(
         alignment: Alignment.centerLeft,
         child: child,
@@ -415,6 +458,9 @@ class _CellSlot extends StatelessWidget {
   }
 }
 
+/// A styled editable cell that renders as a proper input field
+/// with a subtle border, rounded corners, and background fill
+/// — matching the checklist table style from the screenshot.
 class LaunchEditableCell extends StatefulWidget {
   const LaunchEditableCell({
     super.key,
@@ -439,6 +485,7 @@ class LaunchEditableCell extends StatefulWidget {
 
 class _LaunchEditableCellState extends State<LaunchEditableCell> {
   late final TextEditingController _controller;
+  bool _isFocused = false;
 
   @override
   void initState() {
@@ -466,20 +513,37 @@ class _LaunchEditableCellState extends State<LaunchEditableCell> {
   @override
   Widget build(BuildContext context) {
     final inTable = _TableLayoutInherited.of(context) != null;
-    final child = VoiceTextField(
-      controller: _controller,
-      onChanged: widget.onChanged,
-      style: TextStyle(
-        fontSize: 12,
-        color: const Color(0xFF111827),
-        fontWeight: widget.bold ? FontWeight.w600 : FontWeight.normal,
-      ),
-      decoration: InputDecoration(
-        hintText: widget.hint,
-        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
-        border: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        isDense: true,
+    final borderColor = _isFocused
+        ? const Color(0xFF2563EB)
+        : const Color(0xFFE5E7EB);
+    final bgColor = _isFocused
+        ? Colors.white
+        : const Color(0xFFF9FAFB);
+
+    final child = Focus(
+      onFocusChange: (focused) => setState(() => _isFocused = focused),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor, width: _isFocused ? 1.5 : 1),
+        ),
+        child: VoiceTextField(
+          controller: _controller,
+          onChanged: widget.onChanged,
+          style: TextStyle(
+            fontSize: 12.5,
+            color: const Color(0xFF111827),
+            fontWeight: widget.bold ? FontWeight.w600 : FontWeight.w400,
+          ),
+          decoration: InputDecoration(
+            hintText: widget.hint,
+            hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            isDense: true,
+          ),
+        ),
       ),
     );
     if (inTable) return child;
@@ -511,6 +575,7 @@ class LaunchDateCell extends StatefulWidget {
 
 class _LaunchDateCellState extends State<LaunchDateCell> {
   late String _displayValue;
+  bool _isHovering = false;
 
   @override
   void initState() {
@@ -533,34 +598,48 @@ class _LaunchDateCellState extends State<LaunchDateCell> {
 
     return SizedBox(
       width: widget.width,
-      height: 34,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(6),
-        onTap: () => _pickDate(context),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  isEmpty ? widget.hint : text,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isEmpty
-                        ? const Color(0xFF9CA3AF)
-                        : const Color(0xFF111827),
+      height: 38,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _pickDate(context),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _isHovering ? Colors.white : const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _isHovering
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFFE5E7EB),
+                width: _isHovering ? 1.5 : 1,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isEmpty ? widget.hint : text,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: isEmpty
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF111827),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 14,
-                color: Color(0xFF6B7280),
-              ),
-            ],
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 13,
+                  color: Color(0xFF6B7280),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -633,19 +712,22 @@ class LaunchStatusDropdown extends StatelessWidget {
     if (menuItems.isEmpty || effective == null) {
       return SizedBox(
         width: width,
+        height: 38,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text(
-            'Not set',
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF6B7280),
+          child: const Center(
+            child: Text(
+              'Not set',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6B7280),
+              ),
             ),
           ),
         ),
@@ -654,23 +736,26 @@ class LaunchStatusDropdown extends StatelessWidget {
 
     return SizedBox(
       width: width,
-      height: 28,
+      height: 38,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(6),
+          color: statusColor.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: statusColor.withOpacity(0.15)),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: effective,
               isDense: true,
               isExpanded: true,
               iconSize: 14,
+              iconDisabledColor: statusColor.withOpacity(0.5),
+              iconEnabledColor: statusColor,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: statusColor,
               ),
               items: items
@@ -717,10 +802,10 @@ class LaunchStatusDropdown extends StatelessWidget {
 
   Color _statusColor(String status) {
     final s = status.toLowerCase();
-    if (s.contains('complet') || s.contains('done') || s.contains('closed')) {
+    if (s.contains('complet') || s.contains('done') || s.contains('closed') || s.contains('ready')) {
       return const Color(0xFF10B981);
     }
-    if (s.contains('progress') || s.contains('active') || s.contains('in ')) {
+    if (s.contains('progress') || s.contains('active') || s.contains('track')) {
       return const Color(0xFF2563EB);
     }
     if (s.contains('overdue') || s.contains('at risk') || s.contains('delay')) {
