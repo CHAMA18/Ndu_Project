@@ -626,9 +626,9 @@ class _VendorAccountCloseOutScreenState
     if (_isGenerating) return;
 
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Vendor Account Close Out',
         sections: const {
@@ -646,6 +646,19 @@ class _VendorAccountCloseOutScreenState
       debugPrint('Vendor AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _vendors.isNotEmpty ||
         _accessItems.isNotEmpty ||
         _obligations.isNotEmpty ||
@@ -655,28 +668,28 @@ class _VendorAccountCloseOutScreenState
       return;
     }
     setState(() {
-      _vendors = (gen['vendors'] ?? [])
+      _vendors = (generated['vendors'] ?? [])
           .map((m) => LaunchVendorItem(
               vendorName: _s(m['title']),
               outstandingItems: _s(m['details']),
               accountStatus: _ns(m['status'], 'Active')))
           .where((i) => i.vendorName.isNotEmpty)
           .toList();
-      _accessItems = (gen['access_items'] ?? [])
+      _accessItems = (generated['access_items'] ?? [])
           .map((m) => LaunchAccessItem(
               system: _s(m['title']),
               vendor: _s(m['details']),
               status: _ns(m['status'], 'Pending')))
           .where((i) => i.system.isNotEmpty)
           .toList();
-      _obligations = (gen['obligations'] ?? [])
+      _obligations = (generated['obligations'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
               status: _ns(m['status'], 'Open')))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _closureChecklist = (gen['closure_checklist'] ?? [])
+      _closureChecklist = (generated['closure_checklist'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),

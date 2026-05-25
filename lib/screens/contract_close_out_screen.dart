@@ -622,9 +622,9 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
     if (_isGenerating) return;
 
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Contract Close Out',
         sections: const {
@@ -640,6 +640,19 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       debugPrint('Contract AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _contracts.isNotEmpty ||
         _closeOutSteps.isNotEmpty ||
         _signOffs.isNotEmpty ||
@@ -649,10 +662,10 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       return;
     }
     setState(() {
-      _financialSummary = _mapMetrics(gen['financial_summary']);
-      _contracts = _mapContracts(gen['contracts']);
-      _closeOutSteps = _mapSteps(gen['closeout_steps']);
-      _signOffs = _mapApprovals(gen['signoffs']);
+      _financialSummary = _mapMetrics(generated['financial_summary']);
+      _contracts = _mapContracts(generated['contracts']);
+      _closeOutSteps = _mapSteps(generated['closeout_steps']);
+      _signOffs = _mapApprovals(generated['signoffs']);
       _isGenerating = false;
     });
     await _persistData();

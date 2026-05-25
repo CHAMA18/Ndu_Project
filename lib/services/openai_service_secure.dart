@@ -6805,7 +6805,7 @@ $escaped
     required String context,
     required Map<String, String> sections,
     int itemsPerSection = 2,
-    int maxTokens = 900,
+    int maxTokens = 1600,
     double temperature = 0.5,
   }) async {
     final trimmedContext = context.trim();
@@ -7877,21 +7877,26 @@ $escaped
     return '''
 You are a senior project management analyst preparing Launch Phase deliverables.
 The project has progressed through Initiation → Front End Planning → Planning → Design → Execution → Launch.
-Use ALL the prior phase data below to generate entries that are specific, realistic, and consistent with the project context.
 
-Rules:
-- Reference actual project names, team members, vendors, contracts, milestones, and risks wherever possible.
-- Derive entries from prior phase outputs (e.g., if a contract exists in Execution, reference it in Contract Close Out).
-- Generate $itemsPerSection entries per section.
-- Each entry must include a concise title, relevant details, and a realistic status.
+CRITICAL CONTINUITY RULES:
+1. CONTINUITY IS KEY: Every entry MUST directly reference and derive from actual prior-phase data provided below.
+   - If the context mentions specific team members, vendors, contracts, milestones, or risks, those EXACT names and details MUST appear in your generated entries.
+   - Do NOT invent new names, vendors, or team members that are not mentioned in the context.
+   - If a contract exists in Execution Phase, reference THAT EXACT contract in Contract Close Out.
+   - If team members are listed in Execution staffing, use THOSE EXACT names in Demobilize Team and Transition to Production.
+   - If budget figures exist, carry those EXACT figures forward into Gap Analysis and Commerce Viability.
+2. NO FABRICATION: If the context does not contain enough specific data for a section, generate fewer entries rather than fabricating content. It is better to return 1 accurate entry than 3 generic ones.
+3. SPECIFIC OVER GENERIC: Every "title" and "details" field must contain specific references to actual data from the context — project names, person names, contract names, dollar amounts, dates, risk titles, etc.
+4. DERIVE, DON'T CREATE: Your job is to carry forward and restructure existing project data into the Launch Phase format, not to create new project content from scratch.
+5. Generate up to $itemsPerSection entries per section (fewer is acceptable if context is thin).
 
 Return ONLY valid JSON with this exact structure:
 {
   "sections": {
     "section_key": [
       {
-        "title": "Short item title",
-        "details": "Supporting details referencing prior phase data",
+        "title": "Short item title referencing actual prior-phase data",
+        "details": "Supporting details that trace back to specific prior-phase entries",
         "status": "Realistic status value"
       }
     ]
@@ -7903,7 +7908,7 @@ Sections:
   $sectionJson
 }
 
-Project context (includes data from ALL prior phases):
+Project context (includes data from ALL prior phases — USE THIS DATA DIRECTLY):
 """
 $escaped
 """

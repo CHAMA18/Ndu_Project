@@ -738,9 +738,9 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Project Close Out',
         sections: const {
@@ -756,6 +756,19 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       debugPrint('Close-out AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _closeOutChecklist.isNotEmpty ||
         _approvals.isNotEmpty ||
         _archive.isNotEmpty;
@@ -764,21 +777,21 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       return;
     }
     setState(() {
-      _closeOutChecklist = (gen['checklist'] ?? [])
+      _closeOutChecklist = (generated['checklist'] ?? [])
           .map((m) => LaunchCloseOutCheckItem(
               item: _s(m['title']),
               notes: _s(m['details']),
               status: _ns(m['status'], 'Pending')))
           .where((i) => i.item.isNotEmpty)
           .toList();
-      _approvals = (gen['approvals'] ?? [])
+      _approvals = (generated['approvals'] ?? [])
           .map((m) => LaunchApproval(
               stakeholder: _s(m['title']),
               role: _s(m['details']),
               status: _ns(m['status'], 'Pending')))
           .where((i) => i.stakeholder.isNotEmpty)
           .toList();
-      _archive = (gen['archive'] ?? [])
+      _archive = (generated['archive'] ?? [])
           .map((m) => LaunchArchiveItem(
               repository: _s(m['title']),
               documentType: _s(m['details']),

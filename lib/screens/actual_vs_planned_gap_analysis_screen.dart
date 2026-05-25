@@ -719,9 +719,9 @@ class _ActualVsPlannedGapAnalysisScreenState
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Actual vs Planned Gap Analysis',
         sections: const {
@@ -737,6 +737,19 @@ class _ActualVsPlannedGapAnalysisScreenState
       debugPrint('Gap analysis AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _scopeGaps.isNotEmpty ||
         _milestoneVariances.isNotEmpty ||
         _budgetVariances.isNotEmpty ||
@@ -747,7 +760,7 @@ class _ActualVsPlannedGapAnalysisScreenState
       return;
     }
     setState(() {
-      _scopeGaps = (gen['scope_gaps'] ?? [])
+      _scopeGaps = (generated['scope_gaps'] ?? [])
           .map((m) => LaunchGapItem(
               planned: _s(m['planned']),
               actual: _s(m['actual']),
@@ -755,7 +768,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               gapStatus: _ns(m['gap_status'], 'Missed')))
           .where((i) => i.planned.isNotEmpty)
           .toList();
-      _milestoneVariances = (gen['milestone_variances'] ?? [])
+      _milestoneVariances = (generated['milestone_variances'] ?? [])
           .map((m) => LaunchMilestoneVariance(
               milestone: _s(m['milestone']),
               plannedDate: _s(m['planned_date']),
@@ -764,7 +777,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               status: _ns(m['status'], 'On Track')))
           .where((i) => i.milestone.isNotEmpty)
           .toList();
-      _budgetVariances = (gen['budget_variances'] ?? [])
+      _budgetVariances = (generated['budget_variances'] ?? [])
           .map((m) => LaunchBudgetVariance(
               category: _s(m['category']),
               plannedAmount: _s(m['planned_amount']),
@@ -773,7 +786,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               variancePercent: _s(m['variance_percent'])))
           .where((i) => i.category.isNotEmpty)
           .toList();
-      _rootCauses = (gen['root_causes'] ?? [])
+      _rootCauses = (generated['root_causes'] ?? [])
           .map((m) => LaunchRootCauseItem(
               gap: _s(m['gap']),
               rootCause: _s(m['root_cause']),
@@ -782,7 +795,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               status: _ns(m['status'], 'Open')))
           .where((i) => i.gap.isNotEmpty)
           .toList();
-      _followUpActions = (gen['follow_up_actions'] ?? [])
+      _followUpActions = (generated['follow_up_actions'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
