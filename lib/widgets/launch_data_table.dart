@@ -57,11 +57,11 @@ class LaunchDataTable extends StatelessWidget {
     this.importLabel,
     this.onImport,
     this.emptyMessage = 'No entries yet. Add details to get started.',
-  }) : _columns = columns is List<LaunchColumn>
-            ? columns
-            : columns
-                .map((c) => LaunchColumn(label: c.toString(), flexible: true))
-                .toList();
+  }) : _columns = columns
+            .map((c) => c is LaunchColumn
+                ? c
+                : LaunchColumn(label: c.toString(), flexible: true))
+            .toList();
 
   final String title;
   final String? subtitle;
