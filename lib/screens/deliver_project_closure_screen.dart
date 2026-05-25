@@ -88,8 +88,6 @@ class _DeliverProjectClosureScreenState
             _buildOutstandingPanel(),
             const SizedBox(height: 16),
             _buildRiskFollowUpsPanel(),
-            const SizedBox(height: 16),
-            _buildClosureNotesPanel(),
             const SizedBox(height: 24),
             LaunchPhaseNavigation(
               backLabel: 'Back: Salvage and/or Disposal Plan',
@@ -418,44 +416,6 @@ class _DeliverProjectClosureScreenState
             },
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildClosureNotesPanel() {
-    return ExecutionPanelShell(
-      title: 'Closure Notes',
-      subtitle: 'Any additional notes or context for the delivery record.',
-      collapsible: true,
-      initiallyExpanded: false,
-      headerIcon: Icons.note_alt_outlined,
-      headerIconColor: const Color(0xFF6366F1),
-      child: VoiceTextFormField(
-        initialValue: _closureNotes.notes,
-        maxLines: 5,
-        style: const TextStyle(fontSize: 13, height: 1.5),
-        decoration: InputDecoration(
-          hintText: 'Write delivery notes, observations, or context…',
-          hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-          filled: true,
-          fillColor: const Color(0xFFF8FAFC),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFFFD700)),
-          ),
-        ),
-        onChanged: (v) {
-          _closureNotes = LaunchClosureNotes(notes: v);
-          _scheduleSave();
-        },
       ),
     );
   }
