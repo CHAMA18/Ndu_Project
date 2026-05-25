@@ -98,10 +98,8 @@ class LaunchDataTable extends StatelessWidget {
           _buildCardHeader(),
           if (rowCount == 0)
             _buildEmpty()
-          else ...[
-            const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+          else
             _buildRows(context),
-          ],
         ],
       ),
     );
