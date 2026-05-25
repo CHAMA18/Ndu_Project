@@ -659,9 +659,9 @@ class _TransitionToProdTeamScreenState
     if (_isGenerating) return;
 
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> generated = {};
+    LaunchAiResult? result;
     try {
-      generated = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Transition to Production Team',
         sections: const {
@@ -679,6 +679,19 @@ class _TransitionToProdTeamScreenState
     }
 
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasExisting = _teamRoster.isNotEmpty ||
         _handoverChecklist.isNotEmpty ||
         _knowledgeTransfers.isNotEmpty ||

@@ -667,9 +667,9 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Demobilize Team',
         sections: const {
@@ -686,6 +686,19 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
       debugPrint('Demobilize AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _teamRoster.isNotEmpty ||
         _knowledgeTransfers.isNotEmpty ||
         _vendorOffboarding.isNotEmpty ||
@@ -695,26 +708,26 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
       return;
     }
     setState(() {
-      _teamRoster = (gen['team_roster'] ?? [])
+      _teamRoster = (generated['team_roster'] ?? [])
           .map((m) => LaunchTeamMember(
               name: _s(m['title']),
               role: _s(m['details']),
               releaseStatus: 'Active'))
           .where((i) => i.name.isNotEmpty)
           .toList();
-      _knowledgeTransfers = (gen['knowledge_transfer'] ?? [])
+      _knowledgeTransfers = (generated['knowledge_transfer'] ?? [])
           .map((m) => LaunchKnowledgeTransfer(
               topic: _s(m['title']), status: _ns(m['status'], 'Pending')))
           .where((i) => i.topic.isNotEmpty)
           .toList();
-      _vendorOffboarding = (gen['vendor_offboarding'] ?? [])
+      _vendorOffboarding = (generated['vendor_offboarding'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
               status: _ns(m['status'], 'Pending')))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _communications = (gen['communications'] ?? [])
+      _communications = (generated['communications'] ?? [])
           .map((m) => LaunchCommunicationItem(
               audience: _s(m['title']),
               message: _s(m['details']),

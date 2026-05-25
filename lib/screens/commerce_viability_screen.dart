@@ -663,9 +663,9 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Commerce Viability',
         sections: const {
@@ -683,6 +683,19 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
       debugPrint('Commerce AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _warranties.isNotEmpty ||
         _opsCosts.isNotEmpty ||
         _financialMetrics.isNotEmpty ||
@@ -692,24 +705,24 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
       return;
     }
     setState(() {
-      _financialMetrics = (gen['financial_metrics'] ?? [])
+      _financialMetrics = (generated['financial_metrics'] ?? [])
           .map((m) => LaunchFinancialMetric(
               label: _s(m['title']), value: _s(m['details'])))
           .where((i) => i.label.isNotEmpty)
           .toList();
-      _warranties = (gen['warranties'] ?? [])
+      _warranties = (generated['warranties'] ?? [])
           .map((m) => LaunchWarrantyItem(
               item: _s(m['title']),
               vendor: _s(m['details']),
               status: _ns(m['status'], 'Active')))
           .where((i) => i.item.isNotEmpty)
           .toList();
-      _opsCosts = (gen['ops_costs'] ?? [])
+      _opsCosts = (generated['ops_costs'] ?? [])
           .map((m) => LaunchOpsCostItem(
               category: _s(m['title']), monthlyCost: _s(m['details'])))
           .where((i) => i.category.isNotEmpty)
           .toList();
-      _recommendations = (gen['recommendations'] ?? [])
+      _recommendations = (generated['recommendations'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),

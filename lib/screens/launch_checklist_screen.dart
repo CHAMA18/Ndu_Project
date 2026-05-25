@@ -227,9 +227,9 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Launch Checklist',
         sections: const {
@@ -248,6 +248,19 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
       debugPrint('Launch checklist AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _checklistItems.isNotEmpty ||
         _approvals.isNotEmpty ||
         _milestones.isNotEmpty ||
@@ -257,7 +270,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
       return;
     }
     setState(() {
-      _checklistItems = (gen['checklist_items'] ?? [])
+      _checklistItems = (generated['checklist_items'] ?? [])
           .map((m) => _ChecklistItemData(
                 title: _s(m['title']),
                 detail: _s(m['details']),
@@ -267,7 +280,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
               ))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _approvals = (gen['approvals'] ?? [])
+      _approvals = (generated['approvals'] ?? [])
           .map((m) => _ApprovalData(
                 label: _s(m['title']),
                 detail: _s(m['details']),
@@ -276,7 +289,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
               ))
           .where((i) => i.label.isNotEmpty)
           .toList();
-      _milestones = (gen['milestones'] ?? [])
+      _milestones = (generated['milestones'] ?? [])
           .map((m) => _MilestoneData(
                 title: _s(m['title']),
                 detail: _s(m['details']),
@@ -285,7 +298,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
               ))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _timelineStages = (gen['timeline_stages'] ?? [])
+      _timelineStages = (generated['timeline_stages'] ?? [])
           .map((m) => _TimelineStage(
                 label: _s(m['title']),
                 detail: _s(m['details']),

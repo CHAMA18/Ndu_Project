@@ -618,9 +618,9 @@ class _SummarizeAccountRisksScreenState
     if (_isGenerating) return;
 
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Project Summary',
         sections: const {
@@ -636,6 +636,19 @@ class _SummarizeAccountRisksScreenState
       debugPrint('Summary AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _metrics.isNotEmpty ||
         _highlights.isNotEmpty ||
         _topRisks.isNotEmpty ||
@@ -645,26 +658,26 @@ class _SummarizeAccountRisksScreenState
       return;
     }
     setState(() {
-      _metrics = (gen['metrics'] ?? [])
+      _metrics = (generated['metrics'] ?? [])
           .map((m) => LaunchFinancialMetric(
               label: _s(m['title']),
               value: _s(m['details']),
               notes: _s(m['status'])))
           .where((i) => i.label.isNotEmpty)
           .toList();
-      _highlights = (gen['highlights'] ?? [])
+      _highlights = (generated['highlights'] ?? [])
           .map((m) => LaunchHighlightItem(
               title: _s(m['title']), details: _s(m['details'])))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _topRisks = (gen['risks'] ?? [])
+      _topRisks = (generated['risks'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
               status: _ns(m['status'], 'Open')))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _next90Days = (gen['next_90_days'] ?? [])
+      _next90Days = (generated['next_90_days'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
