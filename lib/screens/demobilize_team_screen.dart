@@ -88,8 +88,6 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
             _buildVendorOffboardingPanel(),
             const SizedBox(height: 16),
             _buildCommunicationsPanel(),
-            const SizedBox(height: 16),
-            _buildDebriefNotesPanel(),
             const SizedBox(height: 24),
             LaunchPhaseNavigation(
               backLabel: 'Back: Project Close Out',
@@ -521,43 +519,6 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
           ],
         );
       },
-    );
-  }
-
-  Widget _buildDebriefNotesPanel() {
-    return ExecutionPanelShell(
-      title: 'Team Debrief Notes',
-      subtitle:
-          'Recognition, feedback, reassignment notes, and closing thoughts.',
-      collapsible: true,
-      initiallyExpanded: false,
-      headerIcon: Icons.groups_outlined,
-      headerIconColor: const Color(0xFF7C3AED),
-      child: VoiceTextFormField(
-        initialValue: _debriefNotes.notes,
-        maxLines: 6,
-        style: const TextStyle(fontSize: 13, height: 1.6),
-        decoration: InputDecoration(
-          hintText:
-              'Team recognition, feedback, reassignment notes, closing thoughts…',
-          hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-          filled: true,
-          fillColor: const Color(0xFFF8FAFC),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFFFD700))),
-        ),
-        onChanged: (v) {
-          _debriefNotes = LaunchClosureNotes(notes: v);
-          _save();
-        },
-      ),
     );
   }
 
