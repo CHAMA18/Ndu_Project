@@ -39,6 +39,8 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
   bool _isGenerating = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  bool _isExporting = false;
+  String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
   void initState() {
@@ -107,6 +109,26 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
           'Verify commercial sustainability, track warranties, project ongoing costs, and make the go/grow/pause decision.',
       trailing: ExecutionActionBar(
         actions: [
+          ExecutionActionItem(
+            label: _isExporting ? 'Exporting…' : 'Export PDF',
+            icon: Icons.picture_as_pdf_outlined,
+            tone: ExecutionActionTone.secondary,
+            isLoading: _isExporting,
+            onPressed: _isExporting ? null : () {
+              setState(() => _isExporting = true);
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) setState(() => _isExporting = false);
+              });
+            },
+          ),
+          ExecutionActionItem(
+            label: _selectedView == 'full' ? 'Summary View' : 'Full View',
+            icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
+            tone: ExecutionActionTone.secondary,
+            onPressed: () => setState(() {
+              _selectedView = _selectedView == 'full' ? 'summary' : 'full';
+            }),
+          ),
           ExecutionActionItem(
             label: _isGenerating ? 'Generating…' : 'AI Assist',
             icon: Icons.auto_awesome_outlined,
