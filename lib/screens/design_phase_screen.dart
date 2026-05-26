@@ -1375,7 +1375,6 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
   // ── 6. System Architecture Section ─────────────────────────────────────
   Widget _buildStableSystemArchitecture() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1391,180 +1390,359 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(10),
+          // ── Header Bar ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: const Color(0xFFE4E7EC))),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.account_tree_outlined,
+                    size: 20,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'System Architecture',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${_nodes.length} nodes',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF16A34A),
                     ),
-                    child: const Icon(
-                      Icons.account_tree_outlined,
-                      size: 20,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${_edges.length} connections',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                       color: Color(0xFF2563EB),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'System Architecture',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
-                    ),
+                ),
+                const Spacer(),
+                // Save status
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _isSaving
+                        ? const Color(0xFFFFFBEB)
+                        : _lastSavedAt != null
+                            ? const Color(0xFFF0FDF4)
+                            : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                ],
-              ),
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () {
-                      // Toggle live demo mode
-                    },
-                    icon: const Icon(Icons.play_circle_outline,
-                        size: 18, color: Color(0xFF2563EB)),
-                    label: const Text(
-                      'Live Demo',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2563EB),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isSaving
+                            ? Icons.sync_rounded
+                            : _lastSavedAt != null
+                                ? Icons.check_circle_outline
+                                : Icons.cloud_outlined,
+                        size: 13,
+                        color: _isSaving
+                            ? const Color(0xFFD97706)
+                            : _lastSavedAt != null
+                                ? const Color(0xFF16A34A)
+                                : Colors.grey[500],
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: 'Edit',
-                    padding: const EdgeInsets.all(6),
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    style: IconButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: Colors.grey.shade300),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    tooltip: 'Delete',
-                    padding: const EdgeInsets.all(6),
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    style: IconButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: Colors.grey.shade300),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Drag components from the library onto the canvas to build your architecture.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 16),
-          // Architecture canvas preview
-          Container(
-            height: 220,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: const Color(0xFFE2E8F0),
-                  style: BorderStyle.solid),
-            ),
-            child: _nodes.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.hub_outlined,
-                            size: 40, color: Colors.grey.shade400),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No architecture nodes yet',
-                          style: TextStyle(
-                              fontSize: 13, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isSaving
+                            ? 'Saving...'
+                            : _lastSavedAt != null
+                                ? 'Saved'
+                                : 'Ready',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _isSaving
+                              ? const Color(0xFFD97706)
+                              : _lastSavedAt != null
+                                  ? const Color(0xFF16A34A)
+                                  : Colors.grey[500],
                         ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _addArchitectureNode,
-                          icon: const Icon(Icons.add, size: 16),
-                          label: const Text('Add Node'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF2563EB),
-                            side: const BorderSide(
-                                color: Color(0xFFBFDBFE)),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Action buttons
+                _archHeaderButton(
+                  icon: Icons.auto_fix_high,
+                  label: 'Auto Layout',
+                  onTap: _autoLayoutNodes,
+                ),
+                const SizedBox(width: 6),
+                _archHeaderButton(
+                  icon: Icons.layers_clear_outlined,
+                  label: 'Clear',
+                  color: const Color(0xFFEF4444),
+                  onTap: _nodes.isEmpty ? null : _clearArchitectureCanvas,
+                ),
+              ],
+            ),
+          ),
+
+          // ── Main Editor Area: Component Library + Canvas ──
+          SizedBox(
+            height: 520,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Left: Component Library Sidebar ──
+                Container(
+                  width: 210,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFAFBFD),
+                    border: Border(right: BorderSide(color: const Color(0xFFE4E7EC))),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Library header
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.widgets_outlined, size: 16, color: Colors.grey[700]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Component Library',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey[800],
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
+                      // Search hint
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE4E7EC)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.search, size: 14, color: Colors.grey[400]),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Drag or click + to add',
+                                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  )
-                : Stack(
-                    children: _nodes
-                        .map((node) => Positioned(
-                              left: node.position.dx.clamp(0.0, 400.0),
-                              top: node.position.dy.clamp(0.0, 160.0),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: node.color ?? Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                      color: const Color(0xFFE2E8F0)),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x0A000000),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (node.icon != null)
-                                      Icon(node.icon, size: 16,
-                                          color: const Color(0xFF2563EB)),
-                                    if (node.icon != null)
-                                      const SizedBox(width: 6),
-                                    Text(
-                                      node.label,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF111827),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Component list
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          itemCount: _library.length,
+                          itemBuilder: (context, i) {
+                            final item = _library[i];
+                            final payload = ArchitectureDragPayload(
+                              item.label,
+                              icon: item.icon,
+                              color: item.type.bgColor,
+                              nodeType: item.type,
+                            );
+                            return LongPressDraggable<ArchitectureDragPayload>(
+                              data: payload,
+                              dragAnchorStrategy: pointerDragAnchorStrategy,
+                              feedback: Material(
+                                color: Colors.transparent,
+                                child: _componentTile(item, isDragging: true, showAddButton: false),
                               ),
-                            ))
-                        .toList(),
+                              child: _componentTile(
+                                item,
+                                showAddButton: true,
+                                onAddToCanvas: () {
+                                  final centerPos = Offset(
+                                    200 + (_nodes.length * 40).toDouble(),
+                                    200 + (_nodes.length * 40).toDouble(),
+                                  );
+                                  final newNode = ArchitectureNode(
+                                    id: 'n_${_nodeCounter++}',
+                                    label: item.label,
+                                    position: centerPos,
+                                    nodeType: item.type,
+                                    icon: item.icon,
+                                  );
+                                  setState(() => _nodes.add(newNode));
+                                  _scheduleSave();
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      // Tips
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.lightbulb_outline, size: 14, color: const Color(0xFF2563EB)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Drag components to canvas. Use Connect mode to draw arrows between nodes.',
+                                style: TextStyle(fontSize: 10, color: const Color(0xFF2563EB).withOpacity(0.8), height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+
+                // ── Right: Architecture Canvas ──
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomRight: Radius.circular(16),
+                    ),
+                    child: ArchitectureCanvas(
+                      nodes: _nodes,
+                      edges: _edges,
+                      onNodesChanged: (n) => setState(() {
+                        _nodes
+                          ..clear()
+                          ..addAll(n);
+                        _scheduleSave();
+                      }),
+                      onEdgesChanged: (e) => setState(() {
+                        _edges
+                          ..clear()
+                          ..addAll(e);
+                        _scheduleSave();
+                      }),
+                      onRequestAddNodeFromDrop: (pos, payload) {
+                        return _createNodeFromDrop(pos, payload);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _archHeaderButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+    Color? color,
+  }) {
+    final effectiveColor = color ?? const Color(0xFF374151);
+    return Tooltip(
+      message: label,
+      waitDuration: const Duration(milliseconds: 400),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(color: effectiveColor.withOpacity(0.25)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: effectiveColor),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: effectiveColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _autoLayoutNodes() {
+    if (_nodes.isEmpty) return;
+    final nodes = List<ArchitectureNode>.from(_nodes);
+    const double spacingX = 240;
+    const double spacingY = 120;
+    final cols = (nodes.length / 3).ceil().clamp(1, nodes.length);
+    for (int i = 0; i < nodes.length; i++) {
+      final row = i ~/ cols;
+      final col = i % cols;
+      nodes[i].position = Offset(80 + col * spacingX, 60 + row * spacingY);
+    }
+    setState(() {
+      _nodes
+        ..clear()
+        ..addAll(nodes);
+    });
+    _scheduleSave();
   }
 
   // ── 7. Design Tools & Rich Text Editor ─────────────────────────────────
