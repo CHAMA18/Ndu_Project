@@ -82,21 +82,20 @@ class OpenAiConfig {
   ///
   /// For reasoning models (o3, o4, o1), this also:
   /// - Removes `temperature` parameter (reasoning models only support default value of 1)
-  /// - Removes any renamed token parameters that are not accepted by the API
-  /// The Firebase proxy uses the Chat Completions API which accepts `max_tokens`
-  /// for all models including o3. Renaming it to `max_completion_tokens` or
-  /// `max_output_tokens` causes 400 errors.
+  /// - Removes any legacy token parameters that are not accepted by the API
+  /// The Chat Completions API now requires `max_completion_tokens` for o3/o4
+  /// models. The legacy `max_tokens` parameter causes a 400 error.
   static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
     final result = Map<String, dynamic>.from(body);
 
     // Strip unsupported params for reasoning models
     if (SecureAPIConfig.isReasoningModel) {
-      // The Chat Completions API (used by the Firebase proxy) accepts `max_tokens`
-      // for ALL models including o3. Renaming it causes errors:
-      //   - max_completion_tokens → 400 "Unsupported parameter"
+      // The Chat Completions API now requires `max_completion_tokens` for
+      // reasoning models (o3, o4). The legacy `max_tokens` parameter causes:
+      //   - max_tokens → 400 "Unsupported parameter: 'max_tokens' is not supported with this model"
       //   - max_output_tokens → 400 "Unknown parameter"
-      // So we keep max_tokens as-is and remove any renamed variants.
-      result.remove('max_completion_tokens');
+      // So we remove the legacy variants and keep max_completion_tokens.
+      result.remove('max_tokens');
       result.remove('max_output_tokens');
 
       // Reasoning models (o3, o4, o1) only support temperature=1 (default).
@@ -159,7 +158,7 @@ class OpenAiAutocompleteService {
       'model': OpenAiConfig.model,
       'temperature': _temperature,
       // Give the model more headroom for higher-quality continuations
-      'max_tokens': 300,
+      'max_completion_tokens': 300,
       'input': [
         {
           'role': 'system',
@@ -326,7 +325,7 @@ class OpenAiDiagramService {
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
