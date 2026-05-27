@@ -6,6 +6,8 @@ import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ExecutionPlanDetailsScreen extends StatelessWidget {
@@ -137,8 +139,52 @@ class _EarlyWorksSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddSolutionButton(
-              onPressed: () => _EarlyWorksTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Early Works',
+                columns: [
+                  CsvColumnSpec(key: 'tool', label: 'Execution Tool', required: true, sampleValue: 'Excavator'),
+                  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Site preparation work'),
+                  CsvColumnSpec(key: 'cost', label: 'Cost', sampleValue: '5000'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Must complete before Phase 2'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _EarlyWorksTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createEarlyWork(
+                        projectId: projectId,
+                        tool: row['tool'] ?? '',
+                        description: row['description'] ?? '',
+                        source: '',
+                        cost: (row['cost'] ?? '').isEmpty ? null : row['cost'],
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported early work(s) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddSolutionButton(
+                  onPressed: () => _EarlyWorksTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)

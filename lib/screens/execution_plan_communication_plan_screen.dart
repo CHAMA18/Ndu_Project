@@ -6,6 +6,8 @@ import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ExecutionPlanCommunicationPlanScreen extends StatelessWidget {
@@ -78,8 +80,57 @@ class _CommunicationPlanSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(
-              onPressed: () => _CommunicationPlanTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Communication Plan',
+                columns: [
+                  CsvColumnSpec(key: 'stakeholder', label: 'Stakeholder', required: true, sampleValue: 'Project Sponsor'),
+                  CsvColumnSpec(key: 'infoType', label: 'Info Type', required: true, sampleValue: 'Status Update'),
+                  CsvColumnSpec(key: 'frequency', label: 'Frequency', allowedValues: ['Daily', 'Weekly', 'Bi-weekly', 'Monthly', 'Quarterly'], defaultValue: 'Weekly', sampleValue: 'Weekly'),
+                  CsvColumnSpec(key: 'channel', label: 'Channel', allowedValues: ['Email', 'Meeting', 'Report', 'Dashboard', 'Portal', 'Phone'], defaultValue: 'Email', sampleValue: 'Email'),
+                  CsvColumnSpec(key: 'owner', label: 'Owner', required: true, sampleValue: 'PMO Lead'),
+                  CsvColumnSpec(key: 'status', label: 'Status', allowedValues: ['Planned', 'Active', 'On Hold', 'Completed'], defaultValue: 'Planned', sampleValue: 'Planned'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'Weekly progress report'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _CommunicationPlanTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createCommunicationPlan(
+                        projectId: projectId,
+                        stakeholder: row['stakeholder'] ?? '',
+                        infoType: row['infoType'] ?? '',
+                        frequency: row['frequency']?.isNotEmpty == true ? row['frequency']! : 'Weekly',
+                        channel: row['channel']?.isNotEmpty == true ? row['channel']! : 'Email',
+                        owner: row['owner'] ?? '',
+                        status: row['status']?.isNotEmpty == true ? row['status']! : 'Planned',
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported communication entr(ies) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                  onPressed: () => _CommunicationPlanTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)

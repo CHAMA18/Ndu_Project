@@ -14,6 +14,8 @@ import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/utils/design_planning_document.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 // ─── Data Models ─────────────────────────────────────────────────────────────
 
 class _StructuralItem {
@@ -2101,19 +2103,51 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       title: 'Structural & Architecture Register',
       subtitle:
           'System layers, specifications, and ownership for architecture control',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openStructuralItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add layer',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Structural Architecture',
+            columns: [
+              CsvColumnSpec(key: 'layer', label: 'LAYER', required: true),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', required: true),
+              CsvColumnSpec(key: 'specification', label: 'SPECIFICATION'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Design', 'Designed', 'Reviewed', 'Approved'], defaultValue: 'Planned'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _structuralItems.add(_StructuralItem(
+                    id: _newId(),
+                    layer: row['layer'] ?? '',
+                    description: row['description'] ?? '',
+                    specification: row['specification'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openStructuralItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add layer',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2238,19 +2272,51 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       title: 'Components & Interfaces Register',
       subtitle:
           'Interface specifications, responsibilities, and ownership for component control',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openComponentItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add component',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Component Interface',
+            columns: [
+              CsvColumnSpec(key: 'component', label: 'COMPONENT', required: true),
+              CsvColumnSpec(key: 'responsibility', label: 'RESPONSIBILITY', required: true),
+              CsvColumnSpec(key: 'interfaceType', label: 'INTERFACE TYPE'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Design', 'Designed', 'Reviewed', 'Approved'], defaultValue: 'Planned'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _componentItems.add(_ComponentItem(
+                    id: _newId(),
+                    component: row['component'] ?? '',
+                    responsibility: row['responsibility'] ?? '',
+                    interfaceType: row['interfaceType'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openComponentItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add component',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2376,19 +2442,53 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       title: 'Calculations & Analysis Register',
       subtitle:
           'Structural, geotechnical, and performance calculations with PE stamp tracking',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openCalculationItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add calculation',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Calculations & Analysis',
+            columns: [
+              CsvColumnSpec(key: 'calculation', label: 'CALCULATION', required: true),
+              CsvColumnSpec(key: 'type', label: 'TYPE'),
+              CsvColumnSpec(key: 'standard', label: 'STANDARD'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Design', 'Designed', 'Reviewed', 'Approved'], defaultValue: 'Planned'),
+              CsvColumnSpec(key: 'peStamp', label: 'PE STAMP', allowedValues: ['Yes', 'No', 'N/A'], defaultValue: 'No'),
+              CsvColumnSpec(key: 'reviewer', label: 'REVIEWER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _calculationItems.add(_CalculationItem(
+                    id: _newId(),
+                    calculation: row['calculation'] ?? '',
+                    type: row['type'] ?? '',
+                    standard: row['standard'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                    peStamp: row['peStamp'] ?? 'No',
+                    reviewer: row['reviewer'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openCalculationItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add calculation',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2524,19 +2624,53 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       title: 'Compliance & Standards Register',
       subtitle:
           'Applicable standards, compliance tracking, and evidence mapping',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openComplianceItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add standard',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Compliance',
+            columns: [
+              CsvColumnSpec(key: 'standard', label: 'STANDARD', required: true),
+              CsvColumnSpec(key: 'scope', label: 'SCOPE'),
+              CsvColumnSpec(key: 'applicability', label: 'APPLICABILITY'),
+              CsvColumnSpec(key: 'complianceStatus', label: 'STATUS', allowedValues: ['Compliant', 'Partial', 'In Review', 'Not Started'], defaultValue: 'Not Started'),
+              CsvColumnSpec(key: 'evidence', label: 'EVIDENCE'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _complianceItems.add(_ComplianceItem(
+                    id: _newId(),
+                    standard: row['standard'] ?? '',
+                    scope: row['scope'] ?? '',
+                    applicability: row['applicability'] ?? '',
+                    complianceStatus: row['complianceStatus'] ?? 'Not Started',
+                    evidence: row['evidence'] ?? '',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openComplianceItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add standard',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2669,19 +2803,55 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       title: 'Engineering Change Notices Register',
       subtitle:
           'Change control tracking aligned with design change management processes',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openEcnItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add ECN',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'ECN',
+            columns: [
+              CsvColumnSpec(key: 'ecnId', label: 'ECN ID', required: true),
+              CsvColumnSpec(key: 'title', label: 'TITLE', required: true),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Approved', 'Under Review', 'Pending', 'Draft'], defaultValue: 'Draft'),
+              CsvColumnSpec(key: 'originator', label: 'ORIGINATOR'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER'),
+              CsvColumnSpec(key: 'date', label: 'DATE'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _ecnItems.add(_EcnItem(
+                    id: _newId(),
+                    ecnId: row['ecnId'] ?? '',
+                    title: row['title'] ?? '',
+                    priority: row['priority'] ?? 'Medium',
+                    status: row['status'] ?? 'Draft',
+                    originator: row['originator'] ?? '',
+                    approver: row['approver'] ?? '',
+                    date: row['date'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openEcnItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add ECN',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2819,19 +2989,47 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       title: 'Engineering Readiness & Approval Gates',
       subtitle:
           'Approval gates aligned with design sign-off and authorization processes',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openReadinessGateDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add gate',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Readiness Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Progress', 'Pending', 'Complete'], defaultValue: 'Not Started'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _readinessGates.add(_ReadinessGate(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'Not Started',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openReadinessGateDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add gate',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),

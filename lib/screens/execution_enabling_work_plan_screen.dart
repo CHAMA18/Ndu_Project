@@ -6,6 +6,8 @@ import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ExecutionEnablingWorkPlanScreen extends StatelessWidget {
@@ -77,8 +79,53 @@ class _EnablingWorksPlanSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(
-              onPressed: () => _EnablingWorksPlanTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Enabling Works',
+                columns: [
+                  CsvColumnSpec(key: 'aspect', label: 'Enabling Work Aspect', required: true, sampleValue: 'Site Access'),
+                  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Road construction to site'),
+                  CsvColumnSpec(key: 'duration', label: 'Duration', required: true, sampleValue: '2 weeks'),
+                  CsvColumnSpec(key: 'cost', label: 'Cost', required: true, sampleValue: '10000'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Must be completed first'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _EnablingWorksPlanTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createEnablingWork(
+                        projectId: projectId,
+                        aspect: row['aspect'] ?? '',
+                        description: row['description'] ?? '',
+                        duration: row['duration'] ?? '',
+                        cost: row['cost'] ?? '',
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported enabling work(s) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                  onPressed: () => _EnablingWorksPlanTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)

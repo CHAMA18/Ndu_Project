@@ -16,6 +16,8 @@ import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/services/design_phase_service.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 class SpecializedDesignScreen extends StatefulWidget {
   const SpecializedDesignScreen({super.key});
@@ -537,11 +539,40 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Security & compliance patterns register',
       subtitle: 'Track security controls, access patterns, and encryption decisions aligned with NIST CSF and ISO 27001 Annex A controls.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showSecurityDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add control', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Security & Compliance Patterns',
+            columns: [
+              CsvColumnSpec(key: 'pattern', label: 'PATTERN', required: true),
+              CsvColumnSpec(key: 'decision', label: 'DECISION & SCOPE', required: true),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Review', 'Implemented', 'Compliant', 'Non-Compliant'], defaultValue: 'Planned'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _securityRows.add(SecurityPatternRow(
+                    pattern: row['pattern'] ?? '',
+                    decision: row['decision'] ?? '',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showSecurityDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add control', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _securityRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No security patterns defined. Add a control to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -567,11 +598,40 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Performance & scale patterns register',
       subtitle: 'Track performance hotspots, SLA targets, and scaling decisions aligned with SRE best practices and Google SRE handbook principles.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showPerformanceDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add hotspot', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Performance & Scale Patterns',
+            columns: [
+              CsvColumnSpec(key: 'hotspot', label: 'HOTSPOT', required: true),
+              CsvColumnSpec(key: 'focus', label: 'DESIGN FOCUS', required: true),
+              CsvColumnSpec(key: 'sla', label: 'SLA'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Review', 'Implemented', 'Compliant', 'Non-Compliant'], defaultValue: 'Draft'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _performanceRows.add(PerformancePatternRow(
+                    hotspot: row['hotspot'] ?? '',
+                    focus: row['focus'] ?? '',
+                    sla: row['sla'] ?? '',
+                    status: row['status'] ?? 'Draft',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showPerformanceDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add hotspot', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _performanceRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No performance hotspots defined. Add a scaling decision to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -597,11 +657,40 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Integration contracts register',
       subtitle: 'Track integration flows, API contracts, and system connections aligned with OpenAPI 3.1 and event-driven architecture patterns.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showIntegrationDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add flow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Integration Contracts',
+            columns: [
+              CsvColumnSpec(key: 'flow', label: 'FLOW', required: true),
+              CsvColumnSpec(key: 'system', label: 'SYSTEM'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Review', 'Implemented', 'Compliant', 'Non-Compliant'], defaultValue: 'Draft'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _integrationRows.add(IntegrationFlowRow(
+                    flow: row['flow'] ?? '',
+                    owner: row['owner'] ?? '',
+                    system: row['system'] ?? '',
+                    status: row['status'] ?? 'Draft',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showIntegrationDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add flow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _integrationRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No integration flows defined. Add an integration contract to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -627,11 +716,42 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Compliance & certification register',
       subtitle: 'Track regulatory compliance status, certification progress, and evidence collection aligned with SOC 2, GDPR, PCI DSS, and ISO 27001 requirements.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showComplianceDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add standard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Compliance & Certification',
+            columns: [
+              CsvColumnSpec(key: 'standard', label: 'STANDARD', required: true),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Compliant', 'Non-Compliant', 'In Progress', 'Not Assessed', 'Partial'], defaultValue: 'Not assessed'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _complianceRows.add(_ComplianceRow(
+                    id: _newId(),
+                    standard: row['standard'] ?? '',
+                    description: row['description'] ?? '',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'Not assessed',
+                    evidence: '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showComplianceDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add standard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _complianceRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No compliance standards defined. Add a standard to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -657,11 +777,47 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Specialized design review gates',
       subtitle: 'Approval checkpoints aligned with NIST CSF and ISO 27001 design review cycles. Each gate must be cleared before proceeding to the next specialized design maturity level.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showReviewGateDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Review Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER'),
+              CsvColumnSpec(key: 'department', label: 'DEPT'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['High', 'Medium', 'Low'], defaultValue: 'High'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Progress', 'Complete', 'Overdue'], defaultValue: 'Not Started'),
+              CsvColumnSpec(key: 'targetDate', label: 'TARGET DATE', defaultValue: 'TBD'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _reviewGates.add(_ReviewGateRow(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    description: row['description'] ?? '',
+                    approver: row['approver'] ?? '',
+                    department: row['department'] ?? '',
+                    priority: row['priority'] ?? 'High',
+                    status: row['status'] ?? 'Not Started',
+                    targetDate: row['targetDate'] ?? 'TBD',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showReviewGateDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _reviewGates.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No review gates defined. Add a gate to start tracking specialized design reviews.', style: TextStyle(color: Color(0xFF64748B)))))

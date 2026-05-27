@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -1036,8 +1038,38 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       title: 'Deliverable register',
       subtitle:
           'Track design artefacts, owners, status, and readiness gates',
-      trailing: _actionButton(Icons.add, 'Add deliverable',
-          onPressed: () => _showAddDeliverableDialog()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Deliverable Register',
+            columns: [
+              CsvColumnSpec(key: 'name', label: 'DELIVERABLE', required: true, hint: 'Deliverable name'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Deliverable owner'),
+              CsvColumnSpec(key: 'due', label: 'DUE/GATE', hint: 'Due date or gate'),
+              CsvColumnSpec(key: 'risk', label: 'RISK', allowedValues: ['High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Progress', 'Under Review', 'Approved', 'Delivered'], defaultValue: 'In Progress'),
+            ],
+            onImport: (rows) {
+              final register = [..._data.register];
+              for (final row in rows) {
+                register.add(DesignDeliverableRegisterItem(
+                  name: row['name'] ?? '',
+                  owner: row['owner'] ?? '',
+                  status: row['status'] ?? 'In Progress',
+                  due: row['due'] ?? '',
+                  risk: row['risk'] ?? 'Medium',
+                ));
+              }
+              _updateData(_data.copyWith(register: register));
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add deliverable',
+              onPressed: () => _showAddDeliverableDialog()),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1095,8 +1127,40 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       title: 'Acceptance evidence matrix',
       subtitle:
           'Standard for proving each deliverable is complete, reviewable, and ready for handoff',
-      trailing: _actionButton(Icons.add, 'Add evidence',
-          onPressed: () => _showAcceptanceEvidenceEditor()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Acceptance Evidence',
+            columns: [
+              CsvColumnSpec(key: 'evidenceArea', label: 'EVIDENCE AREA', required: true, hint: 'Evidence area'),
+              CsvColumnSpec(key: 'whatMustBeCaptured', label: 'WHAT MUST BE CAPTURED', hint: 'What must be captured'),
+              CsvColumnSpec(key: 'verificationMethod', label: 'VERIFICATION METHOD', hint: 'Verification method'),
+              CsvColumnSpec(key: 'approvalOwner', label: 'APPROVAL OWNER', hint: 'Approval owner'),
+              CsvColumnSpec(key: 'riskIfMissing', label: 'RISK IF MISSING', hint: 'Risk if missing'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _acceptanceEvidence.add(_AcceptanceEvidenceRow(
+                    id: _newId(),
+                    evidenceArea: row['evidenceArea'] ?? '',
+                    whatMustBeCaptured: row['whatMustBeCaptured'] ?? '',
+                    verificationMethod: row['verificationMethod'] ?? '',
+                    approvalOwner: row['approvalOwner'] ?? '',
+                    riskIfMissing: row['riskIfMissing'] ?? '',
+                  ));
+                }
+              });
+              _saveTrackingData();
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add evidence',
+              onPressed: () => _showAcceptanceEvidenceEditor()),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1139,8 +1203,40 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       title: 'Handoff governance',
       subtitle:
           'Controls that keep deliverables usable by engineering, vendors, approvers, and operations',
-      trailing: _actionButton(Icons.add, 'Add control',
-          onPressed: () => _showHandoffGovernanceEditor()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Handoff Governance',
+            columns: [
+              CsvColumnSpec(key: 'control', label: 'CONTROL', required: true, hint: 'Control name'),
+              CsvColumnSpec(key: 'industryStandardPractice', label: 'INDUSTRY STANDARD PRACTICE', hint: 'Industry standard practice'),
+              CsvColumnSpec(key: 'waterfallEvidence', label: 'WATERFALL EVIDENCE', hint: 'Waterfall evidence'),
+              CsvColumnSpec(key: 'agileHybridEvidence', label: 'AGILE/HYBRID EVIDENCE', hint: 'Agile/hybrid evidence'),
+              CsvColumnSpec(key: 'decision', label: 'DECISION', allowedValues: ['Pending', 'Accepted', 'Waived', 'N/A'], defaultValue: 'Pending'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _handoffGovernance.add(_HandoffGovernanceRow(
+                    id: _newId(),
+                    control: row['control'] ?? '',
+                    industryStandardPractice: row['industryStandardPractice'] ?? '',
+                    waterfallEvidence: row['waterfallEvidence'] ?? '',
+                    agileHybridEvidence: row['agileHybridEvidence'] ?? '',
+                    decision: row['decision'] ?? 'Required',
+                  ));
+                }
+              });
+              _saveTrackingData();
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add control',
+              onPressed: () => _showHandoffGovernanceEditor()),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1183,8 +1279,42 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       title: 'Approval gate readiness',
       subtitle:
           'Design approval gates aligned with PMI PMBOK Quality and PRINCE2 Controlling a Stage processes',
-      trailing: _actionButton(Icons.add, 'Add gate',
-          onPressed: () => _showApprovalGateEditor()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Approval Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true, hint: 'Gate name'),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', hint: 'Gate description'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER', hint: 'Approver'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'High'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Review', 'Pending', 'Approved', 'Blocked'], defaultValue: 'Pending'),
+              CsvColumnSpec(key: 'targetDate', label: 'TARGET DATE', hint: 'Target date', defaultValue: 'TBD'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _approvalGates.add(_ApprovalGateRow(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    description: row['description'] ?? '',
+                    approver: row['approver'] ?? '',
+                    priority: row['priority'] ?? 'High',
+                    status: row['status'] ?? 'Pending',
+                    targetDate: row['targetDate'] ?? 'TBD',
+                  ));
+                }
+              });
+              _saveTrackingData();
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add gate',
+              onPressed: () => _showApprovalGateEditor()),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
