@@ -4,6 +4,8 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
@@ -926,16 +928,49 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'User journey register',
       subtitle: 'Track user journeys, touchpoints, owners, and validation status aligned with ISO 9241-210 human-centred design process.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showJourneyDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add journey', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'User Journeys',
+            columns: [
+              CsvColumnSpec(key: 'title', label: 'JOURNEY', required: true, hint: 'Journey name'),
+              CsvColumnSpec(key: 'touchpoints', label: 'TOUCHPOINTS', hint: 'Key touchpoints'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Journey owner'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Mapped', 'Draft', 'Planned', 'In progress', 'Validated', 'Deprecated'], defaultValue: 'Planned'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _journeys.add(_JourneyRow(
+                    id: _newId(),
+                    title: row['title'] ?? '',
+                    description: '',
+                    touchpoints: row['touchpoints'] ?? '',
+                    owner: row['owner'] ?? '',
+                    priority: row['priority'] ?? 'Medium',
+                    status: row['status'] ?? 'Planned',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showJourneyDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add journey', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _journeys.isEmpty
           ? const Padding(
@@ -997,16 +1032,47 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Interface architecture register',
       subtitle: 'Track interface areas, fidelity levels, and design states aligned with progressive design maturity from wireframe to production.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showInterfaceDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add interface', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Interface Architecture',
+            columns: [
+              CsvColumnSpec(key: 'area', label: 'INTERFACE', required: true, hint: 'Interface area name'),
+              CsvColumnSpec(key: 'fidelity', label: 'FIDELITY', allowedValues: ['Low-fi', 'Mid-fi', 'High-fi', 'Prototype', 'Production'], defaultValue: 'Low-fi'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Interface owner'),
+              CsvColumnSpec(key: 'status', label: 'STATE', allowedValues: ['Low-fi', 'Mid-fi', 'High-fi', 'Prototype', 'Production'], defaultValue: 'To define'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _interfaces.add(_InterfaceRow(
+                    id: _newId(),
+                    area: row['area'] ?? '',
+                    purpose: '',
+                    fidelity: row['fidelity'] ?? 'Low',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'To define',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showInterfaceDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add interface', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _interfaces.isEmpty
           ? const Padding(
@@ -1066,16 +1132,47 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Design system tokens register',
       subtitle: 'Track design tokens, categories, and readiness status to maintain visual consistency and enable efficient design-to-development handoff.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showDesignTokenDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add token', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Design System Tokens',
+            columns: [
+              CsvColumnSpec(key: 'title', label: 'TOKEN', required: true, hint: 'Token name'),
+              CsvColumnSpec(key: 'category', label: 'CATEGORY', allowedValues: ['Color', 'Typography', 'Spacing', 'Elevation', 'Motion', 'Icon'], defaultValue: 'Color'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Ready', 'Draft', 'In review', 'Planned', 'Deprecated'], defaultValue: 'Draft'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Token owner'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _designTokens.add(_DesignTokenRow(
+                    id: _newId(),
+                    title: row['title'] ?? '',
+                    description: '',
+                    category: row['category'] ?? 'Colors',
+                    status: row['status'] ?? 'Draft',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showDesignTokenDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add token', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _designTokens.isEmpty
           ? const Padding(
@@ -1135,16 +1232,49 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Usability & accessibility validation',
       subtitle: 'Track WCAG compliance, usability benchmarks, and accessibility testing status aligned with ISO 9241 and Section 508 requirements.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showUsabilityDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add criteria', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Usability & Accessibility',
+            columns: [
+              CsvColumnSpec(key: 'criteria', label: 'CRITERIA', required: true, hint: 'Validation criteria'),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', hint: 'Detailed description'),
+              CsvColumnSpec(key: 'standard', label: 'STANDARD', hint: 'e.g. WCAG 2.1 AA'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Pass', 'Fail', 'In progress', 'Not tested', 'Conditional'], defaultValue: 'Not tested'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Criteria owner'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _usabilityEntries.add(_UsabilityRow(
+                    id: _newId(),
+                    criteria: row['criteria'] ?? '',
+                    description: row['description'] ?? '',
+                    standard: row['standard'] ?? '',
+                    status: row['status'] ?? 'Not tested',
+                    owner: row['owner'] ?? '',
+                    notes: '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showUsabilityDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add criteria', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _usabilityEntries.isEmpty
           ? const Padding(
@@ -1204,16 +1334,52 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Design review gates',
       subtitle: 'Approval checkpoints aligned with ISO 9241-210 design review cycles. Each gate must be cleared before proceeding to the next design maturity level.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showReviewGateDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Review Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true, hint: 'Gate name'),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', hint: 'Gate description'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER', hint: 'Gate approver'),
+              CsvColumnSpec(key: 'department', label: 'DEPT', hint: 'Department'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'High'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Pending', 'In Review', 'Approved', 'Rejected', 'Waived'], defaultValue: 'Pending'),
+              CsvColumnSpec(key: 'targetDate', label: 'TARGET DATE', hint: 'Target date', defaultValue: 'TBD'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _reviewGates.add(_ReviewGateRow(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    description: row['description'] ?? '',
+                    approver: row['approver'] ?? '',
+                    department: row['department'] ?? '',
+                    priority: row['priority'] ?? 'High',
+                    status: row['status'] ?? 'Pending',
+                    targetDate: row['targetDate'] ?? 'TBD',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showReviewGateDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _reviewGates.isEmpty
           ? const Padding(

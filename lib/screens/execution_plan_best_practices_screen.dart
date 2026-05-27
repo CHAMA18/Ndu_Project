@@ -7,6 +7,8 @@ import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 class ExecutionPlanBestPracticesScreen extends StatelessWidget {
   const ExecutionPlanBestPracticesScreen({super.key});
@@ -78,8 +80,62 @@ class _BestPracticesSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(
-              onPressed: () => _BestPracticesTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Best Practices',
+                columns: [
+                  CsvColumnSpec(key: 'issueTopic', label: 'Topic', required: true, sampleValue: 'Daily standup meetings'),
+                  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Hold 15-min daily sync meetings'),
+                  CsvColumnSpec(key: 'discipline', label: 'Discipline', required: true, sampleValue: 'Management'),
+                  CsvColumnSpec(key: 'impacted', label: 'Impacted', sampleValue: 'Team communication'),
+                  CsvColumnSpec(key: 'raisedBy', label: 'Raised By', required: true, sampleValue: 'Scrum Master'),
+                  CsvColumnSpec(key: 'scheduleImpact', label: 'Schedule Impact', required: true, sampleValue: 'Improved'),
+                  CsvColumnSpec(key: 'costImpact', label: 'Cost Impact', required: true, sampleValue: 'None'),
+                  CsvColumnSpec(key: 'approved', label: 'Approved', allowedValues: ['Yes', 'No'], defaultValue: 'No', sampleValue: 'Yes'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Proven effective in Phase 1'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _BestPracticesTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createChangeRequest(
+                        projectId: projectId,
+                        issueTopic: row['issueTopic'] ?? '',
+                        description: row['description'] ?? '',
+                        discipline: row['discipline'] ?? '',
+                        raisedBy: row['raisedBy'] ?? '',
+                        scheduleImpact: row['scheduleImpact'] ?? '',
+                        costImpact: row['costImpact'] ?? '',
+                        approved: (row['approved'] ?? '').toLowerCase() == 'yes',
+                        comments: row['comments'] ?? '',
+                        llOrBp: 'BP',
+                        impacted: (row['impacted'] ?? '').isEmpty ? null : row['impacted'],
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported best practice(s) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                  onPressed: () => _BestPracticesTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)

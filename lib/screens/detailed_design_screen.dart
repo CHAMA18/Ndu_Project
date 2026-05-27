@@ -13,6 +13,8 @@ import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/detailed_design_table_widget.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 /// ────────────────────────────────────────────────────────────────
@@ -741,7 +743,54 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
       initiallyExpanded: false,
       headerIcon: Icons.folder_special_outlined,
       headerIconColor: const Color(0xFF2563EB),
-      trailing: _buildSpecTypeLegend(),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Design Specification Register',
+            columns: [
+              CsvColumnSpec(key: 'specId', label: 'Spec ID', hint: 'e.g. DS-001'),
+              CsvColumnSpec(key: 'componentName', label: 'Design Element', required: true, hint: 'Design element name'),
+              CsvColumnSpec(key: 'specificationType', label: 'Type', allowedValues: ['Functional', 'Non-Functional', 'Interface', 'Data', 'Security', 'Performance'], defaultValue: 'Functional'),
+              CsvColumnSpec(key: 'specificationDetails', label: 'Specification', hint: 'Specification details'),
+              CsvColumnSpec(key: 'priority', label: 'Priority', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'methodologyPhase', label: 'Phase', hint: 'Methodology phase'),
+              CsvColumnSpec(key: 'owner', label: 'Owner', hint: 'Specification owner'),
+              CsvColumnSpec(key: 'traceability', label: 'Traceability', hint: 'e.g. REQ-001'),
+              CsvColumnSpec(key: 'status', label: 'Status', allowedValues: ['Draft', 'In Review', 'Approved', 'Implemented', 'Verified'], defaultValue: 'Draft'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _components.add(DesignComponent(
+                    specId: row['specId'] ?? 'DS-${(_components.length + 1).toString().padLeft(3, '0')}',
+                    componentName: row['componentName'] ?? '',
+                    specificationType: row['specificationType'] ?? 'Component',
+                    category: row['specificationType'] ?? 'Backend',
+                    specificationDetails: row['specificationDetails'] ?? '',
+                    priority: row['priority'] ?? 'Should Have',
+                    methodologyPhase: row['methodologyPhase'] ?? _getDefaultPhase(),
+                    owner: row['owner'] ?? '',
+                    traceability: row['traceability'] ?? '',
+                    status: row['status'] ?? 'Draft',
+                    designNotes: '',
+                  ));
+                }
+              });
+              final projectId = _projectId;
+              if (projectId != null) {
+                ExecutionPhaseService.saveDesignComponents(
+                  projectId: projectId,
+                  components: _components,
+                );
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+          _buildSpecTypeLegend(),
+        ],
+      ),
       child: DetailedDesignTableWidget(
         components: filteredComponents,
         methodology: _methodology,

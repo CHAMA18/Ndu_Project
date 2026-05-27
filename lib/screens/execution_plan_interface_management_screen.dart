@@ -6,6 +6,8 @@ import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ExecutionPlanInterfaceManagementScreen extends StatelessWidget {
@@ -80,8 +82,59 @@ class _InterfaceManagementSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(
-              onPressed: () => _InterfaceRegisterTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Interface Register',
+                columns: [
+                  CsvColumnSpec(key: 'interfaceId', label: 'Interface ID', required: true, sampleValue: 'IF-001'),
+                  CsvColumnSpec(key: 'interfaceName', label: 'Name', required: true, sampleValue: 'Site Access Road'),
+                  CsvColumnSpec(key: 'interfaceType', label: 'Type', allowedValues: ['Physical', 'Contractual', 'Organizational', 'Technical', 'Procedural'], defaultValue: 'Physical', sampleValue: 'Physical'),
+                  CsvColumnSpec(key: 'partyA', label: 'Party A', required: true, sampleValue: 'Contractor A'),
+                  CsvColumnSpec(key: 'partyB', label: 'Party B', required: true, sampleValue: 'Contractor B'),
+                  CsvColumnSpec(key: 'status', label: 'Status', allowedValues: ['Active', 'Pending', 'Closed', 'Resolved'], defaultValue: 'Active', sampleValue: 'Active'),
+                  CsvColumnSpec(key: 'frequency', label: 'Frequency', allowedValues: ['Daily', 'Weekly', 'Bi-weekly', 'Monthly', 'Quarterly', 'As Needed'], defaultValue: 'Daily', sampleValue: 'Weekly'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'Coordinate schedule'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _InterfaceRegisterTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createInterfaceRegister(
+                        projectId: projectId,
+                        interfaceId: row['interfaceId'] ?? '',
+                        interfaceName: row['interfaceName'] ?? '',
+                        interfaceType: row['interfaceType']?.isNotEmpty == true ? row['interfaceType']! : 'Physical',
+                        partyA: row['partyA'] ?? '',
+                        partyB: row['partyB'] ?? '',
+                        status: row['status']?.isNotEmpty == true ? row['status']! : 'Active',
+                        frequency: row['frequency']?.isNotEmpty == true ? row['frequency']! : 'Daily',
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported interface entr(ies) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                  onPressed: () => _InterfaceRegisterTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)

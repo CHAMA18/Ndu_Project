@@ -6,6 +6,8 @@ import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/models/project_activity.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
@@ -16,12 +18,20 @@ class DesignGovernanceDashboard extends StatelessWidget {
     required this.managementData,
     this.readiness,
     this.architectureNodeCount = 0,
+    this.onImportChangeLog,
+    this.onImportRfi,
   });
 
   final ProjectDataModel projectData;
   final DesignManagementData managementData;
   final DesignReadinessModel? readiness;
   final int architectureNodeCount;
+
+  /// Callback when CSV rows are imported for the Change Control & Variation Log.
+  final ValueChanged<List<Map<String, String>>>? onImportChangeLog;
+
+  /// Callback when CSV rows are imported for the RFI Log.
+  final ValueChanged<List<Map<String, String>>>? onImportRfi;
 
   @override
   Widget build(BuildContext context) {
@@ -480,6 +490,47 @@ class DesignGovernanceDashboard extends StatelessWidget {
       subtitle:
           'Pulled from inherited scope, constraints, requirements, and governance-derived design actions.',
       icon: Icons.change_circle_outlined,
+      trailing: onImportChangeLog != null
+          ? CsvTableImportButton(
+              tableTitle: 'Change Control & Variation Log',
+              compact: true,
+              columns: const [
+                CsvColumnSpec(
+                    key: 'changeId',
+                    label: 'Change ID',
+                    required: true,
+                    sampleValue: 'CC-01',
+                    hint: 'Unique change identifier'),
+                CsvColumnSpec(
+                    key: 'description',
+                    label: 'Description',
+                    required: true,
+                    sampleValue: 'Scope refinement',
+                    hint: 'Change description'),
+                CsvColumnSpec(
+                    key: 'impact',
+                    label: 'Impact Assessment',
+                    required: false,
+                    sampleValue: 'Updates baseline package',
+                    hint: 'Impact of the change'),
+                CsvColumnSpec(
+                    key: 'status',
+                    label: 'Status',
+                    required: false,
+                    allowedValues: [
+                      'Open',
+                      'Under Review',
+                      'Approved',
+                      'Rejected',
+                      'Implemented'
+                    ],
+                    defaultValue: 'Open',
+                    sampleValue: 'Open',
+                    hint: 'Current status'),
+              ],
+              onImport: onImportChangeLog!,
+            )
+          : null,
       child: ResponsiveDataTableWrapper(
         minWidth: 720,
         maxHeight: 336,
@@ -547,6 +598,33 @@ class DesignGovernanceDashboard extends StatelessWidget {
       subtitle:
           'Questions are framed from outstanding requirements, interfaces, and discipline handoffs.',
       icon: Icons.help_outline,
+      trailing: onImportRfi != null
+          ? CsvTableImportButton(
+              tableTitle: 'RFI Log',
+              compact: true,
+              columns: const [
+                CsvColumnSpec(
+                    key: 'question',
+                    label: 'Question',
+                    required: true,
+                    sampleValue: 'Confirm requirement intent',
+                    hint: 'RFI question text'),
+                CsvColumnSpec(
+                    key: 'dueDate',
+                    label: 'Due Date',
+                    required: false,
+                    sampleValue: '2025-04-15',
+                    hint: 'e.g. 2025-04-15'),
+                CsvColumnSpec(
+                    key: 'response',
+                    label: 'Response',
+                    required: false,
+                    sampleValue: 'Awaiting response',
+                    hint: 'Response or status'),
+              ],
+              onImport: onImportRfi!,
+            )
+          : null,
       child: ResponsiveDataTableWrapper(
         minWidth: 620,
         maxHeight: 336,

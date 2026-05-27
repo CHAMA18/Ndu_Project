@@ -7,6 +7,8 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
@@ -285,7 +287,48 @@ class _StakeholderIdentificationSectionState
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(onPressed: () => _openRowDialog()),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Stakeholders',
+                columns: [
+                  CsvColumnSpec(key: 'stakeholderGroup', label: 'Stakeholder Group', required: true, sampleValue: 'Local Government'),
+                  CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'External'),
+                  CsvColumnSpec(key: 'influence', label: 'Influence', sampleValue: 'High'),
+                  CsvColumnSpec(key: 'keyConcerns', label: 'Key Concerns', sampleValue: 'Environmental impact'),
+                  CsvColumnSpec(key: 'engagementStrategy', label: 'Engagement Strategy', sampleValue: 'Regular meetings'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'Monthly updates required'),
+                ],
+                onImport: (rows) async {
+                  var imported = 0;
+                  for (final row in rows) {
+                    final normalized = _normalizeRow({
+                      'stakeholderGroup': row['stakeholderGroup'] ?? '',
+                      'category': row['category'] ?? '',
+                      'influence': row['influence'] ?? '',
+                      'keyConcerns': row['keyConcerns'] ?? '',
+                      'engagementStrategy': row['engagementStrategy'] ?? '',
+                      'comments': row['comments'] ?? '',
+                    });
+                    if (normalized['stakeholderGroup']!.isEmpty) continue;
+                    setState(() => _rows.add(normalized));
+                    imported++;
+                  }
+                  if (imported > 0) {
+                    await _persistRows();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Imported $imported stakeholder(s) successfully')),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(onPressed: () => _openRowDialog()),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)

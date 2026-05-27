@@ -6,6 +6,8 @@ import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ExecutionPlanSolutionsScreen extends StatelessWidget {
@@ -47,9 +49,53 @@ class ExecutionPlanSolutionsScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Align(
               alignment: Alignment.centerRight,
-              child: AddSolutionButton(
-                  onPressed: () =>
-                      _ExecutionPlanTable.showAddDialog(context)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CsvTableImportButton(
+                    tableTitle: 'Execution Tools',
+                    columns: [
+                      CsvColumnSpec(key: 'tool', label: 'Tool', required: true, sampleValue: 'Hammer Drill'),
+                      CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Heavy-duty drilling tool'),
+                      CsvColumnSpec(key: 'source', label: 'Source', required: true, sampleValue: 'Vendor A'),
+                      CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Required for Phase 1'),
+                    ],
+                    onImport: (rows) async {
+                      final projectId = _ExecutionPlanTable._getProjectIdStatic(context);
+                      if (projectId == null) return;
+                      var imported = 0;
+                      for (final row in rows) {
+                        try {
+                          await ExecutionService.createTool(
+                            projectId: projectId,
+                            tool: row['tool'] ?? '',
+                            description: row['description'] ?? '',
+                            source: row['source'] ?? '',
+                            cost: null,
+                            comments: row['comments'] ?? '',
+                          );
+                          imported++;
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error importing row: $e')),
+                            );
+                          }
+                        }
+                      }
+                      if (context.mounted && imported > 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Imported $imported tool(s) successfully')),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  AddSolutionButton(
+                      onPressed: () =>
+                          _ExecutionPlanTable.showAddDialog(context)),
+                ],
+              ),
             ),
             const SizedBox(height: 44),
             Wrap(

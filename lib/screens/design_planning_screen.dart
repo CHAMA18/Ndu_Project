@@ -19,6 +19,8 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 // import 'package:ndu_project/widgets/launch_phase_navigation.dart'; // removed: UI redesign
 // import 'package:ndu_project/widgets/planning_phase_header.dart'; // removed: UI redesign
 import 'package:ndu_project/widgets/responsive.dart';
@@ -2407,10 +2409,56 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
                         ),
                       ),
                     ],
-                    _SubHeader(
-                      title: 'Specification rows',
-                      actionLabel: 'Add row',
-                      onAction: _addSpecificationRow,
+                    Row(
+                      children: [
+                        const Text(
+                          'Specification rows',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _kText,
+                          ),
+                        ),
+                        const Spacer(),
+                        CsvTableImportButton(
+                          compact: true,
+                          tableTitle: 'Specifications',
+                          columns: [
+                            CsvColumnSpec(key: 'title', label: 'Title', required: true, hint: 'Specification title'),
+                            CsvColumnSpec(key: 'specificationType', label: 'Spec type', allowedValues: ['Code', 'Law', 'Standard', 'Criteria', 'Guideline', 'Contract', 'Other'], defaultValue: 'Standard'),
+                            CsvColumnSpec(key: 'discipline', label: 'Discipline', hint: 'e.g. Architecture, Civil, Frontend'),
+                            CsvColumnSpec(key: 'area', label: 'Area', hint: 'e.g. Design, Security, Data'),
+                            CsvColumnSpec(key: 'wbsWorkPackageTitle', label: 'WBS Work Package', hint: 'WBS work package title'),
+                            CsvColumnSpec(key: 'sourceType', label: 'Source type', allowedValues: ['Contracts', 'Vendors', 'Regulatory', 'Standards'], defaultValue: 'Standards'),
+                            CsvColumnSpec(key: 'owner', label: 'Owner', hint: 'Specification owner'),
+                            CsvColumnSpec(key: 'status', label: 'Status', allowedValues: ['Draft', 'Planned', 'In Review'], defaultValue: 'Draft'),
+                          ],
+                          onImport: (rows) {
+                            setState(() {
+                              for (final row in rows) {
+                                final newRow = DesignSpecificationPlanRow(
+                                  title: row['title'] ?? '',
+                                  specificationType: row['specificationType'] ?? 'Standard',
+                                  discipline: row['discipline'] ?? '',
+                                  area: row['area'] ?? '',
+                                  wbsWorkPackageTitle: row['wbsWorkPackageTitle'] ?? '',
+                                  sourceType: row['sourceType'] ?? 'Standards',
+                                  owner: row['owner'] ?? '',
+                                  status: row['status'] ?? 'Draft',
+                                  ruleType: 'Internal',
+                                );
+                                _document.specifications.add(newRow);
+                                _specificationRowKeys[newRow.id] = GlobalKey(
+                                  debugLabel: 'spec_row_${newRow.id}',
+                                );
+                              }
+                            });
+                            _queueSave();
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        _InlineAddButton(label: 'Add row', onPressed: _addSpecificationRow),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     _ActionButton(

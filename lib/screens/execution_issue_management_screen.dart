@@ -6,6 +6,8 @@ import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ExecutionIssueManagementScreen extends StatelessWidget {
@@ -78,8 +80,59 @@ class _IssuesManagementSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(
-              onPressed: () => _IssuesManagementTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Issues',
+                columns: [
+                  CsvColumnSpec(key: 'issueTopic', label: 'Issue Topic', required: true, sampleValue: 'Delay in permits'),
+                  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Permit approval pending'),
+                  CsvColumnSpec(key: 'discipline', label: 'Discipline', required: true, sampleValue: 'Engineering'),
+                  CsvColumnSpec(key: 'raisedBy', label: 'Raised By', required: true, sampleValue: 'Project Manager'),
+                  CsvColumnSpec(key: 'scheduleImpact', label: 'Schedule Impact', required: true, sampleValue: '2 weeks delay'),
+                  CsvColumnSpec(key: 'costImpact', label: 'Cost Impact', required: true, sampleValue: '\$10,000'),
+                  CsvColumnSpec(key: 'approved', label: 'Approved', allowedValues: ['Yes', 'No'], defaultValue: 'No', sampleValue: 'No'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Follow up with authorities'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _IssuesManagementTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createIssue(
+                        projectId: projectId,
+                        issueTopic: row['issueTopic'] ?? '',
+                        description: row['description'] ?? '',
+                        discipline: row['discipline'] ?? '',
+                        raisedBy: row['raisedBy'] ?? '',
+                        scheduleImpact: row['scheduleImpact'] ?? '',
+                        costImpact: row['costImpact'] ?? '',
+                        approved: (row['approved'] ?? '').toLowerCase() == 'yes',
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported issue(s) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                  onPressed: () => _IssuesManagementTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)
