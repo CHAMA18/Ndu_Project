@@ -39,6 +39,10 @@ class UnifiedPhaseHeader extends StatelessWidget {
     this.showDrawerButton = true,
     this.breadcrumbPhase,
     this.breadcrumbTitle,
+    this.showExportPdf = false,
+    this.showAiAssist = false,
+    this.onExportPdf,
+    this.onAiAssist,
   });
 
   final String title;
@@ -58,6 +62,18 @@ class UnifiedPhaseHeader extends StatelessWidget {
   /// Optional page title for the breadcrumb bar (e.g. "Risk Assessment").
   /// Falls back to [title] if not provided.
   final String? breadcrumbTitle;
+
+  /// Show Export PDF button in the header.
+  final bool showExportPdf;
+
+  /// Show AI Assist button in the header.
+  final bool showAiAssist;
+
+  /// Callback for Export PDF button.
+  final VoidCallback? onExportPdf;
+
+  /// Callback for AI Assist button.
+  final VoidCallback? onAiAssist;
 
   void _openDrawer(BuildContext context) {
     HapticFeedback.selectionClick();
@@ -267,6 +283,37 @@ class UnifiedPhaseHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          if (showExportPdf)
+            _HeaderActionChip(
+              icon: Icons.picture_as_pdf_outlined,
+              label: 'Export PDF',
+              onTap: onExportPdf ??
+                  () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('Export PDF coming soon for this section.'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+            ),
+          if (showExportPdf) const SizedBox(width: 8),
+          if (showAiAssist)
+            _AiAssistChip(
+              label: 'AI Assist',
+              onTap: onAiAssist ??
+                  () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'AI Assist will generate content for this section.'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+            ),
+          if (showAiAssist) const SizedBox(width: 8),
           if (showActivityLogAction)
             _ActivityLogAction(
               compact: false,
@@ -633,6 +680,97 @@ class _ActivityLogAction extends StatelessWidget {
                   ),
                 ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Export PDF header action chip ─────────────────────────────────────────
+class _HeaderActionChip extends StatelessWidget {
+  const _HeaderActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F4FF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFC7D2FE)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF4154F1)),
+              const SizedBox(width: 6),
+              const Text(
+                'Export PDF',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF4154F1),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── AI Assist header action chip ─────────────────────────────────────────
+class _AiAssistChip extends StatelessWidget {
+  const _AiAssistChip({
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4154F1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
             ],
           ),
         ),
