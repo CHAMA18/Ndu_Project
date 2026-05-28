@@ -19,6 +19,7 @@ import 'package:ndu_project/screens/backend_design_screen.dart';
 import 'package:ndu_project/screens/development_set_up_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/utils/design_planning_document.dart';
+import 'package:ndu_project/widgets/execution_phase_ui.dart';
 
 class UiUxDesignScreen extends StatefulWidget {
   const UiUxDesignScreen({super.key});
@@ -718,35 +719,20 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
   // ─── UX Framework Guide ────────────────────────────────────────────
 
   Widget _buildUXFrameworkGuide() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    return ExecutionPanelShell(
+      title: 'Experience design framework',
+      subtitle:
+          'Grounded in ISO 9241-210 Human-Centred Design for Interactive Systems, '
+          'Nielsen Norman Group usability heuristics, WCAG 2.1 accessibility guidelines, '
+          'and Google Material Design 3 principles.',
+      collapsible: true,
+      initiallyExpanded: false,
+      headerIcon: Icons.auto_awesome_outlined,
+      headerIconColor: const Color(0xFF6366F1),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Experience design framework',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in ISO 9241-210 Human-Centred Design for Interactive Systems, '
-            'Nielsen Norman Group usability heuristics, WCAG 2.1 accessibility guidelines, '
-            'and Google Material Design 3 principles. Effective experience design ensures '
+            'Effective experience design ensures '
             'that user needs, task flows, and interaction patterns remain validated, consistent, '
             'and accessible across all touchpoints throughout the project lifecycle.',
             style: TextStyle(
@@ -757,44 +743,40 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildGuideCard(
-                Icons.route_outlined,
-                'User Journey Mapping',
-                'Define end-to-end user journeys from entry to task completion. Map touchpoints, '
-                    'decision points, and emotional arcs. Validate journeys against user research '
-                    'and business objectives before investing in interface design.',
-                const Color(0xFF2563EB),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.widgets_outlined,
-                'Interface Architecture',
-                'Structure screens, navigation patterns, and information hierarchy. Define '
-                    'fidelity levels from wireframe to final prototype. Ensure consistent '
-                    'interaction patterns across responsive breakpoints and platforms.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.palette_outlined,
-                'Design System & Tokens',
-                'Establish shared visual language through design tokens: colors, typography, '
-                    'spacing, elevation, and motion. Tokens ensure consistency, enable '
-                    'theme switching, and bridge the design-to-development handoff gap.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.accessibility_new_outlined,
-                'Usability & Accessibility',
-                'Validate interfaces against WCAG 2.1 AA, Section 508, and platform-specific '
-                    'accessibility guidelines. Conduct usability testing with representative users. '
-                    'Track compliance status and remediation actions systematically.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+          _buildGuideCard(
+            Icons.route_outlined,
+            'User Journey Mapping',
+            'Define end-to-end user journeys from entry to task completion. Map touchpoints, '
+                'decision points, and emotional arcs. Validate journeys against user research '
+                'and business objectives before investing in interface design.',
+            const Color(0xFF2563EB),
+          ),
+          const SizedBox(height: 12),
+          _buildGuideCard(
+            Icons.widgets_outlined,
+            'Interface Architecture',
+            'Structure screens, navigation patterns, and information hierarchy. Define '
+                'fidelity levels from wireframe to final prototype. Ensure consistent '
+                'interaction patterns across responsive breakpoints and platforms.',
+            const Color(0xFF10B981),
+          ),
+          const SizedBox(height: 12),
+          _buildGuideCard(
+            Icons.palette_outlined,
+            'Design System & Tokens',
+            'Establish shared visual language through design tokens: colors, typography, '
+                'spacing, elevation, and motion. Tokens ensure consistency, enable '
+                'theme switching, and bridge the design-to-development handoff gap.',
+            const Color(0xFFF59E0B),
+          ),
+          const SizedBox(height: 12),
+          _buildGuideCard(
+            Icons.accessibility_new_outlined,
+            'Usability & Accessibility',
+            'Validate interfaces against WCAG 2.1 AA, Section 508, and platform-specific '
+                'accessibility guidelines. Conduct usability testing with representative users. '
+                'Track compliance status and remediation actions systematically.',
+            const Color(0xFFEF4444),
           ),
         ],
       ),
