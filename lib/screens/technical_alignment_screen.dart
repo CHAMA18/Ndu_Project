@@ -28,6 +28,10 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
 
+const double _technicalAlignmentActionColumnWidth = 112;
+const double _technicalAlignmentActionButtonSize = 32;
+const double _technicalAlignmentActionGap = 6;
+
 class TechnicalAlignmentScreen extends StatefulWidget {
   const TechnicalAlignmentScreen({super.key});
 
@@ -42,6 +46,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _registersExpanded = false;
+  final Set<int> _editingMethodologyRows = <int>{};
+  final Set<int> _editingReadinessRows = <int>{};
+  final Set<int> _editingTraceabilityRows = <int>{};
+  final Set<int> _editingConstraintRows = <int>{};
+  final Set<int> _editingMappingRows = <int>{};
+  final Set<int> _editingDependencyRows = <int>{};
 
   final List<ConstraintRow> _constraints = [
     ConstraintRow(
@@ -315,24 +325,24 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           }
 
           if (data['methodologyStandards'] != null) {
-            final parsed = (data['methodologyStandards'] as List)
-                .map((e) => _MethodologyStandard.fromMap(e as Map<String, dynamic>));
+            final parsed = (data['methodologyStandards'] as List).map(
+                (e) => _MethodologyStandard.fromMap(e as Map<String, dynamic>));
             _methodologyStandards
               ..clear()
               ..addAll(_dedupeMethodologyStandards(parsed));
           }
 
           if (data['readinessGateItems'] != null) {
-            final parsed = (data['readinessGateItems'] as List)
-                .map((e) => _ReadinessGateItem.fromMap(e as Map<String, dynamic>));
+            final parsed = (data['readinessGateItems'] as List).map(
+                (e) => _ReadinessGateItem.fromMap(e as Map<String, dynamic>));
             _readinessGateItems
               ..clear()
               ..addAll(_dedupeReadinessGateItems(parsed));
           }
 
           if (data['traceabilityItems'] != null) {
-            final parsed = (data['traceabilityItems'] as List)
-                .map((e) => _TraceabilityItem.fromMap(e as Map<String, dynamic>));
+            final parsed = (data['traceabilityItems'] as List).map(
+                (e) => _TraceabilityItem.fromMap(e as Map<String, dynamic>));
             _traceabilityItems
               ..clear()
               ..addAll(_dedupeTraceabilityItems(parsed));
@@ -367,7 +377,8 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
         constraints: _constraints,
         mappings: _mappings,
         dependencies: _dependencies,
-        methodologyStandards: _methodologyStandards.map((e) => e.toMap()).toList(),
+        methodologyStandards:
+            _methodologyStandards.map((e) => e.toMap()).toList(),
         readinessGateItems: _readinessGateItems.map((e) => e.toMap()).toList(),
         traceabilityItems: _traceabilityItems.map((e) => e.toMap()).toList(),
       );
@@ -850,6 +861,155 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
+  void _addMethodologyStandard() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add delivery models');
+      return;
+    }
+
+    setState(() {
+      _methodologyStandards.add(
+        _MethodologyStandard(
+          model: '',
+          bestFit: '',
+          evidence: '',
+          controls: '',
+          exitStandard: '',
+        ),
+      );
+      _editingMethodologyRows.add(_methodologyStandards.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addReadinessGateItem() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add readiness gate items');
+      return;
+    }
+
+    setState(() {
+      _readinessGateItems.add(
+        _ReadinessGateItem(
+          domain: '',
+          standard: '',
+          evidence: '',
+          owner: '',
+          decision: 'Pending',
+        ),
+      );
+      _editingReadinessRows.add(_readinessGateItems.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addTraceabilityItem() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add traceability items');
+      return;
+    }
+
+    setState(() {
+      _traceabilityItems.add(
+        _TraceabilityItem(
+          object: '',
+          question: '',
+          verification: '',
+          waterfallEvidence: '',
+          agileEvidence: '',
+        ),
+      );
+      _editingTraceabilityRows.add(_traceabilityItems.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addConstraintRow() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add constraints');
+      return;
+    }
+
+    setState(() {
+      _constraints.add(
+        ConstraintRow(
+          constraint: '',
+          guardrail: '',
+          owner: '',
+          status: 'Draft',
+        ),
+      );
+      _editingConstraintRows.add(_constraints.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addMappingRow() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add requirement mappings');
+      return;
+    }
+
+    setState(() {
+      _mappings.add(
+        RequirementMappingRow(
+          requirement: '',
+          approach: '',
+          status: 'Draft',
+        ),
+      );
+      _editingMappingRows.add(_mappings.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addDependencyRow() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add dependencies');
+      return;
+    }
+
+    setState(() {
+      _dependencies.add(
+        DependencyDecisionRow(
+          item: '',
+          detail: '',
+          owner: '',
+          status: 'Draft',
+        ),
+      );
+      _editingDependencyRows.add(_dependencies.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _toggleEditingRow(Set<int> editingRows, int index) {
+    if (!_canEditAlignment) {
+      _showPermissionSnackBar('edit technical alignment rows');
+      return;
+    }
+
+    setState(() {
+      if (editingRows.contains(index)) {
+        editingRows.remove(index);
+        _scheduleSave();
+      } else {
+        editingRows.add(index);
+      }
+    });
+  }
+
+  void _shiftEditingRowsAfterDelete(Set<int> editingRows, int deletedIndex) {
+    final shifted = editingRows
+        .where((rowIndex) => rowIndex != deletedIndex)
+        .map((rowIndex) => rowIndex > deletedIndex ? rowIndex - 1 : rowIndex)
+        .toSet();
+
+    editingRows
+      ..clear()
+      ..addAll(shifted);
+  }
+
   Widget _buildStableMethodologyMatrix() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -875,69 +1035,50 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'Define and manage delivery models, alignment evidence, technical controls, and exit standards.',
             actionLabel: 'Add model',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add delivery models');
-                return;
-              }
-              setState(() {
-                _methodologyStandards.add(
-                  _MethodologyStandard(
-                    model: '',
-                    bestFit: '',
-                    evidence: '',
-                    controls: '',
-                    exitStandard: '',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addMethodologyStandard,
           ),
           const SizedBox(height: 16),
           _buildScrollableTableHeader(
             columns: const [
               _TableColumn(label: 'Model', flex: 2, minWidth: 160),
               _TableColumn(label: 'Best-fit Use', flex: 3, minWidth: 220),
-              _TableColumn(label: 'Required Alignment Evidence', flex: 3, minWidth: 260),
-              _TableColumn(label: 'Technical Control Focus', flex: 3, minWidth: 260),
+              _TableColumn(
+                  label: 'Required Alignment Evidence', flex: 3, minWidth: 260),
+              _TableColumn(
+                  label: 'Technical Control Focus', flex: 3, minWidth: 260),
               _TableColumn(label: 'Exit Standard', flex: 3, minWidth: 220),
-              _TableColumn(label: 'Action', flex: 1, minWidth: 80, alignment: Alignment.center),
+              _TableColumn(
+                  label: 'Actions',
+                  flex: 1,
+                  minWidth: _technicalAlignmentActionColumnWidth,
+                  alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
           if (_methodologyStandards.isEmpty)
             _buildEmptyTableState(
-              message: 'No delivery models yet. Add the first alignment standard.',
+              message:
+                  'No delivery models yet. Add the first alignment standard.',
               actionLabel: 'Add model',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add delivery models');
-                  return;
-                }
-                setState(() {
-                  _methodologyStandards.add(
-                    _MethodologyStandard(
-                      model: '',
-                      bestFit: '',
-                      evidence: '',
-                      controls: '',
-                      exitStandard: '',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addMethodologyStandard,
             )
           else
             _buildScrollableTableBody(
               columns: const [
                 _TableColumn(label: 'Model', flex: 2, minWidth: 160),
                 _TableColumn(label: 'Best-fit Use', flex: 3, minWidth: 220),
-                _TableColumn(label: 'Required Alignment Evidence', flex: 3, minWidth: 260),
-                _TableColumn(label: 'Technical Control Focus', flex: 3, minWidth: 260),
+                _TableColumn(
+                    label: 'Required Alignment Evidence',
+                    flex: 3,
+                    minWidth: 260),
+                _TableColumn(
+                    label: 'Technical Control Focus', flex: 3, minWidth: 260),
                 _TableColumn(label: 'Exit Standard', flex: 3, minWidth: 220),
-                _TableColumn(label: 'Action', flex: 1, minWidth: 80, alignment: Alignment.center),
+                _TableColumn(
+                    label: 'Actions',
+                    flex: 1,
+                    minWidth: _technicalAlignmentActionColumnWidth,
+                    alignment: Alignment.center),
               ],
               rowCount: _methodologyStandards.length,
               rowBuilder: (i) => _buildMethodologyRow(
@@ -956,6 +1097,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required int index,
     required bool isStriped,
   }) {
+    final isEditing = _editingMethodologyRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -971,7 +1113,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildTableField(
               initialValue: row.model,
               hintText: 'Model',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.model = value;
                 _scheduleSave();
@@ -986,7 +1128,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Best-fit Use',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.bestFit = value;
                 _scheduleSave();
@@ -1001,7 +1143,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Required Alignment Evidence',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.evidence = value;
                 _scheduleSave();
@@ -1016,7 +1158,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Technical Control Focus',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.controls = value;
                 _scheduleSave();
@@ -1031,7 +1173,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Exit Standard',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.exitStandard = value;
                 _scheduleSave();
@@ -1040,17 +1182,24 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           ),
           const SizedBox(width: 10),
           SizedBox(
-            width: 80,
+            width: _technicalAlignmentActionColumnWidth,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('delivery model');
-                if (!confirmed) return;
-                setState(() {
-                  _methodologyStandards.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingMethodologyRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('delivery model');
+                  if (!confirmed) return;
+                  setState(() {
+                    _methodologyStandards.removeAt(index);
+                    _shiftEditingRowsAfterDelete(
+                        _editingMethodologyRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -1084,24 +1233,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'Track control domains, readiness criteria, required evidence, ownership, and gate decisions.',
             actionLabel: 'Add gate item',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add readiness gate items');
-                return;
-              }
-              setState(() {
-                _readinessGateItems.add(
-                  _ReadinessGateItem(
-                    domain: '',
-                    standard: '',
-                    evidence: '',
-                    owner: '',
-                    decision: 'Pending',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addReadinessGateItem,
           ),
           const SizedBox(height: 16),
           _buildScrollableTableHeader(
@@ -1111,42 +1243,36 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               _TableColumn(label: 'Evidence To Attach', flex: 3, minWidth: 240),
               _TableColumn(label: 'Owner', flex: 2, minWidth: 130),
               _TableColumn(label: 'Decision', flex: 2, minWidth: 130),
-              _TableColumn(label: 'Action', flex: 1, minWidth: 80, alignment: Alignment.center),
+              _TableColumn(
+                  label: 'Actions',
+                  flex: 1,
+                  minWidth: _technicalAlignmentActionColumnWidth,
+                  alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
           if (_readinessGateItems.isEmpty)
             _buildEmptyTableState(
-              message: 'No readiness gate items yet. Add the first control domain.',
+              message:
+                  'No readiness gate items yet. Add the first control domain.',
               actionLabel: 'Add gate item',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add readiness gate items');
-                  return;
-                }
-                setState(() {
-                  _readinessGateItems.add(
-                    _ReadinessGateItem(
-                      domain: '',
-                      standard: '',
-                      evidence: '',
-                      owner: '',
-                      decision: 'Pending',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addReadinessGateItem,
             )
           else
             _buildScrollableTableBody(
               columns: const [
                 _TableColumn(label: 'Control Domain', flex: 2, minWidth: 160),
-                _TableColumn(label: 'What Must Be True', flex: 3, minWidth: 240),
-                _TableColumn(label: 'Evidence To Attach', flex: 3, minWidth: 240),
+                _TableColumn(
+                    label: 'What Must Be True', flex: 3, minWidth: 240),
+                _TableColumn(
+                    label: 'Evidence To Attach', flex: 3, minWidth: 240),
                 _TableColumn(label: 'Owner', flex: 2, minWidth: 130),
                 _TableColumn(label: 'Decision', flex: 2, minWidth: 130),
-                _TableColumn(label: 'Action', flex: 1, minWidth: 80, alignment: Alignment.center),
+                _TableColumn(
+                    label: 'Actions',
+                    flex: 1,
+                    minWidth: _technicalAlignmentActionColumnWidth,
+                    alignment: Alignment.center),
               ],
               rowCount: _readinessGateItems.length,
               rowBuilder: (i) => _buildReadinessGateRow(
@@ -1167,6 +1293,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required bool isStriped,
     required List<String> decisionOptions,
   }) {
+    final isEditing = _editingReadinessRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1182,7 +1309,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildTableField(
               initialValue: row.domain,
               hintText: 'Control Domain',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.domain = value;
                 _scheduleSave();
@@ -1197,7 +1324,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'What Must Be True',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.standard = value;
                 _scheduleSave();
@@ -1212,7 +1339,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Evidence To Attach',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.evidence = value;
                 _scheduleSave();
@@ -1225,7 +1352,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildTableField(
               initialValue: row.owner,
               hintText: 'Owner',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.owner = value;
                 _scheduleSave();
@@ -1238,7 +1365,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildDecisionDropdown(
               value: row.decision,
               options: decisionOptions,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 setState(() => _readinessGateItems[index].decision = value);
                 _scheduleSave();
@@ -1247,17 +1374,23 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           ),
           const SizedBox(width: 10),
           SizedBox(
-            width: 80,
+            width: _technicalAlignmentActionColumnWidth,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('readiness gate item');
-                if (!confirmed) return;
-                setState(() {
-                  _readinessGateItems.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingReadinessRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('readiness gate item');
+                  if (!confirmed) return;
+                  setState(() {
+                    _readinessGateItems.removeAt(index);
+                    _shiftEditingRowsAfterDelete(_editingReadinessRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -1279,7 +1412,10 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       initialValue: normalized.isEmpty ? items.first : normalized,
       alignment: Alignment.center,
       isExpanded: true,
-      style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+      style: TextStyle(
+        fontSize: 14,
+        color: enabled ? const Color(0xFF1F2937) : const Color(0xFF475569),
+      ),
       selectedItemBuilder: (context) => items
           .map((opt) => Align(
                 alignment: Alignment.center,
@@ -1301,7 +1437,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       decoration: InputDecoration(
         isDense: true,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: enabled ? Colors.white : const Color(0xFFF8FAFC),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
@@ -1309,6 +1445,10 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
         ),
         enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
         ),
@@ -1345,34 +1485,26 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'Map traceability objects to verification methods and evidence for waterfall and agile/hybrid delivery.',
             actionLabel: 'Add trace item',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add traceability items');
-                return;
-              }
-              setState(() {
-                _traceabilityItems.add(
-                  _TraceabilityItem(
-                    object: '',
-                    question: '',
-                    verification: '',
-                    waterfallEvidence: '',
-                    agileEvidence: '',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addTraceabilityItem,
           ),
           const SizedBox(height: 16),
           _buildScrollableTableHeader(
             columns: const [
               _TableColumn(label: 'Trace Object', flex: 2, minWidth: 160),
-              _TableColumn(label: 'Technical Alignment Question', flex: 3, minWidth: 260),
-              _TableColumn(label: 'Verification Method', flex: 2, minWidth: 180),
+              _TableColumn(
+                  label: 'Technical Alignment Question',
+                  flex: 3,
+                  minWidth: 260),
+              _TableColumn(
+                  label: 'Verification Method', flex: 2, minWidth: 180),
               _TableColumn(label: 'Waterfall Evidence', flex: 2, minWidth: 200),
-              _TableColumn(label: 'Agile / Hybrid Evidence', flex: 2, minWidth: 200),
-              _TableColumn(label: 'Action', flex: 1, minWidth: 80, alignment: Alignment.center),
+              _TableColumn(
+                  label: 'Agile / Hybrid Evidence', flex: 2, minWidth: 200),
+              _TableColumn(
+                  label: 'Actions',
+                  flex: 1,
+                  minWidth: _technicalAlignmentActionColumnWidth,
+                  alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
@@ -1380,34 +1512,27 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             _buildEmptyTableState(
               message: 'No traceability items yet. Add the first trace object.',
               actionLabel: 'Add trace item',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add traceability items');
-                  return;
-                }
-                setState(() {
-                  _traceabilityItems.add(
-                    _TraceabilityItem(
-                      object: '',
-                      question: '',
-                      verification: '',
-                      waterfallEvidence: '',
-                      agileEvidence: '',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addTraceabilityItem,
             )
           else
             _buildScrollableTableBody(
               columns: const [
                 _TableColumn(label: 'Trace Object', flex: 2, minWidth: 160),
-                _TableColumn(label: 'Technical Alignment Question', flex: 3, minWidth: 260),
-                _TableColumn(label: 'Verification Method', flex: 2, minWidth: 180),
-                _TableColumn(label: 'Waterfall Evidence', flex: 2, minWidth: 200),
-                _TableColumn(label: 'Agile / Hybrid Evidence', flex: 2, minWidth: 200),
-                _TableColumn(label: 'Action', flex: 1, minWidth: 80, alignment: Alignment.center),
+                _TableColumn(
+                    label: 'Technical Alignment Question',
+                    flex: 3,
+                    minWidth: 260),
+                _TableColumn(
+                    label: 'Verification Method', flex: 2, minWidth: 180),
+                _TableColumn(
+                    label: 'Waterfall Evidence', flex: 2, minWidth: 200),
+                _TableColumn(
+                    label: 'Agile / Hybrid Evidence', flex: 2, minWidth: 200),
+                _TableColumn(
+                    label: 'Actions',
+                    flex: 1,
+                    minWidth: _technicalAlignmentActionColumnWidth,
+                    alignment: Alignment.center),
               ],
               rowCount: _traceabilityItems.length,
               rowBuilder: (i) => _buildTraceabilityRow(
@@ -1426,6 +1551,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required int index,
     required bool isStriped,
   }) {
+    final isEditing = _editingTraceabilityRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1441,7 +1567,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildTableField(
               initialValue: row.object,
               hintText: 'Trace Object',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.object = value;
                 _scheduleSave();
@@ -1456,7 +1582,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Technical Alignment Question',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.question = value;
                 _scheduleSave();
@@ -1471,7 +1597,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Verification Method',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.verification = value;
                 _scheduleSave();
@@ -1486,7 +1612,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Waterfall Evidence',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.waterfallEvidence = value;
                 _scheduleSave();
@@ -1501,7 +1627,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Agile / Hybrid Evidence',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.agileEvidence = value;
                 _scheduleSave();
@@ -1510,17 +1636,24 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           ),
           const SizedBox(width: 10),
           SizedBox(
-            width: 80,
+            width: _technicalAlignmentActionColumnWidth,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('traceability item');
-                if (!confirmed) return;
-                setState(() {
-                  _traceabilityItems.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingTraceabilityRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('traceability item');
+                  if (!confirmed) return;
+                  setState(() {
+                    _traceabilityItems.removeAt(index);
+                    _shiftEditingRowsAfterDelete(
+                        _editingTraceabilityRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -3185,23 +3318,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'World-class guardrails that clarify what must never drift.',
             actionLabel: 'Add constraint',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add constraints');
-                return;
-              }
-              setState(() {
-                _constraints.add(
-                  ConstraintRow(
-                    constraint: '',
-                    guardrail: '',
-                    owner: '',
-                    status: 'Draft',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addConstraintRow,
           ),
           const SizedBox(height: 16),
           _buildTableHeaderRow(
@@ -3211,7 +3328,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               _TableColumn(label: 'Owner', flex: 2),
               _TableColumn(label: 'Status', flex: 2),
               _TableColumn(
-                  label: 'Action', flex: 2, alignment: Alignment.center),
+                  label: 'Actions', flex: 2, alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
@@ -3219,23 +3336,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             _buildEmptyTableState(
               message: 'No constraints captured yet. Add the first guardrail.',
               actionLabel: 'Add constraint',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add constraints');
-                  return;
-                }
-                setState(() {
-                  _constraints.add(
-                    ConstraintRow(
-                      constraint: '',
-                      guardrail: '',
-                      owner: '',
-                      status: 'Draft',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addConstraintRow,
             )
           else
             for (int i = 0; i < _constraints.length; i++) ...[
@@ -3277,22 +3378,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'Exceptional clarity on how requirements become technical choices.',
             actionLabel: 'Add mapping',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add requirement mappings');
-                return;
-              }
-              setState(() {
-                _mappings.add(
-                  RequirementMappingRow(
-                    requirement: '',
-                    approach: '',
-                    status: 'Draft',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addMappingRow,
           ),
           const SizedBox(height: 16),
           _buildTableHeaderRow(
@@ -3301,7 +3387,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               _TableColumn(label: 'Technical approach', flex: 5),
               _TableColumn(label: 'Status', flex: 2),
               _TableColumn(
-                  label: 'Action', flex: 2, alignment: Alignment.center),
+                  label: 'Actions', flex: 2, alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
@@ -3310,22 +3396,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               message:
                   'No mappings yet. Add the first requirement-to-solution entry.',
               actionLabel: 'Add mapping',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add requirement mappings');
-                  return;
-                }
-                setState(() {
-                  _mappings.add(
-                    RequirementMappingRow(
-                      requirement: '',
-                      approach: '',
-                      status: 'Draft',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addMappingRow,
             )
           else
             for (int i = 0; i < _mappings.length; i++) ...[
@@ -3367,23 +3438,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'World-class visibility into what must land before build.',
             actionLabel: 'Add dependency',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add dependencies');
-                return;
-              }
-              setState(() {
-                _dependencies.add(
-                  DependencyDecisionRow(
-                    item: '',
-                    detail: '',
-                    owner: '',
-                    status: 'Draft',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addDependencyRow,
           ),
           const SizedBox(height: 16),
           _buildTableHeaderRow(
@@ -3393,7 +3448,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               _TableColumn(label: 'Owner', flex: 2),
               _TableColumn(label: 'Status', flex: 2),
               _TableColumn(
-                  label: 'Action', flex: 2, alignment: Alignment.center),
+                  label: 'Actions', flex: 2, alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
@@ -3402,23 +3457,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               message:
                   'No dependencies yet. Add the first decision or external dependency.',
               actionLabel: 'Add dependency',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add dependencies');
-                  return;
-                }
-                setState(() {
-                  _dependencies.add(
-                    DependencyDecisionRow(
-                      item: '',
-                      detail: '',
-                      owner: '',
-                      status: 'Draft',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addDependencyRow,
             )
           else
             for (int i = 0; i < _dependencies.length; i++) ...[
@@ -3633,16 +3672,49 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   /// Wraps the table header in a horizontal scroll view so columns are
   /// never cramped, even on narrow viewports.
   Widget _buildScrollableTableHeader({required List<_TableColumn> columns}) {
-    final totalWidth = columns.fold<double>(
-      0.0,
-      (sum, col) => sum + col.minWidth,
-    ) + (columns.length - 1) * 10.0; // account for SizedBox(width:10) gaps
+    final contentWidth = columns.fold<double>(
+          0.0,
+          (sum, col) => sum + col.minWidth,
+        ) +
+        (columns.length - 1) * 10.0; // account for SizedBox(width:10) gaps
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final targetWidth = contentWidth + 24;
+        final tableWidth = constraints.maxWidth > targetWidth
+            ? constraints.maxWidth
+            : targetWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: _buildTableHeaderRow(columns: columns),
+          ),
+        );
+      },
+    );
+  }
+
+  double _tableWidthFor({
+    required BoxConstraints constraints,
+    required double contentWidth,
+  }) {
+    final targetWidth = contentWidth + 24;
+    return constraints.maxWidth > targetWidth
+        ? constraints.maxWidth
+        : targetWidth;
+  }
+
+  Widget _buildTableScrollView({
+    required double width,
+    required Widget child,
+  }) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: totalWidth),
-        child: _buildTableHeaderRow(columns: columns),
+      child: SizedBox(
+        width: width,
+        child: child,
       ),
     );
   }
@@ -3653,30 +3725,35 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required int rowCount,
     required Widget Function(int index) rowBuilder,
   }) {
-    final totalWidth = columns.fold<double>(
-      0.0,
-      (sum, col) => sum + col.minWidth,
-    ) + (columns.length - 1) * 10.0;
+    final contentWidth = columns.fold<double>(
+          0.0,
+          (sum, col) => sum + col.minWidth,
+        ) +
+        (columns.length - 1) * 10.0;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: totalWidth),
-        child: Column(
-          children: [
-            for (int i = 0; i < rowCount; i++) ...[
-              rowBuilder(i),
-              if (i != rowCount - 1) const SizedBox(height: 8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return _buildTableScrollView(
+          width: _tableWidthFor(
+            constraints: constraints,
+            contentWidth: contentWidth,
+          ),
+          child: Column(
+            children: [
+              for (int i = 0; i < rowCount; i++) ...[
+                rowBuilder(i),
+                if (i != rowCount - 1) const SizedBox(height: 8),
+              ],
             ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildTableHeaderRow({required List<_TableColumn> columns}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F7FB),
         borderRadius: BorderRadius.circular(12),
@@ -3698,6 +3775,8 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                     letterSpacing: 0,
                     color: Color(0xFF475467),
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -3714,6 +3793,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required bool isStriped,
     required List<String> ownerOptions,
   }) {
+    final isEditing = _editingConstraintRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3728,7 +3808,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildTableField(
               initialValue: row.constraint,
               hintText: 'Constraint',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.constraint = value;
                 _scheduleSave();
@@ -3743,7 +3823,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Guardrail',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.guardrail = value;
                 _scheduleSave();
@@ -3756,7 +3836,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildOwnerDropdown(
               value: row.owner,
               options: ownerOptions,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.owner = value;
                 _scheduleSave();
@@ -3773,7 +3853,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                 _scheduleSave();
               },
               accent: const Color(0xFF1D4ED8),
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
             ),
           ),
           const SizedBox(width: 10),
@@ -3781,14 +3861,20 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('constraint');
-                if (!confirmed) return;
-                setState(() {
-                  _constraints.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingConstraintRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('constraint');
+                  if (!confirmed) return;
+                  setState(() {
+                    _constraints.removeAt(index);
+                    _shiftEditingRowsAfterDelete(_editingConstraintRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -3798,6 +3884,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
 
   Widget _buildMappingRow(RequirementMappingRow row,
       {required int index, required bool isStriped}) {
+    final isEditing = _editingMappingRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3812,7 +3899,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildTableField(
               initialValue: row.requirement,
               hintText: 'Requirement',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.requirement = value;
                 _scheduleSave();
@@ -3827,7 +3914,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Technical approach',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.approach = value;
                 _scheduleSave();
@@ -3844,7 +3931,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                 _scheduleSave();
               },
               accent: const Color(0xFF0F766E),
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
             ),
           ),
           const SizedBox(width: 10),
@@ -3852,14 +3939,20 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('mapping');
-                if (!confirmed) return;
-                setState(() {
-                  _mappings.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingMappingRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('mapping');
+                  if (!confirmed) return;
+                  setState(() {
+                    _mappings.removeAt(index);
+                    _shiftEditingRowsAfterDelete(_editingMappingRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -3873,6 +3966,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required bool isStriped,
     required List<String> ownerOptions,
   }) {
+    final isEditing = _editingDependencyRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3887,7 +3981,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildTableField(
               initialValue: row.item,
               hintText: 'Dependency or decision',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.item = value;
                 _scheduleSave();
@@ -3902,7 +3996,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               hintText: 'Detail',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.detail = value;
                 _scheduleSave();
@@ -3915,7 +4009,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             child: _buildOwnerDropdown(
               value: row.owner,
               options: ownerOptions,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.owner = value;
                 _scheduleSave();
@@ -3932,7 +4026,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                 _scheduleSave();
               },
               accent: const Color(0xFF9333EA),
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
             ),
           ),
           const SizedBox(width: 10),
@@ -3940,14 +4034,20 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             flex: 2,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('dependency');
-                if (!confirmed) return;
-                setState(() {
-                  _dependencies.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingDependencyRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('dependency');
+                  if (!confirmed) return;
+                  setState(() {
+                    _dependencies.removeAt(index);
+                    _shiftEditingRowsAfterDelete(_editingDependencyRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -3971,14 +4071,17 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       textAlign: TextAlign.start,
       textAlignVertical: TextAlignVertical.top,
       keyboardType: TextInputType.multiline,
-      style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+      style: TextStyle(
+        fontSize: 14,
+        color: enabled ? const Color(0xFF1F2937) : const Color(0xFF475569),
+      ),
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(fontSize: 13, color: Colors.grey[500]),
         isDense: true,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: enabled ? Colors.white : const Color(0xFFF8FAFC),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
@@ -3986,6 +4089,10 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
         ),
         enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
         ),
@@ -4107,18 +4214,62 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  Widget _buildDeleteAction(Future<void> Function() onDelete) {
-    return TextButton.icon(
-      onPressed: _canDeleteAlignment
-          ? () async {
-              await onDelete();
-            }
-          : null,
-      icon: const Icon(Icons.delete_outline, size: 18),
-      label: const Text('Delete'),
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFFB91C1C),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  Widget _buildRowActions({
+    required bool isEditing,
+    required VoidCallback onToggleEdit,
+    required Future<void> Function() onDelete,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildActionIconButton(
+          tooltip: isEditing ? 'Save changes' : 'Edit',
+          icon: isEditing
+              ? Icons.check_circle_outline_rounded
+              : Icons.edit_outlined,
+          color: isEditing ? const Color(0xFF059669) : const Color(0xFF2563EB),
+          onPressed: _canEditAlignment ? onToggleEdit : null,
+        ),
+        const SizedBox(width: _technicalAlignmentActionGap),
+        _buildActionIconButton(
+          tooltip: 'Delete',
+          icon: Icons.delete_outline,
+          color: const Color(0xFFB91C1C),
+          onPressed: _canDeleteAlignment
+              ? () async {
+                  await onDelete();
+                }
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionIconButton({
+    required String tooltip,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 350),
+      child: SizedBox.square(
+        dimension: _technicalAlignmentActionButtonSize,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(8),
+            child: Icon(
+              icon,
+              size: 18,
+              color: onPressed == null ? const Color(0xFFCBD5E1) : color,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -4892,163 +5043,167 @@ class _TraceabilityItem {
 }
 
 List<_MethodologyStandard> _defaultMethodologyStandards() => [
-  _MethodologyStandard(
-    model: 'Waterfall / Predictive',
-    bestFit:
-        'Stable scope, high compliance burden, contractual acceptance, capital approval, or regulated delivery.',
-    evidence:
-        'Signed requirements baseline, architecture views, interface specifications, verification matrix, risk register, change-control log, and stage-gate sign-off.',
-    controls:
-        'Configuration management, formal traceability, design reviews, quality plans, procurement lead times, security and safety approval, and acceptance test readiness.',
-    exitStandard:
-        'No unresolved critical requirements, interfaces, or compliance obligations before detailed design/build gate.',
-  ),
-  _MethodologyStandard(
-    model: 'Agile Scrum',
-    bestFit:
-        'Evolving product scope where frequent inspection, user feedback, and working increments reduce uncertainty.',
-    evidence:
-        'Product goal, ordered backlog, refined epics/stories, Definition of Ready, Definition of Done, sprint review evidence, test automation, and release criteria.',
-    controls:
-        'Backlog quality, technical spikes, architecture runway, automated quality gates, security-by-design checks, observable increments, and dependency escalation.',
-    exitStandard:
-        'Stories are ready, technically feasible, testable, sized, and linked to acceptance criteria before sprint commitment.',
-  ),
-  _MethodologyStandard(
-    model: 'Kanban / Flow',
-    bestFit:
-        'Operational, support, enhancement, integration, or continuous improvement work with variable demand.',
-    evidence:
-        'Service policies, classes of service, WIP limits, intake rules, flow metrics, blocker aging, technical debt register, and release readiness checklist.',
-    controls:
-        'Cycle-time predictability, dependency visibility, operational risk limits, explicit pull criteria, reversible release practices, and incident feedback loops.',
-    exitStandard:
-        'Work items meet explicit policies, have no hidden technical blockers, and can move without breaching WIP or service-risk limits.',
-  ),
-  _MethodologyStandard(
-    model: 'Hybrid',
-    bestFit:
-        'Fixed governance, budget, procurement, or compliance boundaries with iterative product/design elaboration inside phases.',
-    evidence:
-        'Phase baseline, rolling-wave plan, integrated roadmap, dependency board, decision log, release plan, backlog traceability, and formal change approvals.',
-    controls:
-        'Gate-to-increment traceability, change impact analysis, milestone dependency management, release train alignment, and shared acceptance evidence.',
-    exitStandard:
-        'Governance artifacts stay controlled while iterative increments prove feasibility and reduce delivery uncertainty.',
-  ),
-  _MethodologyStandard(
-    model: 'Scaled Agile / Portfolio',
-    bestFit:
-        'Multiple teams, shared platforms, enterprise architecture constraints, high dependency density, or portfolio funding.',
-    evidence:
-        'Capability map, architectural runway, program board, enabler backlog, PI objectives, dependency map, NFRs, risk ROAM, and system demo outcomes.',
-    controls:
-        'Platform standards, cross-team interface contracts, release train synchronization, enabler capacity, observability standards, and enterprise risk governance.',
-    exitStandard:
-        'Teams share the same technical baseline, dependencies are owned, and runway exists for committed business features.',
-  ),
-];
+      _MethodologyStandard(
+        model: 'Waterfall / Predictive',
+        bestFit:
+            'Stable scope, high compliance burden, contractual acceptance, capital approval, or regulated delivery.',
+        evidence:
+            'Signed requirements baseline, architecture views, interface specifications, verification matrix, risk register, change-control log, and stage-gate sign-off.',
+        controls:
+            'Configuration management, formal traceability, design reviews, quality plans, procurement lead times, security and safety approval, and acceptance test readiness.',
+        exitStandard:
+            'No unresolved critical requirements, interfaces, or compliance obligations before detailed design/build gate.',
+      ),
+      _MethodologyStandard(
+        model: 'Agile Scrum',
+        bestFit:
+            'Evolving product scope where frequent inspection, user feedback, and working increments reduce uncertainty.',
+        evidence:
+            'Product goal, ordered backlog, refined epics/stories, Definition of Ready, Definition of Done, sprint review evidence, test automation, and release criteria.',
+        controls:
+            'Backlog quality, technical spikes, architecture runway, automated quality gates, security-by-design checks, observable increments, and dependency escalation.',
+        exitStandard:
+            'Stories are ready, technically feasible, testable, sized, and linked to acceptance criteria before sprint commitment.',
+      ),
+      _MethodologyStandard(
+        model: 'Kanban / Flow',
+        bestFit:
+            'Operational, support, enhancement, integration, or continuous improvement work with variable demand.',
+        evidence:
+            'Service policies, classes of service, WIP limits, intake rules, flow metrics, blocker aging, technical debt register, and release readiness checklist.',
+        controls:
+            'Cycle-time predictability, dependency visibility, operational risk limits, explicit pull criteria, reversible release practices, and incident feedback loops.',
+        exitStandard:
+            'Work items meet explicit policies, have no hidden technical blockers, and can move without breaching WIP or service-risk limits.',
+      ),
+      _MethodologyStandard(
+        model: 'Hybrid',
+        bestFit:
+            'Fixed governance, budget, procurement, or compliance boundaries with iterative product/design elaboration inside phases.',
+        evidence:
+            'Phase baseline, rolling-wave plan, integrated roadmap, dependency board, decision log, release plan, backlog traceability, and formal change approvals.',
+        controls:
+            'Gate-to-increment traceability, change impact analysis, milestone dependency management, release train alignment, and shared acceptance evidence.',
+        exitStandard:
+            'Governance artifacts stay controlled while iterative increments prove feasibility and reduce delivery uncertainty.',
+      ),
+      _MethodologyStandard(
+        model: 'Scaled Agile / Portfolio',
+        bestFit:
+            'Multiple teams, shared platforms, enterprise architecture constraints, high dependency density, or portfolio funding.',
+        evidence:
+            'Capability map, architectural runway, program board, enabler backlog, PI objectives, dependency map, NFRs, risk ROAM, and system demo outcomes.',
+        controls:
+            'Platform standards, cross-team interface contracts, release train synchronization, enabler capacity, observability standards, and enterprise risk governance.',
+        exitStandard:
+            'Teams share the same technical baseline, dependencies are owned, and runway exists for committed business features.',
+      ),
+    ];
 
 List<_ReadinessGateItem> _defaultReadinessGateItems() => [
-  _ReadinessGateItem(
-    domain: 'Architecture Baseline',
-    standard:
-        'Target architecture, transition states, major technology decisions, constraints, and trade-offs are explicit and approved.',
-    evidence:
-        'Architecture diagrams, ADRs, options analysis, assumptions log, and impacted components list.',
-    owner: 'Architecture',
-    decision: 'Conditional',
-  ),
-  _ReadinessGateItem(
-    domain: 'Requirements Traceability',
-    standard:
-        'Every priority requirement has a technical approach, acceptance criteria, verification method, and owner.',
-    evidence:
-        'Traceability matrix, backlog links, acceptance criteria, test strategy, and sign-off record.',
-    owner: 'BA / PO',
-    decision: 'Go',
-  ),
-  _ReadinessGateItem(
-    domain: 'Non-Functional Requirements',
-    standard:
-        'Performance, availability, security, privacy, accessibility, scalability, resilience, and recovery targets are measurable.',
-    evidence:
-        'NFR catalogue, SLO/SLA targets, threat model, capacity model, accessibility checklist, and recovery objectives.',
-    owner: 'Engineering',
-    decision: 'Conditional',
-  ),
-  _ReadinessGateItem(
-    domain: 'Interfaces And Data',
-    standard:
-        'Inbound and outbound contracts define schemas, protocols, ownership, quality controls, environments, and failure behaviour.',
-    evidence:
-        'API specs, ICDs, data dictionary, sample payloads, test stubs, privacy review, and vendor SLA notes.',
-    owner: 'Integration',
-    decision: 'Conditional',
-  ),
-  _ReadinessGateItem(
-    domain: 'Delivery And Release',
-    standard:
-        'Build path, environments, CI/CD, rollback, deployment approvals, release calendar, and operational handover are known.',
-    evidence:
-        'Environment plan, release checklist, branching strategy, deployment runbook, monitoring plan, and support model.',
-    owner: 'DevOps',
-    decision: 'No-go',
-  ),
-];
+      _ReadinessGateItem(
+        domain: 'Architecture Baseline',
+        standard:
+            'Target architecture, transition states, major technology decisions, constraints, and trade-offs are explicit and approved.',
+        evidence:
+            'Architecture diagrams, ADRs, options analysis, assumptions log, and impacted components list.',
+        owner: 'Architecture',
+        decision: 'Conditional',
+      ),
+      _ReadinessGateItem(
+        domain: 'Requirements Traceability',
+        standard:
+            'Every priority requirement has a technical approach, acceptance criteria, verification method, and owner.',
+        evidence:
+            'Traceability matrix, backlog links, acceptance criteria, test strategy, and sign-off record.',
+        owner: 'BA / PO',
+        decision: 'Go',
+      ),
+      _ReadinessGateItem(
+        domain: 'Non-Functional Requirements',
+        standard:
+            'Performance, availability, security, privacy, accessibility, scalability, resilience, and recovery targets are measurable.',
+        evidence:
+            'NFR catalogue, SLO/SLA targets, threat model, capacity model, accessibility checklist, and recovery objectives.',
+        owner: 'Engineering',
+        decision: 'Conditional',
+      ),
+      _ReadinessGateItem(
+        domain: 'Interfaces And Data',
+        standard:
+            'Inbound and outbound contracts define schemas, protocols, ownership, quality controls, environments, and failure behaviour.',
+        evidence:
+            'API specs, ICDs, data dictionary, sample payloads, test stubs, privacy review, and vendor SLA notes.',
+        owner: 'Integration',
+        decision: 'Conditional',
+      ),
+      _ReadinessGateItem(
+        domain: 'Delivery And Release',
+        standard:
+            'Build path, environments, CI/CD, rollback, deployment approvals, release calendar, and operational handover are known.',
+        evidence:
+            'Environment plan, release checklist, branching strategy, deployment runbook, monitoring plan, and support model.',
+        owner: 'DevOps',
+        decision: 'No-go',
+      ),
+    ];
 
 List<_TraceabilityItem> _defaultTraceabilityItems() => [
-  _TraceabilityItem(
-    object: 'Business Requirement',
-    question:
-        'Does the selected technical approach preserve the intended business outcome and contractual acceptance condition?',
-    verification:
-        'Review against acceptance criteria, business rules, and benefit metrics.',
-    waterfallEvidence: 'Signed requirements baseline and V-model test mapping.',
-    agileEvidence:
-        'Epic/story links, acceptance tests, and sprint review evidence.',
-  ),
-  _TraceabilityItem(
-    object: 'Architecture Decision',
-    question:
-        'Is the decision justified, reversible where possible, and connected to risks, constraints, and alternatives?',
-    verification: 'ADR review, options analysis, and risk impact assessment.',
-    waterfallEvidence: 'Architecture review board minutes and design baseline.',
-    agileEvidence: 'ADR in repository, enabler story, and team review record.',
-  ),
-  _TraceabilityItem(
-    object: 'Interface / Dependency',
-    question:
-        'Are data contracts, service expectations, ownership, environments, and failure paths clear enough for build?',
-    verification:
-        'Contract testing, mock service validation, vendor confirmation, and dependency burn-down.',
-    waterfallEvidence:
-        'Interface control document and formal dependency sign-off.',
-    agileEvidence:
-        'Dependency board, API contract tests, and integration demo.',
-  ),
-  _TraceabilityItem(
-    object: 'Non-Functional Requirement',
-    question:
-        'Can the system prove security, performance, accessibility, reliability, observability, and recovery standards?',
-    verification:
-        'Automated tests, threat modelling, load testing, accessibility checks, monitoring trials, and recovery exercises.',
-    waterfallEvidence:
-        'Quality plan, test scripts, and readiness gate evidence.',
-    agileEvidence:
-        'Definition of Done controls, pipeline gates, and system demo metrics.',
-  ),
-  _TraceabilityItem(
-    object: 'Operational Readiness',
-    question:
-        'Can support teams operate, monitor, recover, and improve the solution after release?',
-    verification:
-        'Runbook review, support rehearsal, incident workflow check, and service transition acceptance.',
-    waterfallEvidence: 'Operational acceptance test and handover sign-off.',
-    agileEvidence:
-        'Release checklist, support story completion, and production telemetry review.',
-  ),
-];
+      _TraceabilityItem(
+        object: 'Business Requirement',
+        question:
+            'Does the selected technical approach preserve the intended business outcome and contractual acceptance condition?',
+        verification:
+            'Review against acceptance criteria, business rules, and benefit metrics.',
+        waterfallEvidence:
+            'Signed requirements baseline and V-model test mapping.',
+        agileEvidence:
+            'Epic/story links, acceptance tests, and sprint review evidence.',
+      ),
+      _TraceabilityItem(
+        object: 'Architecture Decision',
+        question:
+            'Is the decision justified, reversible where possible, and connected to risks, constraints, and alternatives?',
+        verification:
+            'ADR review, options analysis, and risk impact assessment.',
+        waterfallEvidence:
+            'Architecture review board minutes and design baseline.',
+        agileEvidence:
+            'ADR in repository, enabler story, and team review record.',
+      ),
+      _TraceabilityItem(
+        object: 'Interface / Dependency',
+        question:
+            'Are data contracts, service expectations, ownership, environments, and failure paths clear enough for build?',
+        verification:
+            'Contract testing, mock service validation, vendor confirmation, and dependency burn-down.',
+        waterfallEvidence:
+            'Interface control document and formal dependency sign-off.',
+        agileEvidence:
+            'Dependency board, API contract tests, and integration demo.',
+      ),
+      _TraceabilityItem(
+        object: 'Non-Functional Requirement',
+        question:
+            'Can the system prove security, performance, accessibility, reliability, observability, and recovery standards?',
+        verification:
+            'Automated tests, threat modelling, load testing, accessibility checks, monitoring trials, and recovery exercises.',
+        waterfallEvidence:
+            'Quality plan, test scripts, and readiness gate evidence.',
+        agileEvidence:
+            'Definition of Done controls, pipeline gates, and system demo metrics.',
+      ),
+      _TraceabilityItem(
+        object: 'Operational Readiness',
+        question:
+            'Can support teams operate, monitor, recover, and improve the solution after release?',
+        verification:
+            'Runbook review, support rehearsal, incident workflow check, and service transition acceptance.',
+        waterfallEvidence: 'Operational acceptance test and handover sign-off.',
+        agileEvidence:
+            'Release checklist, support story completion, and production telemetry review.',
+      ),
+    ];
 
 class _TableColumn {
   const _TableColumn({
