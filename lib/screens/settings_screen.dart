@@ -25,6 +25,7 @@ import 'package:ndu_project/services/auth_nav.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -67,10 +68,73 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // ── SharedPreferences keys ──
+  static const _prefThemeMode = 'pref_theme_mode';
+  static const _prefLanguage = 'pref_language';
+  static const _prefTimezone = 'pref_timezone';
+  static const _prefDateFormat = 'pref_date_format';
+  static const _prefEmailNotif = 'pref_email_notif';
+  static const _prefPushNotif = 'pref_push_notif';
+  static const _prefWeeklyDigest = 'pref_weekly_digest';
+  static const _prefProjectUpdates = 'pref_project_updates';
+  static const _prefSecurityAlerts = 'pref_security_alerts';
+  static const _prefFontSize = 'pref_font_size';
+  static const _prefCompactMode = 'pref_compact_mode';
+  static const _prefReduceAnimations = 'pref_reduce_animations';
+
+  // ── Preference state ──
+  String _themeMode = 'system'; // 'light', 'dark', 'system'
+  String _language = 'English';
+  String _timezone = 'UTC';
+  String _dateFormat = 'MM/dd/yyyy';
+  bool _emailNotif = true;
+  bool _pushNotif = true;
+  bool _weeklyDigest = false;
+  bool _projectUpdates = true;
+  bool _securityAlerts = true;
+  String _fontSize = 'medium'; // 'small', 'medium', 'large'
+  bool _compactMode = false;
+  bool _reduceAnimations = false;
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _themeMode = prefs.getString(_prefThemeMode) ?? 'system';
+      _language = prefs.getString(_prefLanguage) ?? 'English';
+      _timezone = prefs.getString(_prefTimezone) ?? 'UTC';
+      _dateFormat = prefs.getString(_prefDateFormat) ?? 'MM/dd/yyyy';
+      _emailNotif = prefs.getBool(_prefEmailNotif) ?? true;
+      _pushNotif = prefs.getBool(_prefPushNotif) ?? true;
+      _weeklyDigest = prefs.getBool(_prefWeeklyDigest) ?? false;
+      _projectUpdates = prefs.getBool(_prefProjectUpdates) ?? true;
+      _securityAlerts = prefs.getBool(_prefSecurityAlerts) ?? true;
+      _fontSize = prefs.getString(_prefFontSize) ?? 'medium';
+      _compactMode = prefs.getBool(_prefCompactMode) ?? false;
+      _reduceAnimations = prefs.getBool(_prefReduceAnimations) ?? false;
+    });
+  }
+
+  Future<void> _setPref(String key, dynamic value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value is bool) {
+      await prefs.setBool(key, value);
+    } else if (value is String) {
+      await prefs.setString(key, value);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+    // Load saved preferences
+    _loadPreferences();
     // Ensure user-specific OpenAI key is loaded from Firestore if present
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ApiKeyManager.ensureLoadedForSignedInUser();
@@ -114,7 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 672),
+                  constraints: const BoxConstraints(maxWidth: 1100),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -142,13 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         },
                       ),
                       const SizedBox(height: 24),
-                      const _AccountPlanCard(),
-                      const SizedBox(height: 24),
-                      const _BillingPaymentCard(),
-                      const SizedBox(height: 24),
-                      const _LegalTermsCard(),
-                      const SizedBox(height: 24),
-                      _AccountActionsSection(onLogout: _handleLogout),
+                      _builderForTab(_tabController.index),
                     ],
                   ),
                 ),
@@ -162,6 +220,525 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   void _handleLogout() {
     AuthNav.signOutAndExit(context);
+  }
+
+  Widget _builderForTab(int index) {
+    final tab = _tabs[index];
+    switch (tab) {
+      case 'Preferences':
+        return _preferencesPanel();
+      case 'Integrations':
+        return _integrationsPanel();
+      case 'Access & Collaborators':
+        return const _AccessCollaboratorsPanel();
+      case 'Billing & Subscription':
+        return _billingSubscriptionPanel();
+      case 'Report & Analysis':
+        return _reportAnalysisPanel();
+      case 'Edit Content':
+        return _editContentPanel();
+      default:
+        return _preferencesPanel();
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  //  PREFERENCES PANEL
+  // ────────────────────────────────────────────────────────────────
+  Widget _preferencesPanel() {
+    const accent = Color(0xFFFFC107);
+    final theme = Theme.of(context);
+
+    Widget sectionCard({required String title, required IconData icon, required List<Widget> children}) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: Colors.white,
+          border: Border.all(color: Colors.grey.withOpacity(0.12)),
+          boxShadow: const [
+            BoxShadow(blurRadius: 18, offset: Offset(0, 14), color: Color(0x0F000000))
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: accent, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(title,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...children,
+          ],
+        ),
+      );
+    }
+
+    Widget toggleRow(String label, bool value, ValueChanged<bool> onChanged, {IconData? icon}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: Colors.black54),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+            ),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeColor: accent,
+              activeTrackColor: accent.withOpacity(0.4),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget dropdownRow(String label, String value, List<String> options, ValueChanged<String?> onChanged, {IconData? icon}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: Colors.black54),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.withOpacity(0.25)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: DropdownButton<String>(
+                value: value,
+                underline: const SizedBox(),
+                borderRadius: BorderRadius.circular(12),
+                items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+                onChanged: onChanged,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 860;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 48),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Hero banner ──
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF020617), Color(0xFF1E1B4B)],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text('Preferences',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                  color: accent, fontWeight: FontWeight.w700)),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(Icons.tune, color: accent, size: 20),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Customize Your Experience',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                            color: Colors.white, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Personalize appearance, notifications, and privacy settings to match your workflow.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                          color: Colors.white.withOpacity(0.78), height: 1.45)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // ── Appearance ──
+              sectionCard(
+                title: 'Appearance',
+                icon: Icons.palette_outlined,
+                children: [
+                  const Text('Theme mode', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _ThemeModeOption(
+                        label: 'Light',
+                        icon: Icons.light_mode,
+                        selected: _themeMode == 'light',
+                        accent: accent,
+                        onTap: () {
+                          setState(() => _themeMode = 'light');
+                          _setPref(_prefThemeMode, 'light');
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      _ThemeModeOption(
+                        label: 'Dark',
+                        icon: Icons.dark_mode,
+                        selected: _themeMode == 'dark',
+                        accent: accent,
+                        onTap: () {
+                          setState(() => _themeMode = 'dark');
+                          _setPref(_prefThemeMode, 'dark');
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      _ThemeModeOption(
+                        label: 'System',
+                        icon: Icons.settings_suggest,
+                        selected: _themeMode == 'system',
+                        accent: accent,
+                        onTap: () {
+                          setState(() => _themeMode = 'system');
+                          _setPref(_prefThemeMode, 'system');
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Language & Region ──
+              if (isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: sectionCard(
+                        title: 'Language & Region',
+                        icon: Icons.language,
+                        children: [
+                          dropdownRow('Language', _language,
+                              ['English', 'French', 'Spanish', 'German', 'Portuguese', 'Arabic', 'Chinese', 'Japanese'],
+                              (v) { if (v != null) { setState(() => _language = v); _setPref(_prefLanguage, v); } },
+                              icon: Icons.translate),
+                          const SizedBox(height: 8),
+                          dropdownRow('Timezone', _timezone,
+                              ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Asia/Shanghai', 'Africa/Kinshasa'],
+                              (v) { if (v != null) { setState(() => _timezone = v); _setPref(_prefTimezone, v); } },
+                              icon: Icons.schedule),
+                          const SizedBox(height: 8),
+                          dropdownRow('Date format', _dateFormat,
+                              ['MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd', 'dd MMM yyyy', 'MMM dd, yyyy'],
+                              (v) { if (v != null) { setState(() => _dateFormat = v); _setPref(_prefDateFormat, v); } },
+                              icon: Icons.calendar_today),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: sectionCard(
+                        title: 'Notifications',
+                        icon: Icons.notifications_outlined,
+                        children: [
+                          toggleRow('Email notifications', _emailNotif, (v) { setState(() => _emailNotif = v); _setPref(_prefEmailNotif, v); }, icon: Icons.email_outlined),
+                          toggleRow('Push notifications', _pushNotif, (v) { setState(() => _pushNotif = v); _setPref(_prefPushNotif, v); }, icon: Icons.notifications_active_outlined),
+                          toggleRow('Weekly digest', _weeklyDigest, (v) { setState(() => _weeklyDigest = v); _setPref(_prefWeeklyDigest, v); }, icon: Icons.article_outlined),
+                          toggleRow('Project updates', _projectUpdates, (v) { setState(() => _projectUpdates = v); _setPref(_prefProjectUpdates, v); }, icon: Icons.update),
+                          toggleRow('Security alerts', _securityAlerts, (v) { setState(() => _securityAlerts = v); _setPref(_prefSecurityAlerts, v); }, icon: Icons.security_outlined),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                sectionCard(
+                  title: 'Language & Region',
+                  icon: Icons.language,
+                  children: [
+                    dropdownRow('Language', _language,
+                        ['English', 'French', 'Spanish', 'German', 'Portuguese', 'Arabic', 'Chinese', 'Japanese'],
+                        (v) { if (v != null) { setState(() => _language = v); _setPref(_prefLanguage, v); } },
+                        icon: Icons.translate),
+                    const SizedBox(height: 8),
+                    dropdownRow('Timezone', _timezone,
+                        ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Asia/Shanghai', 'Africa/Kinshasa'],
+                        (v) { if (v != null) { setState(() => _timezone = v); _setPref(_prefTimezone, v); } },
+                        icon: Icons.schedule),
+                    const SizedBox(height: 8),
+                    dropdownRow('Date format', _dateFormat,
+                        ['MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd', 'dd MMM yyyy', 'MMM dd, yyyy'],
+                        (v) { if (v != null) { setState(() => _dateFormat = v); _setPref(_prefDateFormat, v); } },
+                        icon: Icons.calendar_today),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                sectionCard(
+                  title: 'Notifications',
+                  icon: Icons.notifications_outlined,
+                  children: [
+                    toggleRow('Email notifications', _emailNotif, (v) { setState(() => _emailNotif = v); _setPref(_prefEmailNotif, v); }, icon: Icons.email_outlined),
+                    toggleRow('Push notifications', _pushNotif, (v) { setState(() => _pushNotif = v); _setPref(_prefPushNotif, v); }, icon: Icons.notifications_active_outlined),
+                    toggleRow('Weekly digest', _weeklyDigest, (v) { setState(() => _weeklyDigest = v); _setPref(_prefWeeklyDigest, v); }, icon: Icons.article_outlined),
+                    toggleRow('Project updates', _projectUpdates, (v) { setState(() => _projectUpdates = v); _setPref(_prefProjectUpdates, v); }, icon: Icons.update),
+                    toggleRow('Security alerts', _securityAlerts, (v) { setState(() => _securityAlerts = v); _setPref(_prefSecurityAlerts, v); }, icon: Icons.security_outlined),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 20),
+
+              // ── Display & Accessibility ──
+              sectionCard(
+                title: 'Display & Accessibility',
+                icon: Icons.accessibility_new,
+                children: [
+                  const Text('Font size', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Text('A', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      Expanded(
+                        child: Slider(
+                          value: _fontSize == 'small' ? 0 : _fontSize == 'medium' ? 0.5 : 1.0,
+                          divisions: 2,
+                          activeColor: accent,
+                          label: _fontSize == 'small' ? 'Small' : _fontSize == 'medium' ? 'Medium' : 'Large',
+                          onChanged: (v) {
+                            final size = v == 0 ? 'small' : v == 0.5 ? 'medium' : 'large';
+                            setState(() => _fontSize = size);
+                            _setPref(_prefFontSize, size);
+                          },
+                        ),
+                      ),
+                      const Text('A', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  toggleRow('Compact mode', _compactMode, (v) { setState(() => _compactMode = v); _setPref(_prefCompactMode, v); }, icon: Icons.view_compact),
+                  toggleRow('Reduce animations', _reduceAnimations, (v) { setState(() => _reduceAnimations = v); _setPref(_prefReduceAnimations, v); }, icon: Icons.animation),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Data & Privacy ──
+              sectionCard(
+                title: 'Data & Privacy',
+                icon: Icons.shield_outlined,
+                children: [
+                  _PrefActionTile(
+                    icon: Icons.cleaning_services_outlined,
+                    label: 'Clear cache',
+                    subtitle: 'Free up local storage',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cache cleared')),
+                      );
+                    },
+                  ),
+                  _PrefActionTile(
+                    icon: Icons.download_outlined,
+                    label: 'Export data',
+                    subtitle: 'Download your data as JSON',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Export started – you will be notified when ready.')),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _PrefActionTile(
+                    icon: Icons.delete_forever,
+                    label: 'Delete account',
+                    subtitle: 'Permanently remove your account and all data',
+                    labelColor: Colors.red,
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Account?'),
+                          content: const Text('This action cannot be undone. All your data will be permanently deleted.'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Account deletion requested.')),
+                                );
+                              },
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── About ──
+              sectionCard(
+                title: 'About',
+                icon: Icons.info_outline,
+                children: [
+                  _PrefInfoRow(label: 'App version', value: '1.0.0'),
+                  _PrefInfoRow(label: 'Build', value: '2024.12'),
+                  const SizedBox(height: 8),
+                  _PrefActionTile(
+                    icon: Icons.description_outlined,
+                    label: 'Open source licenses',
+                    subtitle: 'View third-party licenses',
+                    onTap: () {
+                      showLicensePage(context: context);
+                    },
+                  ),
+                  _PrefActionTile(
+                    icon: Icons.gavel,
+                    label: 'Terms of service',
+                    subtitle: 'Read our terms',
+                    onTap: () {},
+                  ),
+                  _PrefActionTile(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy policy',
+                    subtitle: 'How we handle your data',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Account actions (log out) ──
+              _AccountActionsSection(onLogout: _handleLogout),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  //  BILLING & SUBSCRIPTION PANEL
+  // ────────────────────────────────────────────────────────────────
+  Widget _billingSubscriptionPanel() {
+    const accent = Color(0xFFFFC107);
+    return FutureBuilder<Subscription?>(
+      future: SubscriptionService.getCurrentSubscription(),
+      builder: (context, snapshot) {
+        final subscription = snapshot.data;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        return FutureBuilder<List<Invoice>>(
+          future: SubscriptionService.getInvoiceHistory(),
+          builder: (context, invoiceSnapshot) {
+            final invoices = invoiceSnapshot.data ?? [];
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isDesktop = constraints.maxWidth >= 1180;
+                final isTablet = constraints.maxWidth >= 860;
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 48),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _BillingHeroBanner(
+                        accent: accent,
+                        subscription: subscription,
+                        isLoading: isLoading,
+                      ),
+                      const SizedBox(height: 24),
+                      if (isTablet)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _CurrentSubscriptionCard(
+                                accent: accent,
+                                subscription: subscription,
+                                isLoading: isLoading,
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            SizedBox(
+                              width: isDesktop ? 380 : 320,
+                              child: _PaymentMethodsCard(
+                                accent: accent,
+                                subscription: subscription,
+                              ),
+                            ),
+                          ],
+                        )
+                      else ...[
+                        _CurrentSubscriptionCard(
+                          accent: accent,
+                          subscription: subscription,
+                          isLoading: isLoading,
+                        ),
+                        const SizedBox(height: 20),
+                        _PaymentMethodsCard(
+                          accent: accent,
+                          subscription: subscription,
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      _InvoicesCard(
+                        accent: accent,
+                        invoices: invoices,
+                        isLoading: invoiceSnapshot.connectionState == ConnectionState.waiting,
+                      ),
+                      const SizedBox(height: 24),
+                      _UpgradePlanCard(
+                        accent: accent,
+                        currentTier: subscription?.tier,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _integrationsPanel() {
@@ -4511,6 +5088,153 @@ class _FeatureChip extends StatelessWidget {
           Text(label,
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Preferences helper widgets ──
+
+class _ThemeModeOption extends StatelessWidget {
+  const _ThemeModeOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: selected ? accent.withOpacity(0.12) : Colors.grey.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? accent : Colors.grey.withOpacity(0.2),
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 28, color: selected ? accent : Colors.black54),
+              const SizedBox(height: 8),
+              Text(label,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? accent : Colors.black87,
+                    fontSize: 13,
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrefActionTile extends StatelessWidget {
+  const _PrefActionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+    this.labelColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Color? labelColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Material(
+        color: Colors.grey.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: (labelColor ?? const Color(0xFFFFC107)).withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: labelColor ?? Colors.black54, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: labelColor ?? Colors.black87,
+                          )),
+                      const SizedBox(height: 2),
+                      Text(subtitle,
+                          style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: labelColor ?? Colors.black38),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrefInfoRow extends StatelessWidget {
+  const _PrefInfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Text(label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: Colors.black87,
+              )),
+          const Spacer(),
+          Text(value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Colors.black54,
+              )),
         ],
       ),
     );
