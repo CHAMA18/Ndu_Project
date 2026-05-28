@@ -2637,6 +2637,39 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
 // Data models
 // =============================================================================
 
+/// Lookup table of icons used by integrations so the web tree-shaker can
+/// statically resolve every [IconData].
+const _knownIcons = <int, IconData>{
+  0xe86b: IconData(0xe86b, fontFamily: 'MaterialIcons'), // Icons.extension
+  0xe8a6: IconData(0xe8a6, fontFamily: 'MaterialIcons'), // Icons.sync
+  0xe8b4: IconData(0xe8b4, fontFamily: 'MaterialIcons'), // Icons.cloud
+  0xe161: IconData(0xe161, fontFamily: 'MaterialIcons'), // Icons.code
+  0xe8d4: IconData(0xe8d4, fontFamily: 'MaterialIcons'), // Icons.storage
+  0xe8ad: IconData(0xe8ad, fontFamily: 'MaterialIcons'), // Icons.security
+  0xe8d8: IconData(0xe8d8, fontFamily: 'MaterialIcons'), // Icons.api
+  0xe56c: IconData(0xe56c, fontFamily: 'MaterialIcons'), // Icons.psychology
+  0xe90f: IconData(0xe90f, fontFamily: 'MaterialIcons'), // Icons.analytics
+  0xe30a: IconData(0xe30a, fontFamily: 'MaterialIcons'), // Icons.mail
+  0xe88e: IconData(0xe88e, fontFamily: 'MaterialIcons'), // Icons.build
+  0xe0af: IconData(0xe0af, fontFamily: 'MaterialIcons'), // Icons.hub
+  0xe8f5: IconData(0xe8f5, fontFamily: 'MaterialIcons'), // Icons.webhook
+  0xe3af: IconData(0xe3af, fontFamily: 'MaterialIcons'), // Icons.notifications
+  0xe332: IconData(0xe332, fontFamily: 'MaterialIcons'), // Icons.group
+  0xe053: IconData(0xe053, fontFamily: 'MaterialIcons'), // Icons.dashboard
+  0xe8c3: IconData(0xe8c3, fontFamily: 'MaterialIcons'), // Icons.link
+  0xe0b9: IconData(0xe0b9, fontFamily: 'MaterialIcons'), // Icons.insights
+  0xe56f: IconData(0xe56f, fontFamily: 'MaterialIcons'), // Icons.settings
+  0xe33c: IconData(0xe33c, fontFamily: 'MaterialIcons'), // Icons.key
+};
+
+IconData _iconFromCodePoint(int? codePoint) {
+  if (codePoint != null) {
+    return _knownIcons[codePoint] ??
+        const IconData(0xe86b, fontFamily: 'MaterialIcons');
+  }
+  return const IconData(0xe86b, fontFamily: 'MaterialIcons');
+}
+
 class _IntegrationRow {
   final String id;
   final String name;
@@ -2733,9 +2766,7 @@ class _IntegrationRow {
         scopes: e['scopes'] ?? '',
         mapsTo: e['mapsTo'] ?? '',
         lastSync: e['lastSync'] ?? 'Never',
-        icon: e['iconCodePoint'] != null
-            ? IconData(e['iconCodePoint'] as int, fontFamily: 'MaterialIcons')
-            : const IconData(0xe86b, fontFamily: 'MaterialIcons'), // Icons.extension
+        icon: _iconFromCodePoint(e['iconCodePoint'] as int?),
         iconColor: Color(e['iconColor'] ?? const Color(0xFF64748B).toARGB32()),
         features: e['features'] ?? '',
         autoHandoff: e['autoHandoff'],

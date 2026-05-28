@@ -306,11 +306,11 @@ class _InfrastructureConsiderationsScreenState
               ])),
             ]),
             MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Infrastructure Considerations',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Infrastructure Considerations',
+              ),
+            ),
+            const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),
@@ -1185,7 +1185,8 @@ class _InfrastructureConsiderationsScreenState
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
                   color: const Color(0xFFF5F7FB),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(8)),
                   border: Border.all(color: const Color(0xFFE4E7EC))),
               child: const Row(children: [
                 Expanded(
@@ -1193,21 +1194,26 @@ class _InfrastructureConsiderationsScreenState
                     child: Center(
                         child: Text('Potential Solution',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
                 SizedBox(width: 16),
                 Expanded(
                     flex: 3,
                     child: Center(
                         child: Text('Major Infrastructure',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
               ]),
             ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(8)),
                   border: Border.all(color: const Color(0xFFE4E7EC))),
               child: _solutions.isEmpty
                   ? Padding(
@@ -1215,13 +1221,15 @@ class _InfrastructureConsiderationsScreenState
                       child: Center(
                         child: Text(
                           'No solutions added yet. Add solutions from the Potential Solutions page to generate infrastructure considerations.',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[500]),
                           textAlign: TextAlign.center,
                         ),
                       ),
                     )
                   : Column(
-                      children: List.generate(_solutions.length, (i) => _row(i))),
+                      children:
+                          List.generate(_solutions.length, (i) => _row(i))),
             ),
           ],
           if (_canUseAdminControls) ...[
@@ -1673,11 +1681,13 @@ class _InfrastructureConsiderationsScreenState
         ? _solutions[index]
         : AiSolutionItem(title: '', description: '');
     return Container(
+      constraints: BoxConstraints(
+        minHeight: isMobile ? 0 : 168,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
           color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
-          border:
-              Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
+          border: Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
       child: isMobile
           ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
@@ -1793,6 +1803,7 @@ class _InfrastructureConsiderationsScreenState
         }
       },
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextFormattingToolbar(
@@ -1801,6 +1812,8 @@ class _InfrastructureConsiderationsScreenState
           ),
           const SizedBox(height: 8),
           Container(
+            constraints: const BoxConstraints(minHeight: 108),
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
                 color: Colors.white,
@@ -1808,9 +1821,10 @@ class _InfrastructureConsiderationsScreenState
                 border: Border.all(color: Colors.grey.withOpacity(0.25))),
             child: VoiceTextField(
               controller: controller,
-              minLines: 2,
+              minLines: 4,
               maxLines: null,
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.start,
+              textAlignVertical: TextAlignVertical.top,
               onChanged: (value) {
                 provider.addFieldToHistory(fieldKey, value,
                     isAiGenerated: true);
@@ -1823,7 +1837,11 @@ class _InfrastructureConsiderationsScreenState
                     'Enter main infrastructure considerations for Solution ${index + 1}...',
                 hintStyle: TextStyle(color: Colors.grey[400]),
               ),
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black87,
+                height: 1.45,
+              ),
             ),
           ),
         ],

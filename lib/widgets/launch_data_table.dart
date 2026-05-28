@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+
 const double _defaultColumnWidth = 160;
 const double _tableHorizontalPadding = 20;
 const double _columnGap = 12;
@@ -87,9 +90,9 @@ class LaunchDataTable extends StatelessWidget {
     this.addLabel = 'Add item',
     this.importLabel,
     this.onImport,
+    this.emptyMessage = 'No entries yet. Add details to get started.',
     this.csvColumns,
     this.onCsvImport,
-    this.emptyMessage = 'No entries yet. Add details to get started.',
   }) : _columns = columns
             .map((c) => c is LaunchColumn
                 ? c
@@ -106,14 +109,13 @@ class LaunchDataTable extends StatelessWidget {
   final String addLabel;
   final String? importLabel;
   final VoidCallback? onImport;
+  final String emptyMessage;
 
-  /// CSV import column specifications — enables the "Import CSV" button
+  /// CSV import column specifications — enables the "Import CSV" button.
   final List<CsvColumnSpec>? csvColumns;
 
-  /// Callback when CSV rows are imported
-  final ValueChanged<List<Map<String, String>>>? onCsvImport;
-
-  final String emptyMessage;
+  /// Callback when CSV rows are imported. Supports synchronous and async saves.
+  final FutureOr<void> Function(List<Map<String, String>>)? onCsvImport;
 
   List<LaunchColumn> get columns => _columns;
 
@@ -137,10 +139,7 @@ class LaunchDataTable extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildCardHeader(context),
-          if (rowCount == 0)
-            _buildEmpty()
-          else
-            _buildRows(context),
+          if (rowCount == 0) _buildEmpty() else _buildRows(context),
         ],
       ),
     );
@@ -242,7 +241,7 @@ class LaunchDataTable extends StatelessWidget {
       columns: csvColumns!,
     );
     if (result != null && result.isNotEmpty) {
-      onCsvImport!(result);
+      await onCsvImport!(result);
     }
   }
 
@@ -289,7 +288,9 @@ class LaunchDataTable extends StatelessWidget {
         final rows = List.generate(rowCount, (i) => cellBuilder(context, i));
         final effectiveColumns = _resolveColumns(rows);
         final hasRowActions = rows.any(
-          (row) => row is LaunchDataRow && (row.onDelete != null || row.onEdit != null),
+          (row) =>
+              row is LaunchDataRow &&
+              (row.onDelete != null || row.onEdit != null),
         );
         final minTableWidth = _minTableWidth(effectiveColumns, hasRowActions);
         final tableWidth = constraints.maxWidth > minTableWidth
@@ -740,9 +741,8 @@ class _LaunchDateCellState extends State<LaunchDateCell> {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
-                color: isEmpty
-                    ? const Color(0xFF9CA3AF)
-                    : const Color(0xFF111827),
+                color:
+                    isEmpty ? const Color(0xFF9CA3AF) : const Color(0xFF111827),
               ),
             ),
           ],
@@ -979,7 +979,10 @@ class LaunchStatusDropdown extends StatelessWidget {
 
   Color _statusColor(String status) {
     final s = status.toLowerCase();
-    if (s.contains('complet') || s.contains('done') || s.contains('closed') || s.contains('ready')) {
+    if (s.contains('complet') ||
+        s.contains('done') ||
+        s.contains('closed') ||
+        s.contains('ready')) {
       return const Color(0xFF10B981);
     }
     if (s.contains('progress') || s.contains('active') || s.contains('track')) {
@@ -1132,8 +1135,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
           ),
           child: const Text('Cancel',
               style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B7280))),
+                  fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
         ),
         const SizedBox(width: 8),
         ElevatedButton(
@@ -1226,9 +1228,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
           children: [
             Expanded(
               child: Text(
-                display.isEmpty
-                    ? (col.hint ?? 'Select date')
-                    : display,
+                display.isEmpty ? (col.hint ?? 'Select date') : display,
                 style: TextStyle(
                   fontSize: 13,
                   color: display.isEmpty

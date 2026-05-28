@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
 
-
 /// A drop-in replacement for [TextField] that adds a microphone button
 /// for voice-to-text input.
 ///
@@ -220,7 +219,8 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final voiceEnabled = widget.enableVoice && _voiceAvailable && !widget.obscureText;
+    final voiceEnabled =
+        widget.enableVoice && _voiceAvailable && !widget.obscureText;
     final effectiveDecoration = _buildDecoration(voiceEnabled);
 
     return TextField(
@@ -465,7 +465,8 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? TextEditingController(text: widget.initialValue);
+    _controller =
+        widget.controller ?? TextEditingController(text: widget.initialValue);
     _checkAvailability();
   }
 
@@ -473,7 +474,12 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   void didUpdateWidget(VoiceTextFormField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.controller != oldWidget.controller) {
-      _controller = widget.controller ?? TextEditingController(text: widget.initialValue);
+      _controller =
+          widget.controller ?? TextEditingController(text: widget.initialValue);
+    } else if (widget.controller == null &&
+        widget.initialValue != oldWidget.initialValue &&
+        widget.initialValue != _controller.text) {
+      _controller.text = widget.initialValue ?? '';
     }
   }
 
@@ -558,12 +564,12 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
 
   @override
   Widget build(BuildContext context) {
-    final voiceEnabled = widget.enableVoice && _voiceAvailable && !widget.obscureText;
+    final voiceEnabled =
+        widget.enableVoice && _voiceAvailable && !widget.obscureText;
     final effectiveDecoration = _buildDecoration(voiceEnabled);
 
     return TextFormField(
       controller: _controller,
-      initialValue: widget.controller == null ? widget.initialValue : null,
       focusNode: widget.focusNode,
       decoration: effectiveDecoration,
       keyboardType: widget.keyboardType,
