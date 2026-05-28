@@ -12,6 +12,10 @@ class DesignPhaseStableShell extends StatelessWidget {
     required this.onItemSelected,
     this.breadcrumbPhase,
     this.breadcrumbTitle,
+    this.showExportPdf = true,
+    this.showAiAssist = true,
+    this.onExportPdf,
+    this.onAiAssist,
   });
 
   final String activeLabel;
@@ -19,6 +23,10 @@ class DesignPhaseStableShell extends StatelessWidget {
   final ValueChanged<String> onItemSelected;
   final String? breadcrumbPhase;
   final String? breadcrumbTitle;
+  final bool showExportPdf;
+  final bool showAiAssist;
+  final VoidCallback? onExportPdf;
+  final VoidCallback? onAiAssist;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +54,10 @@ class DesignPhaseStableShell extends StatelessWidget {
                 breadcrumbTitle: breadcrumbTitle,
                 showDrawerButton: true,
                 showActivityLogAction: true,
+                showExportPdf: showExportPdf,
+                showAiAssist: showAiAssist,
+                onExportPdf: onExportPdf,
+                onAiAssist: onAiAssist,
               ),
               Expanded(
                 child: Stack(
@@ -83,6 +95,10 @@ class DesignPhaseStableShell extends StatelessWidget {
                     breadcrumbTitle: breadcrumbTitle,
                     showDrawerButton: false,
                     showActivityLogAction: true,
+                    showExportPdf: showExportPdf,
+                    showAiAssist: showAiAssist,
+                    onExportPdf: onExportPdf,
+                    onAiAssist: onAiAssist,
                   ),
                   Expanded(child: child),
                 ],

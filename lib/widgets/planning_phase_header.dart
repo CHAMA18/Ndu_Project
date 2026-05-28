@@ -15,6 +15,10 @@ class PlanningPhaseHeader extends StatelessWidget {
     this.onContentPressed,
     this.breadcrumbPhase,
     this.breadcrumbTitle,
+    this.showExportPdf = true,
+    this.showAiAssist = true,
+    this.onExportPdf,
+    this.onAiAssist,
   });
 
   final String title;
@@ -27,6 +31,10 @@ class PlanningPhaseHeader extends StatelessWidget {
   final VoidCallback? onContentPressed;
   final String? breadcrumbPhase;
   final String? breadcrumbTitle;
+  final bool showExportPdf;
+  final bool showAiAssist;
+  final VoidCallback? onExportPdf;
+  final VoidCallback? onAiAssist;
 
   @override
   Widget build(BuildContext context) {
@@ -46,14 +54,16 @@ class PlanningPhaseHeader extends StatelessWidget {
           onForwardPressed: showNavigationButtons ? onForward : null,
           showActivityLogAction: true,
         ),
-        if (showImportButton || showContentButton) ...[
+        if (showImportButton || showContentButton || showExportPdf || showAiAssist) ...[
           if (isMobile)
             const SizedBox(height: 12)
           else
             const SizedBox(height: 16),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
-            child: Row(
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 8,
               children: [
                 if (showImportButton)
                   _YellowButton(
@@ -61,19 +71,47 @@ class PlanningPhaseHeader extends StatelessWidget {
                     icon: Icons.upload_outlined,
                     onPressed: onImportPressed ?? () {},
                   ),
-                if (showImportButton && showContentButton)
-                  const SizedBox(width: 12),
                 if (showContentButton)
                   _WhiteButton(
                     label: 'Content',
                     icon: Icons.download_outlined,
                     onPressed: onContentPressed ?? () {},
                   ),
+                if (showExportPdf)
+                  _WhiteButton(
+                    label: 'Export PDF',
+                    icon: Icons.picture_as_pdf_outlined,
+                    onPressed: onExportPdf ?? () => _defaultExportPdf(context),
+                  ),
+                if (showAiAssist)
+                  _AiAssistButton(
+                    label: 'AI Assist',
+                    icon: Icons.auto_awesome,
+                    onPressed: onAiAssist ?? () => _defaultAiAssist(context),
+                  ),
               ],
             ),
           ),
         ],
       ],
+    );
+  }
+
+  void _defaultExportPdf(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Export PDF coming soon for this section.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _defaultAiAssist(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('AI Assist will generate content for this section.'),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 }
@@ -122,6 +160,34 @@ class _WhiteButton extends StatelessWidget {
         foregroundColor: Colors.black87,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         side: const BorderSide(color: Color(0xFFE5E7EB)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _AiAssistButton extends StatelessWidget {
+  const _AiAssistButton(
+      {required this.label, required this.icon, this.onPressed});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4154F1),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       icon: Icon(icon, size: 18),
