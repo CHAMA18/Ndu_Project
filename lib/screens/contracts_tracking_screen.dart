@@ -1160,15 +1160,22 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     'Completed',
   ];
 
+  static const List<int> _daysLeftOptions = [
+    0, 7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365,
+  ];
+
   Future<void> _showRenewalEntryEditor({_RenewalLaneData? entry}) async {
     final isEdit = entry != null;
     final nameController = TextEditingController(text: entry?.contractName ?? '');
     var selectedType = _contractTypeOptions.contains(entry?.contractType)
         ? entry!.contractType
         : _contractTypeOptions.first;
-    final expiryController = TextEditingController(text: entry?.expiryDate ?? '');
-    final daysController = TextEditingController(
-        text: entry?.daysUntilExpiry?.toString() ?? '');
+    DateTime? selectedExpiryDate;
+    if (entry?.expiryDate != null && entry!.expiryDate.isNotEmpty) {
+      selectedExpiryDate = DateFormat('MMM dd, yyyy').tryParse(entry.expiryDate) ??
+          DateFormat('yyyy-MM-dd').tryParse(entry.expiryDate);
+    }
+    var selectedDaysLeft = entry?.daysUntilExpiry ?? 30;
     var selectedAction = _renewalActionOptions.contains(entry?.renewalAction)
         ? (entry?.renewalAction ?? 'Renew')
         : 'Renew';
@@ -1243,26 +1250,53 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: VoiceTextField(
-                              controller: expiryController,
-                              decoration: const InputDecoration(
-                                labelText: 'Expiry date',
-                                hintText: 'e.g. Mar 15, 2025',
-                                isDense: true,
+                            child: GestureDetector(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedExpiryDate ?? DateTime.now().add(const Duration(days: 90)),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2040),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() => selectedExpiryDate = picked);
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Expiry date',
+                                  isDense: true,
+                                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                                ),
+                                child: Text(
+                                  selectedExpiryDate != null
+                                      ? DateFormat('MMM dd, yyyy').format(selectedExpiryDate!)
+                                      : 'Select date',
+                                  style: TextStyle(
+                                    color: selectedExpiryDate != null ? null : Colors.grey,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
-                          SizedBox(
-                            width: 120,
-                            child: VoiceTextField(
-                              controller: daysController,
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _daysLeftOptions.contains(selectedDaysLeft) ? selectedDaysLeft : null,
                               decoration: const InputDecoration(
                                 labelText: 'Days left',
-                                hintText: 'e.g. 42',
                                 isDense: true,
                               ),
-                              keyboardType: TextInputType.number,
+                              items: _daysLeftOptions
+                                  .map((d) => DropdownMenuItem(
+                                        value: d,
+                                        child: Text(d == 0 ? 'Expired' : '$d days', style: const TextStyle(fontSize: 12)),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) setDialogState(() => selectedDaysLeft = value);
+                              },
                             ),
                           ),
                         ],
@@ -1340,8 +1374,10 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         id: entry?.id ?? _newId(),
                         contractName: nameController.text.trim(),
                         contractType: selectedType,
-                        expiryDate: expiryController.text.trim(),
-                        daysUntilExpiry: int.tryParse(daysController.text.trim()),
+                        expiryDate: selectedExpiryDate != null
+                            ? DateFormat('MMM dd, yyyy').format(selectedExpiryDate!)
+                            : '',
+                        daysUntilExpiry: selectedDaysLeft,
                         renewalAction: selectedAction,
                         owner: ownerController.text.trim(),
                         status: selectedStatus,
@@ -1360,8 +1396,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     );
 
     nameController.dispose();
-    expiryController.dispose();
-    daysController.dispose();
     ownerController.dispose();
     valueController.dispose();
     notesController.dispose();
