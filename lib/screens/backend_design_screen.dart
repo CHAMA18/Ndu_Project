@@ -17,6 +17,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/file_upload_helper.dart';
+import 'package:ndu_project/widgets/execution_phase_ui.dart';
 class BackendDesignScreen extends StatefulWidget {
   const BackendDesignScreen({super.key});
 
@@ -362,32 +363,20 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   }
 
   Widget _buildBackendFrameworkGuide() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    return ExecutionPanelShell(
+      title: 'Backend design framework',
+      subtitle:
+          'Grounded in cloud-native architecture principles, microservice design patterns, '
+          'domain-driven design, and infrastructure-as-code conventions.',
+      collapsible: true,
+      initiallyExpanded: false,
+      headerIcon: Icons.dns_outlined,
+      headerIconColor: const Color(0xFF2563EB),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Backend design framework',
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in cloud-native architecture principles, microservice design patterns, '
-            'domain-driven design, and infrastructure-as-code conventions. Effective backend design '
+            'Effective backend design '
             'ensures that system topology, data flows, security boundaries, and deployment pipelines '
             'are documented, reviewable, and operationally sound.',
             style: TextStyle(
