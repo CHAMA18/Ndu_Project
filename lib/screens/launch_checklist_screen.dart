@@ -564,8 +564,38 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
               showNavigationButtons: false,
             ),
             const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _selectedView == 'full' ? 'Summary View' : 'Full View',
+                      icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
+                      tone: ExecutionActionTone.secondary,
+                      onPressed: () => setState(() {
+                        _selectedView = _selectedView == 'full' ? 'summary' : 'full';
+                      }),
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             _buildChecklistPanel(),
@@ -589,42 +619,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
     );
   }
 
-  // ── Header ──────────────────────────────────────────────────────
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Launch Readiness Checklist',
-      description:
-          'Track cutover tasks, approvals, and milestones before go-live.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: _isExporting ? 'Exporting…' : 'Export PDF',
-            icon: Icons.picture_as_pdf_outlined,
-            tone: ExecutionActionTone.secondary,
-            isLoading: _isExporting,
-            onPressed: _isExporting ? null : _exportPdf,
-          ),
-          ExecutionActionItem(
-            label: _selectedView == 'full' ? 'Summary View' : 'Full View',
-            icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
-            tone: ExecutionActionTone.secondary,
-            onPressed: () => setState(() {
-              _selectedView = _selectedView == 'full' ? 'summary' : 'full';
-            }),
-          ),
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
-      ),
-    );
-  }
 
   // ── Metrics ─────────────────────────────────────────────────────
 

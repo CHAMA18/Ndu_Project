@@ -79,7 +79,30 @@ class _DeliverProjectClosureScreenState
               showContentButton: false,
               showNavigationButtons: false,
             ),
-            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             _buildScopeAcceptancePanel(),
@@ -103,32 +126,7 @@ class _DeliverProjectClosureScreenState
     );
   }
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Deliver Project · Closure Summary',
-      description:
-          'Confirm scope is delivered and accepted. Review milestones, outstanding items, and post-delivery risks before transitioning.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: _isExporting ? 'Exporting…' : 'Export PDF',
-            icon: Icons.picture_as_pdf_outlined,
-            tone: ExecutionActionTone.secondary,
-            isLoading: _isExporting,
-            onPressed: _isExporting ? null : _exportPdf,
-          ),
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMetricsRow() {
     final accepted = _scopeItems.where((s) => s.status == 'Accepted').length;

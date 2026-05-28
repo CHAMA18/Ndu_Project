@@ -96,8 +96,44 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
               showNavigationButtons: false,
             ),
             const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _selectedView == _CloseOutView.longForm
+                          ? 'Summary View'
+                          : 'Full View',
+                      icon: _selectedView == _CloseOutView.longForm
+                          ? Icons.summarize_outlined
+                          : Icons.list_alt,
+                      tone: ExecutionActionTone.secondary,
+                      onPressed: () => setState(() {
+                        _selectedView = _selectedView == _CloseOutView.longForm
+                            ? _CloseOutView.summarized
+                            : _CloseOutView.longForm;
+                      }),
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             if (_selectedView == _CloseOutView.longForm) ...[
@@ -119,46 +155,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Project Close Out',
-      description:
-          'Formally close the project with final approvals, archive documentation, and capture lessons learned.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: _isExporting ? 'Exporting…' : 'Export PDF',
-            icon: Icons.picture_as_pdf_outlined,
-            tone: ExecutionActionTone.secondary,
-            isLoading: _isExporting,
-            onPressed: _isExporting ? null : _exportPdf,
-          ),
-          ExecutionActionItem(
-            label: _selectedView == _CloseOutView.longForm
-                ? 'Summary View'
-                : 'Full View',
-            icon: _selectedView == _CloseOutView.longForm
-                ? Icons.summarize_outlined
-                : Icons.list_alt,
-            tone: ExecutionActionTone.secondary,
-            onPressed: () => setState(() {
-              _selectedView = _selectedView == _CloseOutView.longForm
-                  ? _CloseOutView.summarized
-                  : _CloseOutView.longForm;
-            }),
-          ),
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMetricsRow() {
     final total = _closeOutChecklist.length;
