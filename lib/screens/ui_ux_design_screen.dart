@@ -549,8 +549,6 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   if (_isLoading) const SizedBox(height: 16),
                   _buildHeader(isNarrow),
                   const SizedBox(height: 16),
-                  _buildStatsRow(isNarrow),
-                  const SizedBox(height: 20),
                   _buildUXFrameworkGuide(),
                   const SizedBox(height: 24),
                   _buildJourneyRegister(),
