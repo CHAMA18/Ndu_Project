@@ -960,199 +960,314 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       ..addAll(shifted);
   }
 
+  // ── Delivery Model Alignment Standard (Action-plan style panel) ──────
+
+  static const _dmHeaderStyle = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFFD1D5DB),
+    letterSpacing: 0.5,
+  );
+
   Widget _buildStableMethodologyMatrix() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
+    return _DeliveryModelPanelShell(
+      title: 'Delivery Model Alignment Standard',
+      subtitle:
+          'Define and manage delivery models, alignment evidence, technical controls, and exit standards.',
+      icon: Icons.delivery_dining_outlined,
+      accent: const Color(0xFF7C3AED),
+      trailing: TextButton.icon(
+        onPressed: _addMethodologyStandard,
+        icon: const Icon(Icons.add_rounded, size: 16),
+        label: const Text('Add model'),
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFF7C3AED),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            icon: Icons.delivery_dining_outlined,
-            color: const Color(0xFF7C3AED),
-            title: 'Delivery Model Alignment Standard',
-            subtitle:
-                'Define and manage delivery models, alignment evidence, technical controls, and exit standards.',
-            actionLabel: 'Add model',
-            onAction: _addMethodologyStandard,
-          ),
-          const SizedBox(height: 16),
-          _buildScrollableTableHeader(
-            columns: const [
-              _TableColumn(label: 'Model', flex: 2, minWidth: 160),
-              _TableColumn(label: 'Best-fit Use', flex: 3, minWidth: 220),
-              _TableColumn(
-                  label: 'Required Alignment Evidence', flex: 3, minWidth: 260),
-              _TableColumn(
-                  label: 'Technical Control Focus', flex: 3, minWidth: 260),
-              _TableColumn(label: 'Exit Standard', flex: 3, minWidth: 220),
-              _TableColumn(
-                  label: 'Actions',
-                  flex: 1,
-                  minWidth: _technicalAlignmentActionColumnWidth,
-                  alignment: Alignment.center),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (_methodologyStandards.isEmpty)
-            _buildEmptyTableState(
-              message:
-                  'No delivery models yet. Add the first alignment standard.',
-              actionLabel: 'Add model',
-              onAction: _addMethodologyStandard,
-            )
-          else
-            _buildScrollableTableBody(
-              columns: const [
-                _TableColumn(label: 'Model', flex: 2, minWidth: 160),
-                _TableColumn(label: 'Best-fit Use', flex: 3, minWidth: 220),
-                _TableColumn(
-                    label: 'Required Alignment Evidence',
-                    flex: 3,
-                    minWidth: 260),
-                _TableColumn(
-                    label: 'Technical Control Focus', flex: 3, minWidth: 260),
-                _TableColumn(label: 'Exit Standard', flex: 3, minWidth: 220),
-                _TableColumn(
-                    label: 'Actions',
-                    flex: 1,
-                    minWidth: _technicalAlignmentActionColumnWidth,
-                    alignment: Alignment.center),
-              ],
-              rowCount: _methodologyStandards.length,
-              rowBuilder: (i) => _buildMethodologyRow(
-                _methodologyStandards[i],
-                index: i,
-                isStriped: i.isOdd,
+      child: _methodologyStandards.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.delivery_dining_outlined,
+                        size: 36,
+                        color: const Color(0xFF9CA3AF).withOpacity(0.6)),
+                    const SizedBox(height: 8),
+                    const Text('No delivery models yet',
+                        style: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    const Text(
+                        'Add the first alignment standard for your delivery model.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+                  ],
+                ),
               ),
+            )
+          : Column(
+              children: [
+                // Dark table header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F2937),
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Expanded(flex: 2, child: Text('Model', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Best-fit Use', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Required Alignment Evidence', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Technical Control Focus', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Exit Standard', style: _dmHeaderStyle)),
+                      Expanded(flex: 1, child: Text('', style: _dmHeaderStyle)),
+                    ],
+                  ),
+                ),
+                // Data rows
+                ..._methodologyStandards.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final row = entry.value;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: idx.isEven
+                          ? Colors.white
+                          : const Color(0xFFFAFBFD),
+                      borderRadius: BorderRadius.circular(6),
+                      border:
+                          Border.all(color: const Color(0xFFF3F4F6)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.model,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.bestFit,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.evidence,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.controls,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.exitStandard,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: () => _showMethodologyDialog(
+                                    existing: row,
+                                    index: idx),
+                                child: const Icon(Icons.edit_outlined,
+                                    size: 14,
+                                    color: Color(0xFF6B7280)),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () async {
+                                  final confirmed =
+                                      await _confirmDelete(
+                                          'delivery model');
+                                  if (!confirmed) return;
+                                  setState(() {
+                                    _methodologyStandards
+                                        .removeAt(idx);
+                                    _shiftEditingRowsAfterDelete(
+                                        _editingMethodologyRows,
+                                        idx);
+                                    _scheduleSave();
+                                  });
+                                },
+                                child: const Icon(
+                                    Icons.delete_outline,
+                                    size: 14,
+                                    color: Color(0xFFEF4444)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                      '${_methodologyStandards.length} model${_methodologyStandards.length != 1 ? 's' : ''}',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF9CA3AF))),
+                ),
+              ],
             ),
-        ],
-      ),
     );
   }
 
-  Widget _buildMethodologyRow(
-    _MethodologyStandard row, {
-    required int index,
-    required bool isStriped,
-  }) {
-    final isEditing = _editingMethodologyRows.contains(index);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 160,
-            child: _buildTableField(
-              initialValue: row.model,
-              hintText: 'Model',
-              enabled: _canEditAlignment && isEditing,
-              onChanged: (value) {
-                row.model = value;
-                _scheduleSave();
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 220,
-            child: _buildTableField(
-              initialValue: row.bestFit,
-              hintText: 'Best-fit Use',
-              maxLines: null,
-              minLines: 1,
-              enabled: _canEditAlignment && isEditing,
-              onChanged: (value) {
-                row.bestFit = value;
-                _scheduleSave();
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 260,
-            child: _buildTableField(
-              initialValue: row.evidence,
-              hintText: 'Required Alignment Evidence',
-              maxLines: null,
-              minLines: 1,
-              enabled: _canEditAlignment && isEditing,
-              onChanged: (value) {
-                row.evidence = value;
-                _scheduleSave();
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 260,
-            child: _buildTableField(
-              initialValue: row.controls,
-              hintText: 'Technical Control Focus',
-              maxLines: null,
-              minLines: 1,
-              enabled: _canEditAlignment && isEditing,
-              onChanged: (value) {
-                row.controls = value;
-                _scheduleSave();
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 220,
-            child: _buildTableField(
-              initialValue: row.exitStandard,
-              hintText: 'Exit Standard',
-              maxLines: null,
-              minLines: 1,
-              enabled: _canEditAlignment && isEditing,
-              onChanged: (value) {
-                row.exitStandard = value;
-                _scheduleSave();
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: _technicalAlignmentActionColumnWidth,
-            child: Align(
-              alignment: Alignment.center,
-              child: _buildRowActions(
-                isEditing: isEditing,
-                onToggleEdit: () =>
-                    _toggleEditingRow(_editingMethodologyRows, index),
-                onDelete: () async {
-                  final confirmed = await _confirmDelete('delivery model');
-                  if (!confirmed) return;
-                  setState(() {
-                    _methodologyStandards.removeAt(index);
-                    _shiftEditingRowsAfterDelete(
-                        _editingMethodologyRows, index);
-                    _scheduleSave();
-                  });
-                },
+  void _showMethodologyDialog({_MethodologyStandard? existing, int? index}) {
+    final isEdit = existing != null;
+    final modelCtl = TextEditingController(text: existing?.model ?? '');
+    final bestFitCtl = TextEditingController(text: existing?.bestFit ?? '');
+    final evidenceCtl = TextEditingController(text: existing?.evidence ?? '');
+    final controlsCtl = TextEditingController(text: existing?.controls ?? '');
+    final exitCtl =
+        TextEditingController(text: existing?.exitStandard ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: Row(children: [
+            Icon(
+                isEdit
+                    ? Icons.edit_outlined
+                    : Icons.add_circle_outline,
+                size: 20,
+                color: const Color(0xFF7C3AED)),
+            const SizedBox(width: 8),
+            Text(isEdit ? 'Edit Delivery Model' : 'Add Delivery Model',
+                style: const TextStyle(fontSize: 16)),
+          ]),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VoiceTextField(
+                    controller: modelCtl,
+                    decoration: const InputDecoration(
+                      labelText: 'Model name',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: bestFitCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Best-fit use',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: evidenceCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Required alignment evidence',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: controlsCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Technical control focus',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: exitCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Exit standard',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final row = _MethodologyStandard(
+                  model: modelCtl.text.trim(),
+                  bestFit: bestFitCtl.text.trim(),
+                  evidence: evidenceCtl.text.trim(),
+                  controls: controlsCtl.text.trim(),
+                  exitStandard: exitCtl.text.trim(),
+                );
+                setState(() {
+                  if (isEdit && index != null) {
+                    _methodologyStandards[index] = row;
+                  } else {
+                    _methodologyStandards.add(row);
+                  }
+                  _scheduleSave();
+                });
+                Navigator.of(ctx).pop();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+              ),
+              child: Text(isEdit ? 'Save' : 'Add'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -5189,4 +5304,83 @@ class _TableColumn {
   final int flex;
   final double minWidth;
   final Alignment alignment;
+}
+
+/// Panel shell matching the Vendor Tracking "Action plan" style.
+class _DeliveryModelPanelShell extends StatelessWidget {
+  const _DeliveryModelPanelShell({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.child,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Stack(
+            children: [
+              Align(
+                alignment: Alignment.topLeft,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: accent.withOpacity(0.2)),
+                      ),
+                      child: Icon(icon, color: accent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text(subtitle,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF64748B))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null)
+                Align(
+                  alignment: Alignment.topRight,
+                  child: trailing!,
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
 }
