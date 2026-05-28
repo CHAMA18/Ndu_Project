@@ -670,6 +670,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _dataFlows[i].source,
                       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   Expanded(
@@ -683,6 +685,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _dataFlows[i].destination,
                       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   Expanded(
@@ -690,6 +694,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _dataFlows[i].notes,
                       style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.45),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
                   ),
                   SizedBox(
@@ -772,6 +778,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _designDocuments[i].title,
                       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   Expanded(
@@ -780,6 +788,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                       child: Text(
                         _designDocuments[i].owner,
                         style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
                   ),
@@ -864,6 +874,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
 
   Widget _buildStatusBadge(String label, Color color) {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 140),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
@@ -872,6 +883,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       ),
       child: Text(
         label,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w800,
