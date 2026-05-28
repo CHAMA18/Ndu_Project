@@ -144,14 +144,14 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
   ];
 
   // ── Architecture patterns (local) ──
-  final List<_ArchitecturePattern> _archPatterns = const [
+  final List<_ArchitecturePattern> _archPatterns = [
     _ArchitecturePattern(
       name: 'Event-Driven Microservices',
       description:
           'Asynchronous inter-service communication via message broker with event sourcing for audit-critical flows.',
       status: 'Baseline',
       icon: Icons.hub_outlined,
-      color: Color(0xFF7C3AED),
+      color: const Color(0xFF7C3AED),
     ),
     _ArchitecturePattern(
       name: 'API Gateway',
@@ -159,7 +159,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           'Centralized entry point for routing, rate-limiting, and authentication. Terminates TLS and enforces policies.',
       status: 'Defined',
       icon: Icons.router_outlined,
-      color: Color(0xFF2563EB),
+      color: const Color(0xFF2563EB),
     ),
     _ArchitecturePattern(
       name: 'CQRS + Read Replicas',
@@ -167,7 +167,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           'Separate command and query models for high-throughput reads. Read replicas scale independently from writes.',
       status: 'Proposed',
       icon: Icons.call_split_outlined,
-      color: Color(0xFF0891B2),
+      color: const Color(0xFF0891B2),
     ),
     _ArchitecturePattern(
       name: 'Observability Stack',
@@ -175,7 +175,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           'Distributed tracing (OpenTelemetry), structured logging, and metrics dashboards for end-to-end visibility.',
       status: 'Defined',
       icon: Icons.monitor_heart_outlined,
-      color: Color(0xFF059669),
+      color: const Color(0xFF059669),
     ),
   ];
 
@@ -691,6 +691,22 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
       initiallyExpanded: false,
       headerIcon: Icons.account_tree_outlined,
       headerIconColor: const Color(0xFF7C3AED),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _showArchPatternEditor,
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Pattern'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF7C3AED),
+              side: const BorderSide(color: Color(0xFF7C3AED)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final crossCount = constraints.maxWidth >= 900
@@ -699,17 +715,183 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           return Wrap(
             spacing: 14,
             runSpacing: 14,
-            children: _archPatterns.map((pattern) {
+            children: _archPatterns.asMap().entries.map((entry) {
+              final index = entry.key;
+              final pattern = entry.value;
               return SizedBox(
                 width: (constraints.maxWidth - (14 * (crossCount - 1))) /
                     crossCount,
-                child: _ArchitecturePatternCard(pattern: pattern),
+                child: _ArchitecturePatternCard(
+                  pattern: pattern,
+                  onEdit: () => _showArchPatternEditor(entry: pattern, index: index),
+                  onDelete: () {
+                    setState(() {
+                      _archPatterns.removeAt(index);
+                    });
+                  },
+                ),
               );
             }).toList(),
           );
         },
       ),
     );
+  }
+
+  // ── Architecture pattern editor dialog ──
+
+  static const List<String> _archStatusOptions = [
+    'Proposed', 'Defined', 'Baseline', 'Deprecated',
+  ];
+
+  static const List<MapEntry<IconData, Color>> _archIconOptions = [
+    MapEntry(Icons.hub_outlined, Color(0xFF7C3AED)),
+    MapEntry(Icons.router_outlined, Color(0xFF2563EB)),
+    MapEntry(Icons.call_split_outlined, Color(0xFF0891B2)),
+    MapEntry(Icons.monitor_heart_outlined, Color(0xFF059669)),
+    MapEntry(Icons.layers_outlined, Color(0xFFD97706)),
+    MapEntry(Icons.security_outlined, Color(0xFFDC2626)),
+    MapEntry(Icons.storage_outlined, Color(0xFF6366F1)),
+    MapEntry(Icons.cloud_outlined, Color(0xFF0EA5E9)),
+    MapEntry(Icons.dns_outlined, Color(0xFF8B5CF6)),
+    MapEntry(Icons.memory_outlined, Color(0xFFEC4899)),
+  ];
+
+  Future<void> _showArchPatternEditor({_ArchitecturePattern? entry, int? index}) async {
+    final nameController = TextEditingController(text: entry?.name ?? '');
+    final descController = TextEditingController(text: entry?.description ?? '');
+    var selectedStatus = _archStatusOptions.contains(entry?.status)
+        ? entry!.status
+        : _archStatusOptions.first;
+    var selectedIconIndex = 0;
+    if (entry != null) {
+      final match = _archIconOptions.indexWhere(
+        (opt) => opt.key == entry.icon && opt.value == entry.color,
+      );
+      if (match != -1) selectedIconIndex = match;
+    }
+
+    final saved = await showDialog<_ArchitecturePattern>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(entry != null ? 'Edit Architecture Pattern' : 'Add Architecture Pattern'),
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      VoiceTextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Pattern name *',
+                          hintText: 'e.g. Event-Driven Microservices',
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      VoiceTextField(
+                        controller: descController,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          hintText: 'Describe the architectural pattern',
+                          isDense: true,
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: selectedStatus,
+                        decoration: const InputDecoration(
+                          labelText: 'Status',
+                          isDense: true,
+                        ),
+                        items: _archStatusOptions
+                            .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() => selectedStatus = value);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Text('Icon & Color', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey[600])),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _archIconOptions.asMap().entries.map((e) {
+                          final isSelected = e.key == selectedIconIndex;
+                          return GestureDetector(
+                            onTap: () => setDialogState(() => selectedIconIndex = e.key),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: isSelected ? e.value.value.withOpacity(0.15) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected ? e.value.value : const Color(0xFFE5E7EB),
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Icon(e.value.key, size: 18, color: e.value.value),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Pattern name is required.')),
+                      );
+                      return;
+                    }
+                    final iconOpt = _archIconOptions[selectedIconIndex];
+                    Navigator.of(dialogContext).pop(
+                      _ArchitecturePattern(
+                        name: nameController.text.trim(),
+                        description: descController.text.trim(),
+                        status: selectedStatus,
+                        icon: iconOpt.key,
+                        color: iconOpt.value,
+                      ),
+                    );
+                  },
+                  child: Text(entry != null ? 'Save changes' : 'Add pattern'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    descController.dispose();
+
+    if (saved == null) return;
+    setState(() {
+      if (index != null && index < _archPatterns.length) {
+        _archPatterns[index] = saved;
+      } else {
+        _archPatterns.add(saved);
+      }
+    });
   }
 
   // ── DESIGN SPECIFICATION REGISTER (MAIN TABLE) ────────────────
@@ -1272,8 +1454,14 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
 // ══════════════════════════════════════════════════════════════════
 
 class _ArchitecturePatternCard extends StatelessWidget {
-  const _ArchitecturePatternCard({required this.pattern});
+  const _ArchitecturePatternCard({
+    required this.pattern,
+    this.onEdit,
+    this.onDelete,
+  });
   final _ArchitecturePattern pattern;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -1309,6 +1497,32 @@ class _ArchitecturePatternCard extends StatelessWidget {
                 ),
               ),
               ExecutionStatusBadge(label: pattern.status),
+              if (onEdit != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  tooltip: 'Edit pattern',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  style: IconButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+              if (onDelete != null) ...[
+                const SizedBox(width: 2),
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  tooltip: 'Delete pattern',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  style: IconButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
@@ -1585,13 +1799,29 @@ class _ArchitecturePattern {
   final String status;
   final IconData icon;
   final Color color;
-  const _ArchitecturePattern({
+  _ArchitecturePattern({
     required this.name,
     required this.description,
     required this.status,
     required this.icon,
     required this.color,
   });
+
+  _ArchitecturePattern copyWith({
+    String? name,
+    String? description,
+    String? status,
+    IconData? icon,
+    Color? color,
+  }) {
+    return _ArchitecturePattern(
+      name: name ?? this.name,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+    );
+  }
 }
 
 class _SecurityControl {
