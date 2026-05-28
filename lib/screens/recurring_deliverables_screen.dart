@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 /// Dedicated screen for managing recurring deliverables during the execution
 /// phase. Recurring deliverables are periodic outputs that the project team
@@ -261,12 +263,11 @@ class _RecurringDeliverablesScreenState
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_loading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Recurring Deliverables',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
           _buildHeader(),
             const SizedBox(height: 20),
@@ -418,6 +419,21 @@ class _RecurringDeliverablesScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Recurring Deliverables',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_recurring_deliverables_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

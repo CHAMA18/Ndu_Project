@@ -33,6 +33,7 @@ import 'package:ndu_project/widgets/procurement/procurement_vendor_management.da
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum ProcurementScreenMode { fep, planning }
 
 enum _MissingProcurementAction {
@@ -784,7 +785,22 @@ class _FrontEndPlanningProcurementScreenState
     _scheduleProjectBootstrap();
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Procurement',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _scheduleProjectBootstrap();
@@ -5291,8 +5307,7 @@ class _FrontEndPlanningProcurementScreenState
         Column(
           children: [
             FrontEndPlanningHeader(
-              scaffoldKey: isMobile ? _scaffoldKey : null,
-            ),
+              scaffoldKey: isMobile ? _scaffoldKey : null, onExportPdf: _exportPdf),
             Expanded(
               child: Container(
                 color: const Color(0xFFF5F6FA),

@@ -16,7 +16,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -469,15 +469,14 @@ class _StartUpPlanningDetailScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        UnifiedPhaseHeader(
+                        PlanningPhaseHeader(
                           title: widget.config.title,
                           breadcrumbPhase: 'Planning Phase',
                           breadcrumbTitle: 'Startup Planning',
-                          onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
                             context,
                             widget.config.checkpoint,
-                          ),
-                        ),
+                          ), onExportPdf: _exportPdf),
                         const SizedBox(height: 12),
                         Text(
                           widget.config.subtitle,

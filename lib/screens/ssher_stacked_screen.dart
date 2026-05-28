@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/utils/ssher_export_helper.dart';
@@ -17,6 +18,7 @@ import 'package:ndu_project/utils/web_utils_stub.dart'
     if (dart.library.html) 'package:ndu_project/utils/web_utils_web.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 enum _SsherCategory { safety, security, health, environment, regulatory }
 
@@ -624,13 +626,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
   Widget _buildMobileLayout(bool allowCsv) {
     return Column(
       children: [
-        UnifiedPhaseHeader(
-          title: 'SSHE Planning',
+        PlanningPhaseHeader(
+          title: 'SSHER',
           breadcrumbPhase: 'Planning Phase',
           breadcrumbTitle: 'SSHE Planning',
-          onBackPressed: () => PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
-          onForwardPressed: () => PlanningPhaseNavigation.goToNext(context, 'ssher'),
-        ),
+          onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
+          onForward: () => PlanningPhaseNavigation.goToNext(context, 'ssher'), onExportPdf: _exportPdf),
         Expanded(child: _buildMainContent(allowCsv)),
       ],
     );
@@ -1727,6 +1728,21 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     );
     if (result == null) return;
     await _addEntry(_selectedCategory, result);
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'SSHER Stacked',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_ssher_stacked_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

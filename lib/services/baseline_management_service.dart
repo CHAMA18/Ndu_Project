@@ -180,8 +180,8 @@ class BaselineManagementService {
     final scopeCreepItems =
         effectiveScopeItems.where((s) => !s.isBaseline).length;
     final scopeGrowthPercent = baselineScopeItems > 0
-        ? (scopeCreepItems / baselineScopeItems) * 100
-        : 0;
+        ? (scopeCreepItems / baselineScopeItems) * 100.0
+        : 0.0;
 
     // ── P2.1: Capture structural snapshots ──
     // Control Account snapshots include full EVM + period data for diff/restore
@@ -409,10 +409,16 @@ class BaselineManagementService {
     }
 
     // Control Account changes (budget/EVM changes)
-    final prevCaMap = {for (final ca in previous.controlAccountSnapshots)
-      ca['id']?.toString(): ca};
-    final currCaMap = {for (final ca in current.controlAccountSnapshots)
-      ca['id']?.toString(): ca};
+    final prevCaMap = <String, Map<String, dynamic>>{};
+    for (final ca in previous.controlAccountSnapshots) {
+      final key = ca['id']?.toString();
+      if (key != null) prevCaMap[key] = ca;
+    }
+    final currCaMap = <String, Map<String, dynamic>>{};
+    for (final ca in current.controlAccountSnapshots) {
+      final key = ca['id']?.toString();
+      if (key != null) currCaMap[key] = ca;
+    }
     final caChanges = <String, dynamic>{};
     for (final id in currCaMap.keys) {
       final prev = prevCaMap[id];

@@ -34,6 +34,7 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
@@ -83,6 +84,39 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   TextEditingController _createStakeholderController({String text = ''}) {
     return RichAutoBulletTextController(text: text);
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final stakeholderRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length; i++) {
+      final title = _solutions[i].title.trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : _solutions[i].title.trim();
+      final internal = i < _internalStakeholderControllers.length
+          ? _internalStakeholderControllers[i].text.trim()
+          : '';
+      final external = i < _externalStakeholderControllers.length
+          ? _externalStakeholderControllers[i].text.trim()
+          : '';
+      stakeholderRows.add([
+        title,
+        internal.isEmpty ? 'No data recorded.' : internal,
+        external.isEmpty ? 'No data recorded.' : external,
+      ]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Core Stakeholders',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Stakeholders by Solution',
+          headers: ['Solution', 'Internal Stakeholders', 'External Stakeholders'],
+          rows: stakeholderRows,
+        ),
+      ],
+    );
   }
 
   // ignore: unused_field
@@ -250,7 +284,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Stack(
           children: [
             Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(

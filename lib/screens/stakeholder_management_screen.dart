@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -13,6 +14,7 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class StakeholderManagementScreen extends StatefulWidget {
   const StakeholderManagementScreen({super.key});
@@ -75,15 +77,14 @@ class _StakeholderManagementScreenState
 
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
 
-    final header = UnifiedPhaseHeader(
+    final header = PlanningPhaseHeader(
       title: 'Stakeholder Management',
       breadcrumbPhase: 'Planning Phase',
       breadcrumbTitle: 'Stakeholder Management',
-      onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+      onBack: () => PlanningPhaseNavigation.goToPrevious(
           context, 'stakeholder_management'),
-      onForwardPressed: () =>
-          PlanningPhaseNavigation.goToNext(context, 'stakeholder_management'),
-    );
+      onForward: () =>
+          PlanningPhaseNavigation.goToNext(context, 'stakeholder_management'), onExportPdf: _exportPdf);
 
     final scrollableContent = SingleChildScrollView(
       controller: _pageScrollController,
@@ -422,6 +423,21 @@ class _StakeholderManagementScreenState
           'Loaded ${newEntries.length} stakeholders and ${engagementPlans.length} engagement plans from Initiation Phase.',
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Stakeholder Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_stakeholder_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

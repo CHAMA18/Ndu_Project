@@ -13,6 +13,8 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class SalvageDisposalTeamScreen extends StatefulWidget {
   const SalvageDisposalTeamScreen({super.key});
 
@@ -371,7 +373,21 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
     });
   }
 
-  void _applyDefaults() {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Salvage & Disposal Team',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['salvage_disposal_team_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+void _applyDefaults() {
     _overviewStats
       ..clear()
       ..addAll(_defaultOverviewStats);
@@ -880,12 +896,11 @@ class _SalvageDisposalTeamScreenState extends State<SalvageDisposalTeamScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Salvage and Disposal Team',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
                         _buildHeader(isNarrow),
             const SizedBox(height: 24),

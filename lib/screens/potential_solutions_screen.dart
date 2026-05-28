@@ -33,6 +33,7 @@ import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class PotentialSolutionsScreen extends StatefulWidget {
   const PotentialSolutionsScreen({super.key});
@@ -85,6 +86,32 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
 
   TextEditingController _createDescriptionController({String text = ''}) {
     return RichTextEditingController(text: text);
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final solutionRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length; i++) {
+      final solution = _solutions[i];
+      final title = solution.titleController.text.trim();
+      final description = solution.descriptionController.text.trim();
+      solutionRows.add([
+        title.isEmpty ? 'Solution ${i + 1}' : title,
+        description.isEmpty ? 'No description provided.' : description,
+      ]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Potential Solutions',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Solutions',
+          headers: ['Title', 'Description'],
+          rows: solutionRows,
+        ),
+      ],
+    );
   }
 
   @override
@@ -392,7 +419,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
             Column(
               children: [
                 // Top Header
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
                 Expanded(
                   child: Row(
                     children: [

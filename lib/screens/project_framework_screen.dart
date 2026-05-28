@@ -23,6 +23,8 @@ import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 class _Tokens {
@@ -554,6 +556,16 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
           children: [
             // ── Sticky TopAppBar ──
             _MobileTopBar(),
+            // ── Action Buttons Row ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                ],
+              ),
+            ),
             // ── Scrollable Content ──
             Expanded(
               child: ScrollIndicatorOverlay(
@@ -686,7 +698,10 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── Desktop Header Bar ──
-                      _DesktopHeaderBar(),
+                      PlanningPhaseHeader(
+                        title: 'Project Details',
+                        showImportButton: false,
+                        showContentButton: false, onExportPdf: _exportPdf),
                       Expanded(
                         child: ScrollIndicatorOverlay(
                           controller: _mainContentScrollController,
@@ -826,6 +841,21 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
       return _buildMobileLayout();
     }
     return _buildDesktopLayout();
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Framework',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_framework_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 
@@ -973,49 +1003,6 @@ class _MobileTopBar extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// DESKTOP HEADER BAR
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _DesktopHeaderBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: _Tokens.surfaceBright,
-        border: Border(
-          bottom: BorderSide(color: _Tokens.surfaceContainer, width: 1),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      child: const Row(
-        children: [
-          Text(
-            'Planning Phase',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: _Tokens.onSurfaceVariant,
-            ),
-          ),
-          SizedBox(width: 6),
-          Icon(Icons.chevron_right, size: 16,
-              color: _Tokens.outlineVariant),
-          SizedBox(width: 6),
-          Text(
-            'Project Details',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: _Tokens.onSurface,
             ),
           ),
         ],

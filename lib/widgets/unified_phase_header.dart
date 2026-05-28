@@ -7,6 +7,7 @@ import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/services/auth_nav.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
@@ -289,12 +290,12 @@ class UnifiedPhaseHeader extends StatelessWidget {
               label: 'Export PDF',
               onTap: onExportPdf ??
                   () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content:
-                            Text('Export PDF coming soon for this section.'),
-                        duration: Duration(seconds: 2),
-                      ),
+                    PdfExportHelper.exportScreenPdf(
+                      context: context,
+                      screenTitle: title,
+                      sections: [
+                        PdfSection.text(title, 'Project section export from Ndu Project.'),
+                      ],
                     );
                   },
             ),

@@ -17,6 +17,7 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class StakeholderAlignmentScreen extends StatefulWidget {
   const StakeholderAlignmentScreen({super.key});
 
@@ -174,12 +175,11 @@ class _StakeholderAlignmentScreenState
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
-                        const PlanningPhaseHeader(
+                        PlanningPhaseHeader(
             title: 'Stakeholder Alignment',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
           _buildPageHeader(context),
                         const SizedBox(height: 20),
@@ -591,6 +591,21 @@ class _StakeholderAlignmentScreenState
       nextLabel: 'Next: Update Ops & Maintenance Plans',
       onBack: () => ScopeTrackingImplementationScreen.open(context),
       onNext: () => UpdateOpsMaintenancePlansScreen.open(context),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Stakeholder Alignment',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_stakeholder_alignment_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

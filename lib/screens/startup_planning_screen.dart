@@ -5,18 +5,19 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
-class StartUpPlanningScreen extends StatelessWidget {
+class StartUpPlanningScreen extends StatefulWidget {
   const StartUpPlanningScreen({super.key});
 
-  static void open(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const StartUpPlanningScreen()),
-    );
-  }
+  @override
+  State<StartUpPlanningScreen> createState() => _StartUpPlanningScreenState();
+}
 
+class _StartUpPlanningScreenState extends State<StartUpPlanningScreen> {
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
@@ -53,15 +54,14 @@ class StartUpPlanningScreen extends StatelessWidget {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            UnifiedPhaseHeader(
+                            PlanningPhaseHeader(
                               title: 'Start-Up Planning',
                               breadcrumbPhase: 'Planning Phase',
                               breadcrumbTitle: 'Startup Planning',
-                              onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+                              onBack: () => PlanningPhaseNavigation.goToPrevious(
                                 context,
                                 'startup_planning',
-                              ),
-                            ),
+                              ), onExportPdf: _exportPdf),
                             const SizedBox(height: 12),
                             const Text(
                               'Plan readiness, go-live criteria, and transition activities.',
@@ -136,8 +136,25 @@ class StartUpPlanningScreen extends StatelessWidget {
         ),
       ),
     );
+  
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Startup Planning',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_startup_planning_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
+
 
 class _ReadinessRow extends StatelessWidget {
   const _ReadinessRow();

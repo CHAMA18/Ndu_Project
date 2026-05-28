@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kMuted = Color(0xFF6B7280);
 const Color _kHeadline = Color(0xFF111827);
@@ -252,8 +253,7 @@ class _AgileBacklogGovernanceScreenState
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'agile_backlog_governance'),
                           onForward: () => PlanningPhaseNavigation.goToNext(
-                              context, 'agile_backlog_governance'),
-                        ),
+                              context, 'agile_backlog_governance'), onExportPdf: _exportPdf),
                         const SizedBox(height: 32),
                         Row(
                           children: [
@@ -345,6 +345,21 @@ class _AgileBacklogGovernanceScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Backlog Governance',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_backlog_governance_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

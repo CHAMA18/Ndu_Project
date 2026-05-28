@@ -25,6 +25,7 @@ import 'package:ndu_project/widgets/work_package_dialog.dart';
 import 'package:ndu_project/widgets/work_package_detail.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
 
@@ -2412,8 +2413,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             'schedule',
                           ),
                           showImportButton: false,
-                          showContentButton: false,
-                        ),
+                          showContentButton: false, onExportPdf: _exportPdf),
                         const SizedBox(height: 16),
                         _NotesCard(
                           controller: _notesController,
@@ -2684,6 +2684,21 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Schedule',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_schedule_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

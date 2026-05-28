@@ -20,6 +20,7 @@ import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kSurfaceBackground = Color(0xFFFCFCFC);
 const Color _kAccentColor = Color(0xFFFFC107);
 const Color _kPrimaryText = Color(0xFF212529);
@@ -194,7 +195,22 @@ class _WorkBreakdownStructureBodyState
     });
   }
 
-  void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Work Breakdown Structure',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
     for (int i = 0; i < goalWorkItems.length; i++) {
       if (goalWorkItems[i].isNotEmpty) {
         final goalTitle =
@@ -1846,7 +1862,7 @@ class _WorkBreakdownStructureBodyState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const FrontEndPlanningHeader(title: 'Work Breakdown Structure'),
+          FrontEndPlanningHeader(title: 'Work Breakdown Structure', onExportPdf: _exportPdf),
           _buildBreadcrumbsAndTitle(),
           _buildInfoBanner(),
           Expanded(

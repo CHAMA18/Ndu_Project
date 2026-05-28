@@ -10,6 +10,22 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
+Future<void> _exportInterfaceManagementPlanPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Interface Management Plan',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_interface_management_plan_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
+
 class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
   const ExecutionPlanInterfaceManagementPlanScreen({super.key});
 
@@ -36,7 +52,7 @@ class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ExecutionPlanHeader(
-                onBack: () => Navigator.maybePop(context)),
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportInterfaceManagementPlanPdf(context)),
             const SizedBox(height: 32),
             const SectionIntro(
                 title: 'Execution Interface Management Plan'),
@@ -71,6 +87,20 @@ class _InterfaceManagementPlanForm extends StatefulWidget {
 
 class _InterfaceManagementPlanFormState
     extends State<_InterfaceManagementPlanForm> {
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Interface Management Plan',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['execution_plan_interface_management_plan_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+
   final _responsibilityMatrixController = TextEditingController();
   final _escalationProceduresController = TextEditingController();
   final _coordinationMeetingsController = TextEditingController();

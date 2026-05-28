@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/team_meetings_resource_grid.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart' as launch;
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class TeamMeetingsScreen extends StatefulWidget {
   const TeamMeetingsScreen({super.key});
@@ -229,12 +231,11 @@ class _TeamMeetingsScreenState extends State<TeamMeetingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Team Meetings',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
             if (_loading)
               const Center(
@@ -369,5 +370,20 @@ class _TeamMeetingsScreenState extends State<TeamMeetingsScreen> {
       setState(() => _decisionsOutcomes[index] = entry);
       _autoSave();
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Team Meetings',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_team_meetings_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }

@@ -25,6 +25,7 @@ import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning - Project Requirements page
 /// Implements the layout from the provided screenshot exactly:
 /// - Top notes field
@@ -93,7 +94,22 @@ class _FrontEndPlanningRequirementsScreenState
     });
   }
 
-  _RequirementRow _createRow(int number, {bool expanded = false}) {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Requirements',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+_RequirementRow _createRow(int number, {bool expanded = false}) {
     return _RequirementRow(
       number: number,
       onChanged: _scheduleAutoSave,
@@ -639,7 +655,7 @@ class _FrontEndPlanningRequirementsScreenState
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: Column(
                           children: [

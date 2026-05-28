@@ -24,6 +24,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/requirements_traceability_dashboard.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class RequirementsImplementationScreen extends StatefulWidget {
   const RequirementsImplementationScreen({super.key});
@@ -712,11 +714,10 @@ class _RequirementsImplementationScreenState
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
-            title: 'Design Specifications',
+          PlanningPhaseHeader(
+            title: 'Requirements Implementation',
             showImportButton: false,
-            showContentButton: false,
-          ),
+            showContentButton: false, onExportPdf: _exportPdf),
           if (_isLoading)
             const LinearProgressIndicator(
               minHeight: 2,
@@ -3433,6 +3434,21 @@ class _RequirementsImplementationScreenState
       case ChecklistStatus.pending:
         return 'Pending';
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Requirements Implementation',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_requirements_implementation_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

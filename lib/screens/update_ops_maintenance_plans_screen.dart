@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class UpdateOpsMaintenancePlansScreen extends StatefulWidget {
   const UpdateOpsMaintenancePlansScreen({super.key});
 
@@ -61,7 +63,21 @@ class _UpdateOpsMaintenancePlansScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Update Ops & Maintenance Plans',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['update_ops_maintenance_plans_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _saveDebouncer.dispose();
     super.dispose();
@@ -374,12 +390,11 @@ class _UpdateOpsMaintenancePlansScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Update Ops and Maintenance Plans',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 32),
           _buildSectionIntro(),
           const SizedBox(height: 28),

@@ -14,6 +14,8 @@ import 'package:ndu_project/models/project_data_model.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ProjectPlanScreen extends StatefulWidget {
   const ProjectPlanScreen({super.key});
 
@@ -226,6 +228,15 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(
+                          title: 'Project Plan Overview',
+                          showImportButton: false,
+                          showContentButton: false,
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
+                              context, 'project_plan'),
+                          onForward: () => PlanningPhaseNavigation.goToNext(
+                              context, 'project_plan'), onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _buildHeader(isMobile),
                         const SizedBox(height: 24),
                         const PlanningAiNotesCard(
@@ -361,6 +372,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
                 const SizedBox(width: 32),
                 _buildProjectDropdown(),
                 const Spacer(),
+                const SizedBox(width: 10),
                 _buildStatusBadges(),
                 const SizedBox(width: 10),
                 _buildEditPlanButton(),
@@ -2270,6 +2282,21 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
               ),
             ],
           ),
+      ],
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Plan',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_plan_notes'] ?? 'No data recorded.'),
       ],
     );
   }

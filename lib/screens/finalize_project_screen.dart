@@ -7,11 +7,13 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class FinalizeProjectScreen extends StatefulWidget {
   const FinalizeProjectScreen({super.key});
 
@@ -75,7 +77,21 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Finalize Project',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['finalize_project_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _summaryTitleController.dispose();
     _summaryDescriptionController.dispose();
@@ -289,6 +305,8 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              PlanningPhaseHeader(title: 'Finalize Project', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                              const SizedBox(height: 16),
                               _buildOverviewCards(),
                               const SizedBox(height: 24),
                               if (_isLoading)

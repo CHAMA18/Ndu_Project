@@ -11,8 +11,10 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ProjectDecisionSummaryScreen extends StatefulWidget {
   final String projectName;
   final AiSolutionItem selectedSolution;
@@ -844,6 +846,8 @@ class _ProjectDecisionSummaryScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          PlanningPhaseHeader(title: 'Project Decision Summary', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+          const SizedBox(height: 16),
           const Text(
             'Preferred Solution Selection',
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
@@ -1333,6 +1337,21 @@ class _ProjectDecisionSummaryScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Decision Summary',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_decision_summary_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

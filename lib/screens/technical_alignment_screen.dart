@@ -27,6 +27,7 @@ import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 const double _technicalAlignmentActionColumnWidth = 112;
 const double _technicalAlignmentActionButtonSize = 32;
@@ -597,12 +598,11 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Technical Alignment',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           if (_isLoading) const LinearProgressIndicator(minHeight: 2),
           Expanded(
             child: SingleChildScrollView(
@@ -4749,6 +4749,21 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Technical Alignment',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_technical_alignment_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

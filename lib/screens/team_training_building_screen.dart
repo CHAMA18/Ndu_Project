@@ -12,6 +12,7 @@ import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/premium_edit_dialog.dart';
@@ -22,6 +23,7 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class TeamTrainingAndBuildingScreen extends StatefulWidget {
   const TeamTrainingAndBuildingScreen({super.key});
@@ -108,15 +110,14 @@ class _TeamTrainingAndBuildingScreenState
     final isMobile = AppBreakpoints.isMobile(context);
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
 
-    final header = UnifiedPhaseHeader(
-      title: 'Team Training and Team Building',
+    final header = PlanningPhaseHeader(
+      title: 'Training & Team Building',
       breadcrumbPhase: 'Planning Phase',
       breadcrumbTitle: 'Team Training',
-      onBackPressed: () =>
+      onBack: () =>
           PlanningPhaseNavigation.goToPrevious(context, 'team_training'),
-      onForwardPressed: () =>
-          PlanningPhaseNavigation.goToNext(context, 'team_training'),
-    );
+      onForward: () =>
+          PlanningPhaseNavigation.goToNext(context, 'team_training'), onExportPdf: _exportPdf);
 
     // --- Mobile layout ---
     if (isMobile) {
@@ -2115,6 +2116,21 @@ $notesText
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Team Training & Building',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_team_training_building_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

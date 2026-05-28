@@ -10,12 +10,14 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'dart:math' as math;
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class RiskAssessmentScreen extends StatefulWidget {
   const RiskAssessmentScreen({super.key});
@@ -377,15 +379,14 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          UnifiedPhaseHeader(
-            title: 'Risk Mitigation',
+          PlanningPhaseHeader(
+            title: 'Risk Assessment',
             breadcrumbPhase: 'Planning Phase',
             breadcrumbTitle: 'Risk Assessment',
-            onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+            onBack: () => PlanningPhaseNavigation.goToPrevious(
                 context, 'risk_assessment'),
-            onForwardPressed: () =>
-                PlanningPhaseNavigation.goToNext(context, 'risk_assessment'),
-          ),
+            onForward: () =>
+                PlanningPhaseNavigation.goToNext(context, 'risk_assessment'), onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -752,6 +753,21 @@ class _RiskAssessmentScreenState extends State<RiskAssessmentScreen> {
         setState(() => _regeneratingMitigationIds.remove(entry.docId));
       }
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Risk Assessment',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_risk_assessment_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

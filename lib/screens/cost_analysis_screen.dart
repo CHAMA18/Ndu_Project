@@ -42,6 +42,7 @@ import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class CostAnalysisScreen extends StatefulWidget {
   final String notes;
@@ -273,6 +274,44 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       TextEditingController(text: '10');
   bool _isSavingsGenerating = false;
   String? _savingsError;
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final sections = <PdfSection>[
+      PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+      PdfSection.keyValue('Configuration', [
+        {'Currency': _currency},
+        {'NPV Horizon': '$_npvHorizon years'},
+        {'Discount Rate': '${(_discountRate * 100).toStringAsFixed(0)}%'},
+        if (_basisFrequency != null) {'Basis Frequency': _basisFrequency!},
+      ]),
+    ];
+    for (int i = 0; i < _rowsPerSolution.length; i++) {
+      final solutionTitle = _solutionTitle(i);
+      final costRows = _rowsPerSolution[i];
+      final tableRows = <List<String>>[];
+      for (final row in costRows) {
+        final itemName = row.itemController.text.trim();
+        final cost = row.costController.text.trim();
+        if (itemName.isNotEmpty || cost.isNotEmpty) {
+          tableRows.add([
+            itemName.isEmpty ? 'N/A' : itemName,
+            cost.isEmpty ? 'N/A' : cost,
+          ]);
+        }
+      }
+      sections.add(PdfSection.table(
+        'Cost Estimate - $solutionTitle',
+        headers: ['Item', 'Cost ($_currency)'],
+        rows: tableRows,
+      ));
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Cost Benefit Analysis',
+      sections: sections,
+    );
+  }
 
   @override
   void initState() {
@@ -1243,7 +1282,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           child: Stack(
             children: [
               Column(children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
                 Expanded(
                     child: Row(children: [
                   DraggableSidebar(

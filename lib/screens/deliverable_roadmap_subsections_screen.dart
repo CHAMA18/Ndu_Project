@@ -14,6 +14,9 @@ import '../widgets/launch_phase_navigation.dart';
 import '../utils/planning_phase_navigation.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/user_service.dart';
+import '../widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kHeadline = Color(0xFF111827);
@@ -194,6 +197,8 @@ class _DeliverableRoadmapAgileMapOutScreenState
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            PlanningPhaseHeader(title: 'Agile Map Out', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                            const SizedBox(height: 16),
                             _TopHeader(
                               onBack: () =>
                                   PlanningPhaseNavigation.goToPrevious(context,
@@ -403,6 +408,21 @@ class _DeliverableRoadmapAgileMapOutScreenState
             ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Deliverable Roadmap Subsections',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_deliverable_roadmap_subsections_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 // ── Data classes ─────────────────────────────────────────────
@@ -464,6 +484,7 @@ class _TopHeader extends StatelessWidget {
             style: TextStyle(
                 fontSize: 22, fontWeight: FontWeight.w700, color: _kHeadline)),
         const Spacer(),
+        const SizedBox(width: 12),
         const _UserChip(),
       ],
     );

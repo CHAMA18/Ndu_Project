@@ -11,6 +11,23 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+
+Future<void> _exportInfrastructurePlanPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Infrastructure Plan',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_infrastructure_plan_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
+
 class ExecutionPlanInfrastructurePlanScreen extends StatelessWidget {
   const ExecutionPlanInfrastructurePlanScreen({super.key});
 
@@ -40,8 +57,7 @@ class ExecutionPlanInfrastructurePlanScreen extends StatelessWidget {
               onBack: () => PlanningPhaseNavigation.goToPrevious(
                   context, 'execution_plan_infrastructure_plan'),
               onNext: () => PlanningPhaseNavigation.goToNext(
-                  context, 'execution_plan_infrastructure_plan'),
-            ),
+                  context, 'execution_plan_infrastructure_plan'), onExportPdf: () => _exportInfrastructurePlanPdf(context)),
             const SizedBox(height: 32),
             const SectionIntro(
                 title: 'Execution Plan - Infrastructure Plan'),
@@ -166,6 +182,20 @@ class _PlanningInfrastructureCostSection extends StatefulWidget {
 
 class _PlanningInfrastructureCostSectionState
     extends State<_PlanningInfrastructureCostSection> {
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Infrastructure Plan',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['execution_plan_infrastructure_plan_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+
   Future<void> _editItem({
     InfrastructurePlanningItem? existing,
   }) async {

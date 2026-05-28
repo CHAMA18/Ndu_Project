@@ -14,6 +14,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -170,8 +172,7 @@ class _AgileSprintCalendarScreenState
                       onBack: () => PlanningPhaseNavigation.goToPrevious(
                           context, 'agile_sprint_calendar'),
                       onForward: () => PlanningPhaseNavigation.goToNext(
-                          context, 'agile_sprint_calendar'),
-                    ),
+                          context, 'agile_sprint_calendar'), onExportPdf: _exportPdf),
                     const SizedBox(height: 32),
                     Text('Define sprint duration, dates, and ceremony schedule.',
                         style: TextStyle(fontSize: 15, color: _kMuted)),
@@ -336,6 +337,21 @@ class _AgileSprintCalendarScreenState
       child: Center(
         child: Text(message, style: TextStyle(color: _kMuted, fontSize: 15)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Sprint Calendar',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_sprint_calendar_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

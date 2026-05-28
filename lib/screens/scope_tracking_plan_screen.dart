@@ -17,8 +17,10 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/scope_tracking_table_widget.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum _ScopeTab { overview, registry, traceability, baseline }
 
 const List<String> _tabLabels = [
@@ -311,6 +313,8 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Scope Tracking Plan', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _ScopeTrackingHeader(
                           onBack: () =>
                               PlanningPhaseNavigation.goToPrevious(
@@ -1164,6 +1168,21 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
     if (items != null) walk(items);
     return result;
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Scope Tracking Plan',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_scope_tracking_plan_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _ScopeMetricData {
@@ -1467,6 +1486,7 @@ class _ScopeTrackingHeader extends StatelessWidget {
                 ),
               ),
             ),
+          const SizedBox(width: 8),
           const _PlanStatusPill(label: 'Active'),
         ],
       ),

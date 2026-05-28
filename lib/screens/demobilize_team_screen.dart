@@ -71,12 +71,11 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Demobilize Team',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
             Row(
               children: [

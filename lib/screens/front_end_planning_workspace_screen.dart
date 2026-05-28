@@ -19,6 +19,7 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Details (Scope, Assumptions, Constraints)
 ///
 /// TODO: These sections NEED to be auto-generated using AI based on initial
@@ -251,7 +252,22 @@ class _FrontEndPlanningWorkspaceScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Front End Planning Workspace',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _contentScrollController.dispose();
     _notesController.dispose();
@@ -428,7 +444,7 @@ class _FrontEndPlanningWorkspaceScreenState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const FrontEndPlanningHeader(),
+                          FrontEndPlanningHeader(onExportPdf: _exportPdf),
                           const SizedBox(height: 24),
 
                           // Structured Cards Grid/Column

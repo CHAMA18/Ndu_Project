@@ -39,6 +39,7 @@ import 'package:ndu_project/widgets/solution_detail_section.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class PreferredSolutionAnalysisScreen extends StatefulWidget {
   final String notes;
@@ -461,6 +462,62 @@ class _PreferredSolutionAnalysisScreenState
     });
   }
 
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final sections = <PdfSection>[
+      PdfSection.text('Working Notes', notes.isEmpty ? 'No data recorded.' : notes),
+    ];
+    if (_selectedSolutionIndex != null &&
+        _selectedSolutionIndex! < _analysis.length) {
+      sections.add(PdfSection.keyValue('Selected Solution', [
+        {'Solution': _analysis[_selectedSolutionIndex!].solution.title},
+      ]));
+    }
+    for (int i = 0; i < _analysis.length; i++) {
+      final a = _analysis[i];
+      final label = a.solution.title.trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : a.solution.title.trim();
+      final rows = <List<String>>[];
+      if (a.stakeholders.isNotEmpty) {
+        for (final s in a.stakeholders) {
+          rows.add(['Stakeholder', s]);
+        }
+      }
+      if (a.risks.isNotEmpty) {
+        for (final r in a.risks) {
+          rows.add(['Risk', r]);
+        }
+      }
+      if (a.technologies.isNotEmpty) {
+        for (final t in a.technologies) {
+          rows.add(['Technology', t]);
+        }
+      }
+      if (a.infrastructure.isNotEmpty) {
+        for (final inf in a.infrastructure) {
+          rows.add(['Infrastructure', inf]);
+        }
+      }
+      if (a.costs.isNotEmpty) {
+        for (final c in a.costs) {
+          rows.add(['Cost: ${c.item}',
+            '${c.estimatedCost > 0 ? c.estimatedCost : "N/A"}']);
+        }
+      }
+      sections.add(PdfSection.table(
+        label,
+        headers: ['Category', 'Detail'],
+        rows: rows.isEmpty ? [] : rows,
+      ));
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Preferred Solution Analysis',
+      sections: sections,
+    );
+  }
+
   static List<String> _lines(String s) {
     if (s.trim().isEmpty) return [];
     return s
@@ -566,7 +623,7 @@ class _PreferredSolutionAnalysisScreenState
         child: Stack(
           children: [
             Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(

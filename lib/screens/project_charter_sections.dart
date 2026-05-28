@@ -123,7 +123,7 @@ class CharterHeroHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top row: Label + Regenerate button
+        // Top row: Label + Export PDF + AI Assist + Regenerate button
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -136,12 +136,19 @@ class CharterHeroHeader extends StatelessWidget {
                 letterSpacing: 1.2,
               ),
             ),
-            if (onRegenerateAll != null)
-              PageRegenerateAllButton(
-                onRegenerateAll: onRegenerateAll!,
-                isLoading: isLoading,
-                tooltip: 'Regenerate all charter content',
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onRegenerateAll != null) ...[
+                  const SizedBox(width: 8),
+                  PageRegenerateAllButton(
+                    onRegenerateAll: onRegenerateAll!,
+                    isLoading: isLoading,
+                    tooltip: 'Regenerate all charter content',
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
         const SizedBox(height: 8),

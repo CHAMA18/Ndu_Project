@@ -14,6 +14,8 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 enum _TechnologyTab {
   inventory('Technology Inventory'),
   aiIntegrations('AI Integrations'),
@@ -946,8 +948,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                                     PlanningPhaseNavigation.goToNext(
                                   context,
                                   'technology',
-                                ),
-                              ),
+                                ), onExportPdf: _exportPdf),
                               const SizedBox(height: 18),
                               _buildTopMetrics(),
                               const SizedBox(height: 14),
@@ -1484,6 +1485,21 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
           );
         }),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Planning Technology',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_technology_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

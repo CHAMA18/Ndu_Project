@@ -17,8 +17,10 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class PlanningRequirementsScreen extends StatefulWidget {
   const PlanningRequirementsScreen({super.key});
 
@@ -1105,6 +1107,8 @@ $requirementsList
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    PlanningPhaseHeader(title: 'Requirements', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                                    const SizedBox(height: 16),
                                     _roundedField(
                                       controller: _notesController,
                                       hint: 'Input your notes here...',
@@ -1298,6 +1302,7 @@ $requirementsList
             ),
           ),
           const Spacer(),
+          const SizedBox(width: 12),
           Row(
             children: [
               CircleAvatar(
@@ -1555,6 +1560,21 @@ $requirementsList
         ),
         style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Planning Requirements',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_requirements_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

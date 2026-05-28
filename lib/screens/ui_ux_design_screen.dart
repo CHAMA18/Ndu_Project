@@ -20,6 +20,8 @@ import 'package:ndu_project/screens/development_set_up_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/utils/design_planning_document.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class UiUxDesignScreen extends StatefulWidget {
   const UiUxDesignScreen({super.key});
@@ -127,7 +129,21 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'UI/UX Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['ui_ux_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _saveDebouncer.dispose();
     super.dispose();
@@ -534,12 +550,11 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'UI/UX Design',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),

@@ -21,6 +21,8 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/screens/planning_procurement_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 const Color _kBrandYellow = Color(0xFFFFC812);
 const Color _kFabYellow = Color(0xFFFBBF24);
@@ -149,6 +151,8 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              PlanningPhaseHeader(title: 'Contracting', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                              const SizedBox(height: 16),
                               _BuildHeader(
                                 onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'contracts'),
                                 onForward: () => PlanningPhaseNavigation.goToNext(context, 'contracts'),
@@ -232,6 +236,21 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
       MaterialPageRoute(builder: (_) => const PlanningProcurementScreen()),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Planning Contracting',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_contracting_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _BuildHeader extends StatelessWidget {
@@ -254,6 +273,7 @@ class _BuildHeader extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF111827))),
         const Spacer(),
+        const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: onProcurement,
           icon: const Icon(Icons.inventory_2_outlined, size: 16),

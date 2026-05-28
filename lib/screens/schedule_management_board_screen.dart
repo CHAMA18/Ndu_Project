@@ -5,100 +5,75 @@ import '../widgets/responsive.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 const String _currencySymbol = r'$';
 
-class ScheduleManagementBoardScreen extends StatelessWidget {
+class ScheduleManagementBoardScreen extends StatefulWidget {
   const ScheduleManagementBoardScreen({super.key});
 
-  static const List<_ScheduleColumnData> _columns = [
+  @override
+  State<ScheduleManagementBoardScreen> createState() => _ScheduleManagementBoardScreenState();
+}
+
+class _ScheduleManagementBoardScreenState extends State<ScheduleManagementBoardScreen> {
+  static const _metricSummary = <_MetricChip>[
+    _MetricChip('Total Tasks', '24'),
+    _MetricChip('In Progress', '8'),
+    _MetricChip('Completed', '12'),
+    _MetricChip('Critical', '2'),
+  ];
+
+  static const _columns = <_ScheduleColumnData>[
     _ScheduleColumnData(
       title: 'To Do',
-      count: 3,
-      background: Color(0xFFF5F7FE),
+      count: 4,
+      background: Color(0xFFF3F4F6),
       cards: [
         _ScheduleCardData(
-          title: 'Frontend Setup',
-          tags: ['medium', 'Technology'],
-          assignee: 'Mike Johnson',
-          dueDate: 'Due Jul 01',
-          estimatedHours: '80.00h estimated',
-          status: _CardStatus.inProgress,
-          progressPercent: 0.3,
-        ),
-        _ScheduleCardData(
-          title: 'UI/UX Design Implementation',
-          tags: ['progress', 'Design'],
-          assignee: 'Jane Smith',
-          dueDate: 'Due Aug 15',
-          estimatedHours: '90.00h estimated',
+          title: 'Design Review',
+          tags: ['Design', 'Pending'],
+          assignee: 'Alex Kim',
+          dueDate: 'Mar 15',
+          estimatedHours: '16h',
           status: _CardStatus.pending,
-          progressPercent: 0.0,
-        ),
-        _ScheduleCardData(
-          title: 'System Testing',
-          tags: ['high', 'Quality'],
-          assignee: 'MJ',
-          dueDate: 'Due Nov 01',
-          estimatedHours: '100.00h estimated',
-          status: _CardStatus.critical,
           progressPercent: 0.0,
         ),
       ],
     ),
     _ScheduleColumnData(
       title: 'In Progress',
-      count: 2,
-      background: Color(0xFFEAF4FF),
+      count: 3,
+      background: Color(0xFFEFF6FF),
       cards: [
         _ScheduleCardData(
-          title: 'API Development',
-          tags: ['high', 'Technology'],
-          assignee: 'Jane Smith',
-          dueDate: 'Due Apr 01',
-          estimatedHours: '200.00h estimated',
-          status: _CardStatus.inProgress,
-          progressPercent: 0.45,
-        ),
-        _ScheduleCardData(
-          title: 'Core Integration (Critical)',
-          tags: ['critical', 'Technology'],
-          assignee: 'John Doe',
-          dueDate: 'Due Jan 10',
-          estimatedHours: '160.00h estimated',
+          title: 'Foundation Systems',
+          tags: ['Critical', 'In Progress'],
+          assignee: 'Jordan Lee',
+          dueDate: 'Mar 10',
+          estimatedHours: '40h',
           status: _CardStatus.critical,
-          progressPercent: 0.3,
+          progressPercent: 0.45,
         ),
       ],
     ),
     _ScheduleColumnData(
       title: 'Done',
-      count: 1,
-      background: Color(0xFFE9F9F2),
+      count: 5,
+      background: Color(0xFFF0FDF4),
       cards: [
         _ScheduleCardData(
-          title: 'Backend Infrastructure Setup',
-          tags: ['high', 'Technology'],
-          assignee: 'John Doe',
-          dueDate: 'Due Feb 15',
-          estimatedHours: '120.00h estimated',
+          title: 'Site Preparation',
+          tags: ['Completed'],
+          assignee: 'Sam Park',
+          dueDate: 'Feb 28',
+          estimatedHours: '32h',
           status: _CardStatus.completed,
           progressPercent: 1.0,
         ),
       ],
     ),
-    _ScheduleColumnData(
-      title: 'Overdue',
-      count: 0,
-      background: Color(0xFFFDECF1),
-      cards: [],
-    ),
-  ];
-
-  static const List<_MetricChip> _metricSummary = [
-    _MetricChip('Project Cost', '${_currencySymbol}235,000'),
-    _MetricChip('Tasks', '120 tasks'),
-    _MetricChip('Team Effort', '1800 hrs'),
-    _MetricChip('Critical Path', 'Active'),
   ];
 
   @override
@@ -120,6 +95,11 @@ class ScheduleManagementBoardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  PlanningPhaseHeader(
+                    title: 'Schedule',
+                    showImportButton: false,
+                    showContentButton: false, onExportPdf: _exportPdf),
+                  const SizedBox(height: 16),
                   _PageHeader(isMobile: isMobile),
                   const SizedBox(height: 24),
                   _NotesArea(isMobile: isMobile),
@@ -140,8 +120,25 @@ class ScheduleManagementBoardScreen extends StatelessWidget {
         ),
       ),
     );
+  
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Schedule Management Board',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_schedule_management_board_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
+
 
 class _PageHeader extends StatelessWidget {
   const _PageHeader({required this.isMobile});
@@ -171,6 +168,13 @@ class _PageHeader extends StatelessWidget {
           title,
           const SizedBox(height: 12),
           chips,
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+            ],
+          ),
         ],
       );
     }
@@ -179,6 +183,7 @@ class _PageHeader extends StatelessWidget {
       children: [
         Expanded(child: title),
         chips,
+        const SizedBox(width: 12),
       ],
     );
   }

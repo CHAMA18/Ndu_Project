@@ -17,6 +17,8 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics }
 
 const _dateHint = 'Select date';
@@ -399,6 +401,8 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    PlanningPhaseHeader(title: 'Quality Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                    const SizedBox(height: 16),
                     // Hamburger + title row for mobile
                     Row(
                       children: [
@@ -480,6 +484,8 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Quality Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         const _PageHeader(),
                         const SizedBox(height: 24),
                         const PlanningAiNotesCard(
@@ -523,6 +529,21 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Quality Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_quality_management_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _PageHeader extends StatelessWidget {
@@ -530,25 +551,37 @@ class _PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Quality Management',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'Manage quality standards, objectives, QA/QC workflows, audits, and corrective actions',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF6B7280),
-          ),
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Quality Management',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Manage quality standards, objectives, QA/QC workflows, audits, and corrective actions',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+          ],
         ),
       ],
     );

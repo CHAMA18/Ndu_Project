@@ -12,8 +12,10 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class IssueManagementScreen extends StatefulWidget {
   const IssueManagementScreen({super.key});
 
@@ -186,6 +188,8 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Issue Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _TopUtilityBar(
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'issue_management'),
@@ -256,6 +260,21 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Issue Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_issue_management_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _TopUtilityBar extends StatelessWidget {
@@ -293,6 +312,7 @@ class _TopUtilityBar extends StatelessWidget {
                 color: Color(0xFF111827)),
           ),
           const Spacer(),
+          const SizedBox(width: 8),
           const _UserChip(name: '', role: ''),
           const SizedBox(width: 12),
           _YellowButton(label: 'New Issue', onPressed: onAddIssue),

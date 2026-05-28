@@ -10,6 +10,8 @@ import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class RiskTrackingScreen extends StatefulWidget {
   const RiskTrackingScreen({super.key});
 
@@ -300,12 +302,11 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Risk Tracking',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
                         _buildHeader(isNarrow),
             const SizedBox(height: 20),
@@ -2734,6 +2735,21 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Risk Tracking',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_risk_tracking_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
