@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class PunchlistActionsScreen extends StatefulWidget {
   const PunchlistActionsScreen({super.key});
 
@@ -197,12 +198,11 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const PlanningPhaseHeader(
+                        PlanningPhaseHeader(
                           title: 'Punchlist Actions',
                           showImportButton: false,
                           showContentButton: false,
-                          showNavigationButtons: false,
-                        ),
+                          showNavigationButtons: false, onExportPdf: _exportPdf),
                         const SizedBox(height: 16),
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
@@ -2529,6 +2529,21 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Punchlist Actions',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_punchlist_actions_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

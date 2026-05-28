@@ -18,6 +18,8 @@ import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class SpecializedDesignScreen extends StatefulWidget {
   const SpecializedDesignScreen({super.key});
@@ -106,7 +108,21 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Specialized Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['specialized_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _saveDebouncer.dispose();
     super.dispose();
@@ -282,12 +298,11 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Specialized Design',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),

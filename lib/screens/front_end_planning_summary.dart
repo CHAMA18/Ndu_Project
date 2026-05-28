@@ -23,6 +23,7 @@ import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Summary screen
 /// Mirrors the provided layout with shared workspace chrome,
 /// large notes area, summary text panel, and AI hint + Next controls.
@@ -79,7 +80,22 @@ class _FrontEndPlanningSummaryScreenState
     });
   }
 
-  /// Builds the master summary by concatenating Project Vision, Core Stakeholders,
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Front End Planning Summary',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+/// Builds the master summary by concatenating Project Vision, Core Stakeholders,
   /// Business Case, and Selected Preferred Solution
   String _buildMasterSummary(dynamic data) {
     final parts = <String>[];
@@ -194,7 +210,7 @@ class _FrontEndPlanningSummaryScreenState
           const AdminEditToggle(),
           Column(
             children: [
-              const FrontEndPlanningHeader(),
+              FrontEndPlanningHeader(onExportPdf: _exportPdf),
               Expanded(
                 child: ScrollIndicatorOverlay(
                   controller: _contentScrollController,

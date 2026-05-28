@@ -13,6 +13,8 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class ChangeManagementScreen extends StatefulWidget {
   const ChangeManagementScreen({super.key});
@@ -49,6 +51,8 @@ class _ChangeManagementScreenState extends State<ChangeManagementScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          PlanningPhaseHeader(title: 'Change Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                          const SizedBox(height: 16),
                           // Top navigation bar
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -81,6 +85,7 @@ class _ChangeManagementScreenState extends State<ChangeManagementScreen> {
                                       color: Color(0xFF111827)),
                                 ),
                                 const Spacer(),
+                                const SizedBox(width: 8),
                                 _UserChip(userName: userName),
                               ],
                             ),
@@ -197,6 +202,21 @@ class _ChangeManagementScreenState extends State<ChangeManagementScreen> {
         ),
         child: Icon(icon, size: 18, color: const Color(0xFF6B7280)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Change Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_change_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

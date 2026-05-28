@@ -17,6 +17,8 @@ import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 /// ────────────────────────────────────────────────────────────────
 /// Design Specifications Screen
 ///
@@ -228,7 +230,21 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadComponents());
   }
 
-  Future<void> _loadComponents() async {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Detailed Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['detailed_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+Future<void> _loadComponents() async {
     final projectId = _projectId;
     if (projectId == null) return;
 
@@ -375,12 +391,11 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Detailed Design',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 20),
             _buildMethodologySelector(),
             const SizedBox(height: 20),

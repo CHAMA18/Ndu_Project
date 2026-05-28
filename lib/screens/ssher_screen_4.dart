@@ -4,10 +4,18 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
-class SsherScreen4 extends StatelessWidget {
+class SsherScreen4 extends StatefulWidget {
   const SsherScreen4({super.key});
 
+  @override
+  State<SsherScreen4> createState() => _SsherScreen4State();
+}
+
+class _SsherScreen4State extends State<SsherScreen4> {
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
@@ -76,12 +84,11 @@ class SsherScreen4 extends StatelessWidget {
           top: true,
           child: Column(
             children: [
-              UnifiedPhaseHeader(
+              PlanningPhaseHeader(
                 title: 'SSHER',
                 breadcrumbPhase: 'Planning Phase',
                 breadcrumbTitle: 'SSHE Planning',
-                onBackPressed: () => Navigator.maybePop(context),
-              ),
+                onBack: () => Navigator.maybePop(context), onExportPdf: _exportPdf),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
@@ -101,12 +108,11 @@ class SsherScreen4 extends StatelessWidget {
         top: true,
         child: Column(
           children: [
-            UnifiedPhaseHeader(
+            PlanningPhaseHeader(
               title: 'SSHER',
               breadcrumbPhase: 'Planning Phase',
               breadcrumbTitle: 'SSHE Planning',
-              onBackPressed: () => Navigator.maybePop(context),
-            ),
+              onBack: () => Navigator.maybePop(context), onExportPdf: _exportPdf),
             Expanded(
               child: Row(
                 children: [
@@ -129,5 +135,22 @@ class SsherScreen4 extends StatelessWidget {
         ),
       ),
     );
+  
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'SSHER Screen 4',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_ssher_screen_4_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
+

@@ -74,12 +74,11 @@ class _SummarizeAccountRisksScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Project Summary',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
             Row(
               children: [

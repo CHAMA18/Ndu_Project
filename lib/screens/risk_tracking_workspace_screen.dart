@@ -14,6 +14,8 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class RiskTrackingWorkspaceScreen extends StatefulWidget {
   const RiskTrackingWorkspaceScreen({super.key});
 
@@ -409,12 +411,11 @@ class _RiskTrackingWorkspaceScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const PlanningPhaseHeader(
+                  PlanningPhaseHeader(
             title: 'Risk Tracking Workspace',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
                                     _buildHeader(),
                   const SizedBox(height: 24),
@@ -2930,6 +2931,21 @@ class _RiskTrackingWorkspaceScreenState
   void _deleteMitigation(String id) {
     setState(() => _mitigations.removeWhere((m) => m.id == id));
     _saveToFirestore();
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Risk Tracking Workspace',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_risk_tracking_workspace_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

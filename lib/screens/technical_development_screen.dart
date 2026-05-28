@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 
 class TechnicalDevelopmentScreen extends StatefulWidget {
@@ -146,7 +148,21 @@ class _TechnicalDevelopmentScreenState
     _approachController.addListener(_scheduleSave);
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Technical Development',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['technical_development_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _notesController.dispose();
     _approachController.dispose();
@@ -479,12 +495,11 @@ class _TechnicalDevelopmentScreenState
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Technical Development',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),

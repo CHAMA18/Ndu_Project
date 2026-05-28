@@ -7,6 +7,9 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class OperationsControlScreen extends StatefulWidget {
   const OperationsControlScreen({super.key});
@@ -57,6 +60,8 @@ class _OperationsControlScreenState extends State<OperationsControlScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          PlanningPhaseHeader(title: 'Operations Control', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+          const SizedBox(height: 16),
           header('Operations Control Board'),
           const SizedBox(height: 20),
           evmMetricsRow(bac, ev, ac, cpi, cv, eac),
@@ -387,6 +392,21 @@ class _OperationsControlScreenState extends State<OperationsControlScreen> {
             }),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Operations Control',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_operations_control_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

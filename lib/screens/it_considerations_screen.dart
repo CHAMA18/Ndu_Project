@@ -36,6 +36,7 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 enum _MissingItConsiderationsAction { manual, autoFill, skip }
 
@@ -86,6 +87,31 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       newController.enableAutoBullet(); // Enable auto-bullet for new field
       _techControllers.add(newController); // Add a new controller
     });
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final techRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length && i < _techControllers.length; i++) {
+      final title = _solutions[i].title.trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : _solutions[i].title.trim();
+      final tech = _techControllers[i].text.trim();
+      techRows.add([title, tech.isEmpty ? 'No data recorded.' : tech]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'IT Considerations',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        if (techRows.isNotEmpty)
+          PdfSection.table(
+            'Core Technology by Solution',
+            headers: ['Solution', 'Core Technology'],
+            rows: techRows,
+          ),
+      ],
+    );
   }
 
   @override
@@ -306,7 +332,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Stack(
           children: [
             Column(children: [
-              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey)),
+              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf)),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(

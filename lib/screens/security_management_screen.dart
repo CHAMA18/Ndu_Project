@@ -14,6 +14,8 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum _SecurityTab { dashboard, roles, permissions, settings, accessLogs }
 
 class SecurityManagementScreen extends StatefulWidget {
@@ -355,6 +357,8 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Security Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         const _PageHeader(),
                         if (_loadingData) ...[
                           const SizedBox(height: 12),
@@ -411,6 +415,21 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Security Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_security_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 /// Standardized header for all Business Case pages
-/// Displays: back button, "Initiation Phase" title, and user profile
+/// Displays: back button, "Initiation Phase" title, user profile,
+/// and action buttons (Export PDF, AI Assist) matching PlanningPhaseHeader style.
 class BusinessCaseHeader extends StatelessWidget {
   const BusinessCaseHeader({
     super.key,
@@ -10,6 +13,14 @@ class BusinessCaseHeader extends StatelessWidget {
     this.scaffoldKey,
     this.breadcrumbPhase,
     this.breadcrumbTitle,
+    this.showImportButton = true,
+    this.showContentButton = true,
+    this.showExportPdf = true,
+    this.showAiAssist = true,
+    this.onImportPressed,
+    this.onContentPressed,
+    this.onExportPdf,
+    this.onAiAssist,
   });
 
   final VoidCallback? onBackPressed;
@@ -17,14 +28,187 @@ class BusinessCaseHeader extends StatelessWidget {
   final String? breadcrumbPhase;
   final String? breadcrumbTitle;
 
+  /// Show Import button in the action row.
+  final bool showImportButton;
+
+  /// Show Content button in the action row.
+  final bool showContentButton;
+
+  /// Show Export PDF button in the action row.
+  final bool showExportPdf;
+
+  /// Show AI Assist button in the action row.
+  final bool showAiAssist;
+
+  /// Callback for Import button.
+  final VoidCallback? onImportPressed;
+
+  /// Callback for Content button.
+  final VoidCallback? onContentPressed;
+
+  /// Callback for Export PDF button.
+  final VoidCallback? onExportPdf;
+
+  /// Callback for AI Assist button.
+  final VoidCallback? onAiAssist;
+
+  void _defaultExportPdf(BuildContext context) {
+    final title = breadcrumbTitle ?? 'Initiation Phase';
+    PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: title,
+      sections: [
+        PdfSection.text(title, 'Project section export from Ndu Project.'),
+      ],
+    );
+  }
+
+  void _defaultAiAssist(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('AI Assist will generate content for this section.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return UnifiedPhaseHeader(
-      title: 'Initiation Phase',
-      breadcrumbPhase: breadcrumbPhase,
-      breadcrumbTitle: breadcrumbTitle,
-      scaffoldKey: scaffoldKey,
-      onBackPressed: onBackPressed,
+    final isMobile = AppBreakpoints.isMobile(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        UnifiedPhaseHeader(
+          title: 'Initiation Phase',
+          breadcrumbPhase: breadcrumbPhase,
+          breadcrumbTitle: breadcrumbTitle,
+          scaffoldKey: scaffoldKey,
+          onBackPressed: onBackPressed,
+        ),
+        if (showImportButton || showContentButton || showExportPdf || showAiAssist) ...[
+          if (isMobile)
+            const SizedBox(height: 12)
+          else
+            const SizedBox(height: 16),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                if (showImportButton)
+                  _YellowButton(
+                    label: 'Import',
+                    icon: Icons.upload_outlined,
+                    onPressed: onImportPressed ?? () {},
+                  ),
+                if (showContentButton)
+                  _WhiteButton(
+                    label: 'Content',
+                    icon: Icons.download_outlined,
+                    onPressed: onContentPressed ?? () {},
+                  ),
+                if (showExportPdf)
+                  _WhiteButton(
+                    label: 'Export PDF',
+                    icon: Icons.picture_as_pdf_outlined,
+                    onPressed: onExportPdf ?? () => _defaultExportPdf(context),
+                  ),
+                if (showAiAssist)
+                  _AiAssistButton(
+                    label: 'AI Assist',
+                    icon: Icons.auto_awesome,
+                    onPressed: onAiAssist ?? () => _defaultAiAssist(context),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _YellowButton extends StatelessWidget {
+  const _YellowButton(
+      {required this.label, required this.icon, this.onPressed});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFFFD700),
+        foregroundColor: Colors.black87,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _WhiteButton extends StatelessWidget {
+  const _WhiteButton({required this.label, required this.icon, this.onPressed});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _AiAssistButton extends StatelessWidget {
+  const _AiAssistButton(
+      {required this.label, required this.icon, this.onPressed});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4154F1),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

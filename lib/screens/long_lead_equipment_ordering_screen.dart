@@ -11,6 +11,7 @@ import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class LongLeadEquipmentOrderingScreen extends StatefulWidget {
   const LongLeadEquipmentOrderingScreen({super.key});
 
@@ -144,11 +145,10 @@ class _LongLeadEquipmentOrderingScreenState
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Long Lead Equipment Ordering',
             showImportButton: false,
-            showContentButton: false,
-          ),
+            showContentButton: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -984,6 +984,21 @@ class _LongLeadEquipmentOrderingScreenState
               _DeleteCell(onPressed: () => _deleteAction(entry.id)),
             ],
           ),
+      ],
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Long Lead Equipment Ordering',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_long_lead_equipment_ordering_notes'] ?? 'No data recorded.'),
       ],
     );
   }

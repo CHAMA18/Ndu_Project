@@ -8,6 +8,9 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 const Color _kBackground = Color(0xFFF7F8FC);
 const Color _kAccent = Color(0xFFFFC812);
@@ -120,6 +123,15 @@ class _DeliverablesRoadmapOverviewScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          PlanningPhaseHeader(
+            title: 'Roadmap Overview',
+            showImportButton: false,
+            showContentButton: false,
+            onBack: () => PlanningPhaseNavigation.goToPrevious(
+                context, 'deliverables_roadmap_overview'),
+            onForward: () => PlanningPhaseNavigation.goToNext(
+                context, 'deliverables_roadmap_overview'), onExportPdf: _exportPdf),
+          const SizedBox(height: 16),
           _buildHeader(),
           const SizedBox(height: 24),
           if (_statistics != null) _buildStatisticsCards(),
@@ -135,21 +147,32 @@ class _DeliverablesRoadmapOverviewScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Deliverables Roadmap',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: _kHeadline,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Overview of all deliverables across Initiation and Planning phases',
-          style: TextStyle(
-            fontSize: 14,
-            color: _kMuted,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Deliverables Roadmap',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: _kHeadline,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Overview of all deliverables across Initiation and Planning phases',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _kMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -565,6 +588,21 @@ class _DeliverablesRoadmapOverviewScreenState
       case DeliverablePhase.launch:
         return 'Launch';
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Deliverables Roadmap Overview',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_deliverables_roadmap_overview_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

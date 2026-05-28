@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
@@ -13,6 +14,7 @@ import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kAccentColor = Color(0xFFFFC107);
 const Color _kPrimaryText = Color(0xFF1E293B);
 const Color _kSecondaryText = Color(0xFF64748B);
@@ -376,15 +378,14 @@ class _ProjectFrameworkNextScreenState
             Expanded(
               child: Column(
                 children: [
-                  UnifiedPhaseHeader(
-                    title: 'Project Goals & Milestones',
+                  PlanningPhaseHeader(
+                    title: 'Project Details',
                     breadcrumbPhase: 'Planning Phase',
                     breadcrumbTitle: 'Project Framework',
-                    onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+                    onBack: () => PlanningPhaseNavigation.goToPrevious(
                         context, 'project_goals_milestones'),
-                    onForwardPressed: () => PlanningPhaseNavigation.goToNext(
-                        context, 'project_goals_milestones'),
-                  ),
+                    onForward: () => PlanningPhaseNavigation.goToNext(
+                        context, 'project_goals_milestones'), onExportPdf: _exportPdf),
                   Expanded(
                     child: Stack(
                       children: [
@@ -870,6 +871,21 @@ class _ProjectFrameworkNextScreenState
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Framework Next',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_framework_next_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

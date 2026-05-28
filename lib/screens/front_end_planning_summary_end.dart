@@ -9,6 +9,8 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/user_access_chip.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 /// Front End Planning – Summary screen
 /// Mirrors the provided layout with shared workspace chrome,
 /// large notes area, summary text panel, and AI hint + Next controls.
@@ -26,6 +28,21 @@ class FrontEndPlanningSummaryEndScreen extends StatefulWidget {
 }
 
 class _FrontEndPlanningSummaryEndScreenState extends State<FrontEndPlanningSummaryEndScreen> {
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Front End Planning Summary End',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+
   final TextEditingController _notes = TextEditingController();
   final TextEditingController _summaryNotes = TextEditingController();
 
@@ -54,7 +71,7 @@ class _FrontEndPlanningSummaryEndScreenState extends State<FrontEndPlanningSumma
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),

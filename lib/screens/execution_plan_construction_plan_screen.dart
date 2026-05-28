@@ -6,6 +6,23 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+
+
+Future<void> _exportPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Construction Plan',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_construction_plan_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanConstructionPlanScreen extends StatelessWidget {
   const ExecutionPlanConstructionPlanScreen({super.key});
@@ -36,8 +53,7 @@ class ExecutionPlanConstructionPlanScreen extends StatelessWidget {
               onBack: () => PlanningPhaseNavigation.goToPrevious(
                   context, 'execution_plan_construction_plan'),
               onNext: () => PlanningPhaseNavigation.goToNext(
-                  context, 'execution_plan_construction_plan'),
-            ),
+                  context, 'execution_plan_construction_plan'), onExportPdf: () => _exportPdf(context)),
             const SizedBox(height: 32),
             const SectionIntro(
                 title: 'Execution Plan - Construction Plan'),

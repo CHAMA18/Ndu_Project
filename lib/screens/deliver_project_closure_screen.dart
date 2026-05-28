@@ -73,12 +73,11 @@ class _DeliverProjectClosureScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Deliver Project',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             Row(
               children: [
                 const Spacer(),

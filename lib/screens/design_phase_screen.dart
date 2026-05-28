@@ -33,6 +33,7 @@ import 'package:ndu_project/utils/file_upload_helper.dart';
 import 'package:ndu_project/widgets/design_phase_stable_shell.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class DesignPhaseScreen extends StatefulWidget {
   const DesignPhaseScreen(
       {super.key, this.activeItemLabel = 'Design Management'});
@@ -148,7 +149,21 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
     });
   }
 
-  Future<void> _loadProgress(String projectId) async {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Design Phase',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['design_phase_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+Future<void> _loadProgress(String projectId) async {
     try {
       final progress =
           await DesignPhaseService.instance.getDesignProgress(projectId);
@@ -345,11 +360,10 @@ class _DesignPhaseScreenState extends State<DesignPhaseScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
-            title: 'Design Management',
+          PlanningPhaseHeader(
+            title: 'Design Planning',
             showImportButton: false,
-            showContentButton: false,
-          ),
+            showContentButton: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),

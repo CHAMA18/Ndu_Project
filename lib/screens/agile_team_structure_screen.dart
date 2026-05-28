@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -275,8 +276,7 @@ class _AgileTeamStructureScreenState
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'agile_team_structure'),
                           onForward: () => PlanningPhaseNavigation.goToNext(
-                              context, 'agile_team_structure'),
-                        ),
+                              context, 'agile_team_structure'), onExportPdf: _exportPdf),
                         const SizedBox(height: 32),
                         Row(
                           children: [
@@ -506,6 +506,21 @@ class _AgileTeamStructureScreenState
         child: Text(message,
             style: TextStyle(color: _kMuted, fontSize: 15)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Team Structure',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_team_structure_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

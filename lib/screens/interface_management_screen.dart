@@ -17,6 +17,8 @@ import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 // ─── Tab definitions ────────────────────────────────────────────────────────
 
 enum _ImTab {
@@ -112,6 +114,16 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(
+                          title: 'Interface Management',
+                          showImportButton: false,
+                          showContentButton: false,
+                          onBack: () =>
+                              PlanningPhaseNavigation.goToPrevious(
+                                  context, 'interface_management'),
+                          onForward: () => PlanningPhaseNavigation.goToNext(
+                              context, 'interface_management'), onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _TopHeader(
                           onBack: () =>
                               PlanningPhaseNavigation.goToPrevious(
@@ -340,6 +352,21 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Interface Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_interface_management_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 // ─── Top Header ──────────────────────────────────────────────────────────────
@@ -368,6 +395,7 @@ class _TopHeader extends StatelessWidget {
               color: Color(0xFF111827)),
         ),
         const Spacer(),
+        const SizedBox(width: 12),
         const _UserChip(),
       ],
     );

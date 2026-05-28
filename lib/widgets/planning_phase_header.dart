@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
@@ -98,11 +99,12 @@ class PlanningPhaseHeader extends StatelessWidget {
   }
 
   void _defaultExportPdf(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Export PDF coming soon for this section.'),
-        duration: Duration(seconds: 2),
-      ),
+    PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: title,
+      sections: [
+        PdfSection.text(title, 'Project section export from Ndu Project.'),
+      ],
     );
   }
 

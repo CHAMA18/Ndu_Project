@@ -89,12 +89,11 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Project Close Out',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
             Row(
               children: [

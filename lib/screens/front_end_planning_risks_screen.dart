@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Project Risks page
 /// Matches the provided screenshot with:
 /// - Top bar (back/forward, centered title, user chip)
@@ -72,7 +73,22 @@ class _FrontEndPlanningRisksScreenState
     });
   }
 
-  bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Risks',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
 
   Future<void> _triggerAutoRiskGenerationIfMissing() async {
     if (_autoGenerationTriggered || _isGeneratingRequirements || !mounted) {
@@ -1321,7 +1337,7 @@ class _FrontEndPlanningRisksScreenState
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(

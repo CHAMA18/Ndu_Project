@@ -25,6 +25,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart'; // Added for AppBreakpoints
 
 /// Front End Planning – Contracting screen (formerly Contract & Vendor Quotes).
@@ -173,7 +174,22 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Contract & Vendor Quotes',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final projectData = ProjectDataHelper.getData(context);
@@ -5535,8 +5551,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                     children: [
                       FrontEndPlanningHeader(
                         title: 'Contracting',
-                        scaffoldKey: _scaffoldKey,
-                      ),
+                        scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
                       Expanded(
                         child: Stack(
                           children: [

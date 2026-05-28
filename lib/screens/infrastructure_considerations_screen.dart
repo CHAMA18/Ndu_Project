@@ -35,6 +35,7 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 enum _MissingInfrastructureAction { manual, autoFill, skip }
 
@@ -82,6 +83,30 @@ class _InfrastructureConsiderationsScreenState
       _solutions.add(AiSolutionItem(title: '', description: ''));
       _infraControllers.add(RichTextEditingController());
     });
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final infraRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length && i < _infraControllers.length; i++) {
+      final title = _solutions[i].title.trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : _solutions[i].title.trim();
+      final infra = _infraControllers[i].text.trim();
+      infraRows.add([title, infra.isEmpty ? 'No data recorded.' : infra]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Infrastructure Considerations',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Major Infrastructure by Solution',
+          headers: ['Solution', 'Infrastructure'],
+          rows: infraRows,
+        ),
+      ],
+    );
   }
 
   @override
@@ -294,7 +319,7 @@ class _InfrastructureConsiderationsScreenState
         child: Stack(
           children: [
             Column(children: [
-              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey)),
+              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf)),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(

@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 /// Dedicated screen for tracking deliverable status updates across the
 /// execution phase. Follows project management conventions from PMI's PMBOK
@@ -186,12 +188,11 @@ class _DeliverableStatusUpdatesScreenState
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_loading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Deliverable Status Updates',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
             _buildInfoPanel(),
             const SizedBox(height: 20),
@@ -308,6 +309,21 @@ class _DeliverableStatusUpdatesScreenState
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Deliverable Status Updates',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_deliverable_status_updates_notes'] ?? 'No data recorded.'),
       ],
     );
   }

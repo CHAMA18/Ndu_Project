@@ -19,8 +19,10 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/s_curve_chart.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/services/forecast_service.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class CostEstimateScreen extends StatefulWidget {
   const CostEstimateScreen({super.key});
 
@@ -193,6 +195,8 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Cost Estimate', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _TopUtilityBar(
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'cost_estimate'),
@@ -2552,6 +2556,21 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
         return 'forecast';
     }
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Cost Estimate',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_cost_estimate_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _TopUtilityBar extends StatelessWidget {
@@ -2584,6 +2603,7 @@ class _TopUtilityBar extends StatelessWidget {
                 color: Color(0xFF111827)),
           ),
           const Spacer(),
+          const SizedBox(width: 8),
           const _UserChip(name: '', role: ''),
         ],
       ),

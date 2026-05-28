@@ -15,6 +15,8 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/screens/project_charter_sections.dart';
 import 'package:ndu_project/screens/charter_governance_section.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/front_end_planning_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class ProjectCharterScreen extends StatefulWidget {
   const ProjectCharterScreen({super.key});
@@ -55,7 +57,22 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Project Charter',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     super.dispose();
   }
@@ -296,6 +313,9 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          FrontEndPlanningHeader(title: 'Project Charter', onExportPdf: _exportPdf),
+                          const SizedBox(height: 16),
+
                           // ─── 1. Hero Header ───
                           CharterHeroHeader(
                             data: _projectData,

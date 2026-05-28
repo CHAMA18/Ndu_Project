@@ -8,6 +8,8 @@ import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class FrontEndPlanningScreen extends StatefulWidget {
   const FrontEndPlanningScreen({super.key});
@@ -31,7 +33,22 @@ class _FrontEndPlanningScreenState extends State<FrontEndPlanningScreen> {
     });
   }
 
-  // ignore: unused_element
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Project Summary',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+// ignore: unused_element
   static void open(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const FrontEndPlanningScreen()),
@@ -49,7 +66,7 @@ class _FrontEndPlanningScreenState extends State<FrontEndPlanningScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const FrontEndPlanningHeader(title: 'Project Summary'),
+          FrontEndPlanningHeader(title: 'Project Summary', onExportPdf: _exportPdf),
           Expanded(
             child: Stack(
               children: [

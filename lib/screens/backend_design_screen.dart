@@ -18,6 +18,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/file_upload_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class BackendDesignScreen extends StatefulWidget {
   const BackendDesignScreen({super.key});
 
@@ -123,7 +124,21 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Backend Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['backend_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _architectureSummaryController.dispose();
     _databaseSummaryController.dispose();
@@ -307,12 +322,11 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
             if (_isLoading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Backend Design',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
             _buildBackendFrameworkGuide(),
             const SizedBox(height: 24),

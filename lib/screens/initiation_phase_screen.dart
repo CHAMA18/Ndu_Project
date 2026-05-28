@@ -37,6 +37,7 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class InitiationPhaseScreen extends StatefulWidget {
   final bool scrollToBusinessCase;
@@ -1001,6 +1002,19 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     }
   }
 
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final businessCase = _businessCaseController.text.trim();
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Business Case',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.text('Business Case', businessCase.isEmpty ? 'No data recorded.' : businessCase),
+      ],
+    );
+  }
+
   String _formatSuggestionError(Object error) {
     if (error is OpenAiNotConfiguredException) {
       return 'Add your OpenAI API key to enable AI suggestions.';
@@ -1250,7 +1264,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
             Column(
               children: [
                 // Top Header
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
                 Expanded(
                   child: Row(
                     children: [

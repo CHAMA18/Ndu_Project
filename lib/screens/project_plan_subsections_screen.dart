@@ -17,6 +17,9 @@ import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
 class ProjectPlanLevel1ScheduleScreen extends StatefulWidget {
   const ProjectPlanLevel1ScheduleScreen({super.key});
 
@@ -312,6 +315,8 @@ class _Level1ScheduleScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Project Schedule', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _TopHeader(
                           title: 'Level 1 - Project Schedule',
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
@@ -910,6 +915,21 @@ class _Level1ScheduleScreenState
       'Dec'
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Plan Subsections',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_plan_subsections_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 
@@ -4726,6 +4746,7 @@ class _TopHeader extends StatelessWidget {
               color: Color(0xFF111827)),
         ),
         const Spacer(),
+        const SizedBox(width: 8),
         const _UserChip(),
       ],
     );

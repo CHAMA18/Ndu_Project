@@ -17,6 +17,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Allowance screen
 /// Refactored to support structured "Program-Aware Financial Inputs".
 ///
@@ -111,7 +112,22 @@ class _FrontEndPlanningAllowanceScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Allowance',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _notes.removeListener(_syncNotesToProvider);
     _notes.dispose();
@@ -880,7 +896,7 @@ class _FrontEndPlanningAllowanceScreenState
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(

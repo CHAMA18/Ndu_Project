@@ -22,13 +22,14 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 // import 'package:ndu_project/widgets/launch_phase_navigation.dart'; // removed: UI redesign
-// import 'package:ndu_project/widgets/planning_phase_header.dart'; // removed: UI redesign
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
+
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 const Color _kSurface = Colors.white;
 const Color _kBorder = Color(0xFFE5E7EB);
@@ -1674,6 +1675,20 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
         .toList(growable: false);
   }
 
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Design Planning',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['design_planning_screen'] ?? 'No data recorded.'),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final projectData = ProjectDataHelper.getData(context);
@@ -1685,12 +1700,8 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          UnifiedPhaseHeader(
-            title: 'Design Planning',
-            breadcrumbPhase: 'Design Phase',
-            breadcrumbTitle: 'Design Planning',
-            onBackPressed: () => Navigator.maybePop(context),
-          ),
+          PlanningPhaseHeader(
+            title: 'Design Planning', onExportPdf: _exportPdf),
           _buildPageContext(projectData),
           Expanded(
             child: SingleChildScrollView(
@@ -4540,7 +4551,7 @@ class _FilterableCreatableDropdownFieldState
     _focusNode = FocusNode();
   }
 
-  @override
+@override
   void didUpdateWidget(covariant _FilterableCreatableDropdownField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {

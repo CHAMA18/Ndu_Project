@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -261,8 +262,7 @@ class _AgileEpicsFeaturesScreenState
                       onBack: () => PlanningPhaseNavigation.goToPrevious(
                           context, 'agile_epics_features'),
                       onForward: () => PlanningPhaseNavigation.goToNext(
-                          context, 'agile_epics_features'),
-                    ),
+                          context, 'agile_epics_features'), onExportPdf: _exportPdf),
                     const SizedBox(height: 32),
                     if (_isLoading)
                       const Center(child: CircularProgressIndicator())
@@ -610,6 +610,21 @@ Widget _buildEpicTile(int index, Epic epic) {
       child: Center(
         child: Text(message, style: TextStyle(color: _kMuted, fontSize: 14)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Epics & Features',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_epics_features_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

@@ -9,8 +9,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:ndu_project/openai/openai_config.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class TeamRolesResponsibilitiesScreen extends StatefulWidget {
   const TeamRolesResponsibilitiesScreen({super.key});
 
@@ -221,6 +224,8 @@ class _TeamRolesResponsibilitiesScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Roles & Responsibilities', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
@@ -907,6 +912,21 @@ class _TeamRolesResponsibilitiesScreenState
     if (shouldDelete == true) {
       await _rolesCollection(projectId).doc(docId).delete();
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Team Roles & Responsibilities',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_team_roles_responsibilities_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

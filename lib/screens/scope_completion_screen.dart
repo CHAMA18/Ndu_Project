@@ -19,6 +19,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ScopeCompletionScreen extends StatefulWidget {
   const ScopeCompletionScreen({super.key});
 
@@ -709,12 +710,11 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Scope Completion',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
                     _buildSectionHeader('Overview'),
           const SizedBox(height: 16),
@@ -3589,6 +3589,21 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                 fontStyle: FontStyle.italic),
           ),
         ),
+      ],
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Scope Completion',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_scope_completion_notes'] ?? 'No data recorded.'),
       ],
     );
   }

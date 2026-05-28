@@ -36,6 +36,7 @@ import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class RiskIdentificationScreen extends StatefulWidget {
   final String notes;
@@ -88,6 +89,38 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     final controller = RichAutoBulletTextController(text: text);
     controller.addListener(_onDataChanged);
     return controller;
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final riskRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length; i++) {
+      final title = i < _solutionTitleControllers.length
+          ? _solutionTitleControllers[i].text.trim()
+          : _solutions[i].title;
+      final displayTitle = title.isEmpty ? 'Solution ${i + 1}' : title;
+      for (int r = 0; r < 3; r++) {
+        final riskText = (i < _riskControllers.length &&
+                r < _riskControllers[i].length)
+            ? _riskControllers[i][r].text.trim()
+            : '';
+        if (riskText.isNotEmpty) {
+          riskRows.add([displayTitle, 'Risk ${r + 1}', riskText]);
+        }
+      }
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Risk Identification',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Risks by Solution',
+          headers: ['Solution', 'Risk #', 'Description'],
+          rows: riskRows,
+        ),
+      ],
+    );
   }
 
   @override
@@ -347,7 +380,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           children: [
             Column(
               children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
                 Expanded(
                   child: Row(
                     children: [

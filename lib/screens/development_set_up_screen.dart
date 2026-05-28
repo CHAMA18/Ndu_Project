@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Development Set Up — CRUD-Enabled Overhaul
@@ -512,11 +514,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
             if (_isLoading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Development Set Up',
               showImportButton: false,
-              showContentButton: false,
-            ),
+              showContentButton: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
             _buildHeroHeader(isMobile: isMobile),
             const SizedBox(height: 24),
@@ -1867,6 +1868,21 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Development Set-Up',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_development_set_up_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

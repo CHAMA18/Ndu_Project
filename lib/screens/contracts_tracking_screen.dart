@@ -21,6 +21,8 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class ContractsTrackingScreen extends StatefulWidget {
   const ContractsTrackingScreen({super.key});
 
@@ -379,12 +381,11 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
             if (_isLoading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Contracts Tracking',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 24),
             _buildContractManagementGuide(),
             const SizedBox(height: 24),
@@ -2280,6 +2281,21 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Contracts Tracking',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_contracts_tracking_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

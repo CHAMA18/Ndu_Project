@@ -23,6 +23,7 @@ import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/staff_team_screen.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Project Opportunities page
 /// Built to match the provided screenshot exactly:
 /// - Left ProgramWorkspaceSidebar
@@ -86,7 +87,22 @@ class _FrontEndPlanningOpportunitiesScreenState
     });
   }
 
-  Future<void> _checkAndAutoGenerateOpportunities() async {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Project Opportunities',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+Future<void> _checkAndAutoGenerateOpportunities() async {
     if (_hasAttemptedInitialAutofill) return;
     if (_isGeneratingOpportunities) return;
     if (_rows.where((r) => r.opportunity.trim().isNotEmpty).isNotEmpty) return;
@@ -543,7 +559,7 @@ Opportunity generation constraints:
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(

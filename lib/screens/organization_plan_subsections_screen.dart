@@ -13,6 +13,23 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/premium_edit_dialog.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
+Future<void> _exportPlanningSubsectionPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Organization Plan',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+        {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['planning_organization_plan_subsections_notes'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class OrganizationRolesResponsibilitiesScreen extends StatefulWidget {
   const OrganizationRolesResponsibilitiesScreen({super.key});
@@ -387,6 +404,21 @@ class _OrganizationRolesResponsibilitiesScreenState
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Organization Plan Subsections',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_organization_plan_subsections_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class OrganizationStaffingPlanScreen extends StatefulWidget {
@@ -400,6 +432,21 @@ class OrganizationStaffingPlanScreen extends StatefulWidget {
 class _OrganizationStaffingPlanScreenState
     extends State<OrganizationStaffingPlanScreen> {
   bool _didAutoPopulate = false;
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Staffing Plan',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['organization_staffing_plan'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 
   @override
   void initState() {
@@ -488,6 +535,8 @@ class _OrganizationStaffingPlanScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Staffing Plan', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         // Header row
                         Row(
                           children: [
@@ -903,6 +952,8 @@ class _PlanningSubsectionScreen extends StatelessWidget {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            PlanningPhaseHeader(title: 'Roles & Responsibilities', showImportButton: false, showContentButton: false, onExportPdf: () => _exportPlanningSubsectionPdf(context)),
+                            const SizedBox(height: 16),
                             _TopHeader(
                               title: config.title,
                               onBack: () =>
@@ -1321,6 +1372,7 @@ class _TopHeader extends StatelessWidget {
             onPressed: onAdd!,
           ),
         const Spacer(),
+        const SizedBox(width: 12),
         const _UserChip(),
       ],
     );

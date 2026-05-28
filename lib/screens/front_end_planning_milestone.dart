@@ -18,6 +18,7 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:intl/intl.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Milestone screen
 /// Allows users to define project start date, key milestones, and end date.
 class FrontEndPlanningMilestoneScreen extends StatefulWidget {
@@ -102,7 +103,22 @@ class _FrontEndPlanningMilestoneScreenState
     });
   }
 
-  void _loadMilestoneData() {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Milestone Planning',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+void _loadMilestoneData() {
     final data = ProjectDataHelper.getData(context);
 
     // Load start and end dates from front end planning notes
@@ -737,7 +753,7 @@ Consider typical project timelines and ensure end date is after start date.''';
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(child: _buildContent()),
                     ],
                   ),

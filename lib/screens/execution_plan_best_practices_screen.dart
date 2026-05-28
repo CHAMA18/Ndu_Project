@@ -9,6 +9,23 @@ import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+
+
+Future<void> _exportPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Best Practices',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_best_practices_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanBestPracticesScreen extends StatelessWidget {
   const ExecutionPlanBestPracticesScreen({super.key});
@@ -36,7 +53,7 @@ class ExecutionPlanBestPracticesScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ExecutionPlanHeader(
-                onBack: () => Navigator.maybePop(context)),
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportPdf(context)),
             const SizedBox(height: 32),
             const SectionIntro(
                 title: 'Execution Plan - Best Practices'),

@@ -3,8 +3,11 @@ import 'package:ndu_project/screens/basic_plan_dashboard_screen.dart';
 import 'program_dashboard_screen.dart';
 import '../widgets/app_logo.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'portfolio_dashboard_screen.dart';
 import 'project_dashboard_screen.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class ManagementLevelScreen extends StatefulWidget {
   const ManagementLevelScreen({super.key});
@@ -137,6 +140,8 @@ class _ManagementLevelScreenState extends State<ManagementLevelScreen> {
 
         final content = Column(
           children: [
+            PlanningPhaseHeader(title: 'Management Level', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+            const SizedBox(height: 16),
             headerBlock,
             if (!shouldFill) SizedBox(height: topSpacing),
             if (shouldFill) const Spacer(),
@@ -268,6 +273,21 @@ class _ManagementLevelScreenState extends State<ManagementLevelScreen> {
         size: 40,
         color: Colors.grey,
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Management Level',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_management_level_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

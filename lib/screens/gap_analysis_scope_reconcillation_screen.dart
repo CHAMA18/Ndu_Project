@@ -19,6 +19,7 @@ import 'package:ndu_project/app_strings.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class GapAnalysisScopeReconcillationScreen extends StatefulWidget {
   const GapAnalysisScopeReconcillationScreen({
     super.key,
@@ -499,6 +500,21 @@ class _GapAnalysisScopeReconcillationScreenState
         ..addAll(updated);
     });
     _schedulePersist();
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Gap Analysis & Scope Reconciliation',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_gap_analysis_scope_reconcillation_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 
@@ -3909,6 +3925,21 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _categoryFilters = {'All'};
 
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Gap Analysis & Scope Reconciliation',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_gap_analysis_scope_reconcillation_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -3929,12 +3960,11 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const PlanningPhaseHeader(
+              PlanningPhaseHeader(
             title: 'Gap Analysis and Scope Reconciliation',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
                             _buildHeader(context, scenarios.length),
               const SizedBox(height: 16),

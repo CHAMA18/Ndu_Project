@@ -9,6 +9,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ExecutionPlanAgileDeliveryPlanScreen extends StatelessWidget {
   const ExecutionPlanAgileDeliveryPlanScreen({super.key});
 
@@ -167,7 +168,21 @@ class PlanDecisionSectionState extends State<PlanDecisionSection> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Agile Delivery Plan',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['execution_plan_agile_delivery_plan_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_didInit) return;
