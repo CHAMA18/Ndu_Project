@@ -332,7 +332,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Stack(
           children: [
             Column(children: [
-              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf)),
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(
