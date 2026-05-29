@@ -10,6 +10,8 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
+
 /// Custom Scope Tracking Table with inline editing, CRUD actions, and AI capabilities
 class ScopeTrackingTableWidget extends StatelessWidget {
   const ScopeTrackingTableWidget({
@@ -432,12 +434,8 @@ class _ScopeTrackingRowWidgetState extends State<_ScopeTrackingRowWidget> {
     } catch (e) {
       debugPrint('Error regenerating verification steps: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate verification steps: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        showAiErrorDialog(context,
+            error: e, onRetry: _regenerateVerificationSteps);
       }
     } finally {
       if (mounted) {

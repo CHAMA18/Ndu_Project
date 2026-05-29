@@ -19,6 +19,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/s_curve_chart.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:ndu_project/widgets/schedule_master_view.dart';
 import 'package:ndu_project/widgets/schedule_gantt_enhanced.dart';
 import 'package:ndu_project/widgets/work_package_dialog.dart';
@@ -61,7 +62,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   final String _ganttSearchQuery = '';
   String _workPackageSortField = 'title'; // title, status, owner, phase, budget
   bool _workPackageSortAscending = true;
-  String _listSortField = 'title'; // title, status, priority, assignee, startDate
+  String _listSortField =
+      'title'; // title, status, priority, assignee, startDate
   bool _listSortAscending = true;
 
   @override
@@ -235,8 +237,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           .doc(projectId)
           .collection('planning_meta')
           .doc('initialization_flags')
-          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-    } catch (e) { debugPrint('Error: $e'); }
+          .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()},
+              SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
   }
 
   void _loadScheduleActivities(ProjectDataModel data) {
@@ -276,11 +281,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           row.predecessorId = null;
         }
       }
-      row.dependencyIds = row.dependencyIds.map((depId) {
-        if (idMapping.containsKey(depId)) return idMapping[depId]!;
-        if (!usedIds.contains(depId)) return null; // will be filtered below
-        return depId;
-      }).whereType<String>().where((id) => id != row.id).toList();
+      row.dependencyIds = row.dependencyIds
+          .map((depId) {
+            if (idMapping.containsKey(depId)) return idMapping[depId]!;
+            if (!usedIds.contains(depId)) return null; // will be filtered below
+            return depId;
+          })
+          .whereType<String>()
+          .where((id) => id != row.id)
+          .toList();
     }
 
     _activityRows
@@ -293,14 +302,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   Future<void> _checkAndAutoImportSchedule() async {
-    final scheduleInitialized = await _isSectionInitialized('schedule_initialized');
+    final scheduleInitialized =
+        await _isSectionInitialized('schedule_initialized');
     if (!scheduleInitialized && mounted) {
       _importFromWbs(showConfirm: false);
     }
   }
 
   Future<void> _checkAndAutoImportScheduleFromBuild() async {
-    final scheduleInitialized = await _isSectionInitialized('schedule_initialized');
+    final scheduleInitialized =
+        await _isSectionInitialized('schedule_initialized');
     if (!scheduleInitialized && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _importFromWbs(showConfirm: false);
@@ -601,7 +612,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
       _handleActivityChanged();
     } catch (error) {
-      _showInfo('Failed to generate schedule: $error');
+      showAiErrorDialog(context,
+          error: error, onRetry: _generateScheduleFromAi);
     } finally {
       if (mounted) {
         setState(() => _isGeneratingSchedule = false);
@@ -736,7 +748,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final predecessorOptions = <_ScheduleRow>[];
     for (final candidate in _activityRows) {
       if (row != null && candidate.id == row.id) continue;
-      if (candidate.id.trim().isEmpty || seenPredIds.contains(candidate.id)) continue;
+      if (candidate.id.trim().isEmpty || seenPredIds.contains(candidate.id))
+        continue;
       seenPredIds.add(candidate.id);
       predecessorOptions.add(candidate);
     }
@@ -1280,9 +1293,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       }
 
       final wpIds = workPackages.map((wp) => wp.id.trim()).toSet();
-      final wpTitles = workPackages
-          .map((wp) => wp.title.trim().toLowerCase())
-          .toSet();
+      final wpTitles =
+          workPackages.map((wp) => wp.title.trim().toLowerCase()).toSet();
 
       for (final spec in doc.specifications) {
         final specTitle = spec.title.trim();
@@ -1292,14 +1304,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         final hasDirectLink = linkedSpecIds.contains(spec.id);
         final hasLinkedWp = spec.wbsWorkPackageId.trim().isNotEmpty &&
             wpIds.contains(spec.wbsWorkPackageId.trim());
-        final hasMatchingTitle =
-            wpTitles.contains(specTitle.toLowerCase());
+        final hasMatchingTitle = wpTitles.contains(specTitle.toLowerCase());
 
         if (!hasDirectLink && !hasLinkedWp && !hasMatchingTitle) {
           warnings.add(_SpecCoverageWarning(
             title: specTitle,
-            detail:
-                'Design specification has no linked work package. '
+            detail: 'Design specification has no linked work package. '
                 '${spec.discipline.isNotEmpty ? "Discipline: ${spec.discipline}." : ""} '
                 'Consider regenerating package chains to auto-link specs.',
           ));
@@ -1310,24 +1320,30 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       // execution packages waiting on them.
       final ewpById = <String, WorkPackage>{};
       for (final wp in workPackages) {
-        if (wp.packageClassification == IntegratedWorkPackageService.engineeringEwp) {
+        if (wp.packageClassification ==
+            IntegratedWorkPackageService.engineeringEwp) {
           ewpById[wp.id] = wp;
         }
       }
       for (final wp in workPackages) {
-        if (wp.packageClassification != IntegratedWorkPackageService.constructionCwp &&
-            wp.packageClassification != IntegratedWorkPackageService.implementationWorkPackage &&
-            wp.packageClassification != IntegratedWorkPackageService.agileIterationPackage) {
+        if (wp.packageClassification !=
+                IntegratedWorkPackageService.constructionCwp &&
+            wp.packageClassification !=
+                IntegratedWorkPackageService.implementationWorkPackage &&
+            wp.packageClassification !=
+                IntegratedWorkPackageService.agileIterationPackage) {
           continue;
         }
         for (final ewpId in wp.linkedEngineeringPackageIds) {
           final ewp = ewpById[ewpId];
           if (ewp != null && !ewp.isReleasedForExecution) {
-            final blockers = IntegratedWorkPackageService.checkEwpReleaseReadiness(ewp);
+            final blockers =
+                IntegratedWorkPackageService.checkEwpReleaseReadiness(ewp);
             if (blockers.isNotEmpty) {
               warnings.add(_SpecCoverageWarning(
                 title: 'EWP not released: ${ewp.title}',
-                detail: 'Execution package "${wp.title}" depends on an unreleased EWP. '
+                detail:
+                    'Execution package "${wp.title}" depends on an unreleased EWP. '
                     '${blockers.length} blocker(s): ${blockers.take(3).join("; ")}'
                     '${blockers.length > 3 ? "..." : ""}',
               ));
@@ -1789,7 +1805,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           description: spec.details,
           type: 'design',
           phase: 'design',
-          status: spec.status.toLowerCase() == 'approved' ? 'completed' : 'planned',
+          status:
+              spec.status.toLowerCase() == 'approved' ? 'completed' : 'planned',
           owner: spec.owner,
           discipline: spec.discipline,
           areaOrSystem: spec.area,
@@ -1895,16 +1912,17 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     // Fix 1.1: Derive procurement scope from EWP deliverables
     // so procurement packages know what design outputs they need.
-    generated = IntegratedWorkPackageService
-        .deriveProcurementScopeFromEwpDeliverables(generated);
+    generated =
+        IntegratedWorkPackageService.deriveProcurementScopeFromEwpDeliverables(
+            generated);
 
     // Phase 2.3: Roll up child costs/dates into parent packages
-    generated = IntegratedWorkPackageService
-        .rollUpChildCostsAndDates(generated);
+    generated =
+        IntegratedWorkPackageService.rollUpChildCostsAndDates(generated);
 
     // Phase 6: Enforce estimate basis (auto-populate missing fields)
-    generated = IntegratedWorkPackageService
-        .enforceEstimateBasis(generated, methodology: _selectedMethodology);
+    generated = IntegratedWorkPackageService.enforceEstimateBasis(generated,
+        methodology: _selectedMethodology);
 
     if (generated.isEmpty) {
       _showInfo('No WBS leaf node package candidates found.');
@@ -1921,7 +1939,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     // Count spec-linked deliverables for user info
     final specLinkedCount = newPackages
-        .where((wp) => wp.packageClassification == IntegratedWorkPackageService.engineeringEwp)
+        .where((wp) =>
+            wp.packageClassification ==
+            IntegratedWorkPackageService.engineeringEwp)
         .expand((wp) => wp.deliverables)
         .where((d) => d.linkedSpecificationIds.isNotEmpty)
         .length;
@@ -2040,8 +2060,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
     provider.updateField((data) => data.copyWith(keyMilestones: merged));
 
-    final success =
-        await provider.saveToFirebase(checkpoint: 'schedule');
+    final success = await provider.saveToFirebase(checkpoint: 'schedule');
     if (!mounted) return;
     if (success) {
       _showInfo('Synced ${generated.length} schedule milestones.');
@@ -2459,11 +2478,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     ),
                   ),
                   MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Schedule',
-                      ),
+                    sidebar: const InitiationLikeSidebar(
+                      activeItemLabel: 'Schedule',
                     ),
-                    const KazAiChatBubble(),
+                  ),
+                  const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -2535,7 +2554,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             case 'status':
               cmp = a.status.toLowerCase().compareTo(b.status.toLowerCase());
             case 'priority':
-              cmp = a.priority.toLowerCase().compareTo(b.priority.toLowerCase());
+              cmp =
+                  a.priority.toLowerCase().compareTo(b.priority.toLowerCase());
             case 'assignee':
               cmp = a.assigneeController.text
                   .toLowerCase()
@@ -2558,11 +2578,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           onSearchChanged: (q) => setState(() => _timelineSearchQuery = q),
           sortField: _listSortField,
           sortAscending: _listSortAscending,
-          onSortChanged: (field, ascending) =>
-              setState(() {
-                _listSortField = field;
-                _listSortAscending = ascending;
-              }),
+          onSortChanged: (field, ascending) => setState(() {
+            _listSortField = field;
+            _listSortAscending = ascending;
+          }),
           child: _TimelineList(
             rows: filteredListRows,
             computed: computed,
@@ -2661,11 +2680,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           onSearchChanged: (q) => setState(() => _workPackageSearchQuery = q),
           sortField: _workPackageSortField,
           sortAscending: _workPackageSortAscending,
-          onSortChanged: (field, ascending) =>
-              setState(() {
-                _workPackageSortField = field;
-                _workPackageSortAscending = ascending;
-              }),
+          onSortChanged: (field, ascending) => setState(() {
+            _workPackageSortField = field;
+            _workPackageSortAscending = ascending;
+          }),
         );
       case 5:
         return _ProcurementTimelineTab(
@@ -3019,8 +3037,8 @@ class _TimelineWorkspaceCard extends StatelessWidget {
                       : null,
                   filled: true,
                   fillColor: const Color(0xFFF9FAFB),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 0),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: AppSemanticColors.border),
@@ -3031,8 +3049,8 @@ class _TimelineWorkspaceCard extends StatelessWidget {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                        color: Color(0xFFF59E0B), width: 1.5),
+                    borderSide:
+                        const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
                   ),
                 ),
               ),
@@ -3041,8 +3059,7 @@ class _TimelineWorkspaceCard extends StatelessWidget {
           if (onSortChanged != null) ...[
             const SizedBox(height: 8),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(8),
@@ -3067,8 +3084,7 @@ class _TimelineWorkspaceCard extends StatelessWidget {
                         color: Color(0xFF374151),
                       ),
                       items: const [
-                        DropdownMenuItem(
-                            value: 'title', child: Text('Title')),
+                        DropdownMenuItem(value: 'title', child: Text('Title')),
                         DropdownMenuItem(
                             value: 'status', child: Text('Status')),
                         DropdownMenuItem(
@@ -3082,19 +3098,16 @@ class _TimelineWorkspaceCard extends StatelessWidget {
                   ),
                   IconButton(
                     icon: Icon(
-                      sortAscending
-                          ? Icons.arrow_upward
-                          : Icons.arrow_downward,
+                      sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                       size: 16,
                     ),
                     onPressed: () {
                       onSortChanged!(sortField, !sortAscending);
                     },
-                    tooltip: sortAscending
-                        ? 'Sort ascending'
-                        : 'Sort descending',
-                    constraints: const BoxConstraints(
-                        minWidth: 28, minHeight: 28),
+                    tooltip:
+                        sortAscending ? 'Sort ascending' : 'Sort descending',
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
                     padding: EdgeInsets.zero,
                   ),
                 ],
@@ -4862,13 +4875,11 @@ class _WorkPackagesTab extends StatelessWidget {
                           horizontal: 12, vertical: 0),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppSemanticColors.border),
+                        borderSide: BorderSide(color: AppSemanticColors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: AppSemanticColors.border),
+                        borderSide: BorderSide(color: AppSemanticColors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -4892,7 +4903,8 @@ class _WorkPackagesTab extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.sort, size: 14, color: Color(0xFF6B7280)),
+                      const Icon(Icons.sort,
+                          size: 14, color: Color(0xFF6B7280)),
                       const SizedBox(width: 4),
                       DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
@@ -4934,8 +4946,8 @@ class _WorkPackagesTab extends StatelessWidget {
                         tooltip: sortAscending
                             ? 'Sort ascending'
                             : 'Sort descending',
-                        constraints: const BoxConstraints(
-                            minWidth: 28, minHeight: 28),
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
                         padding: EdgeInsets.zero,
                       ),
                     ],
@@ -5062,9 +5074,7 @@ class _WorkPackageCardState extends State<_WorkPackageCard> {
               children: [
                 Expanded(
                   child: Text(
-                    wp.title.isNotEmpty
-                        ? wp.title
-                        : 'Untitled Work Package',
+                    wp.title.isNotEmpty ? wp.title : 'Untitled Work Package',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -5147,9 +5157,7 @@ class _WorkPackageCardState extends State<_WorkPackageCard> {
                     size: 14, color: Color(0xFF6B7280)),
                 const SizedBox(width: 4),
                 Text(
-                  wp.owner.isNotEmpty
-                      ? wp.owner
-                      : 'Unassigned',
+                  wp.owner.isNotEmpty ? wp.owner : 'Unassigned',
                   style:
                       const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                 ),
@@ -5158,9 +5166,7 @@ class _WorkPackageCardState extends State<_WorkPackageCard> {
                     size: 14, color: Color(0xFF6B7280)),
                 const SizedBox(width: 4),
                 Text(
-                  wp.type.isNotEmpty
-                      ? wp.type.toUpperCase()
-                      : 'N/A',
+                  wp.type.isNotEmpty ? wp.type.toUpperCase() : 'N/A',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -5255,8 +5261,8 @@ class _WorkPackageCardState extends State<_WorkPackageCard> {
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF3F4F6),
                       borderRadius: BorderRadius.circular(6),

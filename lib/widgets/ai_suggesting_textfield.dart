@@ -317,8 +317,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
             sectionLabel: section)
         : ProjectDataHelper.buildFepContext(data, sectionLabel: section);
     final contextText = primaryContext.trim().isEmpty
-        ? ProjectDataHelper.buildProjectContextScan(data,
-            sectionLabel: section)
+        ? ProjectDataHelper.buildProjectContextScan(data, sectionLabel: section)
         : primaryContext;
     if (contextText.trim().isEmpty) return;
 
@@ -442,7 +441,11 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
               'OpenAI API key not configured. Please add your API key to enable AI suggestions.';
         } else {
           final warn = OpenAiConfig.configurationWarning();
-          _error = warn ?? e.toString();
+          if (warn != null) {
+            _error = warn;
+          } else {
+            _error = 'AI suggestions unavailable. Please try again.';
+          }
         }
         _loading = false;
       });
@@ -660,22 +663,27 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                       height: 32,
                                       margin: const EdgeInsets.only(right: 4),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFFB800).withOpacity(0.15),
+                                        color: const Color(0xFFFFB800)
+                                            .withOpacity(0.15),
                                         shape: BoxShape.circle,
                                       ),
                                       child: IconButton(
-                                        icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 16),
+                                        icon: const Icon(Icons.mic,
+                                            color: Color(0xFFFFB800), size: 16),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                        constraints: const BoxConstraints(
+                                            minWidth: 32, minHeight: 32),
                                         onPressed: _toggleVoiceInput,
                                         tooltip: 'Stop voice input',
                                       ),
                                     )
                                   else
                                     IconButton(
-                                      icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 16),
+                                      icon: const Icon(Icons.mic_none_outlined,
+                                          color: Color(0xFFFFB800), size: 16),
                                       padding: const EdgeInsets.only(right: 4),
-                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 32, minHeight: 32),
                                       onPressed: _toggleVoiceInput,
                                       tooltip: 'Voice input',
                                     ),
@@ -689,19 +697,23 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                   height: 36,
                                   margin: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFFB800).withOpacity(0.15),
+                                    color: const Color(0xFFFFB800)
+                                        .withOpacity(0.15),
                                     shape: BoxShape.circle,
                                   ),
                                   child: IconButton(
-                                    icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 18),
+                                    icon: const Icon(Icons.mic,
+                                        color: Color(0xFFFFB800), size: 18),
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    constraints: const BoxConstraints(
+                                        minWidth: 36, minHeight: 36),
                                     onPressed: _toggleVoiceInput,
                                     tooltip: 'Stop voice input',
                                   ),
                                 )
                               : IconButton(
-                                  icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 18),
+                                  icon: const Icon(Icons.mic_none_outlined,
+                                      color: Color(0xFFFFB800), size: 18),
                                   onPressed: _toggleVoiceInput,
                                   tooltip: 'Voice input',
                                 ))
@@ -756,21 +768,21 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF2F2),
+              color: const Color(0xFFFEF3C7),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFCA5A5)),
+              border: Border.all(color: const Color(0xFFFCD34D)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.warning_amber_rounded,
-                    size: 18, color: Color(0xFFB91C1C)),
+                const Icon(Icons.info_outline,
+                    size: 18, color: Color(0xFFD97706)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _error!,
                     style: const TextStyle(
-                        fontSize: 13, color: Color(0xFFB91C1C), height: 1.4),
+                        fontSize: 13, color: Color(0xFF92400E), height: 1.4),
                   ),
                 ),
               ],

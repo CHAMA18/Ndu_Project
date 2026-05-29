@@ -13,6 +13,7 @@ import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/services/auth_nav.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
@@ -312,9 +313,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to regenerate notes: $e')),
-      );
+      showAiErrorDialog(context, error: e, onRetry: _regenerateNotesField);
     }
   }
 
@@ -437,11 +436,11 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
               ],
             ),
             MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Potential Solutions',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Potential Solutions',
+              ),
+            ),
+            const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),
@@ -2065,9 +2064,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoadingSolutions = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Failed to regenerate solutions: $e')),
-      );
+      showAiErrorDialog(context, error: e, onRetry: _regenerateAllSolutions);
     }
   }
 
@@ -2114,8 +2111,11 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-          SnackBar(content: Text('Failed to regenerate field: $e')));
+      showAiErrorDialog(
+        context,
+        error: e,
+        onRetry: () => _regenerateSolutionField(solution, fieldName),
+      );
     }
   }
 

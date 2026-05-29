@@ -9,6 +9,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:shimmer/shimmer.dart';
 // Use a relative import to avoid rare web hot-reload library resolution issues
 import '../utils/diagram_model.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // D2 — Colour-coded node renderer
@@ -639,10 +640,8 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      setState(() => _loading = false);
+      showAiErrorDialog(context, error: e, onRetry: _generate);
     }
   }
 
@@ -795,8 +794,29 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
         ),
         if ((_error ?? '').isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(_error!,
-              style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFCD34D)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline,
+                    size: 16, color: Color(0xFFD97706)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF92400E), height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
         // ── Refinement hints (shown when a diagram exists) ─────────────────
         if (_diagram != null && !_loading) ...[

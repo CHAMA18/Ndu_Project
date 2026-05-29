@@ -26,6 +26,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -1260,7 +1261,15 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
       _showToast('$section generated from project context.');
     } catch (e) {
       if (!mounted) return;
-      _showToast('AI generation failed for $section: ${e.toString()}');
+      showAiErrorDialog(
+        context,
+        error: e,
+        onRetry: () => _runAiGenerate(
+          key: key,
+          section: section,
+          controller: controller,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _aiGenerating[key] = false);
@@ -1954,13 +1963,15 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
         InnerPageNavigationHint(
           pageId: 'design_planning',
           pageTitle: 'Design Planning',
-          description: 'This page has 14 guided sections. Complete each in order to advance.',
+          description:
+              'This page has 14 guided sections. Complete each in order to advance.',
           accentColor: _kPrimary,
           currentSectionId: _activeSectionId,
           sections: _sectionOrder.asMap().entries.map((entry) {
             final index = entry.key;
             final section = entry.value;
-            final progress = _sectionProgress[section.id] ?? _SectionProgressState.pending;
+            final progress =
+                _sectionProgress[section.id] ?? _SectionProgressState.pending;
             return InnerPageSection(
               id: section.id,
               label: section.label,
@@ -1988,7 +1999,8 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
     );
   }
 
-  InnerPageSectionStatus _mapSectionProgress(_SectionProgressState state, String sectionId) {
+  InnerPageSectionStatus _mapSectionProgress(
+      _SectionProgressState state, String sectionId) {
     final isCurrent = sectionId == _activeSectionId;
     if (isCurrent) return InnerPageSectionStatus.current;
     switch (state) {
@@ -4911,8 +4923,7 @@ class _RequirementMultiSelectFieldState
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () {
-                          final newSelection =
-                              selected.toList(growable: false);
+                          final newSelection = selected.toList(growable: false);
                           widget.onChanged(newSelection);
                           setState(() => _localSelection = newSelection);
                           Navigator.of(context).pop();

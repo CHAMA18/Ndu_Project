@@ -8,6 +8,8 @@ import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/vendor_service.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
+
 class ProcurementAssignableMemberOption {
   const ProcurementAssignableMemberOption({
     required this.id,
@@ -521,9 +523,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isGenerating = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate item: ${e.toString()}')),
-        );
+        showAiErrorDialog(context, error: e, onRetry: _generateWithAI);
       }
     }
   }
@@ -1287,13 +1287,7 @@ class _AddVendorDialogState extends State<AddVendorDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isGenerating = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to generate ${widget.partnerLabel.toLowerCase()}: ${e.toString()}',
-            ),
-          ),
-        );
+        showAiErrorDialog(context, error: e, onRetry: _generateWithAI);
       }
     }
   }

@@ -288,10 +288,12 @@ class _FrontEndPlanningProcurementScreenState
           snapshot = await _workflowCollection(projectId).get();
           break;
         } catch (e) {
-          final isAssertionError = e.toString().contains('INTERNAL ASSERTION') ||
-              e.toString().contains('Unexpected state');
+          final isAssertionError =
+              e.toString().contains('INTERNAL ASSERTION') ||
+                  e.toString().contains('Unexpected state');
           if (!isAssertionError || attempt == 3) rethrow;
-          await Future<void>.delayed(Duration(milliseconds: 500 * (1 << (attempt - 1))));
+          await Future<void>.delayed(
+              Duration(milliseconds: 500 * (1 << (attempt - 1))));
         }
       }
 
@@ -5314,10 +5316,10 @@ class _FrontEndPlanningProcurementScreenState
                 child: SingleChildScrollView(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Removed duplicate top bar to avoid a second app header.
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Removed duplicate top bar to avoid a second app header.
                       _buildStreamErrorBanner(),
                       const SizedBox(height: 24),
                       PlanningAiNotesCard(
@@ -5326,7 +5328,6 @@ class _FrontEndPlanningProcurementScreenState
                         noteKey: _procurementNotesKey,
                         checkpoint: _checkpointId,
                         fieldKey: _notesFieldKey,
-                        errorText: _validationErrors['procurement_notes'],
                         onChanged: _handleNotesChanged,
                         fallbackText: ProjectDataHelper.getData(context)
                             .frontEndPlanning
@@ -5373,7 +5374,9 @@ class _FrontEndPlanningProcurementScreenState
                       ),
                       const SizedBox(height: 16),
                       InnerPageNavigationHint(
-                        pageId: _isPlanningMode ? 'planning_procurement' : 'fep_procurement',
+                        pageId: _isPlanningMode
+                            ? 'planning_procurement'
+                            : 'fep_procurement',
                         pageTitle: 'Procurement',
                         description: 'Navigate between procurement sections',
                         currentSectionId: _selectedTab.name,
@@ -5385,7 +5388,8 @@ class _FrontEndPlanningProcurementScreenState
                           _handleTabSelected(tab);
                         },
                         sections: _ProcurementTab.values.map((tab) {
-                          final isRestricted = _tabsWithRestrictedAccess.contains(tab);
+                          final isRestricted =
+                              _tabsWithRestrictedAccess.contains(tab);
                           final isCurrent = tab == _selectedTab;
                           return InnerPageSection(
                             id: tab.name,

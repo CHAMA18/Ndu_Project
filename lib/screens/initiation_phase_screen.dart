@@ -13,6 +13,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import '../widgets/content_text.dart';
 import '../services/auth_nav.dart';
 import '../openai/openai_config.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 // Removed AppLogo from header per request
 import 'package:ndu_project/screens/home_screen.dart';
@@ -141,9 +142,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   List<String> _notesSuggestions = [];
   List<String> _businessSuggestions = [];
 
-  // ignore: unused_field
-  String? _notesSuggestionError;
-  String? _businessSuggestionError;
+  bool _suggestionErrorNotified = false;
 
   String _notesLastQuery = '';
   String _businessLastQuery = '';
@@ -260,7 +259,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       setState(() {
         _notesSuggestions = [];
         _notesSuggestLoading = false;
-        _notesSuggestionError = null;
         _notesLastQuery = '';
       });
       return;
@@ -278,7 +276,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       setState(() {
         _businessSuggestions = [];
         _businessSuggestLoading = false;
-        _businessSuggestionError = null;
         _businessLastQuery = '';
       });
       return;
@@ -299,7 +296,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
     setState(() {
       _notesSuggestLoading = true;
-      _notesSuggestionError = null;
     });
 
     try {
@@ -315,22 +311,17 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         _notesSuggestLoading = false;
         _notesLastQuery = text;
       });
-    } on OpenAiNotConfiguredException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _notesSuggestions = [];
-        _notesSuggestLoading = false;
-        _notesSuggestionError = _formatSuggestionError(e);
-        _notesLastQuery = text;
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _notesSuggestions = [];
         _notesSuggestLoading = false;
-        _notesSuggestionError = _formatSuggestionError(e);
         _notesLastQuery = text;
       });
+      if (!_suggestionErrorNotified) {
+        _suggestionErrorNotified = true;
+        showAiErrorDialog(context, error: e);
+      }
     }
   }
 
@@ -346,7 +337,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
     setState(() {
       _businessSuggestLoading = true;
-      _businessSuggestionError = null;
     });
 
     try {
@@ -362,22 +352,17 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         _businessSuggestLoading = false;
         _businessLastQuery = text;
       });
-    } on OpenAiNotConfiguredException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _businessSuggestions = [];
-        _businessSuggestLoading = false;
-        _businessSuggestionError = _formatSuggestionError(e);
-        _businessLastQuery = text;
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _businessSuggestions = [];
         _businessSuggestLoading = false;
-        _businessSuggestionError = _formatSuggestionError(e);
         _businessLastQuery = text;
       });
+      if (!_suggestionErrorNotified) {
+        _suggestionErrorNotified = true;
+        showAiErrorDialog(context, error: e);
+      }
     }
   }
 
@@ -473,12 +458,15 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     setState(() {});
   }
 
-  // ignore: unused_element
-  void _retryNotesSuggestions() =>
-      _fetchNotesSuggestions(_notesController.text.trim());
+  void _retryNotesSuggestions() {
+    _suggestionErrorNotified = false;
+    _fetchNotesSuggestions(_notesController.text.trim());
+  }
 
-  void _retryBusinessSuggestions() =>
-      _fetchBusinessSuggestions(_businessCaseController.text.trim());
+  void _retryBusinessSuggestions() {
+    _suggestionErrorNotified = false;
+    _fetchBusinessSuggestions(_businessCaseController.text.trim());
+  }
 
   Future<void> _handleNextPressed() async {
     final notes = _notesController.text.trim();
@@ -602,14 +590,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() => _isGeneratingAI = false);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate Business Case: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        showAiErrorDialog(context, error: e, onRetry: _handleSkipPressed);
         return;
       }
     }
@@ -1058,7 +1039,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     }
 
     final borderColor =
-        hasError ? Colors.red.withOpacity(0.2) : Colors.grey.withOpacity(0.2);
+        hasError ? const Color(0xFFFCD34D) : Colors.grey.withOpacity(0.2);
     final canRefresh = !loading && OpenAiConfig.isConfigured;
 
     return Container(
@@ -1125,11 +1106,30 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               ),
             ),
           if (!loading && hasError)
-            Text(
-              error!,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.red[600],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline,
+                      size: 16, color: Color(0xFFD97706)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      error!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF92400E),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           if (!loading && hasSuggestions) ...[
@@ -1280,11 +1280,11 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               ],
             ),
             MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Business Case Detail',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Business Case Detail',
+              ),
+            ),
+            const KazAiChatBubble(),
             const AdminEditToggle(),
             // Loading overlay for AI generation
             if (_isGeneratingAI)
@@ -2157,11 +2157,10 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               child: _buildSuggestionPanel(
                 show: _businessFocusNode.hasFocus ||
                     _businessSuggestLoading ||
-                    _businessSuggestions.isNotEmpty ||
-                    (_businessSuggestionError?.trim().isNotEmpty ?? false),
+                    _businessSuggestions.isNotEmpty,
                 loading: _businessSuggestLoading,
                 suggestions: _businessSuggestions,
-                error: _businessSuggestionError,
+                error: null,
                 label: 'AI suggestions for the business case',
                 onRefresh: _retryBusinessSuggestions,
                 onUndo: _businessUndoStack.isEmpty

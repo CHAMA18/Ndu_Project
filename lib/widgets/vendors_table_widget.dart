@@ -6,6 +6,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 
 /// World-class Vendor Scorecard Table
 /// Professional design with rich data visualization, inline editing, and AI capabilities
@@ -67,10 +68,12 @@ class VendorsTableWidget extends StatelessWidget {
                   label: _TableHeader('Vendor', icon: Icons.business_outlined),
                 ),
                 DataColumn(
-                  label: _TableHeader('Category', icon: Icons.category_outlined),
+                  label:
+                      _TableHeader('Category', icon: Icons.category_outlined),
                 ),
                 DataColumn(
-                  label: _TableHeader('Criticality', icon: Icons.signal_cellular_alt),
+                  label: _TableHeader('Criticality',
+                      icon: Icons.signal_cellular_alt),
                 ),
                 DataColumn(
                   label: _TableHeader('SLA', icon: Icons.verified_outlined),
@@ -82,7 +85,8 @@ class VendorsTableWidget extends StatelessWidget {
                   label: _TableHeader('Status', icon: Icons.circle_outlined),
                 ),
                 DataColumn(
-                  label: _TableHeader('Lead Time', icon: Icons.schedule_outlined),
+                  label:
+                      _TableHeader('Lead Time', icon: Icons.schedule_outlined),
                 ),
                 DataColumn(
                   label: _TableHeader('Actions', icon: Icons.more_horiz),
@@ -97,9 +101,7 @@ class VendorsTableWidget extends StatelessWidget {
                     if (states.contains(WidgetState.hovered)) {
                       return const Color(0xFFF0F7FF);
                     }
-                    return index.isOdd
-                        ? const Color(0xFFFAFCFF)
-                        : Colors.white;
+                    return index.isOdd ? const Color(0xFFFAFCFF) : Colors.white;
                   }),
                   cells: [
                     // Vendor Name
@@ -364,10 +366,8 @@ class _CategoryCell extends StatelessWidget {
       items: _categoryIcons.keys
           .map((cat) => DropdownMenuItem(
                 value: cat,
-                child: _categoryPill(
-                    _categoryIcons[cat] ?? Icons.label_outline,
-                    _categoryColors[cat] ?? const Color(0xFF64748B),
-                    cat),
+                child: _categoryPill(_categoryIcons[cat] ?? Icons.label_outline,
+                    _categoryColors[cat] ?? const Color(0xFF64748B), cat),
               ))
           .toList(),
       onChanged: (v) {
@@ -478,8 +478,7 @@ class _CriticalityCell extends StatelessWidget {
       items: ['High', 'Medium', 'Low']
           .map((crit) => DropdownMenuItem(
                 value: crit,
-                child: _criticalityBadge(
-                    _getColor(crit), _getIcon(crit), crit),
+                child: _criticalityBadge(_getColor(crit), _getIcon(crit), crit),
               ))
           .toList(),
       onChanged: (v) {
@@ -588,7 +587,11 @@ class _SlaCell extends StatelessWidget {
                 ),
               ),
               Text(
-                vendor.onTimeDelivery >= 0.8 ? 'On track' : vendor.onTimeDelivery >= 0.6 ? 'At risk' : 'Behind',
+                vendor.onTimeDelivery >= 0.8
+                    ? 'On track'
+                    : vendor.onTimeDelivery >= 0.6
+                        ? 'At risk'
+                        : 'Behind',
                 style: TextStyle(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
@@ -653,8 +656,8 @@ class _RatingCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rating = vendor.rating.toUpperCase();
-    final config = _ratingConfig[rating] ??
-        (const Color(0xFF9CA3AF), 'Unrated');
+    final config =
+        _ratingConfig[rating] ?? (const Color(0xFF9CA3AF), 'Unrated');
     final color = config.$1;
     final tooltip = config.$2;
 
@@ -932,12 +935,7 @@ class _ActionsCellState extends State<_ActionsCell> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error regenerating SLA terms: $e'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        showAiErrorDialog(context, error: e, onRetry: _regenerateSLATerms);
       }
     } finally {
       if (mounted) setState(() => _isRegenerating = false);
@@ -1084,7 +1082,9 @@ class _ActionsCellState extends State<_ActionsCell> {
   }
 
   Widget _actionIcon(IconData icon,
-      {required Color color, required String tooltip, VoidCallback? onPressed}) {
+      {required Color color,
+      required String tooltip,
+      VoidCallback? onPressed}) {
     return IconButton(
       icon: Icon(icon, size: 16, color: color),
       onPressed: onPressed,
